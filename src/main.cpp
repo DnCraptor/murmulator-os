@@ -16,6 +16,7 @@ extern "C" {
 #include "task.h"
 
 #include "tests.h"
+#include "sys_table.h"
 }
 
 //#include "ff.h"
@@ -463,6 +464,7 @@ int main() {
 	/* Start the scheduler. */
 	vTaskStartScheduler();
     draw_text("Failed", 0, 4, 13, 1);
+    sys_table_ptrs[0]; // to ensure linked (TODO: other way)
 
 	/* If all is well, the scheduler will now be running, and the following
 	line will never be reached.  If the following line does execute, then
