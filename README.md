@@ -9,7 +9,7 @@ Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/
 
 # Optional
 There are several features to be supported, like external PSRAM and DAC, are availbel on more featured murmulator versions.<br/>
-Let use translate from russion on site https://murmulator.ru/types, for case it is required for you.
+Let use translate from russian on site https://murmulator.ru/types, for case it is required for you.
 
 # Current state
 RP2040 core 0: starts FreeRTOS (based on https://github.com/FreeRTOS/FreeRTOS-Community-Supported-Demos/tree/3d475bddf7ac8af425da67cdaa2485e90a57a881/CORTEX_M0%2B_RP2040) <br/>
