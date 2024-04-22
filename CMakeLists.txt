@@ -33,10 +33,10 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(FAMILY rp2040)
 set(BOARD pico_sdk)
 
-#add_subdirectory(drivers/ps2)
-#add_subdirectory(drivers/fatfs)
-#add_subdirectory(drivers/sdcard)
-#add_subdirectory(drivers/nespad)
+add_subdirectory(drivers/ps2)
+add_subdirectory(drivers/fatfs)
+add_subdirectory(drivers/sdcard)
+add_subdirectory(drivers/nespad)
 
 add_subdirectory(drivers/vga-nextgen)
 #add_subdirectory(drivers/st7789)
@@ -67,10 +67,10 @@ pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS")
 pico_set_program_version(${PROJECT_NAME} "test")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-       # ps2
-       # sdcard
-       # fatfs
-       # nespad
+        ps2
+        sdcard
+        fatfs
+        nespad
 
         graphics
 

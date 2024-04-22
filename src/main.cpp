@@ -10,7 +10,8 @@
 #include "graphics.h"
 
 extern "C" {
-//#include "ps2.h"
+#include "ps2.h"
+#include "ff.h"
 //#include "usb.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -19,10 +20,9 @@ extern "C" {
 #include "sys_table.h"
 }
 
-//#include "ff.h"
-//#include "nespad.h"
+#include "nespad.h"
 
-//static FATFS fs;
+static FATFS fs;
 semaphore vga_start_semaphore;
 #define DISP_WIDTH (320)
 #define DISP_HEIGHT (240)
@@ -430,9 +430,9 @@ int main() {
     sleep_ms(10);
     set_sys_clock_khz(252 * KHZ, true);
 
- ///   keyboard_init();
-    //keyboard_send(0xFF);
-///nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
+    keyboard_init();
+    keyboard_send(0xFF);
+    nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
 #if 0
     for (int i = 20; i--;) {
         nespad_read();
@@ -452,7 +452,9 @@ int main() {
 
             sleep_ms(30);
             clrScr(1);
-            draw_text("Test", 0, 0, 13, 1);
+            char tmp[32];
+            snprintf(tmp, 32, "sys_table_ptrs: %ph", &sys_table_ptrs[0]);
+            draw_text(tmp, 0, 0, 13, 1);
 #if 0
             filebrowser("", "uf2");
         }
@@ -460,11 +462,17 @@ int main() {
 
     run_application();
 #endif
+    if (FR_OK != f_mount(&fs, "SD", 1)) {
+        draw_text("SD Card not inserted or SD Card error!", 0, 0, 12, 0);
+        while (true);
+    }
+
     start_test();
 	/* Start the scheduler. */
 	vTaskStartScheduler();
     draw_text("Failed", 0, 4, 13, 1);
-    sys_table_ptrs[0]; // to ensure linked (TODO: other way)
+    size_t i = 0;
+    while(sys_table_ptrs[++i]); // to ensure linked (TODO: other way)
 
 	/* If all is well, the scheduler will now be running, and the following
 	line will never be reached.  If the following line does execute, then
