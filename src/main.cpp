@@ -18,6 +18,7 @@ extern "C" {
 
 #include "tests.h"
 #include "sys_table.h"
+#include "portable.h"
 }
 
 #include "nespad.h"
@@ -42,8 +43,7 @@ struct UF2_Block_t {
 } UF2_Block_t;
 
 
-uint16_t SCREEN[TEXTMODE_ROWS][TEXTMODE_COLS];
-
+static uint8_t* SCREEN = 0;
 
 static uint32_t input;
 
@@ -433,6 +433,8 @@ int main() {
     keyboard_init();
     keyboard_send(0xFF);
     nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
+
+    SCREEN = (uint8_t*)pvPortMalloc(80 * 30 * 2);
 #if 0
     for (int i = 20; i--;) {
         nespad_read();

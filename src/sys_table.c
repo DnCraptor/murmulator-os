@@ -4,6 +4,8 @@
 #include "graphics.h"
 #include "ff.h"
 #include "hooks.h"
+#include "portable.h"
+#include "timers.h" // TODO
 
 unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     // task.h
