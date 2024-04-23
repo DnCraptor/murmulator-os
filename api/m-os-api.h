@@ -37,8 +37,9 @@ static const unsigned long * const _sys_table_ptrs = M_OS_API_SYA_TABLE_BASE;
 #define _getApplicationStackOverflowHookPtrPtrIdx 27
 #define _setApplicationStackOverflowHookPtrPtrIdx 28
 
+#define _snprintfPtrIdx 29
 
-#define _draw_text_ptr_idx 29
+#define _draw_text_ptr_idx 30
 
 
 /*-----------------------------------------------------------
@@ -475,6 +476,10 @@ typedef vApplicationStackOverflowHookPtr (*getApplicationStackOverflowHookPtr_pt
 typedef void (*setApplicationStackOverflowHookPtr_ptr_t)(vApplicationStackOverflowHookPtr ptr);
 #define getApplicationStackOverflowHookPtr ((getApplicationStackOverflowHookPtr_ptr_t)_sys_table_ptrs[_getApplicationStackOverflowHookPtrPtrIdx])
 #define setApplicationStackOverflowHookPtr ((setApplicationStackOverflowHookPtr_ptr_t)_sys_table_ptrs[_setApplicationStackOverflowHookPtrPtrIdx])
+
+//#include <stdio.h>
+typedef int	(*snprintf_ptr_t)(char *__restrict, size_t, const char *__restrict, ...) _ATTRIBUTE ((__format__ (__printf__, 3, 4)));
+#define snprintf ((snprintf_ptr_t)_sys_table_ptrs[_snprintfPtrIdx])
 
 // grapthics.h
 typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor);

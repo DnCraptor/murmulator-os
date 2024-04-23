@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "sys_table.h"
@@ -39,9 +40,10 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     setApplicationMallocFailedHookPtr, // 26
     getApplicationStackOverflowHookPtr, // 27
     setApplicationStackOverflowHookPtr, // 28
-
+    // #include <stdio.h>
+    snprintf, // 29
     // graphics.h
-    draw_text, // 
+    draw_text, // 30 
     draw_window, // 
     // TODO:
     0

@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.22)
 include(pico_sdk_import.cmake)
 
+option(FLASH_SIZE "Target Flash Size" 4096)
+
+if(NOT FLASH_SIZE)
+set(FLASH_SIZE 4096)
+endif ()
+
+
 project(murmulator-os-demo C CXX ASM)
 pico_sdk_init()
 
@@ -40,6 +47,9 @@ pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS Demo")
 pico_set_program_version(${PROJECT_NAME} "test")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
+    pico_runtime
+    pico_stdlib
+        
 )
 
 #family_configure_device_example(${PROJECT_NAME} noos)
