@@ -35,8 +35,11 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     // TODO: hooks support?
     getApplicationMallocFailedHookPtr, // 25
     setApplicationMallocFailedHookPtr, // 26
+    getApplicationStackOverflowHookPtr, // 27
+    setApplicationStackOverflowHookPtr, // 28
+
     // graphics.h
-    draw_text, // 27
+    draw_text, // 
     draw_window, // 
     // TODO:
     0

@@ -74,9 +74,7 @@ void setApplicationMallocFailedHookPtr(vApplicationMallocFailedHookPtr ptr) {
     _vApplicationMallocFailedHookPtr = ptr;
 }
 
-
 /*-----------------------------------------------------------*/
-
 void vApplicationMallocFailedHook( void )
 {
     /* Called if a call to pvPortMalloc() fails because there is insufficient
@@ -85,21 +83,30 @@ void vApplicationMallocFailedHook( void )
     timers, and semaphores.  The size of the FreeRTOS heap is set by the
     configTOTAL_HEAP_SIZE configuration constant in FreeRTOSConfig.h. */
     if (_vApplicationMallocFailedHookPtr) _vApplicationMallocFailedHookPtr();
+    else {
+        // TODO: draw_window
+    }
 }
 /*-----------------------------------------------------------*/
+static vApplicationStackOverflowHookPtr _vApplicationStackOverflowHookPtr = NULL;
+
+vApplicationStackOverflowHookPtr getApplicationStackOverflowHookPtr() {
+    return _vApplicationStackOverflowHookPtr;
+}
+
+void setApplicationStackOverflowHookPtr(vApplicationStackOverflowHookPtr ptr) {
+    _vApplicationStackOverflowHookPtr = ptr;
+}
 
 void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
 {
-    ( void ) pcTaskName;
-    ( void ) pxTask;
- //   draw_text("vApplicationStackOverflowHook", 0, 6, 13, 1);
-
+    if (_vApplicationStackOverflowHookPtr) _vApplicationStackOverflowHookPtr(pxTask, pcTaskName);
+    else {
+        // TODO: draw_window
+    }
     /* Run time stack overflow checking is performed if
     configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
     function is called if a stack overflow is detected. */
-
-    /* Force an assert. */
-    configASSERT( ( volatile void * ) NULL );
 }
 /*-----------------------------------------------------------*/
 

@@ -34,8 +34,11 @@ static const unsigned long * const _sys_table_ptrs = M_OS_API_SYA_TABLE_BASE;
 
 #define _getApplicationMallocFailedHookPtrPtrIdx 25
 #define _setApplicationMallocFailedHookPtrPtrIdx 26
+#define _getApplicationStackOverflowHookPtrPtrIdx 27
+#define _setApplicationStackOverflowHookPtrPtrIdx 28
 
-#define _draw_text_ptr_idx 27
+
+#define _draw_text_ptr_idx 29
 
 
 /*-----------------------------------------------------------
@@ -467,5 +470,12 @@ typedef void (*setApplicationMallocFailedHookPtr_ptr_t)(vApplicationMallocFailed
 #define getApplicationMallocFailedHookPtr ((getApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_getApplicationMallocFailedHookPtrPtrIdx])
 #define setApplicationMallocFailedHookPtr ((setApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_setApplicationMallocFailedHookPtrPtrIdx])
 
+typedef void (*vApplicationStackOverflowHookPtr)( TaskHandle_t pxTask, char *pcTaskName );
+typedef vApplicationStackOverflowHookPtr (*getApplicationStackOverflowHookPtr_ptr_t)();
+typedef void (*setApplicationStackOverflowHookPtr_ptr_t)(vApplicationStackOverflowHookPtr ptr);
+#define getApplicationStackOverflowHookPtr ((getApplicationStackOverflowHookPtr_ptr_t)_sys_table_ptrs[_getApplicationStackOverflowHookPtrPtrIdx])
+#define setApplicationStackOverflowHookPtr ((setApplicationStackOverflowHookPtr_ptr_t)_sys_table_ptrs[_setApplicationStackOverflowHookPtrPtrIdx])
+
+// grapthics.h
 typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor);
 #define draw_text ((draw_text_ptr_t)_sys_table_ptrs[_draw_text_ptr_idx])
