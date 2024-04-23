@@ -62,7 +62,18 @@
 #include "pico/multicore.h"
 #endif
 
-#include "vga.h"
+#include "hooks.h"
+
+static vApplicationMallocFailedHookPtr _vApplicationMallocFailedHookPtr = NULL;
+
+vApplicationMallocFailedHookPtr getApplicationMallocFailedHookPtr() {
+    return _vApplicationMallocFailedHookPtr;
+}
+
+void setApplicationMallocFailedHookPtr(vApplicationMallocFailedHookPtr ptr) {
+    _vApplicationMallocFailedHookPtr = ptr;
+}
+
 
 /*-----------------------------------------------------------*/
 
@@ -73,10 +84,7 @@ void vApplicationMallocFailedHook( void )
     internally by FreeRTOS API functions that create tasks, queues, software
     timers, and semaphores.  The size of the FreeRTOS heap is set by the
     configTOTAL_HEAP_SIZE configuration constant in FreeRTOSConfig.h. */
-
-    /* Force an assert. */
-    draw_text("vApplicationMallocFailedHook", 0, 5, 13, 1);
-    configASSERT( ( volatile void * ) NULL );
+    if (_vApplicationMallocFailedHookPtr) _vApplicationMallocFailedHookPtr();
 }
 /*-----------------------------------------------------------*/
 
@@ -84,7 +92,7 @@ void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
 {
     ( void ) pcTaskName;
     ( void ) pxTask;
-    draw_text("vApplicationStackOverflowHook", 0, 6, 13, 1);
+ //   draw_text("vApplicationStackOverflowHook", 0, 6, 13, 1);
 
     /* Run time stack overflow checking is performed if
     configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
@@ -98,7 +106,7 @@ void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
 void vApplicationIdleHook( void )
 {
     volatile size_t xFreeHeapSpace;
-    draw_text("vApplicationIdleHook", 0, 7, 13, 1);
+  //  draw_text("vApplicationIdleHook", 0, 7, 13, 1);
 
 
     /* This is just a trivial example of an idle hook.  It is called on each
@@ -116,7 +124,7 @@ void vApplicationIdleHook( void )
 /*-----------------------------------------------------------*/
 void vApplicationTickHook( void )
 {
-    draw_text("vApplicationTickHook", 0, 8, 13, 1);
+  //  draw_text("vApplicationTickHook", 0, 8, 13, 1);
 
 #if mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 0
     {
@@ -150,5 +158,5 @@ void vApplicationTickHook( void )
 }
 
 void vApplicationDaemonTaskStartupHook( void ) {
-    draw_text("vApplicationDaemonTaskStartupHook", 0, 9, 13, 1);
+//    draw_text("vApplicationDaemonTaskStartupHook", 0, 9, 13, 1);
 }

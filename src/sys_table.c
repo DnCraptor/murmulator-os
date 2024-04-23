@@ -3,6 +3,7 @@
 #include "sys_table.h"
 #include "graphics.h"
 #include "ff.h"
+#include "hooks.h"
 
 unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     // task.h
@@ -32,9 +33,11 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     vTaskSetThreadLocalStoragePointer, // 23
     pvTaskGetThreadLocalStoragePointer, // 24
     // TODO: hooks support?
+    getApplicationMallocFailedHookPtr, // 25
+    setApplicationMallocFailedHookPtr, // 26
     // graphics.h
-    draw_text, // 25
-    draw_window, // 26
+    draw_text, // 27
+    draw_window, // 
     // TODO:
     0
 };

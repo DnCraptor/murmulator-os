@@ -18,10 +18,18 @@ void vTask2(void *pv) {
     }
 }
 
+static vApplicationMallocFailedHookPtr mh = NULL;
+
+void mallocFailedHandler() {
+    draw_text("vApplicationMallocFailedHook", 0, 5, 13, 1);
+    if (mh) mh();
+}
+
 void start_test() {
     draw_text("Not RUN", 0, 3, 13, 1);
+    mh = getApplicationMallocFailedHookPtr();
+    setApplicationMallocFailedHookPtr(mallocFailedHandler);
     BaseType_t
-    // test direct creation
     res = xTaskCreate(vTask1, "Task 1", configMINIMAL_STACK_SIZE, "vTaks 1 #%d", configMAX_PRIORITIES - 1, NULL);
     if (res != pdPASS) {
         draw_text("vTask1 failed to schedule", 0, 1, 13, 1);

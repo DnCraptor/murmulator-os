@@ -9,8 +9,33 @@ static const unsigned long * const _sys_table_ptrs = M_OS_API_SYA_TABLE_BASE;
 #define _xTaskCreatePtrIdx 0
 #define _vTaskDeletePtrIdx 1
 #define _vTaskDelayPtrIdx 2
+#define _xTaskDelayUntilPtrIdx 3
+#define _xTaskAbortDelayPtrIdx 4
+#define _uxTaskPriorityGetPtrIdx 5
+#define _uxTaskPriorityGetFromISRPtrIdx 6
+#define _uxTaskBasePriorityGetPtrIdx 7
+#define _uxTaskBasePriorityGetFromISRPtrIdx 8
+#define _eTaskGetStatePtrIdx 9
+#define _vTaskGetInfoPtrIdx 10
+#define _vTaskPrioritySetPtrIdx 11
+#define _vTaskSuspendPtrIdx 12
+#define _vTaskResumePtrIdx 13
+#define _xTaskResumeFromISRPtrIdx 14
+#define _vTaskSuspendAllPtrIdx 15
+#define _xTaskResumeAllPtrIdx 16
+#define _xTaskGetTickCountPtrIdx 17
+#define _xTaskGetTickCountFromISRPtrIdx 18
+#define _uxTaskGetNumberOfTasksPtrIdx 19
+#define _pcTaskGetNamePtrIdx 20
+#define _xTaskGetHandlePtrIdx 21
+#define _uxTaskGetStackHighWaterMarkPtrIdx 22
+#define _vTaskSetThreadLocalStoragePointerPtrIdx 23
+#define _pvTaskGetThreadLocalStoragePointerPtrIdx 24
 
-#define _draw_text_ptr_idx 25
+#define _getApplicationMallocFailedHookPtrPtrIdx 25
+#define _setApplicationMallocFailedHookPtrPtrIdx 26
+
+#define _draw_text_ptr_idx 27
 
 
 /*-----------------------------------------------------------
@@ -435,6 +460,12 @@ typedef void (*vTaskDelay_ptr_t)( const TickType_t xTicksToDelay );
 
 typedef void (*vTaskDelete_ptr_t)( TaskHandle_t xTaskToDelete );    
 #define vTaskDelete ((vTaskDelete_ptr_t)_sys_table_ptrs[_vTaskDeletePtrIdx])
+
+typedef void (*vApplicationMallocFailedHookPtr)( void );
+typedef vApplicationMallocFailedHookPtr (*getApplicationMallocFailedHookPtr_ptr_t)();
+typedef void (*setApplicationMallocFailedHookPtr_ptr_t)(vApplicationMallocFailedHookPtr ptr);
+#define getApplicationMallocFailedHookPtr ((getApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_getApplicationMallocFailedHookPtrPtrIdx])
+#define setApplicationMallocFailedHookPtr ((setApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_setApplicationMallocFailedHookPtrPtrIdx])
 
 typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor);
 #define draw_text ((draw_text_ptr_t)_sys_table_ptrs[_draw_text_ptr_idx])
