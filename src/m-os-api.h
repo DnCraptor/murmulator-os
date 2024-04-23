@@ -7,7 +7,9 @@
 static const unsigned long * const _sys_table_ptrs = M_OS_API_SYA_TABLE_BASE;
 
 #define _xTaskCreatePtrIdx 0
+#define _vTaskDeletePtrIdx 1
 #define _vTaskDelayPtrIdx 2
+
 #define _draw_text_ptr_idx 25
 
 
@@ -426,11 +428,13 @@ typedef BaseType_t (*xTaskCreate_ptr_t)( TaskFunction_t pxTaskCode,
                             void * const pvParameters,
                             UBaseType_t uxPriority,
                             TaskHandle_t * const pxCreatedTask );
-#define xTaskCreateM ((xTaskCreate_ptr_t)_sys_table_ptrs[_xTaskCreatePtrIdx])
+#define xTaskCreate ((xTaskCreate_ptr_t)_sys_table_ptrs[_xTaskCreatePtrIdx])
 
 typedef void (*vTaskDelay_ptr_t)( const TickType_t xTicksToDelay );
-#define vTaskDelayM ((vTaskDelay_ptr_t)_sys_table_ptrs[_vTaskDelayPtrIdx])
-    
+#define vTaskDelay ((vTaskDelay_ptr_t)_sys_table_ptrs[_vTaskDelayPtrIdx])
+
+typedef void (*vTaskDelete_ptr_t)( TaskHandle_t xTaskToDelete );    
+#define vTaskDelete ((vTaskDelete_ptr_t)_sys_table_ptrs[_vTaskDeletePtrIdx])
 
 typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor);
-#define draw_text_m ((draw_text_ptr_t)_sys_table_ptrs[_draw_text_ptr_idx])
+#define draw_text ((draw_text_ptr_t)_sys_table_ptrs[_draw_text_ptr_idx])
