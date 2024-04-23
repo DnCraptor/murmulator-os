@@ -34,6 +34,7 @@ M-OS manages access to<br/>
  - PS/2 keyboard (connected to ZX Murmulator board),<br/>
  - Kempston (Dendy 8-bit) Joystick (connected to ZX Murmulator board),<br/>
  - Sound devices (PWM 12-bit stereo + "speaker")<br/>
+<br/>
 Other types of<br/>
  - video outputs: HDMI/TV/...;<br/>
  - inputs: USB HUD devices, PS/2 and other mouse types, Wii Joystick...;<br/>
