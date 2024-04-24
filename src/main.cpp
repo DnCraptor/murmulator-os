@@ -468,8 +468,9 @@ int main() {
         draw_text("SD Card not inserted or SD Card error!", 0, 0, 12, 0);
         while (true);
     }
-
+#if TESTS
     start_test();
+#endif
 	/* Start the scheduler. */
 	vTaskStartScheduler();
     draw_text("Failed", 0, 4, 13, 1);

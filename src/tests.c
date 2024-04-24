@@ -1,5 +1,7 @@
 #include "m-os-api.h"
 
+#if TESTS
+
 void vTask1(void *pv) {
     char string[64] = {0};
     for(unsigned long i = 0; ; ++i) {
@@ -55,3 +57,4 @@ void start_test() {
     vTaskDelete(hndl);
     draw_text("RUN    ", 0, 3, 13, 1);
 }
+#endif
