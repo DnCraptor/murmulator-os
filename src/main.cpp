@@ -28,7 +28,7 @@ semaphore vga_start_semaphore;
 #define DISP_WIDTH (320)
 #define DISP_HEIGHT (240)
 
-struct UF2_Block_t {
+typedef struct {
     // 32 byte header
     uint32_t magicStart0;
     uint32_t magicStart1;
@@ -97,7 +97,7 @@ void __time_critical_func(render_core)() {
 }
 
 void __always_inline run_application() {
-    multicore_reset_core1();
+   // multicore_reset_core1();
 
     asm volatile (
         "mov r0, %[start]\n"
@@ -106,74 +106,77 @@ void __always_inline run_application() {
         "ldmia r0, {r0, r1}\n"
         "msr msp, r0\n"
         "bx r1\n"
-        :: [start] "r" (XIP_BASE + 0x100), [vtable] "X" (PPB_BASE + M0PLUS_VTOR_OFFSET)
+        :: [start] "r" (0x10002000 + 0x100), [vtable] "X" (PPB_BASE + M0PLUS_VTOR_OFFSET)
     );
 
     __unreachable();
 }
-#if 0
+
 bool __not_in_flash_func(load_firmware)(const char pathname[256]) {
     UINT bytes_read = 0;
-    struct UF2_Block_t uf2_block{};
     FIL file;
 
     constexpr int window_y = (TEXTMODE_ROWS - 5) / 2;
     constexpr int window_x = (TEXTMODE_COLS - 43) / 2;
 
-    draw_window("Loading firmware", window_x, window_y, 43, 5);
+    draw_window(" Loading firmware", window_x, window_y, 43, 5);
 
     FILINFO fileinfo;
     f_stat(pathname, &fileinfo);
 
     if (FLASH_SIZE - 64 << 10 < fileinfo.fsize / 2) {
-        draw_text("ERROR: Firmware too large! Canceled!!", window_x + 1, window_y + 2, 13, 1);
+        draw_text(" ERROR: Firmware too large! Canceled!!", window_x + 1, window_y + 2, 13, 1);
         sleep_ms(5000);
         return false;
     }
 
-    draw_text("Loading...", window_x + 1, window_y + 2, 10, 1);
+    draw_text(" Loading...", window_x + 1, window_y + 2, 10, 1);
     sleep_ms(500);
 
-    if (FR_OK == f_open(&file, pathname, FA_READ)) {
-        uint32_t flash_target_offset = 0;
-        uint32_t data_sector_index = 0;
-
-        multicore_lockout_start_blocking();
-        const uint32_t ints = save_and_disable_interrupts();
-
-        do {
-            uint8_t buffer[FLASH_SECTOR_SIZE];
-            f_read(&file, &uf2_block, sizeof uf2_block, &bytes_read);
-            memcpy(buffer + data_sector_index, uf2_block.data, 256);
-            data_sector_index += 256;
-
-            if (data_sector_index == FLASH_SECTOR_SIZE || bytes_read == 0) {
-                data_sector_index = 0;
-
-                //подмена загрузчика boot2 прошивки на записанный ранее
-                if (flash_target_offset == 0) {
-                    memcpy(buffer, (uint8_t *)XIP_BASE, 256);
-                }
-
-                flash_range_erase(flash_target_offset, FLASH_SECTOR_SIZE);
-                flash_range_program(flash_target_offset, buffer, FLASH_SECTOR_SIZE);
-
-                gpio_put(PICO_DEFAULT_LED_PIN, (flash_target_offset >> 13) & 1);
-
-                flash_target_offset += FLASH_SECTOR_SIZE;
-            }
-        }
-        while (bytes_read != 0);
-
-        restore_interrupts(ints);
-        multicore_lockout_end_blocking();
-
-        gpio_put(PICO_DEFAULT_LED_PIN, true);
+    if (FR_OK != f_open(&file, pathname, FA_READ)) {
+        draw_text(" ERROR: Unable to load file!!", window_x + 1, window_y + 2, 10, 1);
+        return false;
     }
+
+    uint8_t* buffer = (uint8_t*)pvPortMalloc(FLASH_SECTOR_SIZE);
+    UF2_Block_t* uf2 = (UF2_Block_t*)pvPortMalloc(sizeof(UF2_Block_t));
+
+    uint32_t flash_target_offset = 0x2000;
+    uint32_t data_sector_index = 0;
+
+    multicore_lockout_start_blocking();
+    const uint32_t ints = save_and_disable_interrupts();
+
+    do {
+        f_read(&file, uf2, sizeof(UF2_Block_t), &bytes_read); // err?
+        memcpy(buffer + data_sector_index, uf2->data, 256);
+        data_sector_index += 256;
+
+        if (data_sector_index == FLASH_SECTOR_SIZE || bytes_read == 0) {
+            data_sector_index = 0;
+            //подмена загрузчика boot2 прошивки на записанный ранее
+        //    if (flash_target_offset == 0) {
+        //        memcpy(buffer, (uint8_t *)XIP_BASE, 256);
+        //    }
+            flash_range_erase(flash_target_offset, FLASH_SECTOR_SIZE);
+            flash_range_program(flash_target_offset, buffer, FLASH_SECTOR_SIZE);
+
+            gpio_put(PICO_DEFAULT_LED_PIN, (flash_target_offset >> 13) & 1);
+
+            flash_target_offset += FLASH_SECTOR_SIZE;
+        }
+    }
+    while (bytes_read != 0);
+
+    restore_interrupts(ints);
+    multicore_lockout_end_blocking();
+
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
     f_close(&file);
+    vPortFree(buffer);
+    vPortFree(uf2);
     return true;
 }
-#endif
 
 typedef struct __attribute__((__packed__)) {
     bool is_directory;
@@ -462,7 +465,6 @@ int main() {
         }
     }
 
-    run_application();
 #endif
     if (FR_OK != f_mount(&fs, "SD", 1)) {
         draw_text("SD Card not inserted or SD Card error!", 0, 0, 12, 0);
@@ -471,6 +473,9 @@ int main() {
 #if TESTS
     start_test();
 #endif
+    if (load_firmware("\\MOS\\murmulator-os-demo.uf2"))
+        run_application();
+
 	/* Start the scheduler. */
 	vTaskStartScheduler();
     draw_text("Failed", 0, 4, 13, 1);
