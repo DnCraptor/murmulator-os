@@ -23,8 +23,8 @@
 
 MEMORY
 {
-    /* @FLASH_SIZE@Kb */
-    FLASH(rx) : ORIGIN = 0x10002000, LENGTH = 4096k
+    BOOTA(rx) : ORIGIN = 0x10002000, LENGTH = 4k
+    FLASH(rx) : ORIGIN = 0x10003000, LENGTH = 4092k
     RAM(rwx) : ORIGIN =  0x20020000, LENGTH = 120k
     SCRATCH_X(rwx) : ORIGIN = 0x2003E000, LENGTH = 4k
     SCRATCH_Y(rwx) : ORIGIN = 0x2003F000, LENGTH = 4k
@@ -34,13 +34,15 @@ ENTRY(_entry_point)
 
 SECTIONS
 {
-    /* Second stage bootloader is prepended to the image. It must be 256 bytes big
-       and checksummed. It is usually built by the boot_stage2 target
-       in the Raspberry Pi Pico SDK
-    */
-        .flash_begin : {
-            __flash_binary_start = .;
-        } > FLASH
+    .boota : {
+        __boota_start__ = .;
+        KEEP (*(.boota))
+        __boota_end__ = .;
+    } > BOOTA
+
+    .flash_begin : {
+        __flash_binary_start = .;
+    } > FLASH
 
 
     /* The second stage will always enter the image at the start of .text.

@@ -19,6 +19,15 @@ extern "C" {
 #include "tests.h"
 #include "sys_table.h"
 #include "portable.h"
+
+
+#define M_OS_APL_TABLE_BASE (void*)0x10002000ul
+typedef void (*boota_ptr_t)( void );
+
+inline static void run_application() {
+    ((boota_ptr_t)M_OS_APL_TABLE_BASE)();
+}
+
 }
 
 #include "nespad.h"
@@ -96,9 +105,9 @@ void __time_critical_func(render_core)() {
     __unreachable();
 }
 
+/*
 void __always_inline run_application() {
-   // multicore_reset_core1();
-
+    multicore_reset_core1();
     asm volatile (
         "mov r0, %[start]\n"
         "ldr r1, =%[vtable]\n"
@@ -108,9 +117,9 @@ void __always_inline run_application() {
         "bx r1\n"
         :: [start] "r" (0x10002000 + 0x100), [vtable] "X" (PPB_BASE + M0PLUS_VTOR_OFFSET)
     );
-
     __unreachable();
 }
+*/
 
 bool __not_in_flash_func(load_firmware)(const char pathname[256]) {
     UINT bytes_read = 0;

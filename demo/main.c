@@ -32,7 +32,7 @@ void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
     if(soh) soh(pxTask, pcTaskName);
 }
 
-void main() {
+void __aligned(4096) __in_boota() boota() {
     draw_text("Not RUN", 0, 3, 13, 1);
     mh = getApplicationMallocFailedHookPtr();
     setApplicationMallocFailedHookPtr(mallocFailedHandler);
@@ -56,3 +56,7 @@ void main() {
     draw_text("RUN    ", 0, 3, 13, 1);
 }
 
+// just for std linker
+void main() {
+    boota();
+}

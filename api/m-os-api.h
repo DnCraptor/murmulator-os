@@ -1,10 +1,13 @@
-#define M_OS_API_SYA_TABLE_BASE (void*)0x10001000ul
+#define M_OS_API_SYS_TABLE_BASE (void*)0x10001000ul
 
 #include "FreeRTOSConfig.h"
 #include <stdint.h>
 #include <stddef.h>
 
-static const unsigned long * const _sys_table_ptrs = M_OS_API_SYA_TABLE_BASE;
+#define __in_boota(group) __attribute__((section(".boota" group)))
+#define	__aligned(x)	__attribute__((__aligned__(x)))
+
+static const unsigned long * const _sys_table_ptrs = M_OS_API_SYS_TABLE_BASE;
 
 #define _xTaskCreatePtrIdx 0
 #define _vTaskDeletePtrIdx 1
