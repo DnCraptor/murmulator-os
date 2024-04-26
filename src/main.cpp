@@ -124,12 +124,13 @@ void __always_inline run_application() {
 bool __not_in_flash_func(load_firmware)(const char pathname[256]) {
     UINT bytes_read = 0;
     FIL file;
+    char tmp[80] = {0};
 
     constexpr int window_y = (TEXTMODE_ROWS - 5) / 2;
     constexpr int window_x = (TEXTMODE_COLS - 43) / 2;
 
-    draw_window(" Loading firmware", window_x, window_y, 43, 5);
-
+    draw_window(" Loading application", window_x, window_y, 43, 5);
+/*
     FILINFO fileinfo;
     f_stat(pathname, &fileinfo);
 
@@ -138,9 +139,9 @@ bool __not_in_flash_func(load_firmware)(const char pathname[256]) {
         sleep_ms(5000);
         return false;
     }
-
-    draw_text(" Loading...", window_x + 1, window_y + 2, 10, 1);
-    sleep_ms(500);
+*/
+    draw_text(pathname, window_x + 2, window_y + 2, 10, 1);
+   // sleep_ms(500);
 
     if (FR_OK != f_open(&file, pathname, FA_READ)) {
         draw_text(" ERROR: Unable to load file!!", window_x + 1, window_y + 2, 10, 1);
@@ -155,11 +156,16 @@ bool __not_in_flash_func(load_firmware)(const char pathname[256]) {
 
     multicore_lockout_start_blocking();
     const uint32_t ints = save_and_disable_interrupts();
-
+    int i = 0;
     do {
         f_read(&file, uf2, sizeof(UF2_Block_t), &bytes_read); // err?
-        memcpy(buffer + data_sector_index, uf2->data, 256);
-        data_sector_index += 256;
+       // snprintf(tmp, 80, "#%d (%d) %ph", uf2->blockNo, uf2->payloadSize, uf2->targetAddr);
+       // draw_text(tmp, 0, uf2->blockNo % 30, 7, 0);
+        memcpy(buffer + data_sector_index, uf2->data, uf2->payloadSize);
+        data_sector_index += uf2->payloadSize;
+        if (flash_target_offset == 0)
+            flash_target_offset = uf2->targetAddr - XIP_BASE;
+            // TODO: order?
 
         if (data_sector_index == FLASH_SECTOR_SIZE || bytes_read == 0) {
             data_sector_index = 0;
@@ -170,9 +176,11 @@ bool __not_in_flash_func(load_firmware)(const char pathname[256]) {
             flash_range_erase(flash_target_offset, FLASH_SECTOR_SIZE);
             flash_range_program(flash_target_offset, buffer, FLASH_SECTOR_SIZE);
 
-            gpio_put(PICO_DEFAULT_LED_PIN, (flash_target_offset >> 13) & 1);
-
-            flash_target_offset += FLASH_SECTOR_SIZE;
+        //    gpio_put(PICO_DEFAULT_LED_PIN, flash_target_offset & 1);
+            snprintf(tmp, 80, "#%d %ph -> %ph", uf2->blockNo, uf2->targetAddr, flash_target_offset);
+            draw_text(tmp, 0, i++, 7, 0);
+        
+            flash_target_offset = 0;
         }
     }
     while (bytes_read != 0);
