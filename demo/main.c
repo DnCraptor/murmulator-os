@@ -33,13 +33,9 @@ void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
     if(soh) soh(pxTask, pcTaskName);
 }
 
-void __aligned(4096) __in_boota() boota() {
-    asm volatile(
-        "nop\n"
-        "nop\n"
-        "nop\n"
-        "nop\n"
-    );
+int boota() {
+    return 55555555;
+    /*
     gpio_put(PICO_DEFAULT_LED_PIN, 1);
     draw_text("Not RUN", 0, 3, 13, 1);
     mh = getApplicationMallocFailedHookPtr();
@@ -62,9 +58,15 @@ void __aligned(4096) __in_boota() boota() {
     }
     vTaskDelete(hndl);
     draw_text("RUN    ", 0, 3, 13, 1);
+    */
 }
+
+unsigned long __aligned(4096) __in_boota() boota_tbl[] = { boota };
+
 
 // just for std linker
 void main() {
-    boota();
+    int r = boota();
+    r = boota_tbl;
+    (void*)r;
 }

@@ -21,12 +21,12 @@ extern "C" {
 #include "portable.h"
 
 
-#define M_OS_APL_TABLE_BASE (void*)0x10002004ul
-typedef void (*boota_ptr_t)( void );
+#define M_OS_APL_TABLE_BASE ((size_t*)0x10002000ul)
+typedef int (*boota_ptr_t)( void );
 
-inline static void run_application() {
-    boota_ptr_t fn_ptr = (boota_ptr_t)M_OS_APL_TABLE_BASE;
-    fn_ptr();
+inline static int run_application() {
+    boota_ptr_t fn_ptr = (boota_ptr_t)(M_OS_APL_TABLE_BASE[0]);
+    return fn_ptr();
 }
 
 }
@@ -493,13 +493,16 @@ int main() {
 #endif
     snprintf(tmp, 80, "application @ %ph: %08Xh", M_OS_APL_TABLE_BASE, *(uint32_t*)M_OS_APL_TABLE_BASE);
     draw_text(tmp, 0, 1, 13, 2);
+    int res = -1;
     if (0 != *((uint32_t*)M_OS_APL_TABLE_BASE)) {
         // boota (startup application) already in flash ROM
-        run_application();
+        res = run_application();
     }
     else if (load_firmware("\\MOS\\murmulator-os-demo.uf2")) {
-        run_application();
+        res = run_application();
     }
+    snprintf(tmp, 80, "application returns #%d", res);
+    draw_text(tmp, 0, 2, 7, 0);
 	/* Start the scheduler. */
 	vTaskStartScheduler();
     draw_text("Failed", 0, 4, 13, 1);
