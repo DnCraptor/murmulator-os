@@ -500,12 +500,15 @@ int main() {
     }
     else if (load_firmware("\\MOS\\murmulator-os-demo.uf2")) {
         res = run_application();
+    } else {
+        // ??
     }
     snprintf(tmp, 80, "application returns #%d", res);
     draw_text(tmp, 0, 2, 7, 0);
 	/* Start the scheduler. */
 	vTaskStartScheduler();
-    draw_text("Failed", 0, 4, 13, 1);
+    // it should never return
+    draw_text("vTaskStartScheduler failed", 0, 4, 13, 1);
     size_t i = 0;
     while(sys_table_ptrs[++i]); // to ensure linked (TODO: other way)
 
