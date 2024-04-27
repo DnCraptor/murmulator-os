@@ -177,8 +177,8 @@ bool __not_in_flash_func(load_firmware)(const char pathname[256]) {
             flash_range_program(flash_target_offset, buffer, FLASH_SECTOR_SIZE);
 
         //    gpio_put(PICO_DEFAULT_LED_PIN, flash_target_offset & 1);
-            snprintf(tmp, 80, "#%d %ph -> %ph", uf2->blockNo, uf2->targetAddr, flash_target_offset);
-            draw_text(tmp, 0, i++, 7, 0);
+            //snprintf(tmp, 80, "#%d %ph -> %ph", uf2->blockNo, uf2->targetAddr, flash_target_offset);
+            //draw_text(tmp, 0, i++, 7, 0);
         
             flash_target_offset = 0;
         }
@@ -473,10 +473,10 @@ int main() {
             sem_release(&vga_start_semaphore);
 
             sleep_ms(30);
-            clrScr(1);
-            char tmp[32];
-            snprintf(tmp, 32, "sys_table_ptrs: %ph", &sys_table_ptrs[0]);
-            draw_text(tmp, 0, 0, 13, 1);
+    clrScr(1);
+    char tmp[80];
+    snprintf(tmp, 80, "sys_table_ptrs: %ph", &sys_table_ptrs[0]);
+    draw_text(tmp, 0, 0, 13, 1);
 #if 0
             filebrowser("", "uf2");
         }
@@ -490,9 +490,15 @@ int main() {
 #if TESTS
     start_test();
 #endif
-    if (load_firmware("\\MOS\\murmulator-os-demo.uf2"))
+    snprintf(tmp, 80, "application @ %ph: %08Xh", M_OS_APL_TABLE_BASE, *(uint32_t*)M_OS_APL_TABLE_BASE);
+    draw_text(tmp, 0, 1, 13, 2);
+    if (0 != *((uint32_t*)M_OS_APL_TABLE_BASE)) {
+        // boota (startup application) already in flash ROM
         run_application();
-
+    }
+    else if (load_firmware("\\MOS\\murmulator-os-demo.uf2")) {
+        run_application();
+    }
 	/* Start the scheduler. */
 	vTaskStartScheduler();
     draw_text("Failed", 0, 4, 13, 1);

@@ -25,6 +25,7 @@ MEMORY
 {
     BOOT(rx) : ORIGIN = 0x10000000, LENGTH = 4k
     SYS_TABLE(rw) : ORIGIN = 0x10000000 + 4k, LENGTH = 4k
+    BOOTA : ORIGIN = 0x10000000 + 8k, LENGTH = 4k
     /* @FLASH_SIZE@Kb */
     FLASH(rx) : ORIGIN = 0x10000000+(@FLASH_SIZE@k-64k), LENGTH = 64k
     RAM(rwx) : ORIGIN =  0x20000000, LENGTH = 128k
@@ -59,6 +60,12 @@ SECTIONS
         __sys_table_end__ = .;
     } > SYS_TABLE
 
+
+    .boota : {
+        __boota_start__ = .;
+        KEEP (*(.boota))
+        __boota_end__ = .;
+    } > BOOTA
 
 
 
