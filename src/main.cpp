@@ -505,6 +505,7 @@ int main() {
     }
     snprintf(tmp, 80, "application returns #%d", res);
     draw_text(tmp, 0, 2, 7, 0);
+    draw_text("RUNING   vTaskStartScheduler    ", 0, 3, 7, 0);
 	/* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return
