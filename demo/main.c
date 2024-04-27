@@ -1,4 +1,5 @@
 #include "m-os-api.h"
+#include "pico/stdlib.h"
 
 void vTask1(void *pv) {
     char string[64] = {0};
@@ -33,6 +34,13 @@ void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
 }
 
 void __aligned(4096) __in_boota() boota() {
+    asm volatile(
+        "nop\n"
+        "nop\n"
+        "nop\n"
+        "nop\n"
+    );
+    gpio_put(PICO_DEFAULT_LED_PIN, 1);
     draw_text("Not RUN", 0, 3, 13, 1);
     mh = getApplicationMallocFailedHookPtr();
     setApplicationMallocFailedHookPtr(mallocFailedHandler);

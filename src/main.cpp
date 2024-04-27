@@ -21,11 +21,12 @@ extern "C" {
 #include "portable.h"
 
 
-#define M_OS_APL_TABLE_BASE (void*)0x10002000ul
+#define M_OS_APL_TABLE_BASE (void*)0x10002004ul
 typedef void (*boota_ptr_t)( void );
 
 inline static void run_application() {
-    ((boota_ptr_t)M_OS_APL_TABLE_BASE)();
+    boota_ptr_t fn_ptr = (boota_ptr_t)M_OS_APL_TABLE_BASE;
+    fn_ptr();
 }
 
 }
@@ -115,7 +116,7 @@ void __always_inline run_application() {
         "ldmia r0, {r0, r1}\n"
         "msr msp, r0\n"
         "bx r1\n"
-        :: [start] "r" (0x10002000 + 0x100), [vtable] "X" (PPB_BASE + M0PLUS_VTOR_OFFSET)
+        :: [start] "r" (0x10002000), [vtable] "X" (PPB_BASE + M0PLUS_VTOR_OFFSET)
     );
     __unreachable();
 }
