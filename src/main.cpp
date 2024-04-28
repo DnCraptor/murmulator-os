@@ -55,13 +55,40 @@ typedef struct {
 
 static uint8_t* SCREEN = 0;
 
-static uint32_t input;
+static bool bCtrlPressed = false;
+static bool bAltPressed = false;
+static bool bDelPressed = false;
 
 extern "C" {
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
-    if (ps2scancode)
-        input = ps2scancode;
-
+    switch ((uint8_t)ps2scancode & 0xFF) {
+        case 0x1D:
+            bCtrlPressed = true;
+            break;
+        case 0x9D:
+            bCtrlPressed = false;
+            break;
+        case 0x38:
+            bAltPressed = true;
+            break;
+        case 0xB8:
+            bAltPressed = false;
+            break;
+        case 0x53:
+            bDelPressed = true;
+            break;
+        case 0xD3:
+            bDelPressed = false;
+            break;
+        default:
+            break;
+    }
+    if (bCtrlPressed && bAltPressed && bDelPressed) {
+        draw_text("TODO: Reset", 0, 28, 7, 0);
+    }
+    char tmp[32];
+    snprintf(tmp, 32, "%ph", ps2scancode);
+    draw_text(tmp, 0, 29, 7, 0);
     return true;
 }
 }
