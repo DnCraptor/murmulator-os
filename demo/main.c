@@ -6,11 +6,11 @@
 
 void vTask1(void *pv) {
     draw_text("vTask1 running   ", 0, T1_LINE, 13, 1);
-    char string[64] = {0};
+    static char string[64] = {0};
     for(unsigned long i = 0; ; ++i) {
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
-//        snprintf4(string, 64, pv, i);
-//        draw_text(string, 0, T1_LINE, 13, 1);
+        snprintf(string, 64, pv, i);
+        draw_text(string, 0, T1_LINE, 13, 1);
         vTaskDelay(500 * portTICK_PERIOD_MS);
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
         vTaskDelay(500 * portTICK_PERIOD_MS);
@@ -19,10 +19,10 @@ void vTask1(void *pv) {
 
 void vTask2(void *pv) {
     draw_text("vTask2 running   ", 0, T2_LINE, 13, 1);
-    char string[64] = {0};
+    static char string[64] = {0};
     for(unsigned long i = 0; ; ++i) {
-//        snprintf4(string, 64, pv, i);
-//        draw_text(string, 0, T2_LINE, 13, 1);
+        snprintf(string, 64, pv, i);
+        draw_text(string, 0, T2_LINE, 13, 1);
         vTaskDelay(25 * portTICK_PERIOD_MS);
     }
 }

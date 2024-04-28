@@ -43,6 +43,7 @@ static const unsigned long * const _sys_table_ptrs = M_OS_API_SYS_TABLE_BASE;
 #define _snprintfPtrIdx 29
 
 #define _draw_text_ptr_idx 30
+#define _draw_window_ptr_idx 31
 
 
 /*-----------------------------------------------------------
@@ -487,3 +488,9 @@ typedef int	(*snprintf_ptr_t)(char *__restrict, size_t, const char *__restrict, 
 // grapthics.h
 typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor);
 #define draw_text ((draw_text_ptr_t)_sys_table_ptrs[_draw_text_ptr_idx])
+
+typedef void (*draw_window_ptr_t)(const char*, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+#define draw_window ((draw_window_ptr_t)_sys_table_ptrs[_draw_window_ptr_idx])
+
+typedef void (*test_ptr_t)(void);
+#define sprintf3i ((test_ptr_t)_sys_table_ptrs[32])

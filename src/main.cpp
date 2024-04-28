@@ -476,7 +476,7 @@ int main() {
             sleep_ms(30);
     clrScr(1);
     char tmp[80];
-    snprintf(tmp, 80, "sys_table_ptrs: %ph", &sys_table_ptrs[0]);
+    snprintf(tmp, 80, "sys_table_ptrs: %ph; snprintf: %ph", &sys_table_ptrs[0], sys_table_ptrs[29]);
     draw_text(tmp, 0, 0, 13, 1);
 #if 0
             filebrowser("", "uf2");

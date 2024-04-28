@@ -44,10 +44,11 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     getApplicationStackOverflowHookPtr, // 27
     setApplicationStackOverflowHookPtr, // 28
     // #include <stdio.h>
-    snprintf, // 29
+    snprintf, // 29 TODO: (not working now)
     // graphics.h
     draw_text, // 30 
-    draw_window, // 
+    draw_window, // 31
+    test,
     // TODO:
     0
 };

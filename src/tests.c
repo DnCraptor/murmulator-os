@@ -55,6 +55,6 @@ void start_test() {
         draw_text("vTask2(3) failed to schedule", 0, 2, 13, 1);
     }
     vTaskDelete(hndl);
-    draw_text("RUN    ", 0, 3, 13, 1);
+    draw_window(" Window ", 0, 0, 80, 30);
 }
 #endif
