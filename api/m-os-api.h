@@ -492,5 +492,8 @@ typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint
 typedef void (*draw_window_ptr_t)(const char*, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 #define draw_window ((draw_window_ptr_t)_sys_table_ptrs[_draw_window_ptr_idx])
 
-typedef void (*test_ptr_t)(void);
-#define sprintf3i ((test_ptr_t)_sys_table_ptrs[32])
+typedef void* (*pvPortMalloc_ptr_t)( size_t xWantedSize );
+#define pvPortMalloc ((pvPortMalloc_ptr_t)_sys_table_ptrs[32])
+
+typedef void (*vPortFree_ptr_t)( void * pv );
+#define vPortFree ((vPortFree_ptr_t)_sys_table_ptrs[33])

@@ -6,7 +6,7 @@
 
 void vTask1(void *pv) {
     draw_text("vTask1 running   ", 0, T1_LINE, 13, 1);
-    static char string[64] = {0};
+    char *string = pvPortMalloc(64);
     for(unsigned long i = 0; ; ++i) {
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
         snprintf(string, 64, pv, i);
@@ -15,6 +15,7 @@ void vTask1(void *pv) {
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
         vTaskDelay(500 * portTICK_PERIOD_MS);
     }
+    vPortFree(string);
 }
 
 void vTask2(void *pv) {
