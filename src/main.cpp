@@ -2,6 +2,7 @@
 #include <cstring>
 #include <hardware/clocks.h>
 #include <hardware/flash.h>
+#include <hardware/watchdog.h>
 #include <hardware/structs/vreg_and_chip_reset.h>
 #include <pico/bootrom.h>
 #include <pico/multicore.h>
@@ -84,11 +85,11 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             break;
     }
     if (bCtrlPressed && bAltPressed && bDelPressed) {
-        draw_text("TODO: Reset", 0, 28, 7, 0);
+        watchdog_enable(100, true);
     }
-    char tmp[32];
-    snprintf(tmp, 32, "%ph", ps2scancode);
-    draw_text(tmp, 0, 29, 7, 0);
+   // char tmp[32];
+   // snprintf(tmp, 32, "%ph", ps2scancode);
+   // draw_text(tmp, 0, 29, 7, 0);
     return true;
 }
 }
