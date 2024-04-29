@@ -467,7 +467,7 @@ inline static BaseType_t xTaskCreate( TaskFunction_t pxTaskCode,
                             void * const pvParameters,
                             UBaseType_t uxPriority,
                             TaskHandle_t * const pxCreatedTask ) {
-    ((xTaskCreate_ptr_t)_sys_table_ptrs[_xTaskCreatePtrIdx])(
+    return ((xTaskCreate_ptr_t)_sys_table_ptrs[_xTaskCreatePtrIdx])(
         pxTaskCode,
         pcName,
         uxStackDepth,

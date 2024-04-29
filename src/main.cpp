@@ -23,16 +23,12 @@ extern "C" {
 
 
 #define M_OS_APL_TABLE_BASE ((size_t*)0x10002000ul)
-typedef int (*boota_ptr_t)( void );
-
-inline static int run_application() {
-    boota_ptr_t fn_ptr = (boota_ptr_t)(M_OS_APL_TABLE_BASE[0]);
-    return fn_ptr();
-}
+typedef int (*boota_ptr_t)( void *argv );
 
 void vAppTask(void *pv) {
-    run_application(); // TODO:
+    int res = ((boota_ptr_t)M_OS_APL_TABLE_BASE[0])(pv); // TODO:
     vTaskDelete( NULL );
+    // TODO: ?? return res;
 }
 
 inline static void run_app(char * name) {

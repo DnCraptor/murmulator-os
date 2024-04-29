@@ -1,8 +1,8 @@
 #include "m-os-api.h"
 #include "pico/stdlib.h"
 
-#define T1_LINE 4
-#define T2_LINE 5
+#define T1_LINE 24
+#define T2_LINE 25
 
 void vTask1(void *pv) {
     draw_text("vTask1 running   ", 0, T1_LINE, 13, 1);
@@ -42,7 +42,7 @@ void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
     if(soh) soh(pxTask, pcTaskName);
 }
 
-int boota() {
+int boota(void* pv) {
     gpio_put(PICO_DEFAULT_LED_PIN, 1);
     draw_text("Not RUN", 0, 3, 13, 1);
     mh = getApplicationMallocFailedHookPtr();
@@ -52,20 +52,20 @@ int boota() {
     BaseType_t
     res = xTaskCreate(vTask1, "Task 1", configMINIMAL_STACK_SIZE, "vTaks 1 #%d", configMAX_PRIORITIES - 1, NULL);
     if (res != pdPASS) {
-        draw_text("vTask1 failed to schedule", 0, T1_LINE, 13, 1);
+        draw_text("vTask1 failed to schedule", 0, T1_LINE + 1, 13, 1);
         return -1;
     }
-    draw_text("vTask1 scheduled", 0, T1_LINE, 7, 0);
+    draw_text("vTask1 scheduled", 0, T1_LINE + 2, 7, 0);
     res = xTaskCreate(vTask2, "Task 2", configMINIMAL_STACK_SIZE, "vTask 2 #%d", configMAX_PRIORITIES - 1, NULL);
     if (res != pdPASS) {
-        draw_text("vTask2 failed to schedule", 0, T2_LINE, 13, 1);
+        draw_text("vTask2 failed to schedule", 0, T2_LINE + 3, 13, 1);
         return -2;
     }
     draw_text("vTask2 scheduled", 0, T2_LINE, 7, 0);
     TaskHandle_t hndl;
     res = xTaskCreate(vTask2, "Task 3", configMINIMAL_STACK_SIZE, "vTask 3 #%d", configMAX_PRIORITIES - 1, &hndl);
     if (res != pdPASS) {
-        draw_text("vTask2(3) failed to schedule", 0, T2_LINE + 1, 13, 1);
+        draw_text("vTask2(3) failed to schedule", 0, T2_LINE + 4, 13, 1);
         return -3;
     }
     vTaskDelete(hndl);
@@ -78,7 +78,7 @@ unsigned long __aligned(4096) __in_boota() boota_tbl[] = { boota };
 
 // just for std linker
 void main() {
-    int r = boota();
+    int r = boota(NULL);
     r = boota_tbl;
     (void*)r;
 }
