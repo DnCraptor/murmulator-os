@@ -30,6 +30,15 @@ inline static int run_application() {
     return fn_ptr();
 }
 
+void vAppTask(void *pv) {
+    run_application(); // TODO:
+    vTaskDelete( NULL );
+}
+
+inline static void run_app(char * name) {
+    xTaskCreate(vAppTask, name, configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
+}
+
 }
 
 #include "nespad.h"
@@ -59,6 +68,7 @@ static uint8_t* SCREEN = 0;
 static bool bCtrlPressed = false;
 static bool bAltPressed = false;
 static bool bDelPressed = false;
+static uint32_t input = 0;
 
 extern "C" {
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
@@ -84,6 +94,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         default:
             break;
     }
+    input = ps2scancode;
     if (bCtrlPressed && bAltPressed && bDelPressed) {
         watchdog_enable(100, true);
     }
@@ -483,29 +494,30 @@ int main() {
     keyboard_send(0xFF);
     nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
 
+    nespad_read();
+    sleep_ms(50);
+    // F12 Boot to USB FIRMWARE UPDATE mode
+    if (nespad_state & DPAD_START || input == 0x58) {
+        reset_usb_boot(0, 0);
+    }
+
     SCREEN = (uint8_t*)pvPortMalloc(80 * 30 * 2);
 #if 0
     for (int i = 20; i--;) {
-        nespad_read();
-        sleep_ms(50);
 
-        // F12 Boot to USB FIRMWARE UPDATE mode
-        if (nespad_state & DPAD_START || input == 0x58) {
-            reset_usb_boot(0, 0);
-        }
 
         // F11 Run launcher
         if (nespad_state && !(nespad_state & DPAD_START) || input && input != 0x58) {
 #endif
-            sem_init(&vga_start_semaphore, 0, 1);
-            multicore_launch_core1(render_core);
-            sem_release(&vga_start_semaphore);
-
-            sleep_ms(30);
+    sem_init(&vga_start_semaphore, 0, 1);
+    multicore_launch_core1(render_core);
+    sem_release(&vga_start_semaphore);
+    sleep_ms(30);
     clrScr(1);
     char tmp[80];
-    snprintf(tmp, 80, "sys_table_ptrs: %ph; snprintf: %ph", &sys_table_ptrs[0], sys_table_ptrs[29]);
-    draw_text(tmp, 0, 0, 13, 1);
+    draw_text(" ZX Murmulator (RP2040) OS v.0.0.1 Alfa", 0, 0, 13, 0);
+    draw_text("SRAM 264 KB", 0, 1, 7, 0);
+    draw_text("FLASH 2 MB", 0, 2, 7, 0);
 #if 0
             filebrowser("", "uf2");
         }
@@ -519,20 +531,16 @@ int main() {
 #if TESTS
     start_test();
 #endif
-    snprintf(tmp, 80, "application @ %ph: %08Xh", M_OS_APL_TABLE_BASE, *(uint32_t*)M_OS_APL_TABLE_BASE);
-    draw_text(tmp, 0, 1, 13, 2);
-    int res = -1;
+    char* app = "\\MOS\\murmulator-os-demo.uf2";
     if (0 != *((uint32_t*)M_OS_APL_TABLE_BASE)) {
         // boota (startup application) already in flash ROM
-        res = run_application();
+        run_app(app);
     }
-    else if (load_firmware("\\MOS\\murmulator-os-demo.uf2")) {
-        res = run_application();
-    } else {
-        // ??
+    else if (load_firmware(app)) {
+        run_app(app);
     }
-    snprintf(tmp, 80, "application returns #%d", res);
-    draw_text(tmp, 0, 2, 7, 0);
+//    snprintf(tmp, 80, "application returns #%d", res);
+//    draw_text(tmp, 0, 2, 7, 0);
     draw_text("RUNING   vTaskStartScheduler    ", 0, 3, 7, 0);
 	/* Start the scheduler. */
 	vTaskStartScheduler();

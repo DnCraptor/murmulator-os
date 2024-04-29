@@ -461,25 +461,51 @@ typedef BaseType_t (*xTaskCreate_ptr_t)( TaskFunction_t pxTaskCode,
                             void * const pvParameters,
                             UBaseType_t uxPriority,
                             TaskHandle_t * const pxCreatedTask );
-#define xTaskCreate ((xTaskCreate_ptr_t)_sys_table_ptrs[_xTaskCreatePtrIdx])
+inline static BaseType_t xTaskCreate( TaskFunction_t pxTaskCode,
+                            const char * const pcName,
+                            const configSTACK_DEPTH_TYPE uxStackDepth,
+                            void * const pvParameters,
+                            UBaseType_t uxPriority,
+                            TaskHandle_t * const pxCreatedTask ) {
+    ((xTaskCreate_ptr_t)_sys_table_ptrs[_xTaskCreatePtrIdx])(
+        pxTaskCode,
+        pcName,
+        uxStackDepth,
+        pvParameters,
+        uxPriority,
+        pxCreatedTask
+    );
+}
 
 typedef void (*vTaskDelay_ptr_t)( const TickType_t xTicksToDelay );
-#define vTaskDelay ((vTaskDelay_ptr_t)_sys_table_ptrs[_vTaskDelayPtrIdx])
+inline static void vTaskDelay( const TickType_t xTicksToDelay ) {
+    ((vTaskDelay_ptr_t)_sys_table_ptrs[_vTaskDelayPtrIdx])( xTicksToDelay );
+}
 
 typedef void (*vTaskDelete_ptr_t)( TaskHandle_t xTaskToDelete );    
-#define vTaskDelete ((vTaskDelete_ptr_t)_sys_table_ptrs[_vTaskDeletePtrIdx])
+inline static void vTaskDelete( TaskHandle_t xTaskToDelete ) {
+    ((vTaskDelete_ptr_t)_sys_table_ptrs[_vTaskDeletePtrIdx])(xTaskToDelete);
+}
 
 typedef void (*vApplicationMallocFailedHookPtr)( void );
 typedef vApplicationMallocFailedHookPtr (*getApplicationMallocFailedHookPtr_ptr_t)();
 typedef void (*setApplicationMallocFailedHookPtr_ptr_t)(vApplicationMallocFailedHookPtr ptr);
-#define getApplicationMallocFailedHookPtr ((getApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_getApplicationMallocFailedHookPtrPtrIdx])
-#define setApplicationMallocFailedHookPtr ((setApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_setApplicationMallocFailedHookPtrPtrIdx])
+inline static vApplicationMallocFailedHookPtr getApplicationMallocFailedHookPtr() {
+    return ((getApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_getApplicationMallocFailedHookPtrPtrIdx]);
+}
+inline static setApplicationMallocFailedHookPtr(vApplicationMallocFailedHookPtr ptr) {
+    ((setApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_setApplicationMallocFailedHookPtrPtrIdx])(ptr);
+}
 
 typedef void (*vApplicationStackOverflowHookPtr)( TaskHandle_t pxTask, char *pcTaskName );
 typedef vApplicationStackOverflowHookPtr (*getApplicationStackOverflowHookPtr_ptr_t)();
 typedef void (*setApplicationStackOverflowHookPtr_ptr_t)(vApplicationStackOverflowHookPtr ptr);
-#define getApplicationStackOverflowHookPtr ((getApplicationStackOverflowHookPtr_ptr_t)_sys_table_ptrs[_getApplicationStackOverflowHookPtrPtrIdx])
-#define setApplicationStackOverflowHookPtr ((setApplicationStackOverflowHookPtr_ptr_t)_sys_table_ptrs[_setApplicationStackOverflowHookPtrPtrIdx])
+inline static vApplicationStackOverflowHookPtr getApplicationStackOverflowHookPtr() {
+    return ((getApplicationStackOverflowHookPtr_ptr_t)_sys_table_ptrs[_getApplicationStackOverflowHookPtrPtrIdx])();
+}
+inline static void setApplicationStackOverflowHookPtr(vApplicationStackOverflowHookPtr ptr) {
+    ((setApplicationStackOverflowHookPtr_ptr_t)_sys_table_ptrs[_setApplicationStackOverflowHookPtrPtrIdx])(ptr);
+}
 
 //#include <stdio.h>
 typedef int	(*snprintf_ptr_t)(char *__restrict, size_t, const char *__restrict, ...) _ATTRIBUTE ((__format__ (__printf__, 3, 4)));
@@ -487,13 +513,21 @@ typedef int	(*snprintf_ptr_t)(char *__restrict, size_t, const char *__restrict, 
 
 // grapthics.h
 typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor);
-#define draw_text ((draw_text_ptr_t)_sys_table_ptrs[_draw_text_ptr_idx])
+inline static void draw_text(const char *string, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor) {
+    ((draw_text_ptr_t)_sys_table_ptrs[_draw_text_ptr_idx])(string, x, y, color, bgcolor);
+}
 
 typedef void (*draw_window_ptr_t)(const char*, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
-#define draw_window ((draw_window_ptr_t)_sys_table_ptrs[_draw_window_ptr_idx])
+inline static void draw_window(const char* t, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+    ((draw_window_ptr_t)_sys_table_ptrs[_draw_window_ptr_idx])(t, x, y, width, height);
+}
 
 typedef void* (*pvPortMalloc_ptr_t)( size_t xWantedSize );
-#define pvPortMalloc ((pvPortMalloc_ptr_t)_sys_table_ptrs[32])
+inline static void* pvPortMalloc(size_t xWantedSize) {
+    return ((pvPortMalloc_ptr_t)_sys_table_ptrs[32])(xWantedSize);
+}
 
 typedef void (*vPortFree_ptr_t)( void * pv );
-#define vPortFree ((vPortFree_ptr_t)_sys_table_ptrs[33])
+inline static void vPortFree(void * pv) {
+    ((vPortFree_ptr_t)_sys_table_ptrs[33])(pv);
+}
