@@ -105,7 +105,8 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     }
     if (ps2scancode < 0x80) {
         char c = scan_code_2_cp866[ps2scancode & 0xFF];
-        goutf("%04Xh\n", ps2scancode); // TODO: putc
+        if (c)
+            goutf("%c", c); // TODO: putc
     }
    // char tmp[32];
    // snprintf(tmp, 32, "%ph", ps2scancode);
