@@ -71,6 +71,20 @@ char* _rollup(char* t_buf) {
     return text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
 }
 
+void gbackspace() {
+    pos_x--;
+    if (pos_x < 0) {
+        pos_x = TEXTMODE_COLS - 1;
+        pos_y--;
+        if (pos_y < 0) {
+            pos_y = 0;
+        }
+    }
+    uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+    *t_buf++ = ' ';
+    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+}
+
 void goutf(const char *__restrict str, ...) {
     va_list ap;
     char buf[512]; // TODO: some const?

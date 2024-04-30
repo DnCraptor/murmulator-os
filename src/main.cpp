@@ -93,7 +93,7 @@ static void backspace() {
         return;
     }
     cmd[--cmd_pos] = 0;
-    // TODO: drw
+    gbackspace();
 }
 
 extern "C" {
@@ -159,6 +159,9 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             }
             // TODO: process command
         } else if (c) {
+            if (cmd_pos >= 512) {
+                // TODO: blimp
+            }
             cmd[cmd_pos++] = c; // TODO: tolower
             cmd[cmd_pos] = 0;
         }
