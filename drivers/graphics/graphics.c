@@ -71,13 +71,32 @@ void goutf(const char *__restrict str, ...) {
         if (c == '\n') {
             pos_x = 0;
             pos_y++;
+            if (pos_y == TEXTMODE_ROWS) {
+                memcpy(text_buffer, text_buffer + TEXTMODE_COLS * 2, TEXTMODE_COLS * (TEXTMODE_ROWS - 1) * 2);
+                t_buf = text_buffer + TEXTMODE_COLS * (TEXTMODE_ROWS - 1) * 2;
+                for(int i = 0; i < TEXTMODE_COLS; ++i) {
+                    *t_buf++ = ' ';
+                    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+                }
+                pos_y = TEXTMODE_ROWS - 1;
+            }
             t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
             continue;
         }
         pos_x++;
-        if (pos_x > TEXTMODE_COLS) {
+        if (pos_x >= TEXTMODE_COLS) {
             pos_x = 0;
             pos_y++;
+            if (pos_y == TEXTMODE_ROWS) {
+                memcpy(text_buffer, text_buffer + TEXTMODE_COLS * 2, TEXTMODE_COLS * (TEXTMODE_ROWS - 1) * 2);
+                t_buf = text_buffer + TEXTMODE_COLS * (TEXTMODE_ROWS - 1) * 2;
+                for(int i = 0; i < TEXTMODE_COLS; ++i) {
+                    *t_buf++ = ' ';
+                    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+                }
+                pos_y = TEXTMODE_ROWS - 1;
+            }
+            t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
         }
         *t_buf++ = c;
         *t_buf++ = con_bgcolor << 4 | con_color & 0xF;

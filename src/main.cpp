@@ -64,15 +64,26 @@ static uint8_t* SCREEN = 0;
 static bool bCtrlPressed = false;
 static bool bAltPressed = false;
 static bool bDelPressed = false;
+static bool bLeftShift = false;
+static bool bRightShift = false;
+static bool bCapsLock = false;
 static uint32_t input = 0;
 
-static char scan_code_2_cp866[0x80] = {
-     0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 , ' ', // 0D - TAB
-    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '[', ']',  0 ,  0 , 'A', 'S',
-    'D', 'F', 'G', 'H', 'J', 'K', 'L', ';',  0 , '~',  0 ,  0 , 'Z', 'X', 'C', 'V',
-    'B', 'N', 'M', ',', '.',  0 ,  0 , '*',  0 , ' ',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+static char scan_code_2_cp866_a[0x80] = {
+     0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
+    'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']','\n',  0 , 'a', 's',
+    'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',  0 , '`',  0 ,'\\', 'z', 'x', 'c', 'v',
+    'b', 'n', 'm', ',', '.',  0 ,  0 , '*',  0 , ' ',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
-    '2', '3', '0', '.',  0 , 0 
+    '2', '3', '0', '.',  '/', 0 
+};
+static char scan_code_2_cp866_A[0x80] = {
+     0 ,  0 , '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
+    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}','\n',  0 , 'A', 'S',
+    'D', 'F', 'G', 'H', 'J', 'K', 'L', ':',  0 , '~',  0 , '|', 'Z', 'X', 'C', 'V',
+    'B', 'N', 'M', '<', '>',  0 ,  0 , '*',  0 , ' ',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+     0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
+    '2', '3', '0', '.',  '/', 0 
 };
 
 extern "C" {
@@ -96,6 +107,21 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         case 0xD3:
             bDelPressed = false;
             break;
+        case 0x2A:
+            bLeftShift = true;
+            break;
+        case 0xAA:
+            bLeftShift = false;
+            break;
+        case 0x36:
+            bRightShift = true;
+            break;
+        case 0xB6:
+            bRightShift = false;
+            break;
+        case 0x46:
+            bCapsLock = ~bCapsLock;
+            break;
         default:
             break;
     }
@@ -104,9 +130,10 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         watchdog_enable(100, true);
     }
     if (ps2scancode < 0x80) {
-        char c = scan_code_2_cp866[ps2scancode & 0xFF];
-        if (c)
+        char c = ((bRightShift || bLeftShift) ? scan_code_2_cp866_A : scan_code_2_cp866_a)[ps2scancode & 0xFF];
+        if (c) {
             goutf("%c", c); // TODO: putc
+        }
     }
    // char tmp[32];
    // snprintf(tmp, 32, "%ph", ps2scancode);
@@ -520,7 +547,10 @@ int main() {
     graphics_set_con_color(13, 1);
     goutf("                      ZX Murmulator (RP2040) OS v.0.0.1 Alfa                   \n");
     graphics_set_con_color(7, 0);
-    goutf("SRAM 264 KB\nFLASH 2 MB\nMOS>");
+    goutf("SRAM   264 KB\n"
+          "FLASH 2048 KB\n\n"
+          "MOS>"
+    );
 
     if (FR_OK != f_mount(&fs, "SD", 1)) {
         graphics_set_con_color(12, 0);
