@@ -520,7 +520,7 @@ int main() {
     graphics_set_con_color(13, 1);
     goutf("                      ZX Murmulator (RP2040) OS v.0.0.1 Alfa                   \n");
     graphics_set_con_color(7, 0);
-    goutf("SRAM 264 KB\nFLASH 2 MB\n>");
+    goutf("SRAM 264 KB\nFLASH 2 MB\nMOS>");
 
     if (FR_OK != f_mount(&fs, "SD", 1)) {
         graphics_set_con_color(12, 0);

@@ -65,6 +65,10 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor);
 
 void clrScr(uint8_t color);
 
+extern volatile int pos_x;
+extern volatile int pos_y;
+extern volatile bool cursor_blink_state;
+
 
 #ifdef __cplusplus
 }

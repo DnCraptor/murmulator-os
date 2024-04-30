@@ -40,8 +40,9 @@ void draw_window(const char title[TEXTMODE_COLS + 1], uint32_t x, uint32_t y, ui
 }
 
 
-static int pos_x = 0;
-static int pos_y = 0;
+volatile int pos_x = 0;
+volatile int pos_y = 0;
+volatile bool cursor_blink_state = true;
 static uint8_t con_color = 7;
 static uint8_t con_bgcolor = 0;
 

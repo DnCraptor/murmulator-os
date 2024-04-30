@@ -70,8 +70,7 @@ static uint16_t* txt_palette_fast = NULL;
 
 enum graphics_mode_t graphics_mode;
 
-
-void __time_critical_func() dma_handler_VGA() {
+void __time_critical_func(dma_handler_VGA)() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
     static uint32_t frame_number = 0;
     static uint32_t screen_line = 0;
@@ -143,18 +142,18 @@ void __time_critical_func() dma_handler_VGA() {
                 uint8_t glyph_pixels = font_8x16[*text_buffer_line++ * font_height + glyph_line];
                 //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                 uint16_t* color = &txt_palette_fast[*text_buffer_line++ * 4];
-#if 0
-                if (cursor_blink_state && !manager_started &&
-                    (screen_line / 16 == CURSOR_Y && x == CURSOR_X && glyph_line >= 11 && glyph_line <= 13)) {
-                    *output_buffer_16bit++ = color[3];
-                    *output_buffer_16bit++ = color[3];
-                    *output_buffer_16bit++ = color[3];
-                    *output_buffer_16bit++ = color[3];
+#if 1
+                if (cursor_blink_state && (screen_line >> 4) == pos_y && x == pos_x && glyph_line >= 11 && glyph_line <= 13) {
+                    uint16_t c = color[7]; // TODO: setup cursor color
+                    *output_buffer_16bit++ = c;
+                    *output_buffer_16bit++ = c;
+                    *output_buffer_16bit++ = c;
+                    *output_buffer_16bit++ = c;
                     if (text_buffer_width == 40) {
-                        *output_buffer_16bit++ = color[3];
-                        *output_buffer_16bit++ = color[3];
-                        *output_buffer_16bit++ = color[3];
-                        *output_buffer_16bit++ = color[3];
+                        *output_buffer_16bit++ = c;
+                        *output_buffer_16bit++ = c;
+                        *output_buffer_16bit++ = c;
+                        *output_buffer_16bit++ = c;
                     }
                 }
                 else
