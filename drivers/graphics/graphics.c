@@ -57,10 +57,12 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
 
 #include <stdarg.h>
 
-void goutf(const char *str, ...) {
-    char *args = &str;
+void goutf(const char *__restrict str, ...) {
+    va_list ap;
     char buf[512]; // TODO: some const?
-    snprintf(buf, 512, str, args + sizeof(char)); // TODO: optimise (skip)
+    va_start(ap, str);
+    vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
+    va_end(ap);
     uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
     char c;
     str = buf;
