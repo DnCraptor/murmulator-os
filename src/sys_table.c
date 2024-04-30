@@ -50,6 +50,18 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     draw_window, // 31
     pvPortMalloc, // 32
     vPortFree, // 33
+    //
+    graphics_set_mode, // 34
+    graphics_set_buffer, // 35
+    graphics_set_offset, // 36
+    graphics_set_palette, // 37
+    graphics_set_textbuffer, // 38
+    graphics_set_bgcolor, // 39
+    graphics_set_flashmode, // 40
+    goutf, // 41
+    graphics_set_con_pos, // 42
+    graphics_set_con_color, // 43
+    clrScr, // 44
     // TODO:
     0
 };

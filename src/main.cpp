@@ -66,6 +66,15 @@ static bool bAltPressed = false;
 static bool bDelPressed = false;
 static uint32_t input = 0;
 
+static char scan_code_2_cp866[0x80] = {
+     0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 , ' ', // 0D - TAB
+    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '[', ']',  0 ,  0 , 'A', 'S',
+    'D', 'F', 'G', 'H', 'J', 'K', 'L', ';',  0 , '~',  0 ,  0 , 'Z', 'X', 'C', 'V',
+    'B', 'N', 'M', ',', '.',  0 ,  0 , '*',  0 , ' ',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+     0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
+    '2', '3', '0', '.',  0 , 0 
+};
+
 extern "C" {
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     switch ((uint8_t)ps2scancode & 0xFF) {
@@ -93,6 +102,10 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     input = ps2scancode;
     if (bCtrlPressed && bAltPressed && bDelPressed) {
         watchdog_enable(100, true);
+    }
+    if (ps2scancode < 0x80) {
+        char c = scan_code_2_cp866[ps2scancode & 0xFF];
+        goutf("%04Xh -> %02Xh\n", ps2scancode, c); // TODO: putc
     }
    // char tmp[32];
    // snprintf(tmp, 32, "%ph", ps2scancode);
@@ -498,46 +511,35 @@ int main() {
     }
 
     SCREEN = (uint8_t*)pvPortMalloc(80 * 30 * 2);
-#if 0
-    for (int i = 20; i--;) {
-
-
-        // F11 Run launcher
-        if (nespad_state && !(nespad_state & DPAD_START) || input && input != 0x58) {
-#endif
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);
     sleep_ms(30);
     clrScr(1);
-    char tmp[80];
-    draw_text(" ZX Murmulator (RP2040) OS v.0.0.1 Alfa", 0, 0, 13, 0);
-    draw_text("SRAM 264 KB", 0, 1, 7, 0);
-    draw_text("FLASH 2 MB", 0, 2, 7, 0);
-#if 0
-            filebrowser("", "uf2");
-        }
-    }
+    graphics_set_con_color(13, 1);
+    goutf("                      ZX Murmulator (RP2040) OS v.0.0.1 Alfa                   \n");
+    graphics_set_con_color(7, 0);
+    goutf("SRAM 264 KB\nFLASH 2 MB\n>");
 
-#endif
     if (FR_OK != f_mount(&fs, "SD", 1)) {
-        draw_text("SD Card not inserted or SD Card error!", 0, 0, 12, 0);
+        graphics_set_con_color(12, 0);
+        goutf("SD Card not inserted or SD Card error!");
         while (true);
     }
 #if TESTS
     start_test();
 #endif
-    char* app = "\\MOS\\murmulator-os-demo.uf2";
-    if (0 != *((uint32_t*)M_OS_APL_TABLE_BASE)) {
+ //   char* app = "\\MOS\\murmulator-os-demo.uf2";
+//    if (0 != *((uint32_t*)M_OS_APL_TABLE_BASE)) {
         // boota (startup application) already in flash ROM
-        run_app(app);
-    }
-    else if (load_firmware(app)) {
-        run_app(app);
-    }
+ //       run_app(app);
+ //   }
+//else if (load_firmware(app)) {
+ //       run_app(app);
+ //   }
 //    snprintf(tmp, 80, "application returns #%d", res);
 //    draw_text(tmp, 0, 2, 7, 0);
-    draw_text("RUNING   vTaskStartScheduler    ", 0, 3, 7, 0);
+  //  draw_text("RUNING   vTaskStartScheduler    ", 0, 3, 7, 0);
 	/* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return

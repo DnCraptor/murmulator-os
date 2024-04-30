@@ -1,8 +1,8 @@
 #include "m-os-api.h"
 #include "pico/stdlib.h"
 
-#define T1_LINE 24
-#define T2_LINE 25
+#define T1_LINE 4
+#define T2_LINE 5
 
 void vTask1(void *pv) {
     draw_text("vTask1 running   ", 0, T1_LINE, 13, 1);
@@ -50,15 +50,15 @@ int boota(void* pv) {
     soh = getApplicationStackOverflowHookPtr();
     setApplicationStackOverflowHookPtr(overflowHook);
     BaseType_t
-    res = xTaskCreate(vTask1, "Task 1", configMINIMAL_STACK_SIZE, "vTaks 1 #%d", configMAX_PRIORITIES - 1, NULL);
+    res = xTaskCreate(vTask1, "Task 1", configMINIMAL_STACK_SIZE, "vTaks 1 #%d        ", configMAX_PRIORITIES - 1, NULL);
     if (res != pdPASS) {
-        draw_text("vTask1 failed to schedule", 0, T1_LINE + 1, 13, 1);
+        draw_text("vTask1 failed to schedule", 0, T1_LINE, 13, 1);
         return -1;
     }
     draw_text("vTask1 scheduled", 0, T1_LINE + 2, 7, 0);
-    res = xTaskCreate(vTask2, "Task 2", configMINIMAL_STACK_SIZE, "vTask 2 #%d", configMAX_PRIORITIES - 1, NULL);
+    res = xTaskCreate(vTask2, "Task 2", configMINIMAL_STACK_SIZE, "vTask 2 #%d        ", configMAX_PRIORITIES - 1, NULL);
     if (res != pdPASS) {
-        draw_text("vTask2 failed to schedule", 0, T2_LINE + 3, 13, 1);
+        draw_text("vTask2 failed to schedule", 0, T2_LINE, 13, 1);
         return -2;
     }
     draw_text("vTask2 scheduled", 0, T2_LINE, 7, 0);

@@ -627,6 +627,7 @@ void graphics_init() {
 void clrScr(const uint8_t color) {
     uint16_t* t_buf = (uint16_t *)text_buffer;
     int size = TEXTMODE_COLS * TEXTMODE_ROWS;
-
     while (size--) *t_buf++ = color << 4 | ' ';
+    graphics_set_con_pos(0, 0);
+    graphics_set_con_color(7, color); // TODO:
 }

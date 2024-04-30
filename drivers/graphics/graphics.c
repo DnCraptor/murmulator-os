@@ -39,7 +39,44 @@ void draw_window(const char title[TEXTMODE_COLS + 1], uint32_t x, uint32_t y, ui
     draw_text(line, x + (width - strlen(line)) / 2, y, 14, 3);
 }
 
-void test() {
-    char buf[80];
-    snprintf(buf, 80, "%d", 88);
+
+static int pos_x = 0;
+static int pos_y = 0;
+static uint8_t con_color = 7;
+static uint8_t con_bgcolor = 0;
+
+void graphics_set_con_pos(int x, int y) {
+    pos_x = x;
+    pos_y = y;
+}
+
+void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
+    con_color = color;
+    con_bgcolor = bgcolor;
+}
+
+#include <stdarg.h>
+
+void goutf(const char *str, ...) {
+    char *args = &str;
+    char buf[512]; // TODO: some const?
+    snprintf(buf, 512, str, args + sizeof(char)); // TODO: optimise (skip)
+    uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+    char c;
+    str = buf;
+    while (c = *str++) {
+        if (c == '\n') {
+            pos_x = 0;
+            pos_y++;
+            t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+            continue;
+        }
+        pos_x++;
+        if (pos_x > TEXTMODE_COLS) {
+            pos_x = 0;
+            pos_y++;
+        }
+        *t_buf++ = c;
+        *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+    }
 }
