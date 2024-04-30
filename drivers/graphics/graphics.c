@@ -100,7 +100,7 @@ void goutf(const char *__restrict str, ...) {
             *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
         }
     }
-    char tmp[32];
-    snprintf(tmp, 32, "x:%02d y:%02d ", pos_x, pos_y);
-    draw_text(tmp, 0, 0, 7, 0);
+    //char tmp[32];
+    //snprintf(tmp, 32, "x:%02d y:%02d ", pos_x, pos_y);
+    //draw_text(tmp, 0, 0, 7, 0);
 }

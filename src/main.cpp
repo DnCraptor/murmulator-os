@@ -21,7 +21,6 @@ extern "C" {
 #include "sys_table.h"
 #include "portable.h"
 
-
 #define M_OS_APL_TABLE_BASE ((size_t*)0x10002000ul)
 typedef int (*boota_ptr_t)( void *argv );
 
@@ -86,6 +85,17 @@ static char scan_code_2_cp866_A[0x80] = {
     '2', '3', '0', '.',  '/', 0 
 };
 
+static char cmd[512] = { 0 };
+static int cmd_pos = 0;
+static void backspace() {
+    if (cmd_pos == 0) {
+        // TODO: blimp
+        return;
+    }
+    cmd[--cmd_pos] = 0;
+    // TODO: drw
+}
+
 extern "C" {
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     switch ((uint8_t)ps2scancode & 0xFF) {
@@ -122,6 +132,9 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         case 0x46:
             bCapsLock = ~bCapsLock;
             break;
+        case 0x0E:
+            backspace();
+            break;
         default:
             break;
     }
@@ -134,6 +147,20 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         if (c) {
             if (c == '\t') goutf("    "); // TODO: teminal settings for the TAB spacing
             else goutf("%c", c); // TODO: putc
+        }
+        if (c == '\n') {
+            if (strcmp("cls", cmd) == 0 ) {
+                clrScr(1);
+                graphics_set_con_pos(0, 0);
+                graphics_set_con_color(7, 0);
+                goutf("MOS>");
+                cmd[0] = 0;
+                cmd_pos = 0;
+            }
+            // TODO: process command
+        } else if (c) {
+            cmd[cmd_pos++] = c; // TODO: tolower
+            cmd[cmd_pos] = 0;
         }
     }
     return true;
