@@ -58,6 +58,19 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
 
 #include <stdarg.h>
 
+char* _rollup(char* t_buf) {
+    if (pos_y >= TEXTMODE_ROWS - 1) {
+        memcpy(text_buffer, text_buffer + TEXTMODE_COLS * 2, TEXTMODE_COLS * (TEXTMODE_ROWS - 2) * 2);
+        t_buf = text_buffer + TEXTMODE_COLS * (TEXTMODE_ROWS - 2) * 2;
+        for(int i = 0; i < TEXTMODE_COLS; ++i) {
+            *t_buf++ = ' ';
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+        pos_y = TEXTMODE_ROWS - 2;
+    }
+    return text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+}
+
 void goutf(const char *__restrict str, ...) {
     va_list ap;
     char buf[512]; // TODO: some const?
@@ -71,34 +84,23 @@ void goutf(const char *__restrict str, ...) {
         if (c == '\n') {
             pos_x = 0;
             pos_y++;
-            if (pos_y == TEXTMODE_ROWS) {
-                memcpy(text_buffer, text_buffer + TEXTMODE_COLS * 2, TEXTMODE_COLS * (TEXTMODE_ROWS - 1) * 2);
-                t_buf = text_buffer + TEXTMODE_COLS * (TEXTMODE_ROWS - 1) * 2;
-                for(int i = 0; i < TEXTMODE_COLS; ++i) {
-                    *t_buf++ = ' ';
-                    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-                }
-                pos_y = TEXTMODE_ROWS - 1;
-            }
-            t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+            t_buf = _rollup(t_buf);
             continue;
         }
         pos_x++;
         if (pos_x >= TEXTMODE_COLS) {
             pos_x = 0;
             pos_y++;
-            if (pos_y == TEXTMODE_ROWS) {
-                memcpy(text_buffer, text_buffer + TEXTMODE_COLS * 2, TEXTMODE_COLS * (TEXTMODE_ROWS - 1) * 2);
-                t_buf = text_buffer + TEXTMODE_COLS * (TEXTMODE_ROWS - 1) * 2;
-                for(int i = 0; i < TEXTMODE_COLS; ++i) {
-                    *t_buf++ = ' ';
-                    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-                }
-                pos_y = TEXTMODE_ROWS - 1;
-            }
-            t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+            t_buf = _rollup(t_buf);
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+            pos_x++;
+        } else {
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
         }
-        *t_buf++ = c;
-        *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
     }
+    char tmp[32];
+    snprintf(tmp, 32, "x:%02d y:%02d ", pos_x, pos_y);
+    draw_text(tmp, 0, 0, 7, 0);
 }

@@ -66,7 +66,7 @@ static bool bAltPressed = false;
 static bool bDelPressed = false;
 static bool bLeftShift = false;
 static bool bRightShift = false;
-static bool bCapsLock = false;
+static bool bCapsLock = false; // TODO:
 static uint32_t input = 0;
 
 static char scan_code_2_cp866_a[0x80] = {
@@ -132,12 +132,10 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     if (ps2scancode < 0x80) {
         char c = ((bRightShift || bLeftShift) ? scan_code_2_cp866_A : scan_code_2_cp866_a)[ps2scancode & 0xFF];
         if (c) {
-            goutf("%c", c); // TODO: putc
+            if (c == '\t') goutf("    "); // TODO: teminal settings for the TAB spacing
+            else goutf("%c", c); // TODO: putc
         }
     }
-   // char tmp[32];
-   // snprintf(tmp, 32, "%ph", ps2scancode);
-   // draw_text(tmp, 0, 29, 7, 0);
     return true;
 }
 }
@@ -544,8 +542,11 @@ int main() {
     sem_release(&vga_start_semaphore);
     sleep_ms(30);
     clrScr(1);
-    graphics_set_con_color(13, 1);
-    goutf("                      ZX Murmulator (RP2040) OS v.0.0.1 Alfa                   \n");
+    //graphics_set_con_color(13, 1);
+    const char tmp[] = "                      ZX Murmulator (RP2040) OS v.0.0.1 Alfa                    ";
+    draw_text(tmp, 0, 0, 13, 1);
+    draw_text(tmp, 0, 29, 13, 1);
+    graphics_set_con_pos(0, 1);
     graphics_set_con_color(7, 0);
     goutf("SRAM   264 KB\n"
           "FLASH 2048 KB\n\n"

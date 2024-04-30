@@ -143,7 +143,8 @@ void __time_critical_func(dma_handler_VGA)() {
                 //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                 uint16_t* color = &txt_palette_fast[*text_buffer_line++ * 4];
 #if 1
-                if (cursor_blink_state && (screen_line >> 4) == pos_y && x == pos_x && glyph_line >= 14) { // TODO: cur height
+                if (cursor_blink_state && (screen_line >> 4) == pos_y && x == pos_x && glyph_line >= 13) { // TODO: cur height
+                    color = &txt_palette_fast[0];
                     uint16_t c = color[7]; // TODO: setup cursor color
                     *output_buffer_16bit++ = c;
                     *output_buffer_16bit++ = c;
