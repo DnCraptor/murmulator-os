@@ -116,7 +116,10 @@ static char tolower_token(char t) {
     }
     return t;
 }
+
+static char* redirect2 = NULL;
 static int tokenize_cmd() {
+    redirect2 = NULL;
     if (cmd[0] == 0) {
         cmd_t[0] = 0;
         return 0;
@@ -127,6 +130,10 @@ static int tokenize_cmd() {
     char* t2 = cmd_t;
     while(*t1) {
         char c = tolower_token(*t1++);
+        if (c == '>') {
+            redirect2 = t1;
+            break;
+        }
         if (inSpace) {
             //if (!c) {} // still in space
             if(c) { // token started
@@ -238,6 +245,13 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         }
         if (c == '\n') {
             int tokens = tokenize_cmd();
+            if (redirect2) {
+                FILINFO fileinfo;
+                if (f_stat(redirect2, &fileinfo) != FR_OK) {
+                    goutf("Unable to find file: %s\n", redirect2);
+                }
+
+            }
             if (strcmp("cls", cmd_t) == 0 ) {
                 clrScr(1);
                 graphics_set_con_pos(0, 0);
@@ -245,7 +259,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             } else if (strcmp("dir", cmd_t) == 0) {
                 dir(tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
             } else  {
-                goutf("Illegal command: %s tokens: %d\n", cmd, tokens);
+                goutf("Illegal command: %s\n", cmd);
             }
             goutf("%s>", curr_dir);
             cmd[0] = 0;
@@ -679,7 +693,7 @@ int main() {
     graphics_set_con_color(7, 0);
     goutf("SRAM   264 KB\n"
           "FLASH 2048 KB\n\n"
-          "MOS>"
+          "%s>", curr_dir
     );
 
     if (FR_OK != f_mount(&fs, "SD", 1)) {
