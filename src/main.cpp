@@ -97,12 +97,15 @@ static void backspace() {
 }
 
 static char curr_dir[512] = "/MOS";
-static void dir() {
+static void dir(char *d) {
     DIR dir;
     FILINFO fileInfo;
-    if (FR_OK != f_opendir(&dir, curr_dir)) {
-        goutf("Failed to open directory: %s\n", curr_dir);
+    if (FR_OK != f_opendir(&dir, d)) {
+        goutf("Failed to open directory: %s\n", d);
         return;
+    }
+    if (strlen(d) > 1) {
+        goutf("D ..\n");
     }
     int total_files = 0;
     while (f_readdir(&dir, &fileInfo) == FR_OK &&
@@ -110,7 +113,7 @@ static void dir() {
     ) {
         // Set the file item properties
         goutf(fileInfo.fattrib & AM_DIR ? "D " : "  ");
-        goutf(" %08d ", fileInfo.fsize);
+    //    goutf(" %dB ", fileInfo.fsize);
         goutf("%s\n", fileInfo.fname);
         total_files++;
     }
@@ -175,8 +178,8 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                 clrScr(1);
                 graphics_set_con_pos(0, 0);
                 graphics_set_con_color(7, 0);
-            } else if (strcmp("dir", cmd) == 0) {
-                dir();
+            } else if (strncmp("dir", cmd, 3) == 0) {
+                dir(cmd[3] == 0 ? curr_dir : cmd + 4);
             } else  {
                 goutf("Illegal command: %s\n", cmd);
             }
