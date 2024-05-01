@@ -72,15 +72,18 @@ char* _rollup(char* t_buf) {
 }
 
 void gbackspace() {
-    pos_x--;
-    if (pos_x < 0) {
-        pos_x = TEXTMODE_COLS - 1;
-        pos_y--;
-        if (pos_y < 0) {
-            pos_y = 0;
+    uint8_t* t_buf;
+    //do {
+        pos_x--;
+        if (pos_x < 0) {
+            pos_x = TEXTMODE_COLS - 2;
+            pos_y--;
+            if (pos_y < 0) {
+                pos_y = 0;
+            }
         }
-    }
-    uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+        t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+    //} while(*t_buf == ' ');
     *t_buf++ = ' ';
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }

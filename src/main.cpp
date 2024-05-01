@@ -96,6 +96,28 @@ static void backspace() {
     gbackspace();
 }
 
+static char curr_dir[512] = "/MOS";
+static void dir() {
+    DIR dir;
+    FILINFO fileInfo;
+    if (FR_OK != f_opendir(&dir, curr_dir)) {
+        goutf("Failed to open directory: %s\n", curr_dir);
+        return;
+    }
+    int total_files = 0;
+    while (f_readdir(&dir, &fileInfo) == FR_OK &&
+               fileInfo.fname[0] != '\0' 
+    ) {
+        // Set the file item properties
+        goutf(fileInfo.fattrib & AM_DIR ? "D " : "  ");
+        goutf(" %08d ", fileInfo.fsize);
+        goutf("%s\n", fileInfo.fname);
+        total_files++;
+    }
+    f_closedir(&dir);
+    goutf("    Total: %d files\n", total_files);
+}
+
 extern "C" {
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     switch ((uint8_t)ps2scancode & 0xFF) {
@@ -153,16 +175,26 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                 clrScr(1);
                 graphics_set_con_pos(0, 0);
                 graphics_set_con_color(7, 0);
-                goutf("MOS>");
-                cmd[0] = 0;
-                cmd_pos = 0;
+            } else if (strcmp("dir", cmd) == 0) {
+                dir();
+            } else  {
+                goutf("Illegal command: %s\n", cmd);
             }
-            // TODO: process command
+            goutf("%s>", curr_dir);
+            cmd[0] = 0;
+            cmd_pos = 0;
         } else if (c) {
             if (cmd_pos >= 512) {
                 // TODO: blimp
             }
-            cmd[cmd_pos++] = c; // TODO: tolower
+            if (c == '\t') {
+                cmd[cmd_pos++] = ' '; // TODO: TAB?
+                cmd[cmd_pos++] = ' ';
+                cmd[cmd_pos++] = ' ';
+                cmd[cmd_pos++] = ' ';
+            } else {
+                cmd[cmd_pos++] = c; // TODO: tolower
+            }
             cmd[cmd_pos] = 0;
         }
     }
