@@ -121,16 +121,29 @@ static int tokenize_cmd() {
         cmd_t[0] = 0;
         return 0;
     }
-    int tokens = 1;
+    bool inSpace = true;
+    int inTokenN = 0;
     char* t1 = cmd;
     char* t2 = cmd_t;
     while(*t1) {
         char c = tolower_token(*t1++);
-        if (!c) tokens++;
+        if (inSpace) {
+            //if (!c) {} // still in space
+            if(c) { // token started
+                inSpace = 0;
+                inTokenN++; // new token
+            }
+        } else if(!c) { inSpace = true; } // not in space, after the token
+        //else {} // still in token
         *t2++ = c;
     }
     *t2 = 0;
-    return tokens;
+    return inTokenN;
+}
+static char* next_token(char* t) {
+    char *t1 = t + strlen(t);
+    while(!*t1++);
+    return t1 - 1;
 }
 static void backspace() {
     if (cmd_pos == 0) {
@@ -230,7 +243,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                 graphics_set_con_pos(0, 0);
                 graphics_set_con_color(7, 0);
             } else if (strcmp("dir", cmd_t) == 0) {
-                dir(tokens == 1 ? curr_dir : cmd + 4);
+                dir(tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
             } else  {
                 goutf("Illegal command: %s tokens: %d\n", cmd, tokens);
             }
