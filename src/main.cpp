@@ -102,7 +102,36 @@ static char scan_code_2_cp866_ACL[0x80] = {
 };
 
 static char cmd[512] = { 0 };
+static char cmd_t[512] = { 0 }; // tokenised string
 static int cmd_pos = 0;
+static char tolower_token(char t) {
+    if (t == ' ') {
+        return 0;
+    }
+    if (t >= 'A' && t <= 'Z') {
+        return t + ('a' - 'A');
+    }
+    if (t >= 0x80 && t <= 0x9F /* А-Я */) {
+        return t + (0xA0 - 0x80);
+    }
+    return t;
+}
+static int tokenize_cmd() {
+    if (cmd[0] == 0) {
+        cmd_t[0] = 0;
+        return 0;
+    }
+    int tokens = 1;
+    char* t1 = cmd;
+    char* t2 = cmd_t;
+    while(*t1) {
+        char c = tolower_token(*t1++);
+        if (!c) tokens++;
+        *t2++ = c;
+    }
+    *t2 = 0;
+    return tokens;
+}
 static void backspace() {
     if (cmd_pos == 0) {
         // TODO: blimp
@@ -127,9 +156,7 @@ static void dir(char *d) {
     while (f_readdir(&dir, &fileInfo) == FR_OK &&
                fileInfo.fname[0] != '\0' 
     ) {
-        // Set the file item properties
         goutf(fileInfo.fattrib & AM_DIR ? "D " : "  ");
-    //    goutf(" %dB ", fileInfo.fsize);
         goutf("%s\n", fileInfo.fname);
         total_files++;
     }
@@ -197,14 +224,15 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             else goutf("%c", c); // TODO: putc
         }
         if (c == '\n') {
-            if (strcmp("cls", cmd) == 0 ) {
+            int tokens = tokenize_cmd();
+            if (strcmp("cls", cmd_t) == 0 ) {
                 clrScr(1);
                 graphics_set_con_pos(0, 0);
                 graphics_set_con_color(7, 0);
-            } else if (strncmp("dir", cmd, 3) == 0) {
-                dir(cmd[3] == 0 ? curr_dir : cmd + 4);
+            } else if (strcmp("dir", cmd_t) == 0) {
+                dir(tokens == 1 ? curr_dir : cmd + 4);
             } else  {
-                goutf("Illegal command: %s\n", cmd);
+                goutf("Illegal command: %s tokens: %d\n", cmd, tokens);
             }
             goutf("%s>", curr_dir);
             cmd[0] = 0;
