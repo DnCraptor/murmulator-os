@@ -63,6 +63,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     graphics_set_con_color, // 43
     clrScr, // 44
     gbackspace, // 45
+    f_open, // 46
+    f_close, // 47
     // TODO:
     0
 };

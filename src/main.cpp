@@ -34,6 +34,24 @@ inline static void run_app(char * name) {
     xTaskCreate(vAppTask, name, configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
 }
 
+void fgoutf(FIL *f, const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 2, 3)));
+
+#include <stdarg.h>
+
+void fgoutf(FIL *f, const char *__restrict str, ...) {
+    char buf[512]; // TODO: some const?
+    va_list ap;
+    va_start(ap, str);
+    vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
+    va_end(ap);
+    if (f == NULL || f->obj.fs == 0) {
+        gouta(buf);
+    } else {
+        UINT bw;
+        f_write(f, buf, strlen(buf), &bw); // TODO: error handling
+    }
+}
+
 }
 
 #include "nespad.h"
@@ -118,8 +136,10 @@ static char tolower_token(char t) {
 }
 
 static char* redirect2 = NULL;
+static bool bAppend = false;
 static int tokenize_cmd() {
     redirect2 = NULL;
+    bAppend = false;
     if (cmd[0] == 0) {
         cmd_t[0] = 0;
         return 0;
@@ -132,6 +152,22 @@ static int tokenize_cmd() {
         char c = tolower_token(*t1++);
         if (c == '>') {
             redirect2 = t1;
+            if (*redirect2 == '>') {
+                redirect2++;
+                bAppend = true;
+            }
+            // ignore trailing spaces
+            while(*redirect2 && *redirect2 == ' ') {
+                redirect2++;
+            }
+            // trim trailing spaces
+            char *end = redirect2;
+            while(*end && *end != ' ') {
+                end++;
+            }
+            *end = 0;
+            // TODO: 2nd param after ">" ?
+            // TODO: support quotes
             break;
         }
         if (inSpace) {
@@ -161,8 +197,8 @@ static void backspace() {
     gbackspace();
 }
 
-static char curr_dir[512] = "/MOS";
-static void dir(char *d) {
+static char curr_dir[512] = "/MOS"; // TODO: configure start dir
+static void dir(FIL *f, char *d) {
     DIR dir;
     FILINFO fileInfo;
     if (FR_OK != f_opendir(&dir, d)) {
@@ -245,21 +281,34 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         }
         if (c == '\n') {
             int tokens = tokenize_cmd();
+            FIL f = { 0 };
             if (redirect2) {
-                FILINFO fileinfo;
-                if (f_stat(redirect2, &fileinfo) != FR_OK) {
-                    goutf("Unable to find file: %s\n", redirect2);
+                if (bAppend) {
+                    FILINFO fileinfo;
+                    if (f_stat(redirect2, &fileinfo) != FR_OK) {
+                        goutf("Unable to find file: %s\n", redirect2);
+                    } else {
+                        if (f_open(&f, redirect2, FA_OPEN_ALWAYS | FA_OPEN_APPEND) != FR_OK) {
+                            goutf("Unable to open file: %s\n", redirect2);
+                        }
+                    }
+                } else {
+                    if (f_open(&f, redirect2, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
+                        goutf("Unable to open file: %s\n", redirect2);
+                    }
                 }
-
             }
             if (strcmp("cls", cmd_t) == 0 ) {
                 clrScr(1);
                 graphics_set_con_pos(0, 0);
                 graphics_set_con_color(7, 0);
             } else if (strcmp("dir", cmd_t) == 0) {
-                dir(tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
+                dir(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
             } else  {
                 goutf("Illegal command: %s\n", cmd);
+            }
+            if (redirect2) {
+                f_close(&f);
             }
             goutf("%s>", curr_dir);
             cmd[0] = 0;

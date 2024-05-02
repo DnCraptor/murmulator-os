@@ -88,16 +88,10 @@ void gbackspace() {
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }
 
-void goutf(const char *__restrict str, ...) {
-    va_list ap;
-    char buf[512]; // TODO: some const?
-    va_start(ap, str);
-    vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
-    va_end(ap);
+void gouta(char* buf) {
     uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
     char c;
-    str = buf;
-    while (c = *str++) {
+    while (c = *buf++) {
         if (c == '\n') {
             pos_x = 0;
             pos_y++;
@@ -120,4 +114,13 @@ void goutf(const char *__restrict str, ...) {
     //char tmp[32];
     //snprintf(tmp, 32, "x:%02d y:%02d ", pos_x, pos_y);
     //draw_text(tmp, 0, 0, 7, 0);
+}
+
+void goutf(const char *__restrict str, ...) {
+    va_list ap;
+    char buf[512]; // TODO: some const?
+    va_start(ap, str);
+    vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
+    va_end(ap);
+    gouta(buf);
 }
