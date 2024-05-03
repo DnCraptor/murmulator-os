@@ -86,6 +86,7 @@ static bool bAltPressed = false;
 static bool bDelPressed = false;
 static bool bLeftShift = false;
 static bool bRightShift = false;
+static bool bRus = false;
 static bool bCapsLock = false;
 static uint32_t input = 0;
 
@@ -122,6 +123,40 @@ static char scan_code_2_cp866_ACL[0x80] = {
     '2', '3', '0', '.',  '/', 0 
 };
 
+
+static char scan_code_2_cp866_ra[0x80] = {
+     0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
+   0xA9,0xE6,0xE3, 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']','\n',  0 , 'a', 's',
+    'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',  0 , '`',  0 ,'\\', 'z', 'x', 'c', 'v',
+    'b', 'n', 'm', ',', '.', '/',  0 , '*',  0 , ' ',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+     0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
+    '2', '3', '0', '.',  '/', 0 
+};
+static char scan_code_2_cp866_rA[0x80] = {
+     0 ,  0 , '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
+   0x89,0x96,0x93, 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}','\n',  0 , 'A', 'S',
+    'D', 'F', 'G', 'H', 'J', 'K', 'L', ':',  0 , '~',  0 , '|', 'Z', 'X', 'C', 'V',
+    'B', 'N', 'M', '<', '>', '?',  0 , '*',  0 , ' ',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+     0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
+    '2', '3', '0', '.',  '/', 0 
+};
+static char scan_code_2_cp866_raCL[0x80] = {
+     0 ,  0 , '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
+   0xA9,0xE6,0xE3, 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']','\n',  0 , 'a', 's',
+    'd', 'f', 'g', 'h', 'j', 'k', 'l', ':',  0 , '~',  0 , '|', 'z', 'x', 'c', 'v',
+    'b', 'n', 'm', '<', '>', '?',  0 , '*',  0 , ' ',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+     0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
+    '2', '3', '0', '.',  '/', 0 
+};
+static char scan_code_2_cp866_rACL[0x80] = {
+     0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
+   0x89,0x96,0x93, 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}','\n',  0 , 'A', 'S',
+    'D', 'F', 'G', 'H', 'J', 'K', 'L', ';',  0 , '`',  0 ,'\\', 'Z', 'X', 'C', 'V',
+    'B', 'N', 'M', ',', '.', '/',  0 , '*',  0 , ' ',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+     0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
+    '2', '3', '0', '.',  '/', 0 
+};
+
 static char cmd[512] = { 0 };
 static char cmd_t[512] = { 0 }; // tokenised string
 static int cmd_pos = 0;
@@ -132,9 +167,13 @@ static char tolower_token(char t) {
     if (t >= 'A' && t <= 'Z') {
         return t + ('a' - 'A');
     }
-    if (t >= 0x80 && t <= 0x9F /* А-Я */) {
+    if (t >= 0x80 && t <= 0x8F /* А-П */) {
         return t + (0xA0 - 0x80);
     }
+    if (t >= 0x90 && t <= 0x9F /* Р-Я */) {
+        return t + (0xE0 - 0x90);
+    }
+    if (t >= 0xF0 && t <= 0xF6) return t + 1; // Ё...
     return t;
 }
 
@@ -247,6 +286,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     switch ((uint8_t)ps2scancode & 0xFF) {
         case 0x1D:
             bCtrlPressed = true;
+            if (bRightShift || bLeftShift) bRus = !bRus;
             break;
         case 0x9D:
             bCtrlPressed = false;
@@ -265,12 +305,14 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             break;
         case 0x2A:
             bLeftShift = true;
+            if (bCtrlPressed) bRus = !bRus;
             break;
         case 0xAA:
             bLeftShift = false;
             break;
         case 0x36:
             bRightShift = true;
+            if (bCtrlPressed) bRus = !bRus;
             break;
         case 0xB6:
             bRightShift = false;
@@ -289,11 +331,16 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         watchdog_enable(100, true);
     }
     if (ps2scancode < 0x80) {
-        char c = (
+        char c = (bRus ?
+        (
+            !bCapsLock ?
+            ((bRightShift || bLeftShift) ? scan_code_2_cp866_rA : scan_code_2_cp866_ra) :
+            ((bRightShift || bLeftShift) ? scan_code_2_cp866_raCL : scan_code_2_cp866_rACL)
+        ) : (
             !bCapsLock ?
             ((bRightShift || bLeftShift) ? scan_code_2_cp866_A : scan_code_2_cp866_a) :
             ((bRightShift || bLeftShift) ? scan_code_2_cp866_aCL : scan_code_2_cp866_ACL)
-        )[ps2scancode & 0xFF];
+        ))[ps2scancode & 0xFF];
         if (c) {
             if (c == '\t') goutf("    "); // TODO: teminal settings for the TAB spacing
             else goutf("%c", c); // TODO: putc
@@ -347,7 +394,7 @@ t:
                 cmd[cmd_pos++] = ' ';
                 cmd[cmd_pos++] = ' ';
             } else {
-                cmd[cmd_pos++] = c; // TODO: tolower
+                cmd[cmd_pos++] = c;
             }
             cmd[cmd_pos] = 0;
         }

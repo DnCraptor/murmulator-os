@@ -48,6 +48,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     // graphics.h
     draw_text, // 30 
     draw_window, // 31
+    // 
     pvPortMalloc, // 32
     vPortFree, // 33
     //
@@ -63,8 +64,23 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     graphics_set_con_color, // 43
     clrScr, // 44
     gbackspace, // 45
+
     f_open, // 46
     f_close, // 47
+    f_write, // 48
+    f_read, // 49
+    f_stat, // 50
+    f_lseek, // 51
+    f_truncate, // 52
+    f_sync, // 53
+    f_opendir, // 54
+    f_closedir, // 55
+    f_readdir, // 56
+    f_mkdir, // 57
+    f_unlink, // 58
+    f_rename, // 59
+    f_stat, // 60
+    f_getfree, // 61
     // TODO:
     0
 };
