@@ -34,9 +34,12 @@ inline static void run_app(char * name) {
     xTaskCreate(vAppTask, name, configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
 }
 
+// TODO: .h
 void fgoutf(FIL *f, const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 2, 3)));
 
 #include <stdarg.h>
+
+static char* redirect2 = NULL;
 
 void fgoutf(FIL *f, const char *__restrict str, ...) {
     char buf[512]; // TODO: some const?
@@ -44,7 +47,7 @@ void fgoutf(FIL *f, const char *__restrict str, ...) {
     va_start(ap, str);
     vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
     va_end(ap);
-    if (f == NULL || f->obj.fs == 0) {
+    if (!redirect2) {
         gouta(buf);
     } else {
         UINT bw;
@@ -135,7 +138,6 @@ static char tolower_token(char t) {
     return t;
 }
 
-static char* redirect2 = NULL;
 static bool bAppend = false;
 static int tokenize_cmd() {
     redirect2 = NULL;
@@ -197,6 +199,21 @@ static void backspace() {
     gbackspace();
 }
 
+static void type(FIL *f, char *fn) {
+    FIL f2;
+    if (f_open(&f2, fn, FA_READ) != FR_OK) {
+        goutf("Unable to open file: %s", fn);
+        return;
+    }
+    char buf[512];
+    UINT rb;
+    while(f_read(&f2, buf, 512, &rb) == FR_OK && rb > 0) {
+        buf[rb] = 0;
+        fgoutf(f, buf);
+    }
+    f_close(&f2);
+}
+
 static char curr_dir[512] = "/MOS"; // TODO: configure start dir
 static void dir(FIL *f, char *d) {
     DIR dir;
@@ -206,18 +223,18 @@ static void dir(FIL *f, char *d) {
         return;
     }
     if (strlen(d) > 1) {
-        goutf("D ..\n");
+        fgoutf(f, "D ..\n");
     }
     int total_files = 0;
     while (f_readdir(&dir, &fileInfo) == FR_OK &&
                fileInfo.fname[0] != '\0' 
     ) {
-        goutf(fileInfo.fattrib & AM_DIR ? "D " : "  ");
-        goutf("%s\n", fileInfo.fname);
+        fgoutf(f, fileInfo.fattrib & AM_DIR ? "D " : "  ");
+        fgoutf(f, "%s\n", fileInfo.fname);
         total_files++;
     }
     f_closedir(&dir);
-    goutf("    Total: %d files\n", total_files);
+    fgoutf(f, "    Total: %d files\n", total_files);
 }
 
 extern "C" {
@@ -302,8 +319,10 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                 clrScr(1);
                 graphics_set_con_pos(0, 0);
                 graphics_set_con_color(7, 0);
-            } else if (strcmp("dir", cmd_t) == 0) {
+            } else if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
                 dir(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
+            } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
+                type(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
             } else  {
                 goutf("Illegal command: %s\n", cmd);
             }
