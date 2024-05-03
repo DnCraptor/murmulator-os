@@ -153,8 +153,10 @@ static int tokenize_cmd() {
     while(*t1) {
         char c = tolower_token(*t1++);
         if (c == '>') {
+            *(t1-1) = 0;
             redirect2 = t1;
             if (*redirect2 == '>') {
+                *redirect2 = 0;
                 redirect2++;
                 bAppend = true;
             }
@@ -202,7 +204,7 @@ static void backspace() {
 static void type(FIL *f, char *fn) {
     FIL f2;
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
-        goutf("Unable to open file: %s", fn);
+        goutf("Unable to open file: %s\n", fn);
         return;
     }
     char buf[512];
@@ -304,12 +306,15 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                     FILINFO fileinfo;
                     if (f_stat(redirect2, &fileinfo) != FR_OK) {
                         goutf("Unable to find file: %s\n", redirect2);
+                        goto t;
                     } else {
-                        if (f_open(&f, redirect2, FA_OPEN_ALWAYS | FA_OPEN_APPEND) != FR_OK) {
+                        if (f_open(&f, redirect2, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND) != FR_OK) {
+                            f_lseek(&f, fileinfo.fsize);
                             goutf("Unable to open file: %s\n", redirect2);
                         }
                     }
                 } else {
+t:
                     if (f_open(&f, redirect2, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
                         goutf("Unable to open file: %s\n", redirect2);
                     }
