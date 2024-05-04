@@ -12,6 +12,10 @@ uint8_t kbloop = 0;
 
 uint8_t led_status = 0b000;
 
+uint8_t get_leds_stat() {
+    return led_status;
+}
+
 #define PS2_ERR_NONE    0
 
 volatile int16_t ps2_error = PS2_ERR_NONE;
@@ -203,10 +207,10 @@ uint8_t ps2_to_xt_1(uint32_t val) {
     return 0;
 }
 
-uint8_t ps2_to_xt_2(uint32_t val) {
+uint16_t ps2_to_xt_2(uint32_t val) {
     uint8_t i;
     for (i = 0; i < 16; i++) {
-        if (ps2_group2[i].xt_make == val) return ps2_group2[i].make;
+        if (ps2_group2[i].xt_make == val) return 0xE000 | ps2_group2[i].make;
     }
     return 0;
 }

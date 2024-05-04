@@ -8,6 +8,7 @@
 #include "hooks.h"
 #include "portable.h"
 #include "timers.h" // TODO
+#include "ps2.h"
 
 // to cleanup BOOTA memory region on the MOS flashing
 unsigned long __in_boota() __aligned(4096) cleanup_boota[] = { 0 };
@@ -84,6 +85,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     f_getfree, // 61
     //
     strlen, // 62
+    get_leds_stat, // 63
     // TODO:
     0
 };
