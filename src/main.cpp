@@ -289,15 +289,79 @@ static char tricode2c(char tricode[4], size_t s) {
     return (char)r & 0xFF;
 }
 
+static char cmd_history_file[] = "\\MOS\\.cmd_history"; // TODO: config
+static int cmd_history_idx = -2;
+
 extern "C" {
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
+    FIL f = { 0 };
+    UINT br;
     static char tricode[4] = {0};
     char tmp[32];
     size_t s;
     char c = 0;
     snprintf(tmp, 32, "%ph", ps2scancode);
     draw_text(tmp, 0, 29, 13, 1);
-    switch ((uint8_t)ps2scancode & 0xFF) {
+    input = ps2scancode;
+    if (ps2scancode == 0xE048 || ps2scancode == 0x48 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
+        input = 0;
+        while(cmd_pos) {
+            cmd[--cmd_pos] = 0;
+            gbackspace();
+        }
+        cmd_history_idx--;
+        f_open(&f, cmd_history_file, FA_READ);
+        size_t j = 0;
+        int idx = 0;
+        while(f_read(&f, cmd_t, 512, &br) == FR_OK && br) {
+            for(size_t i = 0; i < br; ++i) {
+                char t = cmd_t[i];
+                if(t == '\n') { // next line
+                    cmd[j] = 0;
+                    j = 0;
+                    if(cmd_history_idx == idx)
+                        break;
+                    idx++;
+                } else {
+                    cmd[j++] = t;
+                    cmd_pos = j;
+                }
+            }
+        }
+        f_close(&f);
+        if (cmd_history_idx < 0) cmd_history_idx = idx;
+        goutf(cmd);
+    }
+    if (ps2scancode == 0xE050 || ps2scancode == 0x50 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
+        input = 0;
+        while(cmd_pos) {
+            cmd[--cmd_pos] = 0;
+            gbackspace();
+        }
+        if (cmd_history_idx == -2) cmd_history_idx = -1;
+        cmd_history_idx++;
+        f_open(&f, cmd_history_file, FA_READ);
+        size_t j = 0;
+        int idx = 0;
+        while(f_read(&f, cmd_t, 512, &br) == FR_OK && br) {
+            for(size_t i = 0; i < br; ++i) {
+                char t = cmd_t[i];
+                if(t == '\n') { // next line
+                    cmd[j] = 0;
+                    j = 0;
+                    if(cmd_history_idx == idx)
+                        break;
+                    idx++;
+                } else {
+                    cmd[j++] = t;
+                    cmd_pos = j;
+                }
+            }
+        }
+        f_close(&f);
+        goutf(cmd);
+    }
+    switch ((uint8_t)input & 0xFF) {
         case 0x1D:
             bCtrlPressed = true;
             if (bRightShift || bLeftShift) bRus = !bRus;
@@ -342,12 +406,11 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         default:
             break;
     }
-    input = ps2scancode;
     if (bCtrlPressed && bAltPressed && bDelPressed) {
         watchdog_enable(100, true);
         return true;
     }
-    if (c || ps2scancode < 0x80) {
+    if (c || input < 0x80) {
         if (!c) {
             c = (bRus ?
             (
@@ -358,7 +421,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                 !bCapsLock ?
                 ((bRightShift || bLeftShift) ? scan_code_2_cp866_A : scan_code_2_cp866_a) :
                 ((bRightShift || bLeftShift) ? scan_code_2_cp866_aCL : scan_code_2_cp866_ACL)
-            ))[ps2scancode & 0xFF];
+            ))[input & 0xFF];
         }
         if (c) {
             if (bAltPressed && c >= '0' && c <= '9') {
@@ -375,12 +438,12 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             else goutf("%c", c); // TODO: putc
         }
         if (c == '\n') {
-            FIL f = { 0 };
-            f_open(&f, "\\MOS\\.cmd_history", FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
-            UINT bw;
-            f_write(&f, cmd, cmd_pos, &bw);
-            f_write(&f, "\n", 1, &bw);
-            f_close(&f);
+            if (cmd_pos > 0) { // history
+                f_open(&f, cmd_history_file, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
+                f_write(&f, cmd, cmd_pos, &br);
+                f_write(&f, "\n", 1, &br);
+                f_close(&f);
+            }
             int tokens = tokenize_cmd();
             if (redirect2) {
                 if (bAppend) {
