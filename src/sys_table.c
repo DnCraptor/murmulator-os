@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "sys_table.h"
@@ -81,6 +82,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     f_rename, // 59
     f_stat, // 60
     f_getfree, // 61
+    //
+    strlen, // 62
     // TODO:
     0
 };

@@ -150,7 +150,7 @@ static char scan_code_2_cp866_raCL[0x80] = {
 };
 static char scan_code_2_cp866_rACL[0x80] = {
      0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
-   0x89,0x96,0x93,0x8A,0x85,0xAD,0x83,0x98,0x99,0x87,0x95,0x9A,'\n',  0 ,0x94,0x9B,
+   0x89,0x96,0x93,0x8A,0x85,0x8D,0x83,0x98,0x99,0x87,0x95,0x9A,'\n',  0 ,0x94,0x9B,
    0x82,0x80,0x8F,0x90,0x8E,0x8B,0x84,0x86,0x9D,0xf0,  0 ,'\\',0x9F,0x97,0x91,0x8C,
    0x88,0x92,0x9C,0x81,0x9E, '.',  0 , '*',  0 , ' ',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
@@ -278,9 +278,23 @@ static void dir(FIL *f, char *d) {
     fgoutf(f, "    Total: %d files\n", total_files);
 }
 
+static char tricode2c(char tricode[4], size_t s) {
+    unsigned int r = 0;
+    for (int pos = s - 1; pos >= 0; pos--) {
+        unsigned int dShift = s - pos == 3 ? 100 : (pos == 2 ? 1 : 10); // faster than exp
+        r += (tricode[pos] - '0') * dShift;
+       // goutf("pos: %d; dShift: %d; r: %d\n", pos, dShift, r);
+    }
+    tricode[0] = 0;
+    return (char)r & 0xFF;
+}
+
 extern "C" {
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
+    static char tricode[4] = {0};
     char tmp[32];
+    size_t s;
+    char c = 0;
     snprintf(tmp, 32, "%ph", ps2scancode);
     draw_text(tmp, 0, 29, 13, 1);
     switch ((uint8_t)ps2scancode & 0xFF) {
@@ -296,6 +310,8 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             break;
         case 0xB8:
             bAltPressed = false;
+            s = strlen(tricode);
+            if (s) c = tricode2c(tricode, s);
             break;
         case 0x53:
             bDelPressed = true;
@@ -329,19 +345,32 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     input = ps2scancode;
     if (bCtrlPressed && bAltPressed && bDelPressed) {
         watchdog_enable(100, true);
+        return true;
     }
-    if (ps2scancode < 0x80) {
-        char c = (bRus ?
-        (
-            !bCapsLock ?
-            ((bRightShift || bLeftShift) ? scan_code_2_cp866_rA : scan_code_2_cp866_ra) :
-            ((bRightShift || bLeftShift) ? scan_code_2_cp866_raCL : scan_code_2_cp866_rACL)
-        ) : (
-            !bCapsLock ?
-            ((bRightShift || bLeftShift) ? scan_code_2_cp866_A : scan_code_2_cp866_a) :
-            ((bRightShift || bLeftShift) ? scan_code_2_cp866_aCL : scan_code_2_cp866_ACL)
-        ))[ps2scancode & 0xFF];
+    if (c || ps2scancode < 0x80) {
+        if (!c) {
+            c = (bRus ?
+            (
+                !bCapsLock ?
+                ((bRightShift || bLeftShift) ? scan_code_2_cp866_rA : scan_code_2_cp866_ra) :
+                ((bRightShift || bLeftShift) ? scan_code_2_cp866_raCL : scan_code_2_cp866_rACL)
+            ) : (
+                !bCapsLock ?
+                ((bRightShift || bLeftShift) ? scan_code_2_cp866_A : scan_code_2_cp866_a) :
+                ((bRightShift || bLeftShift) ? scan_code_2_cp866_aCL : scan_code_2_cp866_ACL)
+            ))[ps2scancode & 0xFF];
+        }
         if (c) {
+            if (bAltPressed && c >= '0' && c <= '9') {
+                s = strlen(tricode);
+                if (s == 3) {
+                    c = tricode2c(tricode, s);
+                } else {
+                    tricode[s++] = c;
+                    tricode[s] = 0;
+                    return true;
+                }
+            }
             if (c == '\t') goutf("    "); // TODO: teminal settings for the TAB spacing
             else goutf("%c", c); // TODO: putc
         }
