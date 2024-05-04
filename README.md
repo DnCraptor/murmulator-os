@@ -78,4 +78,4 @@ cat / type file - type file<br/>
 [BACKSPACE] - remove last character<br/>
 [CTRL]+[SHIFT] - rus/lat<br/>
 [CTRL]+[ALT]+[DEL] - reset<br/>
-[ALT]+[0-9]+[0-9]+[0-9] - manual enter some characret by its decimal code (CP-866 codepage)<br/>
+[ALT]+[0-9]+[0-9]+[0-9] - manual enter some character by its decimal code (CP-866 codepage)<br/>
