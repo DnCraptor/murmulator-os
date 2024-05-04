@@ -71,7 +71,7 @@ rm / del / era file - remove file<br/>
 cd dir - change current directory<br/>
 mkdir dir - create directory<br/>
 cat / type file - type file<br/>
-&lt; file - output redirection to file<br/>
+[cmd] &gt; file - output redirection to file<br/>
 [ENTER] - start command<br/>
 [TAB] - autocomplete<br/>
 [BACKSPACE] - remove last character<br/>
