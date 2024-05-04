@@ -24,6 +24,8 @@ extern "C" {
 #define M_OS_APL_TABLE_BASE ((size_t*)0x10002000ul)
 typedef int (*boota_ptr_t)( void *argv );
 
+bool __not_in_flash_func(load_firmware)(const char pathname[256]);
+
 void vAppTask(void *pv) {
     int res = ((boota_ptr_t)M_OS_APL_TABLE_BASE[0])(pv); // TODO:
     vTaskDelete( NULL );
@@ -395,6 +397,11 @@ static char tricode2c(char tricode[4], size_t s) {
     return (char)r & 0xFF;
 }
 
+static bool exists(char * cmd) {
+    FILINFO fileinfo;
+    return f_stat(cmd, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
+}
+
 static char cmd_history_file[] = "\\MOS\\.cmd_history"; // TODO: config
 static int cmd_history_idx = -2;
 
@@ -607,8 +614,14 @@ t:
                 }
             } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
                 type(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
-            } else  {
-                goutf("Illegal command: %s\n", cmd);
+            } else if (exists(cmd_t)) {
+                if (load_firmware(cmd_t)) {
+                    run_app(cmd_t);
+                } else {
+                    goutf("Unable to load application: '%s'\n", cmd_t);
+                }
+            } else {
+                goutf("Illegal command: '%s'\n", cmd);
             }
             if (redirect2) {
                 f_close(&f);
