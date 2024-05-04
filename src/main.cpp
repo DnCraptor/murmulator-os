@@ -255,12 +255,18 @@ static void type(FIL *f, char *fn) {
     f_close(&f2);
 }
 
+static void del(char *d) {
+    if (f_unlink(d) != FR_OK) {
+        goutf("Unable to unlink: '%s'", d);
+    }
+}
+
 static char curr_dir[512] = "/MOS"; // TODO: configure start dir
 static void dir(FIL *f, char *d) {
     DIR dir;
     FILINFO fileInfo;
     if (FR_OK != f_opendir(&dir, d)) {
-        goutf("Failed to open directory: %s\n", d);
+        goutf("Failed to open directory: '%s'\n", d);
         return;
     }
     if (strlen(d) > 1) {
@@ -497,18 +503,18 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                 if (bAppend) {
                     FILINFO fileinfo;
                     if (f_stat(redirect2, &fileinfo) != FR_OK) {
-                        goutf("Unable to find file: %s\n", redirect2);
+                        goutf("Unable to find file: '%s'\n", redirect2);
                         goto t;
                     } else {
                         if (f_open(&f, redirect2, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND) != FR_OK) {
                             f_lseek(&f, fileinfo.fsize);
-                            goutf("Unable to open file: %s\n", redirect2);
+                            goutf("Unable to open file: '%s'\n", redirect2);
                         }
                     }
                 } else {
 t:
                     if (f_open(&f, redirect2, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
-                        goutf("Unable to open file: %s\n", redirect2);
+                        goutf("Unable to open file: '%s'\n", redirect2);
                     }
                 }
             }
@@ -518,6 +524,12 @@ t:
                 graphics_set_con_color(7, 0);
             } else if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
                 dir(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
+            } else if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {
+                if (tokens == 1) {
+                    goutf("Unable to remove nothing\n");
+                } else {
+                    del((char*)cmd + (next_token(cmd_t) - cmd_t));
+                }
             } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
                 type(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
             } else  {
