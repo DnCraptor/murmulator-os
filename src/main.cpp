@@ -267,15 +267,60 @@ static void dir(FIL *f, char *d) {
         fgoutf(f, "D ..\n");
     }
     int total_files = 0;
-    while (f_readdir(&dir, &fileInfo) == FR_OK &&
-               fileInfo.fname[0] != '\0' 
-    ) {
+    while (f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
         fgoutf(f, fileInfo.fattrib & AM_DIR ? "D " : "  ");
         fgoutf(f, "%s\n", fileInfo.fname);
         total_files++;
     }
     f_closedir(&dir);
     fgoutf(f, "    Total: %d files\n", total_files);
+}
+
+static void type_char(char c) {
+    goutf("%c", c); // TODO: putc
+    if (cmd_pos >= 512) {
+        // TODO: blimp
+    }
+    cmd[cmd_pos++] = c;
+    cmd[cmd_pos] = 0;
+}
+
+static char* next_on(char* l, char *bi) {
+    char *b = bi;
+    while(*l && *b && *l++ == *b) b++;
+    return *l == 0 ? b : bi;
+}
+
+static void tabPressed() {
+    char * p = cmd;
+    char * p2 = cmd;
+    while(*p) {
+        if(*p++ == ' ') {
+            p2 = p;
+        }
+    }
+    DIR dir;
+    FILINFO fileInfo;
+    if (FR_OK != f_opendir(&dir, curr_dir)) {
+        return;
+    }
+    int total_files = 0;
+    while (f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
+        char* p3 = next_on(p2, fileInfo.fname);
+        if (p3 != fileInfo.fname) {
+            strcpy(cmd_t, p3);
+            total_files++;
+        }
+    }
+    if (total_files == 1) {
+        char* p3 = cmd_t;
+        while (*p3) {
+            type_char(*p3++);
+        }
+    } else {
+        // TODO: blimp
+    }
+    f_closedir(&dir);
 }
 
 static char tricode2c(char tricode[4], size_t s) {
@@ -434,7 +479,10 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                     return true;
                 }
             }
-            if (c == '\t') goutf("    "); // TODO: teminal settings for the TAB spacing
+            if (c == '\t') {
+                tabPressed();
+                c = 0;
+            }
             else goutf("%c", c); // TODO: putc
         }
         if (c == '\n') {
@@ -485,14 +533,7 @@ t:
             if (cmd_pos >= 512) {
                 // TODO: blimp
             }
-            if (c == '\t') {
-                cmd[cmd_pos++] = ' '; // TODO: TAB?
-                cmd[cmd_pos++] = ' ';
-                cmd[cmd_pos++] = ' ';
-                cmd[cmd_pos++] = ' ';
-            } else {
-                cmd[cmd_pos++] = c;
-            }
+            cmd[cmd_pos++] = c;
             cmd[cmd_pos] = 0;
         }
     }

@@ -85,7 +85,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     f_getfree, // 61
     //
     strlen, // 62
-    get_leds_stat, // 63
+    strncpy, // 63
+    get_leds_stat, // 64
     // TODO:
     0
 };
