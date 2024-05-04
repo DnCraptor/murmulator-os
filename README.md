@@ -65,8 +65,8 @@ typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint
 So it will be possible to call draw_text the same way as for case graphics.h and VGA driver exists, but without 'em.<br/>
 
 # M-OS commands
-cls - clear string<br/>
-dir / ls [dir] - show directory conent<br/>
+cls - clear screen<br/>
+dir / ls [dir] - show directory content<br/>
 rm / del / era file - remove file<br/>
 cd dir - change current directory<br/>
 mkdir dir - create directory<br/>
