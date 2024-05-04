@@ -69,6 +69,7 @@ cls - clear screen<br/>
 dir / ls [dir] - show directory content<br/>
 rm / del / era file - remove file<br/>
 cd dir - change current directory<br/>
+cp file1 file2 - copy file1 as file2<br/>
 mkdir dir - create directory<br/>
 cat / type file - type file<br/>
 [cmd] &gt; file - output redirection to file<br/>

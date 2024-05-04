@@ -243,7 +243,7 @@ static void backspace() {
 static void type(FIL *f, char *fn) {
     FIL f2;
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
-        goutf("Unable to open file: %s\n", fn);
+        goutf("Unable to open file: '%s'\n", fn);
         return;
     }
     char buf[512];
@@ -263,9 +263,30 @@ static void del(char *d) {
 
 static char curr_dir[512] = "MOS"; // TODO: configure start dir
 
+static void cp(char *f1, char* f2) {
+    FIL fil1, fil2;
+    if(f_open(&fil1, f1, FA_READ) != FR_OK) {
+        goutf("Unable to open file: '%s'\n", f1);
+        return;
+    }
+    if (f_open(&fil2, f2, FA_CREATE_NEW | FA_WRITE) != FR_OK) {
+        goutf("Unable to open file to write: '%s'\n", f2);
+        return;
+    }
+    char buf[512];
+    UINT rb;
+    while(f_read(&fil1, buf, 512, &rb) == FR_OK && rb > 0) {
+        if (f_write(&fil2, buf, rb, &rb) != FR_OK) {
+            goutf("Unable to write to file: '%s'\n", f2);
+        }
+    }
+    f_close(&fil2);
+    f_close(&fil1);
+}
+
 static void cd(char *d) {
     FILINFO fileinfo;
-    if (strcmp(d, "\\") || strcmp(d, "/")) {
+    if (strcmp(d, "\\") == 0 || strcmp(d, "/") == 0) {
         strcpy(curr_dir, d);
     } else if (f_stat(d, &fileinfo) != FR_OK || !(fileinfo.fattrib & AM_DIR)) {
         goutf("Unable to find directory: '%s'\n", d);
@@ -569,6 +590,14 @@ t:
                     goutf("Unable to change directoy to nothing\n");
                 } else {
                     cd((char*)cmd + (next_token(cmd_t) - cmd_t));
+                }
+            } else if (strcmp("cp", cmd_t) == 0 || strcmp("copy", cmd_t) == 0) {
+                if (tokens < 3) {
+                    goutf("Usage: %s <file1> <file2>\n", cmd_t);
+                } else {
+                    char* pt1 = next_token(cmd_t);
+                    char* pt2 = next_token(pt1);
+                    cp(pt1, (char*)cmd + (pt2 - cmd_t));
                 }
             } else if (strcmp("mkdir", cmd_t) == 0) {
                 if (tokens == 1) {
