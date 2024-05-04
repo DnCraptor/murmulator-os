@@ -281,9 +281,9 @@ static void dir(FIL *f, char *d) {
 static char tricode2c(char tricode[4], size_t s) {
     unsigned int r = 0;
     for (int pos = s - 1; pos >= 0; pos--) {
-        unsigned int dShift = s - pos == 3 ? 100 : (pos == 2 ? 1 : 10); // faster than exp
+        int bs = s - 1 - pos;
+        unsigned int dShift = bs == 2 ? 100 : (bs == 1 ? 10 : 1); // faster than exp
         r += (tricode[pos] - '0') * dShift;
-       // goutf("pos: %d; dShift: %d; r: %d\n", pos, dShift, r);
     }
     tricode[0] = 0;
     return (char)r & 0xFF;
