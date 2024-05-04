@@ -375,8 +375,13 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             else goutf("%c", c); // TODO: putc
         }
         if (c == '\n') {
-            int tokens = tokenize_cmd();
             FIL f = { 0 };
+            f_open(&f, "\\MOS\\.cmd_history", FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
+            UINT bw;
+            f_write(&f, cmd, cmd_pos, &bw);
+            f_write(&f, "\n", 1, &bw);
+            f_close(&f);
+            int tokens = tokenize_cmd();
             if (redirect2) {
                 if (bAppend) {
                     FILINFO fileinfo;
