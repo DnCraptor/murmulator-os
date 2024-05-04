@@ -261,7 +261,13 @@ static void del(char *d) {
     }
 }
 
+
 static char curr_dir[512] = "/MOS"; // TODO: configure start dir
+
+static void cd(char *d) {
+    strcpy(curr_dir, d);
+}
+
 static void dir(FIL *f, char *d) {
     DIR dir;
     FILINFO fileInfo;
@@ -545,6 +551,12 @@ t:
                     goutf("Unable to remove nothing\n");
                 } else {
                     del((char*)cmd + (next_token(cmd_t) - cmd_t));
+                }
+            } else if (strcmp("cd", cmd_t) == 0) {
+                if (tokens == 1) {
+                    goutf("Unable to change directoy to nothing\n");
+                } else {
+                    cd((char*)cmd + (next_token(cmd_t) - cmd_t));
                 }
             } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
                 type(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
