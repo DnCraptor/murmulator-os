@@ -293,33 +293,49 @@ static void type_char(char c) {
 
 static char* next_on(char* l, char *bi) {
     char *b = bi;
-    while(*l && *b && *l++ == *b) b++;
+    while(*l && *b && *l == *b) {
+        l++;
+        b++;
+    }
     return *l == 0 ? b : bi;
 }
 
 static void tabPressed() {
     char * p = cmd;
     char * p2 = cmd;
-    while(*p) {
-        if(*p++ == ' ') {
+    while (*p) {
+        if (*p++ == ' ') {
             p2 = p;
         }
     }
+    p = p2;
+    char * p3 = p2;
+    while (*p3) {
+        if (*p3++ == '/') {
+            p2 = p3;
+        }
+    }
+    if (p != p2) {
+        strncpy(cmd_t, p, p2 - p);
+        cmd_t[p2 - p] = 0;
+    }
     DIR dir;
     FILINFO fileInfo;
-    if (FR_OK != f_opendir(&dir, curr_dir)) {
+    //goutf("\nDIR: %s\n", p != p2 ? cmd_t : curr_dir);
+    if (FR_OK != f_opendir(&dir, p != p2 ? cmd_t : curr_dir)) {
         return;
     }
     int total_files = 0;
     while (f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
-        char* p3 = next_on(p2, fileInfo.fname);
+        p3 = next_on(p2, fileInfo.fname);
         if (p3 != fileInfo.fname) {
             strcpy(cmd_t, p3);
             total_files++;
         }
+        //goutf("p3: %s; p2: %s; fn: %s; cmd_t: %s; fls: %d\n", p3, p2, fileInfo.fname, cmd_t, total_files);
     }
     if (total_files == 1) {
-        char* p3 = cmd_t;
+        p3 = cmd_t;
         while (*p3) {
             type_char(*p3++);
         }
