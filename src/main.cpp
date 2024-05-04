@@ -257,15 +257,27 @@ static void type(FIL *f, char *fn) {
 
 static void del(char *d) {
     if (f_unlink(d) != FR_OK) {
-        goutf("Unable to unlink: '%s'", d);
+        goutf("Unable to unlink: '%s'\n", d);
     }
 }
 
-
-static char curr_dir[512] = "/MOS"; // TODO: configure start dir
+static char curr_dir[512] = "MOS"; // TODO: configure start dir
 
 static void cd(char *d) {
-    strcpy(curr_dir, d);
+    FILINFO fileinfo;
+    if (strcmp(d, "\\") || strcmp(d, "/")) {
+        strcpy(curr_dir, d);
+    } else if (f_stat(d, &fileinfo) != FR_OK || !(fileinfo.fattrib & AM_DIR)) {
+        goutf("Unable to find directory: '%s'\n", d);
+    } else {
+        strcpy(curr_dir, d);
+    }
+}
+
+static void mkdir(char *d) {
+    if (f_mkdir(d) != FR_OK) {
+        goutf("Unable to mkdir: '%s'\n", d);
+    }
 }
 
 static void dir(FIL *f, char *d) {
@@ -557,6 +569,12 @@ t:
                     goutf("Unable to change directoy to nothing\n");
                 } else {
                     cd((char*)cmd + (next_token(cmd_t) - cmd_t));
+                }
+            } else if (strcmp("mkdir", cmd_t) == 0) {
+                if (tokens == 1) {
+                    goutf("Unable to make directoy with no name\n");
+                } else {
+                    mkdir((char*)cmd + (next_token(cmd_t) - cmd_t));
                 }
             } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
                 type(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
@@ -982,6 +1000,7 @@ int main() {
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);
     sleep_ms(30);
+
     clrScr(1);
     //graphics_set_con_color(13, 1);
     const char tmp[] = "                      ZX Murmulator (RP2040) OS v.0.0.1 Alfa                    ";
@@ -999,6 +1018,7 @@ int main() {
         goutf("SD Card not inserted or SD Card error!");
         while (true);
     }
+    f_mkdir(curr_dir);
 #if TESTS
     start_test();
 #endif
