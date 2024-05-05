@@ -273,6 +273,7 @@ static void cp(char *f1, char* f2) {
     }
     if (f_open(&fil2, f2, FA_CREATE_NEW | FA_WRITE) != FR_OK) {
         goutf("Unable to open file to write: '%s'\n", f2);
+        f_close(&fil1);
         return;
     }
     char buf[512];
@@ -397,9 +398,18 @@ static char tricode2c(char tricode[4], size_t s) {
     return (char)r & 0xFF;
 }
 
-static bool exists(char * cmd) {
+static bool exists(char* t, const char * cmd) {
     FILINFO fileinfo;
-    return f_stat(cmd, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
+    bool r = f_stat(cmd, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
+    if (r) {
+        strncpy(t, cmd, 511);
+        return r;
+    }
+    size_t s = strlen(curr_dir);
+    strncpy(t, curr_dir, 511);
+    t[s] = '/';
+    strncpy(t + s + 1, cmd, 511 - s);
+    return f_stat(t, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
 }
 
 static char cmd_history_file[] = "\\MOS\\.cmd_history"; // TODO: config
@@ -614,14 +624,17 @@ t:
                 }
             } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
                 type(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
-            } else if (exists(cmd_t)) {
-                if (load_firmware(cmd_t)) {
-                    run_app(cmd_t);
-                } else {
-                    goutf("Unable to load application: '%s'\n", cmd_t);
-                }
             } else {
-                goutf("Illegal command: '%s'\n", cmd);
+                char t[512] = {0};
+                if (exists(t, cmd_t)) {
+                    if (load_firmware(t)) {
+                        run_app(t);
+                    } else {
+                        goutf("Unable to load application: '%s'\n", cmd_t);
+                    }
+                } else {
+                    goutf("Illegal command: '%s'\n", cmd);
+                }
             }
             if (redirect2) {
                 f_close(&f);
