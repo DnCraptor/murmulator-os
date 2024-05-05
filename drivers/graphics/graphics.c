@@ -124,3 +124,17 @@ void goutf(const char *__restrict str, ...) {
     va_end(ap);
     gouta(buf);
 }
+
+void fgoutf(FIL *f, const char *__restrict str, ...) {
+    char buf[512]; // TODO: some const?
+    va_list ap;
+    va_start(ap, str);
+    vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
+    va_end(ap);
+    if (!f || !f->obj.fs) {
+        gouta(buf);
+    } else {
+        UINT bw;
+        f_write(f, buf, strlen(buf), &bw); // TODO: error handling
+    }
+}
