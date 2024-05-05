@@ -317,12 +317,14 @@ static int rmdir(char *d) {
         size_t s = strlen(d);
         strncpy(t, d, 512);
         t[s] = '/';
-        strncpy(t + s + 1, d, 511 - s);
+        strncpy(t + s + 1, fileInfo.fname, 511 - s);
         if(fileInfo.fattrib & AM_DIR) {
             total_files += rmdir(t);
         }
         if (f_unlink(t) == FR_OK)
             total_files++;
+        else
+            goutf("Failed to remove file: '%s'\n", t);
     }
     vPortFree(t);
     f_closedir(&dir);
