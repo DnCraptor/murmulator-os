@@ -21,13 +21,13 @@ extern "C" {
 #include "sys_table.h"
 #include "portable.h"
 
-#define M_OS_APL_TABLE_BASE ((size_t*)0x10002000ul)
+#define M_OS_APP_TABLE_BASE ((size_t*)0x10002000ul)
 typedef int (*boota_ptr_t)( void *argv );
 
 bool __not_in_flash_func(load_firmware)(const char pathname[256]);
 
 void vAppTask(void *pv) {
-    int res = ((boota_ptr_t)M_OS_APL_TABLE_BASE[0])(pv); // TODO:
+    int res = ((boota_ptr_t)M_OS_APP_TABLE_BASE[0])(pv); // TODO:
     vTaskDelete( NULL );
     // TODO: ?? return res;
 }
@@ -713,27 +713,7 @@ void __always_inline run_application() {
 bool __not_in_flash_func(load_firmware)(const char pathname[256]) {
     UINT bytes_read = 0;
     FIL file;
-    char tmp[80] = {0};
-
-    constexpr int window_y = (TEXTMODE_ROWS - 5) / 2;
-    constexpr int window_x = (TEXTMODE_COLS - 43) / 2;
-
-    draw_window(" Loading application", window_x, window_y, 43, 5);
-/*
-    FILINFO fileinfo;
-    f_stat(pathname, &fileinfo);
-
-    if (FLASH_SIZE - 64 << 10 < fileinfo.fsize / 2) {
-        draw_text(" ERROR: Firmware too large! Canceled!!", window_x + 1, window_y + 2, 13, 1);
-        sleep_ms(5000);
-        return false;
-    }
-*/
-    draw_text(pathname, window_x + 2, window_y + 2, 10, 1);
-   // sleep_ms(500);
-
     if (FR_OK != f_open(&file, pathname, FA_READ)) {
-        draw_text(" ERROR: Unable to load file!!", window_x + 1, window_y + 2, 10, 1);
         return false;
     }
 
