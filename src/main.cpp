@@ -92,7 +92,7 @@ static bool bRus = false;
 static bool bCapsLock = false;
 static uint32_t input = 0;
 
-static char scan_code_2_cp866_a[0x80] = {
+static char scan_code_2_cp866_a[] = {
      0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
     'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']','\n',  0 , 'a', 's',
     'd', 'f', 'g', 'h', 'j', 'k', 'l', ';','\'', '`',  0 ,'\\', 'z', 'x', 'c', 'v',
@@ -100,7 +100,7 @@ static char scan_code_2_cp866_a[0x80] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_A[0x80] = {
+static char scan_code_2_cp866_A[] = {
      0 ,  0 , '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
     'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}','\n',  0 , 'A', 'S',
     'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~',  0 , '|', 'Z', 'X', 'C', 'V',
@@ -108,7 +108,7 @@ static char scan_code_2_cp866_A[0x80] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_aCL[0x80] = {
+static char scan_code_2_cp866_aCL[] = {
      0 ,  0 , '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
     'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']','\n',  0 , 'a', 's',
     'd', 'f', 'g', 'h', 'j', 'k', 'l', ':', '"', '~',  0 , '|', 'z', 'x', 'c', 'v',
@@ -116,7 +116,7 @@ static char scan_code_2_cp866_aCL[0x80] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_ACL[0x80] = {
+static char scan_code_2_cp866_ACL[] = {
      0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
     'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}','\n',  0 , 'A', 'S',
     'D', 'F', 'G', 'H', 'J', 'K', 'L', ';','\'', '`',  0 ,'\\', 'Z', 'X', 'C', 'V',
@@ -126,7 +126,7 @@ static char scan_code_2_cp866_ACL[0x80] = {
 };
 
 
-static char scan_code_2_cp866_ra[0x80] = {
+static char scan_code_2_cp866_ra[] = {
      0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
    0xA9,0xE6,0xE3,0xAA,0xA5,0xAD,0xA3,0xE8,0xE9,0xA7,0xE5,0xEA,'\n',  0 ,0xE4,0xEB,
    0xA2,0xA0,0xAF,0xE0,0xAE,0xAB,0xA4,0xA6,0xED,0xf1,  0 ,'\\',0xEF,0xE7,0xE1,0xAC,
@@ -134,7 +134,7 @@ static char scan_code_2_cp866_ra[0x80] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_rA[0x80] = {
+static char scan_code_2_cp866_rA[] = {
      0 ,  0 , '!', '"',0xfc, ';', '%', ':', '?', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
    0x89,0x96,0x93,0x8A,0x85,0x8D,0x83,0x98,0x99,0x87,0x95,0x9A,'\n',  0 ,0x94,0x9B,
    0x82,0x80,0x8F,0x90,0x8E,0x8B,0x84,0x86,0x9D,0xf0,  0 , '/',0x9F,0x97,0x91,0x8C,
@@ -142,7 +142,7 @@ static char scan_code_2_cp866_rA[0x80] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_raCL[0x80] = {
+static char scan_code_2_cp866_raCL[] = {
      0 ,  0 , '!', '"',0xfc, ';', '%', ':', '?', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
    0xA9,0xE6,0xE3,0xAA,0xA5,0xAD,0xA3,0xE8,0xE9,0xA7,0xE5,0xEA,'\n',  0 ,0xE4,0xEB,
    0xA2,0xA0,0xAF,0xE0,0xAE,0xAB,0xA4,0xA6,0xED,0xf1,  0 , '/',0xEF,0xE7,0xE1,0xAC,
@@ -150,7 +150,7 @@ static char scan_code_2_cp866_raCL[0x80] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_rACL[0x80] = {
+static char scan_code_2_cp866_rACL[] = {
      0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
    0x89,0x96,0x93,0x8A,0x85,0x8D,0x83,0x98,0x99,0x87,0x95,0x9A,'\n',  0 ,0x94,0x9B,
    0x82,0x80,0x8F,0x90,0x8E,0x8B,0x84,0x86,0x9D,0xf0,  0 ,'\\',0x9F,0x97,0x91,0x8C,
@@ -302,6 +302,35 @@ static void mkdir(char *d) {
     if (f_mkdir(d) != FR_OK) {
         goutf("Unable to mkdir: '%s'\n", d);
     }
+}
+
+static int rmdir(char *d) {
+    DIR dir;
+    FILINFO fileInfo;
+    if (FR_OK != f_opendir(&dir, d)) {
+        goutf("Failed to open directory: '%s'\n", d);
+        return 0;
+    }
+    size_t total_files = 0;
+    char* t = (char*)pvPortMalloc(512);
+    while (f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
+        size_t s = strlen(d);
+        strncpy(t, d, 512);
+        t[s] = '/';
+        strncpy(t + s + 1, d, 511 - s);
+        if(fileInfo.fattrib & AM_DIR) {
+            total_files += rmdir(t);
+        }
+        if (f_unlink(t) == FR_OK)
+            total_files++;
+    }
+    vPortFree(t);
+    f_closedir(&dir);
+    if (f_unlink(d) == FR_OK) {
+        total_files++;
+    }
+    goutf("    Total: %d files removed\n", total_files);
+    return total_files;
 }
 
 static void dir(FIL *f, char *d) {
@@ -533,7 +562,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         watchdog_enable(100, true);
         return true;
     }
-    if (c || input < 0x80) {
+    if (c || input < 86) {
         if (!c) {
             c = (bRus ?
             (
@@ -544,7 +573,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                 !bCapsLock ?
                 ((bRightShift || bLeftShift) ? scan_code_2_cp866_A : scan_code_2_cp866_a) :
                 ((bRightShift || bLeftShift) ? scan_code_2_cp866_aCL : scan_code_2_cp866_ACL)
-            ))[input & 0xFF];
+            ))[input];
         }
         if (c) {
             if (bAltPressed && c >= '0' && c <= '9') {
@@ -621,6 +650,12 @@ t:
                     goutf("Unable to make directoy with no name\n");
                 } else {
                     mkdir((char*)cmd + (next_token(cmd_t) - cmd_t));
+                }
+            } else if (strcmp("rmdir", cmd_t) == 0) {
+                if (tokens == 1) {
+                    goutf("Unable to remove directoy with no name\n");
+                } else {
+                    rmdir((char*)cmd + (next_token(cmd_t) - cmd_t));
                 }
             } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
                 type(&f, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));

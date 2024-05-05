@@ -67,11 +67,12 @@ So it will be possible to call draw_text the same way as for case graphics.h and
 # M-OS commands
 cls - clear screen<br/>
 dir / ls [dir] - show directory content<br/>
-rm / del / era file - remove file<br/>
+rm / del / era file - remove file (or empty directory)<br/>
 cd dir - change current directory<br/>
 cp file1 file2 - copy file1 as file2<br/>
 mkdir dir - create directory<br/>
 cat / type file - type file<br/>
+rmdir dir - remove directory (recurive)<br/>
 [cmd] &gt; file - output redirection to file<br/>
 [ENTER] - start command<br/>
 [TAB] - autocomplete<br/>
