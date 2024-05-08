@@ -47,6 +47,32 @@ static bool is_address_initialized(const address_range* valid_ranges, uint32_t a
 
 static const char* s = "Unexpected ELF file";
 
+int check_address_range(
+    FIL* f,
+    const address_range* valid_ranges,
+    uint32_t addr,
+    uint32_t vaddr,
+    uint32_t size,
+    bool uninitialized,
+    address_range &ar
+) {
+    for(int i = 0; i < 3; i++) {
+        const auto& range = valid_ranges[i];
+        if (range.from <= addr && range.to >= addr + size) {
+            if (range.type == address_range::type::NO_CONTENTS && !uninitialized) {
+                goutf("%s; it contains memory contents for uninitialized memory\n", s);
+                return -1;
+            }
+            ar = range;
+            fgoutf(f, "%s segment %08x->%08x (%08x->%08x)\n", uninitialized ? "Uninitialized" : "Mapped", addr,
+                   addr + size, vaddr, vaddr+size);
+            return 0;
+        }
+    }
+    goutf("%s. Memory segment %08x->%08x is outside of valid address range for device", addr, addr+size);
+    return -1;
+}
+
 static int read_and_check_elf32_ph_entries(
     FIL*f, // stdout
     FIL*f2,
@@ -76,9 +102,9 @@ static int read_and_check_elf32_ph_entries(
                 int rc;
                 uint mapped_size = entry.filez > entry.memsz ? entry.memsz : entry.filez;
                 if (mapped_size) {
-                    /*
-                    rc = check_address_range(valid_ranges, entry.paddr, entry.vaddr, mapped_size, false, ar);
+                    rc = check_address_range(f, valid_ranges, entry.paddr, entry.vaddr, mapped_size, false, ar);
                     if (rc) return rc;
+                    /*
                     // we don't download uninitialized, generally it is BSS and should be zero-ed by crt0.S, or it may be COPY areas which are undefined
                     if (ar.type != address_range::type::CONTENTS) {
                         if (verbose) printf("  ignored\n");
