@@ -4,6 +4,7 @@
 #include "ff.h"
 #include "graphics.h"
 #include "app.h"
+#include "elf.h"
 
 static char curr_dir[512] = "MOS"; // TODO: configure start dir
 static char cmd[512] = { 0 };
@@ -399,6 +400,8 @@ t:
         }
     } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
         type(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
+    } else if (strcmp("elfinfo", cmd_t) == 0) {
+        elfinfo(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
     } else {
         char t[512] = {0};
         if (exists(t, cmd_t)) {
