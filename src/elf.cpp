@@ -47,6 +47,78 @@ static bool is_address_initialized(const address_range* valid_ranges, uint32_t a
 
 static const char* s = "Unexpected ELF file";
 
+static int read_and_check_elf32_ph_entries(
+    FIL*f, // stdout
+    FIL*f2,
+    const elf32_header &eh,
+    const address_range* valid_ranges
+) {
+    if (eh.ph_entry_size != sizeof(elf32_ph_entry)) {
+        goutf("%s program header size: %d; expected: %d\n", s, eh.ph_entry_size, sizeof(eh.ph_entry_size));
+        return -1;
+    }
+    if (eh.ph_num) {
+        elf32_ph_entry entry;
+        if (f_lseek(f2, eh.ph_offset) != FR_OK) {
+            goutf("%s f_lseek error to %d\n", s, eh.ph_offset);
+            return -1;
+        }
+        UINT r;
+        for(uint i = 0; i < eh.ph_num; i++) {
+            if (f_read(f2, &entry, sizeof(struct elf32_ph_entry), &r) != FR_OK || r != sizeof(struct elf32_ph_entry)) {
+                goutf("%s f_read error (i=%d)\n", i);
+                return -1;
+            }
+            fgoutf(f, "entry.type: %d; entry.memsz: %d; entry.filez: %d\n", entry.type, entry.memsz, entry.filez);
+           // elf32_ph_entry& entry = entries[i];
+            if (entry.type == PT_LOAD && entry.memsz) {
+                address_range ar;
+                int rc;
+                uint mapped_size = entry.filez > entry.memsz ? entry.memsz : entry.filez;
+                if (mapped_size) {
+                    /*
+                    rc = check_address_range(valid_ranges, entry.paddr, entry.vaddr, mapped_size, false, ar);
+                    if (rc) return rc;
+                    // we don't download uninitialized, generally it is BSS and should be zero-ed by crt0.S, or it may be COPY areas which are undefined
+                    if (ar.type != address_range::type::CONTENTS) {
+                        if (verbose) printf("  ignored\n");
+                        continue;
+                    }
+                    uint addr = entry.paddr;
+                    uint remaining = mapped_size;
+                    uint file_offset = entry.offset;
+                    while (remaining) {
+                        uint off = addr & (PAGE_SIZE - 1);
+                        uint len = std::min(remaining, PAGE_SIZE - off);
+                        auto &fragments = pages[addr - off]; // list of fragments
+                        // note if filesz is zero, we want zero init which is handled because the
+                        // statement above creates an empty page fragment list
+                        // check overlap with any existing fragments
+                        for (const auto &fragment : fragments) {
+                            if ((off < fragment.page_offset + fragment.bytes) !=
+                                ((off + len) <= fragment.page_offset)) {
+                                fail(ERROR_FORMAT, "In memory segments overlap");
+                            }
+                        }
+                        fragments.push_back(
+                                page_fragment{file_offset,off,len});
+                        addr += len;
+                        file_offset += len;
+                        remaining -= len;
+                    }*/
+                }
+                if (entry.memsz > entry.filez) {
+                    // we have some uninitialized data too
+            //        rc = check_address_range(valid_ranges, entry.paddr + entry.filez, entry.vaddr + entry.filez, entry.memsz - entry.filez, true,
+            //                                 ar);
+            //        if (rc) return rc;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 extern "C" void elfinfo(FIL *f, char *fn) {
     FIL f2;
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
@@ -86,5 +158,7 @@ extern "C" void elfinfo(FIL *f, char *fn) {
     bool ram_style = is_address_initialized(rp2040_address_ranges_ram, ehdr.entry);
     if (ram_style) fgoutf(f, "RAM style binary\n");
     else fgoutf(f, "FLASH style binary\n");
+    const address_range *valid_ranges = ram_style ? rp2040_address_ranges_ram : rp2040_address_ranges_flash;
+    int rc = read_and_check_elf32_ph_entries(f, &f2, ehdr, valid_ranges);
     f_close(&f2);
 }
