@@ -1,6 +1,10 @@
 #include "elf.h"
 #include "graphics.h"
 
+// we require 256 (as this is the page size supported by the device)
+#define LOG2_PAGE_SIZE 8u
+#define PAGE_SIZE (1u << LOG2_PAGE_SIZE)
+
 struct address_range {
     enum type {
         CONTENTS,     // may have contents
@@ -104,10 +108,9 @@ static int read_and_check_elf32_ph_entries(
                 if (mapped_size) {
                     rc = check_address_range(f, valid_ranges, entry.paddr, entry.vaddr, mapped_size, false, ar);
                     if (rc) return rc;
-                    /*
                     // we don't download uninitialized, generally it is BSS and should be zero-ed by crt0.S, or it may be COPY areas which are undefined
                     if (ar.type != address_range::type::CONTENTS) {
-                        if (verbose) printf("  ignored\n");
+                        fgoutf(f, "  ignored\n");
                         continue;
                     }
                     uint addr = entry.paddr;
@@ -115,29 +118,30 @@ static int read_and_check_elf32_ph_entries(
                     uint file_offset = entry.offset;
                     while (remaining) {
                         uint off = addr & (PAGE_SIZE - 1);
-                        uint len = std::min(remaining, PAGE_SIZE - off);
-                        auto &fragments = pages[addr - off]; // list of fragments
+                        uint len = remaining > PAGE_SIZE - off ? PAGE_SIZE - off : remaining;
+                   //     auto &fragments = pages[addr - off]; // list of fragments
                         // note if filesz is zero, we want zero init which is handled because the
                         // statement above creates an empty page fragment list
                         // check overlap with any existing fragments
-                        for (const auto &fragment : fragments) {
-                            if ((off < fragment.page_offset + fragment.bytes) !=
-                                ((off + len) <= fragment.page_offset)) {
-                                fail(ERROR_FORMAT, "In memory segments overlap");
-                            }
-                        }
-                        fragments.push_back(
-                                page_fragment{file_offset,off,len});
+                       // for (const auto &fragment : fragments) {
+                //            if ((off < fragment.page_offset + fragment.bytes) != ((off + len) <= fragment.page_offset)) {
+                //                fail(ERROR_FORMAT, "In memory segments overlap");
+                //            }
+                       // }
+                      //  fragments.push_back(
+                //                page_fragment{file_offset, off, len}
+                                //);
                         addr += len;
                         file_offset += len;
                         remaining -= len;
-                    }*/
+                    }
                 }
                 if (entry.memsz > entry.filez) {
                     // we have some uninitialized data too
-            //        rc = check_address_range(valid_ranges, entry.paddr + entry.filez, entry.vaddr + entry.filez, entry.memsz - entry.filez, true,
-            //                                 ar);
-            //        if (rc) return rc;
+                    rc = check_address_range(f, valid_ranges, entry.paddr + entry.filez,
+                                             entry.vaddr + entry.filez, entry.memsz - entry.filez, true,
+                                             ar);
+                    if (rc) return rc;
                 }
             }
         }
