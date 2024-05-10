@@ -190,5 +190,10 @@ extern "C" void elfinfo(FIL *f, char *fn) {
     else fgoutf(f, "FLASH style binary\n");
     const address_range *valid_ranges = ram_style ? rp2040_address_ranges_ram : rp2040_address_ranges_flash;
     int rc = read_and_check_elf32_ph_entries(f, &f2, ehdr, valid_ranges);
+    fgoutf(f, "Size of section headers:           %d\n", ehdr.sh_entry_size);
+    fgoutf(f, "Number of section headers:         %d\n", ehdr.sh_num);
+    fgoutf(f, "Section header string table index: %d\n", ehdr.sh_str_index);
+    fgoutf(f, "Start of section headers:          %d\n", ehdr.sh_offset);
+    
     f_close(&f2);
 }
