@@ -155,25 +155,38 @@ static char * sh_type2name(uint32_t t) {
     switch (t)
     {
     case 0:
-        return "SHT_NULL";
+        return "SHT_NULL    ";
     case 1:
         return "SHT_PROGBITS";
     case 2:
-        return "SHT_SYMTAB";
+        return "SHT_SYMTAB  ";
     case 0xB:
-        return "SHT_DYNSYM";
+        return "SHT_DYNSYM  ";
     case 3:
-        return "SHT_STRTAB";
+        return "SHT_STRTAB  ";
     case 4:
-        return "SHT_RELA";
+        return "SHT_RELA    ";
     case 6:
-        return "SHT_DYNAMIC";
+        return "SHT_DYNAMIC ";
     case 8:
-        return "SHT_NOBITS";
+        return "SHT_NOBITS  ";
     default:
         break;
     }
-    return "?";
+    return "???";
+}
+
+static const char* sh_flags_w(uint32_t f) {
+    return (f & 1) ? "w" : " ";
+}
+static const char* sh_flags_a(uint32_t f) {
+    return (f & 2) ? "a" : " ";
+}
+static const char* sh_flags_x(uint32_t f) {
+    return (f & 4) ? "x" : " ";
+}
+static const char* sh_flags_s(uint32_t f) {
+    return (f & 0x20) ? "s" : " ";
 }
 
 extern "C" void elfinfo(FIL *f, char *fn) {
@@ -224,7 +237,11 @@ extern "C" void elfinfo(FIL *f, char *fn) {
     elf32_shdr sh;
     f_lseek(&f2, ehdr.sh_offset);
     while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
-        fgoutf(f, "name idx: %d; type: %s (%d)\n", sh.sh_name, sh_type2name(sh.sh_type), sh.sh_type);
+        fgoutf(f, "name idx: %03d type: %s(%d) %s%s%s%s (%02xh) addr: %ph (%d)\n",
+               sh.sh_name,
+               sh_type2name(sh.sh_type), sh.sh_type,
+               sh_flags_w(sh.sh_flags), sh_flags_a(sh.sh_flags), sh_flags_x(sh.sh_flags), sh_flags_s(sh.sh_flags), sh.sh_flags,
+               sh.sh_addr, sh.sh_size);
     }
     if (rb > 0) {
         goutf("%s '%s' Unable to read section header @ %d+%d (read: %d)\n", s, fn, f_tell(&f2), sizeof(sh), rb);
