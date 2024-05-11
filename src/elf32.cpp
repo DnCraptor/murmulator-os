@@ -1,7 +1,7 @@
 #include "elf32.h"
 #include "graphics.h"
-
-#include <elf.h>
+#include "FreeRTOS.h"
+#include "task.h"
 
 // we require 256 (as this is the page size supported by the device)
 #define LOG2_PAGE_SIZE 8u
@@ -155,25 +155,25 @@ static char * sh_type2name(uint32_t t) {
     switch (t)
     {
     case 0:
-        return "SHT_NULL    ";
+        return "NULL    ";
     case 1:
-        return "SHT_PROGBITS";
+        return "PROGBITS";
     case 2:
-        return "SHT_SYMTAB  ";
+        return "SYMTAB  ";
     case 0xB:
-        return "SHT_DYNSYM  ";
+        return "DYNSYM  ";
     case 3:
-        return "SHT_STRTAB  ";
+        return "STRTAB  ";
     case 4:
-        return "SHT_RELA    ";
+        return "RELA    ";
     case 6:
-        return "SHT_DYNAMIC ";
+        return "DYNAMIC ";
     case 8:
-        return "SHT_NOBITS  ";
+        return "NOBITS  ";
     default:
         break;
     }
-    return "???";
+    return "?";
 }
 
 static const char* sh_flags_w(uint32_t f) {
@@ -235,13 +235,28 @@ extern "C" void elfinfo(FIL *f, char *fn) {
     fgoutf(f, "Section header string table index: %d\n", ehdr.sh_str_index);
     fgoutf(f, "Start of section headers:          %d\n", ehdr.sh_offset);
     elf32_shdr sh;
-    f_lseek(&f2, ehdr.sh_offset);
-    while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
-        fgoutf(f, "name idx: %03d type: %s(%d) %s%s%s%s (%02xh) addr: %ph (%d)\n",
-               sh.sh_name,
-               sh_type2name(sh.sh_type), sh.sh_type,
-               sh_flags_w(sh.sh_flags), sh_flags_a(sh.sh_flags), sh_flags_x(sh.sh_flags), sh_flags_s(sh.sh_flags), sh.sh_flags,
-               sh.sh_addr, sh.sh_size);
+    bool ok = f_lseek(&f2, ehdr.sh_offset + sizeof(sh) * ehdr.sh_str_index) == FR_OK;
+    if (!ok || f_read(&f2, &sh, sizeof(sh), &rb) != FR_OK || rb != sizeof(sh)) {
+        goutf("%s '%s' Unable to read .shstrtab section header @ %d+%d (read: %d)\n", s, fn, f_tell(&f2), sizeof(sh), rb);
+    } else {
+        // TODO: check type?
+        char* symtab = (char*)pvPortMalloc(sh.sh_size);
+        ok = f_lseek(&f2, sh.sh_offset) == FR_OK;
+        if (!ok || f_read(&f2, symtab, sh.sh_size, &rb) != FR_OK || rb != sh.sh_size) {
+            goutf("%s '%s' Unable to read .shstrtab section @ %d+%d (read: %d)\n", s, fn, f_tell(&f2), sh.sh_size, rb);
+        }
+
+        f_lseek(&f2, ehdr.sh_offset);
+        while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
+            fgoutf(f, "%03d %s(%x) %s%s%s%s (%02xh) %ph (%04d) %s\n",
+                   sh.sh_name,
+                   sh_type2name(sh.sh_type), sh.sh_type,
+                   sh_flags_w(sh.sh_flags), sh_flags_a(sh.sh_flags), sh_flags_x(sh.sh_flags), sh_flags_s(sh.sh_flags), sh.sh_flags,
+                   sh.sh_addr, sh.sh_size,
+                   symtab + sh.sh_name
+            );
+        }
+        vPortFree(symtab);
     }
     if (rb > 0) {
         goutf("%s '%s' Unable to read section header @ %d+%d (read: %d)\n", s, fn, f_tell(&f2), sizeof(sh), rb);
