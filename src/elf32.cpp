@@ -1,5 +1,7 @@
-#include "elf.h"
+#include "elf32.h"
 #include "graphics.h"
+
+#include <elf.h>
 
 // we require 256 (as this is the page size supported by the device)
 #define LOG2_PAGE_SIZE 8u
@@ -149,6 +151,31 @@ static int read_and_check_elf32_ph_entries(
     return 0;
 }
 
+static char * sh_type2name(uint32_t t) {
+    switch (t)
+    {
+    case 0:
+        return "SHT_NULL";
+    case 1:
+        return "SHT_PROGBITS";
+    case 2:
+        return "SHT_SYMTAB";
+    case 0xB:
+        return "SHT_DYNSYM";
+    case 3:
+        return "SHT_STRTAB";
+    case 4:
+        return "SHT_RELA";
+    case 6:
+        return "SHT_DYNAMIC";
+    case 8:
+        return "SHT_NOBITS";
+    default:
+        break;
+    }
+    return "?";
+}
+
 extern "C" void elfinfo(FIL *f, char *fn) {
     FIL f2;
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
@@ -194,6 +221,13 @@ extern "C" void elfinfo(FIL *f, char *fn) {
     fgoutf(f, "Number of section headers:         %d\n", ehdr.sh_num);
     fgoutf(f, "Section header string table index: %d\n", ehdr.sh_str_index);
     fgoutf(f, "Start of section headers:          %d\n", ehdr.sh_offset);
-    
+    elf32_shdr sh;
+    f_lseek(&f2, ehdr.sh_offset);
+    while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
+        fgoutf(f, "name idx: %d; type: %s (%d)\n", sh.sh_name, sh_type2name(sh.sh_type), sh.sh_type);
+    }
+    if (rb > 0) {
+        goutf("%s '%s' Unable to read section header @ %d+%d (read: %d)\n", s, fn, f_tell(&f2), sizeof(sh), rb);
+    }
     f_close(&f2);
 }
