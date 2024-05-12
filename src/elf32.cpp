@@ -2,6 +2,7 @@
 #include "graphics.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "string.h"
 
 // we require 256 (as this is the page size supported by the device)
 #define LOG2_PAGE_SIZE 8u
@@ -246,6 +247,8 @@ extern "C" void elfinfo(FIL *f, char *fn) {
             goutf("%s '%s' Unable to read .shstrtab section @ %d+%d (read: %d)\n", s, fn, f_tell(&f2), sh.sh_size, rb);
         }
 
+        int symtab_off, strtab_off = -1;
+        UINT symtab_len, strtab_len = 0;
         f_lseek(&f2, ehdr.sh_offset);
         int i = 0;
         while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
@@ -259,12 +262,35 @@ extern "C" void elfinfo(FIL *f, char *fn) {
             );
             if (sh.sh_info) fgoutf(f, " i%ph\n", sh.sh_info);
             else fgoutf(f, "\n");
+            if(sh.sh_type == 2 && 0 == strcmp(symtab + sh.sh_name, ".symtab")) {
+                symtab_off = sh.sh_offset;
+                symtab_len = sh.sh_size;
+            }
+            if(sh.sh_type == 3 && 0 == strcmp(symtab + sh.sh_name, ".strtab")) {
+                strtab_off = sh.sh_offset;
+                strtab_len = sh.sh_size;
+            }
             i++;
         }
         vPortFree(symtab);
+        if (symtab_off < 0) {
+            goutf("%s '%s' Unable to find .symtab section header\n", s, fn);            
+        } else if (strtab_off < 0) {
+            goutf("%s '%s' Unable to find .strtab section header\n", s, fn);            
+        } else {
+            f_lseek(&f2, symtab_off);
+            elf32_sym sym;
+            for(int i = 0; i < symtab_len / sizeof(sym); ++i) {
+                if(f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
+                    goutf("%s '%s' Unable to read .symtab section #%d\n", s, fn, i);
+                    break;
+                }
+                fgoutf(f, "%02d %03d %d (%d)\n", i, sym.st_name, sym.st_value, sym.st_size);
+            }
+        }
     }
-    if (rb > 0) {
-        goutf("%s '%s' Unable to read section header @ %d+%d (read: %d)\n", s, fn, f_tell(&f2), sizeof(sh), rb);
-    }
+   // if (rb > 0) {
+   //     goutf("%s '%s' Unable to read section header @ %d+%d (read: %d)\n", s, fn, f_tell(&f2), sizeof(sh), rb);
+   // }
     f_close(&f2);
 }
