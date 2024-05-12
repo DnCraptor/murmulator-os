@@ -73,8 +73,9 @@ cp file1 file2 - copy file1 as file2<br/>
 mkdir dir - create directory<br/>
 cat / type file - type file<br/>
 rmdir dir - remove directory (recurive)<br/>
+elfinfo file - provide .elf file info<br/>
 [cmd] &gt; file - output redirection to file<br/>
-[ENTER] - start command<br/>
+[ENTER] - start command / flash and run .uf2 file in "demo" format<br/>
 [TAB] - autocomplete<br/>
 [BACKSPACE] - remove last character<br/>
 [CTRL]+[SHIFT] - rus/lat<br/>

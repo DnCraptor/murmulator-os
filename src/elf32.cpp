@@ -247,14 +247,19 @@ extern "C" void elfinfo(FIL *f, char *fn) {
         }
 
         f_lseek(&f2, ehdr.sh_offset);
+        int i = 0;
         while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
-            fgoutf(f, "%03d %s(%x) %s%s%s%s (%02xh) %ph (%04d) %s\n",
-                   sh.sh_name,
+            fgoutf(f, "%02d %s(%x) %s%s%s%s (%02xh) %ph (%04d) A%04d E%02d L%02d %s",
+                   i,
                    sh_type2name(sh.sh_type), sh.sh_type,
                    sh_flags_w(sh.sh_flags), sh_flags_a(sh.sh_flags), sh_flags_x(sh.sh_flags), sh_flags_s(sh.sh_flags), sh.sh_flags,
                    sh.sh_addr, sh.sh_size,
+                   sh.sh_addralign, sh.sh_entsize, sh.sh_link,
                    symtab + sh.sh_name
             );
+            if (sh.sh_info) fgoutf(f, " i%ph\n", sh.sh_info);
+            else fgoutf(f, "\n");
+            i++;
         }
         vPortFree(symtab);
     }
