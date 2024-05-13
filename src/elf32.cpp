@@ -278,15 +278,23 @@ extern "C" void elfinfo(FIL *f, char *fn) {
         } else if (strtab_off < 0) {
             goutf("%s '%s' Unable to find .strtab section header\n", s, fn);            
         } else {
-            f_lseek(&f2, symtab_off);
-            elf32_sym sym;
-            for(int i = 0; i < symtab_len / sizeof(sym); ++i) {
-                if(f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
-                    goutf("%s '%s' Unable to read .symtab section #%d\n", s, fn, i);
-                    break;
+            char* strtab = (char*)pvPortMalloc(strtab_len);
+            f_lseek(&f2, strtab_off);
+            if(f_read(&f2, strtab, strtab_len, &rb) != FR_OK || rb != strtab_len) {
+                goutf("%s '%s' Unable to read .strtab section #%d\n", s, fn, i);
+            } else {                
+                f_lseek(&f2, symtab_off);
+                elf32_sym sym;
+                for(int i = 0; i < symtab_len / sizeof(sym); ++i) {
+                    if(f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
+                        goutf("%s '%s' Unable to read .symtab section #%d\n", s, fn, i);
+                        break;
+                    }
+                    fgoutf(f, "%02d v%ph i%02xh o%02xh %s (%d) -> %d\n",
+                           i, sym.st_value, sym.st_info, sym.st_other, strtab + sym.st_name, sym.st_size, sym.st_shndx);
                 }
-                fgoutf(f, "%02d %03d %d (%d)\n", i, sym.st_name, sym.st_value, sym.st_size);
             }
+            vPortFree(strtab);
         }
     }
    // if (rb > 0) {
