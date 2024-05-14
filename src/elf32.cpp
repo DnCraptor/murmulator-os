@@ -171,6 +171,10 @@ static char * sh_type2name(uint32_t t) {
         return "DYNAMIC ";
     case 8:
         return "NOBITS  ";
+    case 9:
+        return "REL     ";
+    case 10:
+        return "SHLIB   ";
     default:
         break;
     }
@@ -188,6 +192,50 @@ static const char* sh_flags_x(uint32_t f) {
 }
 static const char* sh_flags_s(uint32_t f) {
     return (f & 0x20) ? "s" : " ";
+}
+static const char* st_info_type2str(char c) {
+    switch (c)
+    {
+    case 0:
+        return "NOTYPE ";
+    case 1:
+        return "OBJECT ";
+    case 2:
+        return "FUNC   ";
+    case 3:
+        return "SECTION";
+    case 4:
+        return "FILE   ";
+    case 13:
+        return "LOPROC ";
+    case 15:
+        return "HIPROC ";
+    case 14:
+        return "PROC   ";
+    default:
+        break;
+    }
+    return "ST_TYPE?";
+}
+static const char* st_info_bind2str(char c) {
+    switch (c)
+    {
+    case 0:
+        return "LOCAL ";
+    case 1:
+        return "GLOBAL";
+    case 2:
+        return "WEAK  ";
+    case 13:
+        return "LOPROC ";
+    case 15:
+        return "HIPROC ";
+    case 14:
+        return "PROC   ";
+    default:
+        break;
+    }
+    return "ST_BIND?";
 }
 
 extern "C" void elfinfo(FIL *f, char *fn) {
@@ -290,8 +338,10 @@ extern "C" void elfinfo(FIL *f, char *fn) {
                         goutf("%s '%s' Unable to read .symtab section #%d\n", s, fn, i);
                         break;
                     }
-                    fgoutf(f, "%02d v%ph i%02xh o%02xh %s (%d) -> %d\n",
-                           i, sym.st_value, sym.st_info, sym.st_other, strtab + sym.st_name, sym.st_size, sym.st_shndx);
+                    fgoutf(f, "%02d %ph %s %s %s (%d) -> %d\n",
+                           i, sym.st_value, st_info_type2str(sym.st_info & 0xF), st_info_bind2str(sym.st_info >> 4),
+                           strtab + sym.st_name, sym.st_size, sym.st_shndx
+                    );
                 }
             }
             vPortFree(strtab);
