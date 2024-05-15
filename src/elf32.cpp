@@ -237,6 +237,24 @@ static const char* st_info_bind2str(char c) {
     }
     return "ST_BIND?";
 }
+static const char* st_spec_sec(uint16_t st) {
+    if (st >= 0xff00 && st <= 0xff1f)
+        return " PROC";
+    switch (st)
+    {
+    case 0xffff:
+        return " HIRESERVE";
+    case 0xfff2:
+        return " COMMON";
+    case 0xfff1:
+        return " ABS";
+    case 0:
+        return " UNDEF";
+    default:
+        break;
+    }
+    return "";
+}
 
 extern "C" void elfinfo(FIL *f, char *fn) {
     FIL f2;
@@ -338,9 +356,9 @@ extern "C" void elfinfo(FIL *f, char *fn) {
                         goutf("%s '%s' Unable to read .symtab section #%d\n", s, fn, i);
                         break;
                     }
-                    fgoutf(f, "%02d %ph %s %s %s (%d) -> %d\n",
+                    fgoutf(f, "%02d %ph %s %s %s (%d) -> %d%s\n",
                            i, sym.st_value, st_info_type2str(sym.st_info & 0xF), st_info_bind2str(sym.st_info >> 4),
-                           strtab + sym.st_name, sym.st_size, sym.st_shndx
+                           strtab + sym.st_name, sym.st_size, sym.st_shndx, st_spec_sec(sym.st_shndx)
                     );
                 }
             }
