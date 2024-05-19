@@ -1,5 +1,5 @@
 #include "m-os-api.h"
-#include "pico/stdlib.h"
+//#include "pico/stdlib.h"
 
 #define T1_LINE 4
 #define T2_LINE 5
@@ -8,11 +8,11 @@ void vTask1(void *pv) {
     draw_text("vTask1 running   ", 0, T1_LINE, 13, 1);
     char *string = pvPortMalloc(64);
     for(unsigned long i = 0; ; ++i) {
-        gpio_put(PICO_DEFAULT_LED_PIN, 0);
+  //      gpio_put(PICO_DEFAULT_LED_PIN, 0);
         snprintf(string, 64, pv, i);
         draw_text(string, 0, T1_LINE, 13, 1);
         vTaskDelay(500 * portTICK_PERIOD_MS);
-        gpio_put(PICO_DEFAULT_LED_PIN, 1);
+    //    gpio_put(PICO_DEFAULT_LED_PIN, 1);
         vTaskDelay(500 * portTICK_PERIOD_MS);
     }
     vPortFree(string);
@@ -43,7 +43,7 @@ void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
 }
 
 int boota(void* pv) {
-    gpio_put(PICO_DEFAULT_LED_PIN, 1);
+   // gpio_put(PICO_DEFAULT_LED_PIN, 1);
     draw_text("Not RUN", 0, 3, 13, 1);
     mh = getApplicationMallocFailedHookPtr();
     setApplicationMallocFailedHookPtr(mallocFailedHandler);
@@ -81,4 +81,9 @@ void main() {
     int r = boota(NULL);
     r = boota_tbl;
     (void*)r;
+}
+
+// TODO: noruntime
+void _exit(int status) {
+
 }

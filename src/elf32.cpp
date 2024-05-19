@@ -76,7 +76,7 @@ int check_address_range(
             return 0;
         }
     }
-    goutf("%s. Memory segment %08x->%08x is outside of valid address range for device", addr, addr+size);
+    goutf("%s. Memory segment %08x->%08x is outside of valid address range for device\n", addr, addr+size);
     return -1;
 }
 
@@ -167,6 +167,8 @@ static char * sh_type2name(uint32_t t) {
         return "STRTAB  ";
     case 4:
         return "RELA    ";
+    case 5:
+        return "HASH    ";
     case 6:
         return "DYNAMIC ";
     case 8:
@@ -313,8 +315,8 @@ extern "C" void elfinfo(FIL *f, char *fn) {
             goutf("%s '%s' Unable to read .shstrtab section @ %d+%d (read: %d)\n", s, fn, f_tell(&f2), sh.sh_size, rb);
         }
 
-        int symtab_off, strtab_off = -1;
-        UINT symtab_len, strtab_len = 0;
+        int symtab_off, strtab_off, dyntab_off, dynstr_off = -1;
+        UINT symtab_len, strtab_len, dyntab_len, dynstr_len = 0;
         f_lseek(&f2, ehdr.sh_offset);
         int i = 0;
         while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
@@ -336,6 +338,14 @@ extern "C" void elfinfo(FIL *f, char *fn) {
                 strtab_off = sh.sh_offset;
                 strtab_len = sh.sh_size;
             }
+            if(sh.sh_type == 0xb && 0 == strcmp(symtab + sh.sh_name, ".dynsym")) {
+                dyntab_off = sh.sh_offset;
+                dyntab_len = sh.sh_size;
+            }
+            if(sh.sh_type == 3 && 0 == strcmp(symtab + sh.sh_name, ".dynstr")) {
+                dynstr_off = sh.sh_offset;
+                dynstr_len = sh.sh_size;
+            }
             i++;
         }
         vPortFree(symtab);
@@ -344,6 +354,7 @@ extern "C" void elfinfo(FIL *f, char *fn) {
         } else if (strtab_off < 0) {
             goutf("%s '%s' Unable to find .strtab section header\n", s, fn);            
         } else {
+            fgoutf(f, "SYMTAB:\n");
             char* strtab = (char*)pvPortMalloc(strtab_len);
             f_lseek(&f2, strtab_off);
             if(f_read(&f2, strtab, strtab_len, &rb) != FR_OK || rb != strtab_len) {
@@ -354,6 +365,32 @@ extern "C" void elfinfo(FIL *f, char *fn) {
                 for(int i = 0; i < symtab_len / sizeof(sym); ++i) {
                     if(f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
                         goutf("%s '%s' Unable to read .symtab section #%d\n", s, fn, i);
+                        break;
+                    }
+                    fgoutf(f, "%02d %ph %s %s %s (%d) -> %d%s\n",
+                           i, sym.st_value, st_info_type2str(sym.st_info & 0xF), st_info_bind2str(sym.st_info >> 4),
+                           strtab + sym.st_name, sym.st_size, sym.st_shndx, st_spec_sec(sym.st_shndx)
+                    );
+                }
+            }
+            vPortFree(strtab);
+        }
+        if (dyntab_off < 0) {
+            goutf("%s '%s' Unable to find .dynsym section header\n", s, fn);            
+        } else if (dynstr_off < 0) {
+            goutf("%s '%s' Unable to find .dynstr section header\n", s, fn);            
+        } else {
+            fgoutf(f, "DYNTAB:\n");
+            char* strtab = (char*)pvPortMalloc(dynstr_len);
+            f_lseek(&f2, dynstr_off);
+            if(f_read(&f2, strtab, dynstr_len, &rb) != FR_OK || rb != dynstr_len) {
+                goutf("%s '%s' Unable to read .dynstr section #%d\n", s, fn, i);
+            } else {                
+                f_lseek(&f2, dyntab_off);
+                elf32_sym sym;
+                for(int i = 0; i < dyntab_len / sizeof(sym); ++i) {
+                    if(f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
+                        goutf("%s '%s' Unable to read .dyntab section #%d\n", s, fn, i);
                         break;
                     }
                     fgoutf(f, "%02d %ph %s %s %s (%d) -> %d%s\n",

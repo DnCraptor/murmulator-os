@@ -53,7 +53,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 #family_configure_device_example(${PROJECT_NAME} noos)
-target_link_options(${PROJECT_NAME} PRIVATE -Xlinker --print-memory-usage)
+target_link_options(${PROJECT_NAME} PRIVATE -Xlinker --print-memory-usage -fPIC -shared)
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../api
@@ -76,8 +76,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC
 )
 endif ()
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-)
+target_compile_definitions(${PROJECT_NAME} PRIVATE)
 
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${BUILD_NAME}")

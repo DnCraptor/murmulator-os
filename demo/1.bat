@@ -1,0 +1,1 @@
+C:\\PROGRA~1\\RASPBE~1\\PICOSD~1.1\\GCC-AR~1\\bin\\AR19DD~1.EXE -IC:/Pico/murmulator/Cross/murmulator-os/demo/../api main.c -o demoA.so -nostdlib -fPIC -shared
