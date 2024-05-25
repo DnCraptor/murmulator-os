@@ -37,6 +37,7 @@ add_subdirectory(drivers/ps2)
 add_subdirectory(drivers/fatfs)
 add_subdirectory(drivers/sdcard)
 add_subdirectory(drivers/nespad)
+add_subdirectory(drivers/psram)
 
 add_subdirectory(drivers/vga-nextgen)
 #add_subdirectory(drivers/st7789)
@@ -68,6 +69,7 @@ pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS")
 pico_set_program_version(${PROJECT_NAME} "test")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
+        psram
         ps2
         sdcard
         fatfs
@@ -77,9 +79,15 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
         pico_runtime
         pico_stdlib
-        hardware_pio
-
+        pico_rand
         pico_multicore
+        hardware_dma
+        hardware_pio
+        hardware_i2c
+        hardware_interp
+        hardware_timer
+        hardware_clocks
+        hardware_pwm
         hardware_flash
 
        # tinyusb_board
@@ -145,12 +153,22 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         NES_GPIO_DATA=16
         NES_GPIO_LAT=15
 
+        PSRAM
+        # PSRAM_MUTEX=1
+        PSRAM_SPINLOCK=1
+        PSRAM_ASYNC=1
+
+        PSRAM_PIN_CS=18
+        PSRAM_PIN_SCK=19
+        PSRAM_PIN_MOSI=20
+        PSRAM_PIN_MISO=21
+
         TESTS=0
 )
 
 
 pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
-math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 68) + 0x10000000")
+math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 72) + 0x10000000")
 message(STATUS "${CUSTOM_XIP_BASE}")
 target_compile_definitions(slower_boot2 PRIVATE CUSTOM_XIP_BASE=${CUSTOM_XIP_BASE})
 target_compile_definitions(slower_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)

@@ -7,6 +7,8 @@
 #include <pico/multicore.h>
 #include <pico/stdlib.h>
 
+#include "psram_spi.h"
+
 #include "graphics.h"
 
 extern "C" {
@@ -379,13 +381,16 @@ int main() {
         goutf("SD Card not inserted or SD Card error!");
         while (true);
     }
+    uint32_t psram32 = init_psram();
     goutf("SRAM %d KB\n"
-          "FLASH %d KB\n"
+          "FLASH %d MB\n"
+          "PSRAM %d MB\n"
           "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
           "\n"
           "%s>",
           ram32 >> 10,
-          flash32 >> 10,
+          flash32 >> 20,
+          psram32 >> 20,
           fs.n_fats,
           f_getfree32(&fs),
           fs.csize / 2,
