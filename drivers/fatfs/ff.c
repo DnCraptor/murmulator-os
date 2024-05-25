@@ -1121,9 +1121,6 @@ static LBA_t clst2sect (	/* !=0:Sector number, 0:Failed (invalid cluster#) */
 	return fs->database + (LBA_t)fs->csize * clst;	/* Start sector number of the cluster */
 }
 
-
-
-
 /*-----------------------------------------------------------------------*/
 /* FAT access - Read value of an FAT entry                               */
 /*-----------------------------------------------------------------------*/
@@ -6949,6 +6946,75 @@ int f_printf (
 #endif /* !FF_FS_READONLY */
 #endif /* FF_USE_STRFUNC */
 
+
+uint32_t f_getfree32(FATFS * fs) {
+	DWORD nfree, clst, stat;
+	LBA_t sect;
+	UINT i;
+	FFOBJID obj;
+    FRESULT res;
+    /* If free_clst is valid, return it without full FAT scan */
+	if (fs->free_clst <= fs->n_fatent - 2) {
+		return fs->free_clst;
+	}
+	/* Scan FAT to obtain number of free clusters */
+	nfree = 0;
+	if (fs->fs_type == FS_FAT12) {	/* FAT12: Scan bit field FAT entries */
+		clst = 2; obj.fs = &fs;
+		do {
+			stat = get_fat(&obj, clst);
+			if (stat == 0xFFFFFFFF) { return 0; }
+			if (stat == 1) { return 0; }
+			if (stat == 0) nfree++;
+		} while (++clst < fs->n_fatent);
+	} else {
+#if FF_FS_EXFAT
+		if (fs->fs_type == FS_EXFAT) {	/* exFAT: Scan allocation bitmap */
+			BYTE bm;
+			UINT b;
+			clst = fs->n_fatent - 2;	/* Number of clusters */
+			sect = fs->bitbase;			/* Bitmap sector */
+			i = 0;						/* Offset in the sector */
+			do {	/* Counts numbuer of bits with zero in the bitmap */
+				if (i == 0) {
+					res = move_window(fs, sect++);
+					if (res != FR_OK) break;
+				}
+				for (b = 8, bm = fs->win[i]; b && clst; b--, clst--) {
+					if (!(bm & 1)) nfree++;
+					bm >>= 1;
+				}
+				i = (i + 1) % SS(fs);
+			} while (clst);
+		} else
+#endif
+		{	/* FAT16/32: Scan WORD/DWORD FAT entries */
+			clst = fs->n_fatent;	/* Number of entries */
+			sect = fs->fatbase;		/* Top of the FAT */
+			i = 0;					/* Offset in the sector */
+			do {	/* Counts numbuer of entries with zero in the FAT */
+				if (i == 0) {
+					res = move_window(fs, sect++);
+					if (res != FR_OK) break;
+				}
+				if (fs->fs_type == FS_FAT16) {
+					if (ld_word(fs->win + i) == 0) nfree++;
+					i += 2;
+				} else {
+					if ((ld_dword(fs->win + i) & 0x0FFFFFFF) == 0) nfree++;
+					i += 4;
+				}
+				i %= SS(fs);
+			} while (--clst);
+		}
+	}
+	if (res == FR_OK) {		/* Update parameters if succeeded */
+		fs->free_clst = nfree;	/* Now free_clst is valid */
+		fs->fsi_flag |= 1;		/* FAT32: FSInfo is to be updated */
+        return nfree;
+	}
+    return 0;
+}
 
 
 #if FF_CODE_PAGE == 0

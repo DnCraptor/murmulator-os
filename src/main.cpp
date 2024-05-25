@@ -374,16 +374,24 @@ int main() {
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
     uint32_t ram32 = get_cpu_ram_size();
     uint32_t flash32 = get_cpu_flash_size();
-    goutf("SRAM  %05d KB\n"
-          "FLASH %05d KB\n\n"
-          "%s>", ram32 >> 10, flash32 >> 10, curr_dir
-    );
-
     if (FR_OK != f_mount(&fs, "SD", 1)) {
         graphics_set_con_color(12, 0);
         goutf("SD Card not inserted or SD Card error!");
         while (true);
     }
+    goutf("SRAM %d KB\n"
+          "FLASH %d KB\n"
+          "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
+          "\n"
+          "%s>",
+          ram32 >> 10,
+          flash32 >> 10,
+          fs.n_fats,
+          f_getfree32(&fs),
+          fs.csize / 2,
+          curr_dir
+    );
+
     f_mkdir(curr_dir);
 #if TESTS
     start_test();

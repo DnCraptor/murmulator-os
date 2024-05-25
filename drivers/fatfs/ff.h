@@ -175,7 +175,7 @@ typedef struct {
 	BYTE	win[FF_MAX_SS];	/* Disk access window for Directory, FAT (and file data at tiny cfg) */
 } FATFS;
 
-
+uint32_t f_getfree32(FATFS * fs);
 
 /* Object ID and allocation information (FFOBJID) */
 
