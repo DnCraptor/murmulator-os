@@ -2,18 +2,20 @@
 
 static psram_spi_inst_t psram_spi;
 
+#define ITE_PSRAM (1ul << 20)
+#define MAX_PSRAM (512ul << 20)
+
 uint32_t init_psram() {
     psram_spi = psram_spi_init_clkdiv(pio0, -1, 2.0, true);
     uint32_t res = 0;
-    for (uint32_t sz = (1ul << 20); sz < 0xFFFFFFFF; sz += (1ul << 20)) {
-        psram_write32(&psram_spi, sz, 0xDEADBEEF);
-        if (0xDEADBEEF == psram_read32(&psram_spi, sz)) {
-            res = sz;
-        } else {
-            break;
+    for (res = ITE_PSRAM; res < MAX_PSRAM; res += ITE_PSRAM) {
+        psram_write32(&psram_spi, res, res);
+        if (res != psram_read32(&psram_spi, res)) {
+            res -= ITE_PSRAM;
+            return res;
         }
     }
-    return res;
+    return res - psram_read32(&psram_spi, ITE_PSRAM) + ITE_PSRAM;
 }
 
 void psram_cleanup() {
