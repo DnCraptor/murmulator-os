@@ -22,7 +22,8 @@ extern "C" {
 
 #include "keyboard.h"
 #include "cmd.h"
-
+#include "hardfault.h"
+#include "hardware/exception.h"
 }
 
 #include "nespad.h"
@@ -370,9 +371,11 @@ int main() {
     graphics_set_con_pos(0, 1);
     graphics_set_con_color(7, 0);
     char* curr_dir = get_curr_dir();
-    goutf("SRAM   264 KB\n"
+    exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
+    uint32_t ram32 = get_cpu_ram_size();
+    goutf("SRAM   %d KB\n"
           "FLASH 2048 KB\n\n"
-          "%s>", curr_dir
+          "%s>", ram32 >> 10, curr_dir
     );
 
     if (FR_OK != f_mount(&fs, "SD", 1)) {
