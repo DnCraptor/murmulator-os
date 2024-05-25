@@ -373,9 +373,10 @@ int main() {
     char* curr_dir = get_curr_dir();
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
     uint32_t ram32 = get_cpu_ram_size();
-    goutf("SRAM   %d KB\n"
-          "FLASH 2048 KB\n\n"
-          "%s>", ram32 >> 10, curr_dir
+    uint32_t flash32 = get_cpu_flash_size();
+    goutf("SRAM  %05d KB\n"
+          "FLASH %05d KB\n\n"
+          "%s>", ram32 >> 10, flash32 >> 10, curr_dir
     );
 
     if (FR_OK != f_mount(&fs, "SD", 1)) {

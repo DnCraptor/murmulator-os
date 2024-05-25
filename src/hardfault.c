@@ -71,3 +71,7 @@ static uint32_t cpu_find_memory_size(char *base, uint32_t block, uint32_t maxsiz
 uint32_t get_cpu_ram_size(void) {
     return cpu_find_memory_size((char *)0x20000000, 4096, 300*1024);
 }
+
+uint32_t get_cpu_flash_size(void) {
+    return cpu_find_memory_size((char *)0x10000000, 4096, 16*1024*1024);
+}
