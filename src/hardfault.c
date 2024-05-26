@@ -72,7 +72,11 @@ uint32_t get_cpu_ram_size(void) {
     return cpu_find_memory_size((char *)0x20000000, 4096, 300*1024);
 }
 
+#include <hardware/flash.h>
+#include <pico/multicore.h>
+
 uint32_t get_cpu_flash_size(void) {
+    /*
     bool det = true;
     for(uint32_t sz = 0x00200000; sz < 0x01000000; sz <<= 1) {
         for (uint32_t addr = 0x10000100; addr < 0x11000000; addr += sz) {
@@ -89,4 +93,13 @@ uint32_t get_cpu_flash_size(void) {
             return sz;
     }
     return 0x01000000;
+    */
+    uint8_t tx[4] = {0x9f};
+    uint8_t rx[4] = {0};
+    multicore_lockout_start_blocking();
+    const uint32_t ints = save_and_disable_interrupts();
+    flash_do_cmd(tx, rx, 4);
+    restore_interrupts(ints);
+    multicore_lockout_end_blocking();
+    return 1 << rx[3];
 }

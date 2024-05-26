@@ -332,6 +332,10 @@ static void dir(FIL *f, char *d) {
     fgoutf(f, "    Total: %d files\n", total_files);
 }
 
+static void test_psram(FIL* f) {
+
+}
+
 void cmd_enter() {
     UINT br;
     if (cmd_pos > 0) { // history
@@ -360,10 +364,12 @@ t:
             }
         }
     }
-    if (strcmp("cls", cmd_t) == 0 ) {
+    if ( strcmp("cls", cmd_t) == 0 ) {
         clrScr(1);
         graphics_set_con_pos(0, 0);
         graphics_set_con_color(7, 0);
+    } else if( strcmp("psram", cmd_t) == 0 ) {
+        test_psram(&f0);
     } else if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
         dir(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
     } else if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {
