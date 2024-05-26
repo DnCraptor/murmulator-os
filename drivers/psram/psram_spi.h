@@ -610,11 +610,14 @@ __force_inline static void psram_write_async_fast(psram_spi_inst_t* spi, uint32_
 };
 
 uint32_t init_psram();
+uint32_t psram_size();
 void psram_cleanup();
 void write8psram(uint32_t addr32, uint8_t v);
 void write16psram(uint32_t addr32, uint16_t v);
+void write32psram(uint32_t addr32, uint32_t v);
 uint8_t read8psram(uint32_t addr32);
 uint16_t read16psram(uint32_t addr32);
+uint32_t read32psram(uint32_t addr32);
 
 #ifdef __cplusplus
 }

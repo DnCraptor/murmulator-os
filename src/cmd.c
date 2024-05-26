@@ -5,6 +5,7 @@
 #include "graphics.h"
 #include "app.h"
 #include "elf.h"
+#include "psram_spi.h"
 
 static char curr_dir[512] = "MOS"; // TODO: configure start dir
 static char cmd[512] = { 0 };
@@ -332,8 +333,66 @@ static void dir(FIL *f, char *d) {
     fgoutf(f, "    Total: %d files\n", total_files);
 }
 
-static void test_psram(FIL* f) {
+static void _test_psram(FIL* f) {
+    uint32_t sz = psram_size();
+    fgoutf(f, "PSRAM size: %d bytes\n", sz);
+    uint32_t a = 0;
+    uint32_t psram_begin = time_us_32();
+    for (; a < sz; ++a) {
+        write8psram(a, a & 0xFF);
+    }
+    uint32_t psram_elapsed = time_us_32() - psram_begin;
+    float psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "8-bit line write speed: %f MBps\n", psram_speed);
 
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; ++a) {
+        if ((a & 0xFF) != read8psram(a)) {
+            fgoutf(f, "8-bit read failed at %ph\n", a);
+            break;
+        }
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "8-bit line read speed: %f MBps\n", psram_speed);
+
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; a += 2) {
+        write16psram(a, a & 0xFFFF);
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "16-bit line write speed: %f MBps\n", psram_speed);
+
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; a += 2) {
+        if ((a & 0xFFFF) != read16psram(a)) {
+            fgoutf(f, "16-bit read failed at %ph\n", a);
+            break;
+        }
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "16-bit line read speed: %f MBps\n", psram_speed);
+
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; a += 4) {
+        write32psram(a, a);
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "32-bit line write speed: %f MBps\n", psram_speed);
+
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; a += 4) {
+        if (a != read32psram(a)) {
+            fgoutf(f, "32-bit read failed at %ph\n", a);
+            break;
+        }
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "32-bit line read speed: %f MBps\n", psram_speed);
 }
 
 void cmd_enter() {
@@ -369,7 +428,7 @@ t:
         graphics_set_con_pos(0, 0);
         graphics_set_con_color(7, 0);
     } else if( strcmp("psram", cmd_t) == 0 ) {
-        test_psram(&f0);
+        _test_psram(&f0);
     } else if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
         dir(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
     } else if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {

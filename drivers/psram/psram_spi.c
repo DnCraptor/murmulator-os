@@ -5,8 +5,7 @@ static psram_spi_inst_t psram_spi;
 #define ITE_PSRAM (1ul << 20)
 #define MAX_PSRAM (512ul << 20)
 
-uint32_t init_psram() {
-    psram_spi = psram_spi_init_clkdiv(pio0, -1, 2.0, true);
+uint32_t psram_size() {
     uint32_t res = 0;
     for (res = ITE_PSRAM; res < MAX_PSRAM; res += ITE_PSRAM) {
         psram_write32(&psram_spi, res, res);
@@ -16,6 +15,11 @@ uint32_t init_psram() {
         }
     }
     return res - psram_read32(&psram_spi, ITE_PSRAM) + ITE_PSRAM;
+}
+
+uint32_t init_psram() {
+    psram_spi = psram_spi_init_clkdiv(pio0, -1, 2.0, true);
+    return psram_size();
 }
 
 void psram_cleanup() {
@@ -33,12 +37,20 @@ void write16psram(uint32_t addr32, uint16_t v) {
     psram_write16(&psram_spi, addr32, v);
 }
 
+void write32psram(uint32_t addr32, uint32_t v) {
+    psram_write32(&psram_spi, addr32, v);
+}
+
 uint8_t read8psram(uint32_t addr32) {
     return psram_read8(&psram_spi, addr32);
 }
 
 uint16_t read16psram(uint32_t addr32) {
     return psram_read16(&psram_spi, addr32);
+}
+
+uint32_t read32psram(uint32_t addr32) {
+    return psram_read32(&psram_spi, addr32);
 }
 
 #include <stdio.h>
