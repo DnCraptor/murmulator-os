@@ -73,5 +73,20 @@ uint32_t get_cpu_ram_size(void) {
 }
 
 uint32_t get_cpu_flash_size(void) {
-    return cpu_find_memory_size((char *)0x10000000, 4096, 16*1024*1024);
+    bool det = true;
+    for(uint32_t sz = 0x00200000; sz < 0x01000000; sz <<= 1) {
+        for (uint32_t addr = 0x10000100; addr < 0x11000000; addr += sz) {
+            if( *(uint32_t*)addr != *(uint32_t*)(addr + sz) ) {
+                det = false;
+                break;
+            }
+            if( *(uint32_t*)(addr + 0x00100000) != *(uint32_t*)(addr + sz + 0x00100000) ) {
+                det = false;
+                break;
+            }
+        }
+        if (det)
+            return sz;
+    }
+    return 0x01000000;
 }
