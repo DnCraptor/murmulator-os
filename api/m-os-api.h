@@ -531,3 +531,15 @@ typedef void (*vPortFree_ptr_t)( void * pv );
 inline static void vPortFree(void * pv) {
     ((vPortFree_ptr_t)_sys_table_ptrs[33])(pv);
 }
+
+typedef __builtin_va_list __gnuc_va_list;
+#define __VALIST __gnuc_va_list
+
+typedef int (*vsnprintf_ptr_t)(char *__restrict, size_t, const char *__restrict, __VALIST)
+               _ATTRIBUTE ((__format__ (__printf__, 3, 0)));
+inline static int vsnprintf(char *__restrict buff, size_t lim, const char *__restrict msg, __VALIST lst) {
+    return ((vsnprintf_ptr_t)_sys_table_ptrs[67])(buff, lim, msg, lst);
+}
+
+typedef int	(*goutf_ptr_t)(const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 1, 2)));
+#define goutf ((goutf_ptr_t)_sys_table_ptrs[41])

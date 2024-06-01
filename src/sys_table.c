@@ -91,6 +91,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     load_firmware, // 65
     run_app, // 66
+    //
+    vsnprintf, // 67
     // TODO:
     0
 };

@@ -33,7 +33,7 @@ foreach (SRC_FILE IN LISTS SRC)
 endforeach ()
 message(STATUS "")
 
-add_executable(${PROJECT_NAME} main.c)
+add_executable(${PROJECT_NAME} main.c testTask1.c)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -53,7 +53,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 #family_configure_device_example(${PROJECT_NAME} noos)
-target_link_options(${PROJECT_NAME} PRIVATE -Xlinker --print-memory-usage -fPIC -shared)
+# -fPIC -shared
+target_link_options(${PROJECT_NAME} PRIVATE -Xlinker --print-memory-usage)
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../api

@@ -1,4 +1,5 @@
 #include <pico/platform.h>
+#include <hardware/watchdog.h>
 #include "keyboard.h"
 #include "ps2.h"
 #include "ff.h"

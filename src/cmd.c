@@ -333,6 +333,10 @@ static void dir(FIL *f, char *d) {
     fgoutf(f, "    Total: %d files\n", total_files);
 }
 
+static void _test_swap(FIL* f) {
+// TODO: swap test
+}
+
 static void _test_psram(FIL* f) {
     uint32_t sz = psram_size();
     fgoutf(f, "PSRAM size: %d bytes\n", sz);
@@ -429,6 +433,8 @@ t:
         graphics_set_con_color(7, 0);
     } else if( strcmp("psram", cmd_t) == 0 ) {
         _test_psram(&f0);
+    } else if( strcmp("swap", cmd_t) == 0 ) {
+        _test_swap(&f0);
     } else if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
         dir(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
     } else if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {

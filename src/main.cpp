@@ -1,7 +1,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <hardware/clocks.h>
-#include <hardware/watchdog.h>
 #include <hardware/structs/vreg_and_chip_reset.h>
 #include <pico/bootrom.h>
 #include <pico/multicore.h>
