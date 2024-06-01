@@ -9,6 +9,9 @@
 uint8_t RAM[RAM_SIZE] = { 0 };
 uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 
+uint32_t swap_base_size() { return RAM_SIZE; }
+uint8_t* swap_base() { return RAM; }
+
 static uint32_t get_ram_page_for(const uint32_t addr32);
 
 uint8_t ram_page_read(uint32_t addr32) {

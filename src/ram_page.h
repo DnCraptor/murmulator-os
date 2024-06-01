@@ -28,6 +28,8 @@ extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
 
 uint32_t init_vram();
 uint32_t swap_size();
+uint32_t swap_base_size();
+uint8_t* swap_base();
 
 uint8_t ram_page_read(uint32_t addr32);
 uint16_t ram_page_read16(uint32_t addr32);

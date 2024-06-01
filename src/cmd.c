@@ -334,128 +334,193 @@ static void dir(FIL *f, char *d) {
     fgoutf(f, "    Total: %d files\n", total_files);
 }
 
+static void _test_sram(FIL* f) {
+    uint32_t sz = swap_base_size();
+    uint8_t* p = swap_base();
+    fgoutf(f, "SWAP BASE size: %d bytes @ %ph\n", sz, p);
+    uint32_t a = 0;
+    uint32_t begin = time_us_32();
+    for (; a < sz; ++a) {
+        p[a] = a & 0xFF;
+    }
+    uint32_t elapsed = time_us_32() - begin;
+    float speed = 1.0 * a / elapsed;
+    fgoutf(f, "8-bit line write speed: %f MBps\n", speed);
+
+    begin = time_us_32();
+    for (a = 0; a < sz; ++a) {
+        if ((a & 0xFF) != p[a]) {
+            fgoutf(f, "8-bit read failed at %ph\n", a);
+            break;
+        }
+    }
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "8-bit line read speed: %f MBps\n", speed);
+
+    uint16_t* p16 = (uint16_t*)p;
+    begin = time_us_32();
+    for (a = 0; a < (sz >> 2); ++a) {
+        p16[a] = a & 0xFFFF;
+    }
+    elapsed = time_us_32() - begin;
+    speed = 2.0 * a / elapsed;
+    fgoutf(f, "16-bit line write speed: %f MBps\n", speed);
+
+    begin = time_us_32();
+    for (a = 0; a < (sz >> 1); ++a) {
+        if ((a & 0xFFFF) != p16[a]) {
+            fgoutf(f, "16-bit read failed at %ph\n", a << 1);
+            break;
+        }
+    }
+    elapsed = time_us_32() - begin;
+    speed = 2.0 * a / elapsed;
+    fgoutf(f, "16-bit line read speed: %f MBps\n", speed);
+
+    uint32_t* p32 = (uint32_t*)p;
+    begin = time_us_32();
+    for (a = 0; a < (sz >> 2); ++a) {
+        p[a] = a;
+    }
+    elapsed = time_us_32() - begin;
+    speed = 4.0 * a / elapsed;
+    fgoutf(f, "32-bit line write speed: %f MBps\n", speed);
+
+    begin = time_us_32();
+    for (a = 0; a < (sz >> 2); ++a) {
+        if (a != p32[a]) {
+            fgoutf(f, "32-bit read failed at %ph\n", a << 2);
+            break;
+        }
+    }
+    elapsed = time_us_32() - begin;
+    speed = 4.0 * a / elapsed;
+    fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
+}
+
 static void _test_swap(FIL* f) {
     uint32_t sz = swap_size();
     fgoutf(f, "SWAP size: %d bytes\n", sz);
     uint32_t a = 0;
-    uint32_t psram_begin = time_us_32();
+    uint32_t begin = time_us_32();
     for (; a < sz; ++a) {
         ram_page_write(a, a & 0xFF);
     }
-    uint32_t psram_elapsed = time_us_32() - psram_begin;
-    float psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "8-bit line write speed: %f MBps\n", psram_speed);
+    uint32_t elapsed = time_us_32() - begin;
+    float speed = 1.0 * a / elapsed;
+    fgoutf(f, "8-bit line write speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; ++a) {
         if ((a & 0xFF) != ram_page_read(a)) {
             fgoutf(f, "8-bit read failed at %ph\n", a);
             break;
         }
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "8-bit line read speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "8-bit line read speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; a += 2) {
         ram_page_write16(a, a & 0xFFFF);
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "16-bit line write speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "16-bit line write speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; a += 2) {
         if ((a & 0xFFFF) != ram_page_read16(a)) {
             fgoutf(f, "16-bit read failed at %ph\n", a);
             break;
         }
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "16-bit line read speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "16-bit line read speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; a += 4) {
         ram_page_write32(a, a);
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "32-bit line write speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "32-bit line write speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; a += 4) {
         if (a != ram_page_read32(a)) {
             fgoutf(f, "32-bit read failed at %ph\n", a);
             break;
         }
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "32-bit line read speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
 }
 
 static void _test_psram(FIL* f) {
     uint32_t sz = psram_size();
     fgoutf(f, "PSRAM size: %d bytes\n", sz);
     uint32_t a = 0;
-    uint32_t psram_begin = time_us_32();
+    uint32_t begin = time_us_32();
     for (; a < sz; ++a) {
         write8psram(a, a & 0xFF);
     }
-    uint32_t psram_elapsed = time_us_32() - psram_begin;
-    float psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "8-bit line write speed: %f MBps\n", psram_speed);
+    uint32_t elapsed = time_us_32() - begin;
+    float speed = 1.0 * a / elapsed;
+    fgoutf(f, "8-bit line write speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; ++a) {
         if ((a & 0xFF) != read8psram(a)) {
             fgoutf(f, "8-bit read failed at %ph\n", a);
             break;
         }
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "8-bit line read speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "8-bit line read speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; a += 2) {
         write16psram(a, a & 0xFFFF);
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "16-bit line write speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "16-bit line write speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; a += 2) {
         if ((a & 0xFFFF) != read16psram(a)) {
             fgoutf(f, "16-bit read failed at %ph\n", a);
             break;
         }
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "16-bit line read speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "16-bit line read speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; a += 4) {
         write32psram(a, a);
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "32-bit line write speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "32-bit line write speed: %f MBps\n", speed);
 
-    psram_begin = time_us_32();
+    begin = time_us_32();
     for (a = 0; a < sz; a += 4) {
         if (a != read32psram(a)) {
             fgoutf(f, "32-bit read failed at %ph\n", a);
             break;
         }
     }
-    psram_elapsed = time_us_32() - psram_begin;
-    psram_speed = 1.0 * a / psram_elapsed;
-    fgoutf(f, "32-bit line read speed: %f MBps\n", psram_speed);
+    elapsed = time_us_32() - begin;
+    speed = 1.0 * a / elapsed;
+    fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
 }
 
 void cmd_enter() {
@@ -494,6 +559,8 @@ t:
         _test_psram(&f0);
     } else if( strcmp("swap", cmd_t) == 0 ) {
         _test_swap(&f0);
+    } else if( strcmp("sram", cmd_t) == 0 ) {
+        _test_sram(&f0);
     } else if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
         dir(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
     } else if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {
