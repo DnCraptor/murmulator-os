@@ -25,6 +25,7 @@ extern "C" {
 #include "cmd.h"
 #include "hardfault.h"
 #include "hardware/exception.h"
+#include "ram_page.h"
 }
 
 #include "nespad.h"
@@ -121,11 +122,13 @@ int main() {
         while (true);
     }
     uint32_t psram32 = init_psram();
+    uint32_t swap = init_vram();
     goutf("CPU %d MHz\n"
           "SRAM %d KB\n"
           "FLASH %d MB\n"
           "PSRAM %d MB\n"
           "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
+          "SWAP %d MB\n"
           "\n"
           "%s>",
           cpuz,
@@ -135,6 +138,7 @@ int main() {
           fs.n_fats,
           f_getfree32(&fs),
           fs.csize / 2,
+          swap >> 20,
           curr_dir
     );
 

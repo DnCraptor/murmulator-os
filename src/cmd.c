@@ -6,6 +6,7 @@
 #include "app.h"
 #include "elf.h"
 #include "psram_spi.h"
+#include "ram_page.h"
 
 static char curr_dir[512] = "MOS"; // TODO: configure start dir
 static char cmd[512] = { 0 };
@@ -334,7 +335,65 @@ static void dir(FIL *f, char *d) {
 }
 
 static void _test_swap(FIL* f) {
-// TODO: swap test
+    uint32_t sz = swap_size();
+    fgoutf(f, "SWAP size: %d bytes\n", sz);
+    uint32_t a = 0;
+    uint32_t psram_begin = time_us_32();
+    for (; a < sz; ++a) {
+        ram_page_write(a, a & 0xFF);
+    }
+    uint32_t psram_elapsed = time_us_32() - psram_begin;
+    float psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "8-bit line write speed: %f MBps\n", psram_speed);
+
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; ++a) {
+        if ((a & 0xFF) != ram_page_read(a)) {
+            fgoutf(f, "8-bit read failed at %ph\n", a);
+            break;
+        }
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "8-bit line read speed: %f MBps\n", psram_speed);
+
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; a += 2) {
+        ram_page_write16(a, a & 0xFFFF);
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "16-bit line write speed: %f MBps\n", psram_speed);
+
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; a += 2) {
+        if ((a & 0xFFFF) != ram_page_read16(a)) {
+            fgoutf(f, "16-bit read failed at %ph\n", a);
+            break;
+        }
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "16-bit line read speed: %f MBps\n", psram_speed);
+
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; a += 4) {
+        ram_page_write32(a, a);
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "32-bit line write speed: %f MBps\n", psram_speed);
+
+    psram_begin = time_us_32();
+    for (a = 0; a < sz; a += 4) {
+        if (a != ram_page_read32(a)) {
+            fgoutf(f, "32-bit read failed at %ph\n", a);
+            break;
+        }
+    }
+    psram_elapsed = time_us_32() - psram_begin;
+    psram_speed = 1.0 * a / psram_elapsed;
+    fgoutf(f, "32-bit line read speed: %f MBps\n", psram_speed);
 }
 
 static void _test_psram(FIL* f) {
