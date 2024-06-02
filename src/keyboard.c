@@ -4,6 +4,7 @@
 #include "ps2.h"
 #include "ff.h"
 #include "cmd.h"
+#include "overclock.h"
 
 static bool bCtrlPressed = false;
 static bool bAltPressed = false;
@@ -96,18 +97,6 @@ static char tricode2c(char tricode[4], size_t s) {
     }
     tricode[0] = 0;
     return (char)r & 0xFF;
-}
-
-uint32_t overcloking_khz = OVERCLOCKING * 1000;
-
-void overcloking() {
-    uint vco, postdiv1, postdiv2;
-    if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
-        set_sys_clock_pll(vco, postdiv1, postdiv2);
-        goutf("CPU overcloking_khz: %f MHz (vco: %d MHz, pd1: %d, pd2: %d)\n", overcloking_khz / 1000.0, vco / 1000000, postdiv1, postdiv2);
-    } else {
-        goutf("System clock of %d kHz cannot be achieved\n", overcloking_khz);
-    }
 }
 
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {

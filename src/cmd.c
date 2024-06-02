@@ -7,6 +7,7 @@
 #include "elf.h"
 #include "psram_spi.h"
 #include "ram_page.h"
+#include "overclock.h"
 
 static char curr_dir[512] = "MOS"; // TODO: configure start dir
 static char cmd[512] = { 0 };
@@ -524,6 +525,10 @@ t:
         _test_swap(&f0);
     } else if( strcmp("sram", cmd_t) == 0 ) {
         _test_sram(&f0);
+    } else if( strcmp("cpu", cmd_t) == 0 ) {
+        if (tokens == 1) {
+            overcloking();
+        }
     } else if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
         dir(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
     } else if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {

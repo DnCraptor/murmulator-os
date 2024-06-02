@@ -26,7 +26,7 @@ extern "C" {
 #include "hardfault.h"
 #include "hardware/exception.h"
 #include "ram_page.h"
-extern uint32_t overcloking_khz;
+#include "overclock.h"
 }
 
 #include "nespad.h"
