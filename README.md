@@ -76,6 +76,7 @@ rmdir dir - remove directory (recurive)<br/>
 elfinfo file - provide .elf file info<br/>
 psram - provide some psram info<br/>
 swap - provide some swap info<br/>
+sram - reference speed of swap base SRAM<br/>
 [cmd] &gt; file - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format<br/>
 [TAB] - autocomplete<br/>

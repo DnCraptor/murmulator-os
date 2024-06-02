@@ -55,7 +55,7 @@ inline static uint32_t read32arr(uint8_t* arr, uint32_t base_addr, uint32_t addr
     register uint32_t b2 = *ptr++;
     register uint32_t b1 = *ptr++;
     register uint32_t b0 = *ptr;
-    return b1 | (b0 << 8) | (b1 << 16) | (b0 << 24);
+    return b3 | (b2 << 8) | (b1 << 16) | (b0 << 24);
 }
 
 uint32_t ram_page_read32(uint32_t addr32) {

@@ -357,46 +357,6 @@ static void _test_sram(FIL* f) {
     elapsed = time_us_32() - begin;
     speed = 1.0 * a / elapsed;
     fgoutf(f, "8-bit line read speed: %f MBps\n", speed);
-
-    uint16_t* p16 = (uint16_t*)p;
-    begin = time_us_32();
-    for (a = 0; a < (sz >> 2); ++a) {
-        p16[a] = a & 0xFFFF;
-    }
-    elapsed = time_us_32() - begin;
-    speed = 2.0 * a / elapsed;
-    fgoutf(f, "16-bit line write speed: %f MBps\n", speed);
-
-    begin = time_us_32();
-    for (a = 0; a < (sz >> 1); ++a) {
-        if ((a & 0xFFFF) != p16[a]) {
-            fgoutf(f, "16-bit read failed at %ph\n", a << 1);
-            break;
-        }
-    }
-    elapsed = time_us_32() - begin;
-    speed = 2.0 * a / elapsed;
-    fgoutf(f, "16-bit line read speed: %f MBps\n", speed);
-
-    uint32_t* p32 = (uint32_t*)p;
-    begin = time_us_32();
-    for (a = 0; a < (sz >> 2); ++a) {
-        p[a] = a;
-    }
-    elapsed = time_us_32() - begin;
-    speed = 4.0 * a / elapsed;
-    fgoutf(f, "32-bit line write speed: %f MBps\n", speed);
-
-    begin = time_us_32();
-    for (a = 0; a < (sz >> 2); ++a) {
-        if (a != p32[a]) {
-            fgoutf(f, "32-bit read failed at %ph\n", a << 2);
-            break;
-        }
-    }
-    elapsed = time_us_32() - begin;
-    speed = 4.0 * a / elapsed;
-    fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
 }
 
 static void _test_swap(FIL* f) {
@@ -413,8 +373,9 @@ static void _test_swap(FIL* f) {
 
     begin = time_us_32();
     for (a = 0; a < sz; ++a) {
-        if ((a & 0xFF) != ram_page_read(a)) {
-            fgoutf(f, "8-bit read failed at %ph\n", a);
+        uint8_t b = ram_page_read(a);
+        if ((a & 0xFF) != b) {
+            fgoutf(f, "8-bit read failed at %ph (%02Xh)\n", a, b);
             break;
         }
     }
@@ -432,8 +393,9 @@ static void _test_swap(FIL* f) {
 
     begin = time_us_32();
     for (a = 0; a < sz; a += 2) {
-        if ((a & 0xFFFF) != ram_page_read16(a)) {
-            fgoutf(f, "16-bit read failed at %ph\n", a);
+        uint16_t b = ram_page_read16(a);
+        if ((a & 0xFFFF) != b) {
+            fgoutf(f, "16-bit read failed at %ph (%04Xh)\n", a, b);
             break;
         }
     }
@@ -451,8 +413,9 @@ static void _test_swap(FIL* f) {
 
     begin = time_us_32();
     for (a = 0; a < sz; a += 4) {
-        if (a != ram_page_read32(a)) {
-            fgoutf(f, "32-bit read failed at %ph\n", a);
+        uint32_t b = ram_page_read32(a);
+        if (a != b) {
+            fgoutf(f, "32-bit read failed at %ph (%ph)\n", a, b);
             break;
         }
     }
