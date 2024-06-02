@@ -12,6 +12,9 @@ static bool bLeftShift = false;
 static bool bRightShift = false;
 static bool bRus = false;
 static bool bCapsLock = false;
+static bool bTabPressed = false;
+static bool bPlusPressed = false;
+static bool bMinusPressed = false;
 static uint32_t input = 0;
 
 uint32_t get_last_scancode() {
@@ -95,6 +98,18 @@ static char tricode2c(char tricode[4], size_t s) {
     return (char)r & 0xFF;
 }
 
+uint32_t overcloking_khz = OVERCLOCKING * 1000;
+
+void overcloking() {
+    uint vco, postdiv1, postdiv2;
+    if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
+        set_sys_clock_pll(vco, postdiv1, postdiv2);
+        goutf("CPU overcloking_khz: %f MHz (vco: %d MHz, pd1: %d, pd2: %d)\n", overcloking_khz / 1000.0, vco / 1000000, postdiv1, postdiv2);
+    } else {
+        goutf("System clock of %d kHz cannot be achieved\n", overcloking_khz);
+    }
+}
+
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     FIL f = { 0 };
     UINT br;
@@ -155,12 +170,38 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         case 0x0E:
             cmd_backspace();
             break;
+        case 0x0F:
+            bTabPressed = true;
+            break;
+        case 0x8F:
+            bTabPressed = false;
+            break;
+        case 0x0C: // -
+        case 0x4A: // numpad -
+            bMinusPressed = true;
+            break;
+        case 0x8C: // -
+        case 0xCA: // numpad 
+            bMinusPressed = false;
+            break;
+        case 0x0D: // +=
+        case 0x4E: // numpad +
+            bPlusPressed = true;
+            break;
+        case 0x8D: // += 82?
+        case 0xCE: // numpad +
+            bPlusPressed = false;
+            break;
         default:
             break;
     }
     if (bCtrlPressed && bAltPressed && bDelPressed) {
         watchdog_enable(100, true);
         return true;
+    }
+    if (bTabPressed && bCtrlPressed) {
+        if (bPlusPressed) { overcloking_khz += 1000; overcloking(); }
+        if (bMinusPressed) { overcloking_khz -= 1000; overcloking(); }
     }
     if (c || input < 86) {
         if (!c) {

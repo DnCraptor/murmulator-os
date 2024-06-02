@@ -122,6 +122,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC
 endif ()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
+        OVERCLOCKING=366
         PICO_FLASH_SIZE_BYTES=16777216
 
         # VGA 8 pins starts from pin:

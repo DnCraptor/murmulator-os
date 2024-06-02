@@ -83,4 +83,6 @@ sram - reference speed of swap base SRAM<br/>
 [BACKSPACE] - remove last character<br/>
 [CTRL]+[SHIFT] - rus/lat<br/>
 [CTRL]+[ALT]+[DEL] - reset<br/>
+[CTRL]+[TAB]+[+] - increase CPU freq.</br>
+[CTRL]+[TAB]+[-] - decrease CPU freq.</br>
 [ALT]+[0-9]+[0-9]+[0-9] - manual enter some character by its decimal code (CP-866 codepage)<br/>

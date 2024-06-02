@@ -26,6 +26,7 @@ extern "C" {
 #include "hardfault.h"
 #include "hardware/exception.h"
 #include "ram_page.h"
+extern uint32_t overcloking_khz;
 }
 
 #include "nespad.h"
@@ -77,15 +78,13 @@ void __time_critical_func(render_core)() {
     __unreachable();
 }
 
-static uint32_t cpuz = 366;
-
 int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
     sleep_ms(10);
-    set_sys_clock_khz(cpuz * KHZ, true);
+    set_sys_clock_khz(overcloking_khz, true);
 
     keyboard_init();
     keyboard_send(0xFF);
@@ -131,7 +130,7 @@ int main() {
           "SWAP %d MB\n"
           "\n"
           "%s>",
-          cpuz,
+          overcloking_khz / 1000,
           ram32 >> 10,
           flash32 >> 20,
           psram32 >> 20,
