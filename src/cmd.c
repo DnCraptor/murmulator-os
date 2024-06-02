@@ -528,6 +528,15 @@ t:
     } else if( strcmp("cpu", cmd_t) == 0 ) {
         if (tokens == 1) {
             overcloking();
+        } else if (tokens == 2) {
+            char* nt = next_token(cmd_t);
+            int cpu = atoi(nt);
+            if (cpu > 123 && cpu < 450) {
+                overcloking_khz = cpu * 1000;
+                overcloking();
+            } else {
+                goutf("Unable to change CPU freq. to %s\n", nt);
+            }
         }
     } else if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
         dir(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));

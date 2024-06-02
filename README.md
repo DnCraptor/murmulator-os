@@ -78,6 +78,7 @@ psram - provide some psram info<br/>
 swap - provide some swap info<br/>
 sram - reference speed of swap base SRAM<br/>
 cpu - show current CPU freq. and dividers<br/>
+cpu NNN - change freq. to NNN MHz (it may hang on such action)<br/>
 [cmd] &gt; file - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format<br/>
 [TAB] - autocomplete<br/>
