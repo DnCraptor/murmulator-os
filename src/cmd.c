@@ -579,10 +579,13 @@ t:
     } else {
         char t[512] = {0};
         if (exists(t, cmd_t)) {
-            if (load_firmware(t)) {
+            int len = strlen(t);
+            if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
+            } if(new_app(t)) {
+                run_new_app(t);
             } else {
-                goutf("Unable to load application: '%s'\n", cmd_t);
+                goutf("Unable to load firmware: '%s'\n", t);
             }
         } else {
             goutf("Illegal command: '%s'\n", cmd);

@@ -4,6 +4,7 @@
         "task.h": "c",
         "list.h": "c",
         "freertosconfig.h": "c",
-        "overclock.h": "c"
+        "overclock.h": "c",
+        "elf.h": "c"
     }
 }
