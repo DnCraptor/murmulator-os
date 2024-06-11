@@ -331,11 +331,11 @@ extern "C" void elfinfo(FIL *f, char *fn) {
         f_lseek(&f2, ehdr.sh_offset);
         int i = 0;
         while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
-            fgoutf(f, "%02d %s(%x) %s%s%s%s (%02xh) %ph (%04d) A%04d E%02d L%02d %s",
+            fgoutf(f, "%02d %s(%x) %s%s%s%s (%02xh) %p:%p (%04d) A%04d E%02d L%02d %s",
                    i,
                    sh_type2name(sh.sh_type), sh.sh_type,
                    sh_flags_w(sh.sh_flags), sh_flags_a(sh.sh_flags), sh_flags_x(sh.sh_flags), sh_flags_s(sh.sh_flags), sh.sh_flags,
-                   sh.sh_addr, sh.sh_size,
+                   sh.sh_addr, sh.sh_offset, sh.sh_size,
                    sh.sh_addralign, sh.sh_entsize, sh.sh_link,
                    symtab + sh.sh_name
             );
@@ -356,6 +356,18 @@ extern "C" void elfinfo(FIL *f, char *fn) {
             if(sh.sh_type == 3 && 0 == strcmp(symtab + sh.sh_name, ".dynstr")) {
                 dynstr_off = sh.sh_offset;
                 dynstr_len = sh.sh_size;
+            }
+            if(sh.sh_type == 9) {
+                uint32_t r2 = f_tell(&f2);
+                f_lseek(&f2, sh.sh_offset);
+                uint32_t len = sh.sh_size;
+                elf32_rel rel;
+                while(len) {
+                    f_read(&f2, &rel, sizeof(rel), &rb);
+                    fgoutf(f, "REL: %p:%p\n", rel.rel_offset, rel.rel_info);
+                    len -= sh.sh_entsize;
+                }
+                f_lseek(&f2, r2);
             }
             i++;
         }

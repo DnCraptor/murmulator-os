@@ -83,6 +83,16 @@ typedef struct {
   uint16_t	st_shndx;
 } elf32_sym;
 
+typedef struct {
+  uint32_t rel_offset;
+  uint32_t rel_info;
+} elf32_rel;
+
+typedef struct {
+  uint32_t rela_offset;
+  uint32_t rela_info;
+  uint32_t rela_attend;
+} elf32_rela;
 
 #pragma pack(pop)
 
