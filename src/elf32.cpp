@@ -362,10 +362,12 @@ extern "C" void elfinfo(FIL *f, char *fn) {
                 f_lseek(&f2, sh.sh_offset);
                 uint32_t len = sh.sh_size;
                 elf32_rel rel;
+                int rn = 0;
                 while(len) {
                     f_read(&f2, &rel, sizeof(rel), &rb);
-                    fgoutf(f, "REL: %p:%p\n", rel.rel_offset, rel.rel_info);
+                    fgoutf(f, "REL#%d off: %p r_sym: %06xh r_type: %02xh\n", rn, rel.rel_offset, rel.rel_info >> 8, rel.rel_info & 0xFF);
                     len -= sh.sh_entsize;
+                    ++rn;
                 }
                 f_lseek(&f2, r2);
             }

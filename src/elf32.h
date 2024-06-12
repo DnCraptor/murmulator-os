@@ -91,7 +91,7 @@ typedef struct {
 typedef struct {
   uint32_t rela_offset;
   uint32_t rela_info;
-  uint32_t rela_attend;
+  int32_t rela_addend;
 } elf32_rela;
 
 #pragma pack(pop)
