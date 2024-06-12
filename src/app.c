@@ -106,41 +106,36 @@ void run_new_app(char * fn) {
     UINT rb;
     if (f_read(&f2, &ehdr, sizeof(ehdr), &rb) != FR_OK) {
         goutf("Unable to read an ELF file header: '%s'\n", fn);
-        f_close(&f2);
-        return;
+        goto e1;
     }
     if (ehdr.common.magic != ELF_MAGIC) {
         goutf("It is not an ELF file: '%s'\n", fn);
-        f_close(&f2);
-        return;
+        goto e1;
     }
     if (ehdr.common.version != 1 || ehdr.common.version2 != 1) {
         goutf("%s '%s' version: %d:%d\n", s, fn, ehdr.common.version, ehdr.common.version2);
-        f_close(&f2);
-        return;
+        goto e1;
     }
     if (ehdr.common.arch_class != 1 || ehdr.common.endianness != 1) {
         goutf("%s '%s' class: %d; endian: %d\n", s, fn, ehdr.common.arch_class, ehdr.common.endianness);
-        f_close(&f2);
-        return;
+        goto e1;
     }
-    if (ehdr.eh_size != sizeof(struct elf32_header)) {
-        goutf("%s '%s' header size: %d; expected: %d\n", s, fn, ehdr.eh_size, sizeof(ehdr));
-        f_close(&f2);
-        return;
-    }
+// TODO: ???
+//    if (ehdr.eh_size != sizeof(struct elf32_header)) {
+//        goutf("%s '%s' header size: %d; expected: %d\n", s, fn, ehdr.eh_size, sizeof(ehdr));
+//        goto e1;
+//    }
     if (ehdr.common.machine != EM_ARM) {
         goutf("%s '%s' machine type: %d; expected: %d\n", s, fn, ehdr.common.machine, EM_ARM);
-        f_close(&f2);
-        return;
+        goto e1;
     }
     if (ehdr.common.abi != 0) {
         goutf("%s '%s' ABI type: %d; expected: %d\n", s, fn, ehdr.common.abi, 0);
-        f_close(&f2);
-        return;
+        goto e1;
     }
     if (ehdr.flags & EF_ARM_ABI_FLOAT_HARD) {
         goutf("%s '%s' EF_ARM_ABI_FLOAT_HARD: %04Xh\n", s, fn, ehdr.flags);
+        goto e1;
     }
     // TODO: remove it later
     goutf("Size of section headers:           %d\n", ehdr.sh_entry_size);
@@ -151,22 +146,33 @@ void run_new_app(char * fn) {
     bool ok = f_lseek(&f2, ehdr.sh_offset + sizeof(sh) * ehdr.sh_str_index) == FR_OK;
     if (!ok || f_read(&f2, &sh, sizeof(sh), &rb) != FR_OK || rb != sizeof(sh)) {
         goutf("Unable to read .shstrtab section header @ %d+%d (read: %d)\n", f_tell(&f2), sizeof(sh), rb);
-        f_close(&f2);
-        return;
+        goto e1;
     }
     char* symtab = (char*)pvPortMalloc(sh.sh_size);
     ok = f_lseek(&f2, sh.sh_offset) == FR_OK;
     if (!ok || f_read(&f2, symtab, sh.sh_size, &rb) != FR_OK || rb != sh.sh_size) {
         goutf("Unable to read .shstrtab section @ %d+%d (read: %d)\n", f_tell(&f2), sh.sh_size, rb);
-        f_close(&f2);
-        vPortFree(symtab);
-        return;
+        goto e2;
     }
     f_lseek(&f2, ehdr.sh_offset);
-    int i = 0;
-    while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
-        i++;
+    int symtab_off, strtab_off = -1;
+    UINT symtab_len, strtab_len = 0;
+    while (symtab_off < 0 && strtab_off < 0 && f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) { 
+        if(sh.sh_type == 2 && 0 == strcmp(symtab + sh.sh_name, ".symtab")) {
+            symtab_off = sh.sh_offset;
+            symtab_len = sh.sh_size;
+        }
+        if(sh.sh_type == 3 && 0 == strcmp(symtab + sh.sh_name, ".strtab")) {
+            strtab_off = sh.sh_offset;
+            strtab_len = sh.sh_size;
+        }
     }
+    if (symtab_off >= 0 && strtab_off >= 0) {
+        goutf("Unable to find .strtab/.symtab sections\n");
+        goto e2;
+    }
+e2:
     vPortFree(symtab);
+e1:
     f_close(&f2);
 }

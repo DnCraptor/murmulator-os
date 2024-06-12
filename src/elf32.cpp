@@ -202,7 +202,7 @@ static const char* st_info_type2str(char c) {
         return "NOTYPE ";
     case 1:
         return "OBJECT ";
-    case 2:
+    case STR_TAB_FUNC:
         return "FUNC   ";
     case 3:
         return "SECTION";
@@ -224,7 +224,7 @@ static const char* st_info_bind2str(char c) {
     {
     case 0:
         return "LOCAL ";
-    case 1:
+    case STR_TAB_GLOBAL:
         return "GLOBAL";
     case 2:
         return "WEAK  ";

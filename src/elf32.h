@@ -96,6 +96,12 @@ typedef struct {
 
 #pragma pack(pop)
 
+#define STR_TAB_FUNC 2
+
+#define STR_TAB_GLOBAL 1
+
+#define STR_TAB_GLOBAL_FUNC ((STR_TAB_GLOBAL << 4) | STR_TAB_FUNC)
+
 void elfinfo(FIL *f, char *fn);
 
 #ifdef __cplusplus
