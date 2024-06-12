@@ -96,7 +96,7 @@ bool new_app(char * name) {
 
 static const char* s = "Unexpected ELF file";
 
-void run_new_app(char * fn) {
+void run_new_app(char * fn, char * fn1) {
     FIL f2;
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
         goutf("Unable to open file: '%s'\n", fn);
@@ -138,10 +138,10 @@ void run_new_app(char * fn) {
         goto e1;
     }
     // TODO: remove it later
-    goutf("Size of section headers:           %d\n", ehdr.sh_entry_size);
-    goutf("Number of section headers:         %d\n", ehdr.sh_num);
-    goutf("Section header string table index: %d\n", ehdr.sh_str_index);
-    goutf("Start of section headers:          %d\n", ehdr.sh_offset);
+    //goutf("Size of section headers:           %d\n", ehdr.sh_entry_size);
+    //goutf("Number of section headers:         %d\n", ehdr.sh_num);
+    //goutf("Section header string table index: %d\n", ehdr.sh_str_index);
+    //goutf("Start of section headers:          %d\n", ehdr.sh_offset);
     elf32_shdr sh;
     bool ok = f_lseek(&f2, ehdr.sh_offset + sizeof(sh) * ehdr.sh_str_index) == FR_OK;
     if (!ok || f_read(&f2, &sh, sizeof(sh), &rb) != FR_OK || rb != sizeof(sh)) {
@@ -157,7 +157,7 @@ void run_new_app(char * fn) {
     f_lseek(&f2, ehdr.sh_offset);
     int symtab_off, strtab_off = -1;
     UINT symtab_len, strtab_len = 0;
-    while (symtab_off < 0 && strtab_off < 0 && f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) { 
+    while ((symtab_off < 0 || strtab_off < 0) && f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) { 
         if(sh.sh_type == 2 && 0 == strcmp(symtab + sh.sh_name, ".symtab")) {
             symtab_off = sh.sh_offset;
             symtab_len = sh.sh_size;
@@ -167,10 +167,40 @@ void run_new_app(char * fn) {
             strtab_len = sh.sh_size;
         }
     }
-    if (symtab_off >= 0 && strtab_off >= 0) {
+    if (symtab_off < 0 || strtab_off < 0) {
         goutf("Unable to find .strtab/.symtab sections\n");
         goto e2;
     }
+    f_lseek(&f2, strtab_off);
+    char* strtab = (char*)pvPortMalloc(strtab_len);
+    if (f_read(&f2, strtab, strtab_len, &rb) != FR_OK || rb != strtab_len) {
+        goutf("Unable to read .strtab section\n");
+        goto e3;
+    }
+    f_lseek(&f2, symtab_off);
+    elf32_sym sym;
+    bool lst = strcmp(fn1, "lst") == 0;
+    if (lst) {
+        goutf("Global function names:\n");
+    }
+    for (int i = 0; i < symtab_len / sizeof(sym); ++i) {
+        if (f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
+            goutf("Unable to read .symtab section #%d\n", i);
+            break;
+        }
+        if (sym.st_info == STR_TAB_GLOBAL_FUNC) {
+            if (lst) {
+                goutf("%s\n", strtab + sym.st_name);
+            } else {
+                if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
+                    // TODO:
+                    break;
+                }
+            }
+        }
+    }
+e3:
+    vPortFree(strtab);
 e2:
     vPortFree(symtab);
 e1:

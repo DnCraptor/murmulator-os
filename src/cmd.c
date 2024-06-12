@@ -583,7 +583,7 @@ t:
             if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
             } if(new_app(t)) {
-                run_new_app(t);
+                run_new_app(t, tokens == 1 ? "main" : (char*)cmd + (next_token(cmd_t) - cmd_t));
             } else {
                 goutf("Unable to load firmware: '%s'\n", t);
             }
