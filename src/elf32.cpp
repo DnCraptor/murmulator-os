@@ -365,7 +365,7 @@ extern "C" void elfinfo(FIL *f, char *fn) {
                 int rn = 0;
                 while(len) {
                     f_read(&f2, &rel, sizeof(rel), &rb);
-                    fgoutf(f, "REL#%d off: %p r_sym: %06xh r_type: %02xh\n", rn, rel.rel_offset, rel.rel_info >> 8, rel.rel_info & 0xFF);
+                    fgoutf(f, "REL#%d off: %p r_sym: %d r_type: %d\n", rn, rel.rel_offset, rel.rel_info >> 8, rel.rel_info & 0xFF);
                     len -= sh.sh_entsize;
                     ++rn;
                 }

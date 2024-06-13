@@ -217,6 +217,15 @@ void run_new_app(char * fn, char * fn1) {
                                     elf32_rel rel;
                                     while(len) {
                                         f_read(&f2, &rel, sizeof(rel), &rb);
+                                        uint32_t rel_sym = rel.rel_info >> 8;
+                                        uint8_t rel_type = rel.rel_info & 0xFF;
+                                        f_lseek(&f2, symtab_off + rel_sym * sizeof(sym));
+                                        if (f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
+                                            goutf("Unable to read .symtab section #%d\n", rel_sym);
+                                            goto e3;
+                                        }
+                                        page[rel.rel_offset];
+        goutf("rel_offset: %p; rel_sym: %d; rel_type: %d; -> %d\n", rel.rel_offset, rel_sym, rel_type, sym.st_shndx);
                                         // todo: strtab
                                         len -= sh.sh_entsize;
                                     }
