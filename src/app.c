@@ -212,11 +212,14 @@ void run_new_app(char * fn, char * fn1) {
                             while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
                                 if(sh.sh_type == REL_SEC && sh.sh_info == sym.st_shndx) {
                                     uint32_t r2 = f_tell(&f2);
-                                    f_lseek(&f2, sh.sh_offset);
-                                    uint32_t len = sh.sh_size;
                                     elf32_rel rel;
-                                    while(len) {
-                                        f_read(&f2, &rel, sizeof(rel), &rb);
+                                    for (uint32_t j = 0; j < sh.sh_size / sizeof(rel); ++j) {
+                                        if (f_lseek(&f2, sh.sh_offset + j * sizeof(rel)) != FR_OK ||
+                                            f_read(&f2, &rel, sizeof(rel), &rb) != FR_OK || rb != sizeof(rel)
+                                        ) {
+                                            goutf("Unable to read REL record #%d in section #%d\n", j, sh.sh_info);
+                                            goto e3;
+                                        }
                                         uint32_t rel_sym = rel.rel_info >> 8;
                                         uint8_t rel_type = rel.rel_info & 0xFF;
                                         f_lseek(&f2, symtab_off + rel_sym * sizeof(sym));
@@ -226,8 +229,8 @@ void run_new_app(char * fn, char * fn1) {
                                         }
                                         page[rel.rel_offset];
         goutf("rel_offset: %p; rel_sym: %d; rel_type: %d; -> %d\n", rel.rel_offset, rel_sym, rel_type, sym.st_shndx);
-                                        // todo: strtab
-                                        len -= sh.sh_entsize;
+                                        // todo: update prog
+                                        
                                     }
                                     f_lseek(&f2, r2);
                                 }
