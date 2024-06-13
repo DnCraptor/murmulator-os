@@ -102,6 +102,8 @@ typedef struct {
 
 #define STR_TAB_GLOBAL_FUNC ((STR_TAB_GLOBAL << 4) | STR_TAB_FUNC)
 
+#define REL_SEC 9
+
 void elfinfo(FIL *f, char *fn);
 
 #ifdef __cplusplus

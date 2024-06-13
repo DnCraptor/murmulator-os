@@ -357,7 +357,7 @@ extern "C" void elfinfo(FIL *f, char *fn) {
                 dynstr_off = sh.sh_offset;
                 dynstr_len = sh.sh_size;
             }
-            if(sh.sh_type == 9) {
+            if(sh.sh_type == REL_SEC) {
                 uint32_t r2 = f_tell(&f2);
                 f_lseek(&f2, sh.sh_offset);
                 uint32_t len = sh.sh_size;

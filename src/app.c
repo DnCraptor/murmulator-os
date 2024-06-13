@@ -204,14 +204,30 @@ void run_new_app(char * fn, char * fn1) {
                     ) {
                         // todo: adjust/ensure align
                         if (f_lseek(&f2, sh.sh_offset) == FR_OK &&
-                            f_read(&f2, page, sh.sh_entsize, &rb) == FR_OK && rb == sh.sh_entsize
+                            f_read(&f2, page, sh.sh_size, &rb) == FR_OK && rb == sh.sh_size
                         ) { // section in memory now
-                            // TODO: links and relocations
+                            goutf("Program section #%d (%d bytes) allocated into %ph\n", sym.st_shndx, sh.sh_size, page);
+                            // links and relocations
+                            f_lseek(&f2, ehdr.sh_offset);
+                            while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
+                                if(sh.sh_type == REL_SEC && sh.sh_info == sym.st_shndx) {
+                                    uint32_t r2 = f_tell(&f2);
+                                    f_lseek(&f2, sh.sh_offset);
+                                    uint32_t len = sh.sh_size;
+                                    elf32_rel rel;
+                                    while(len) {
+                                        f_read(&f2, &rel, sizeof(rel), &rb);
+                                        // todo: strtab
+                                        len -= sh.sh_entsize;
+                                    }
+                                    f_lseek(&f2, r2);
+                                }
+                            }
                         } else {
-                            // todo: unable to read section# into memory @ addr
+                            goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sym.st_shndx, sh.sh_size, page);
                         }
                     } else {
-                        // todo: unable to read section# info
+                        goutf("Unable to read section #%d info\n", sym.st_shndx);
                     }
                     vPortFree(page);
                     // TODO:
