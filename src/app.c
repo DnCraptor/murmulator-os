@@ -94,6 +94,11 @@ bool new_app(char * name) {
 
 #include "elf32.h"
 
+static void load_sec2mem(FIL *f2, struct elf32_header *pehdr, char* addr, size_t sz, uint16_t sec_num) {
+    
+    // TODO:
+}
+
 static const char* s = "Unexpected ELF file";
 
 void run_new_app(char * fn, char * fn1) {
@@ -190,9 +195,25 @@ void run_new_app(char * fn, char * fn1) {
         }
         if (sym.st_info == STR_TAB_GLOBAL_FUNC) {
             if (lst) {
-                goutf("%s\n", strtab + sym.st_name);
+                goutf(" - %s\n", strtab + sym.st_name);
             } else {
                 if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
+                    char* page = (char*)pvPortMalloc(4 << 10); // a 4k page for the process
+                    if (f_lseek(&f2, ehdr.sh_offset + sizeof(sh) * sym.st_shndx) == FR_OK &&
+                        f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)
+                    ) {
+                        // todo: adjust/ensure align
+                        if (f_lseek(&f2, sh.sh_offset) == FR_OK &&
+                            f_read(&f2, page, sh.sh_entsize, &rb) == FR_OK && rb == sh.sh_entsize
+                        ) { // section in memory now
+                            // TODO: links and relocations
+                        } else {
+                            // todo: unable to read section# into memory @ addr
+                        }
+                    } else {
+                        // todo: unable to read section# info
+                    }
+                    vPortFree(page);
                     // TODO:
                     break;
                 }
