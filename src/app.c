@@ -230,6 +230,9 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
 
 static const char* s = "Unexpected ELF file";
 
+typedef void (*bootb_ptr_t)( void );
+static bootb_ptr_t bootb_tbl[1] = { 0 }; // tba
+
 void run_new_app(char * fn, char * fn1) {
     FIL f2;
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
@@ -335,10 +338,13 @@ void run_new_app(char * fn, char * fn1) {
                         symtab_off,
                         &sym
                     };
-                    if (load_sec2mem(&ctx, sym.st_shndx) == 0) {
-                        // err
+                    bootb_tbl[0] = load_sec2mem(&ctx, sym.st_shndx) + 1; // TODO:  correct it
+                    if (bootb_tbl[0] == 0) {
+                        vPortFree(page);
+                        goto e3;
                     }
                     // start it
+                    bootb_tbl[0]();
                     goutf("OK\n");
                     
                     vPortFree(page);
