@@ -36,7 +36,7 @@ struct elf_header {
     uint32_t    version2;
 };
 
-struct elf32_header {
+typedef struct elf32_header {
     struct elf_header common;
     uint32_t    entry;
     uint32_t    ph_offset;
@@ -48,7 +48,7 @@ struct elf32_header {
     uint16_t    sh_entry_size;
     uint16_t    sh_num;
     uint16_t    sh_str_index;
-};
+} elf32_header;
 
 struct elf32_ph_entry {
     uint32_t type;

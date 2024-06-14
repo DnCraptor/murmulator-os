@@ -93,10 +93,139 @@ bool new_app(char * name) {
 }
 
 #include "elf32.h"
+// Декодирование и обновление инструкции BL для ссылки типа R_ARM_THM_PC22
+// Функция для разрешения ссылки типа R_ARM_THM_PC22
+void resolve_thm_pc22(uint32_t *addr, uint32_t sym_val, uint32_t rel_addr) {
+    register uint32_t instr = *addr;
+    // Декодирование текущего смещения
+    uint32_t S = (instr >> 26) & 1;
+    uint32_t J1 = (instr >> 13) & 1;
+    uint32_t J2 = (instr >> 11) & 1;
+    uint32_t imm10 = (instr >> 16) & 0x03FF;
+    uint32_t imm11 = instr & 0x07FF;
 
-static void load_sec2mem(FIL *f2, struct elf32_header *pehdr, char* addr, size_t sz, uint16_t sec_num) {
-    
-    // TODO:
+    uint32_t I1 = !(J1 ^ S);
+    uint32_t I2 = !(J2 ^ S);
+    uint32_t offset = (I1 << 23) | (I2 << 22) | (imm10 << 12) | (imm11 << 1);
+    if (S) {
+        offset |= 0xFF800000; // знак расширение
+    }
+
+    // Вычисление нового смещения
+    uint32_t new_offset = (uint32_t)((int32_t)offset + sym_val - rel_addr);
+    S = new_offset >> 31;
+    I1 = (new_offset >> 23) & 1;
+    I2 = (new_offset >> 22) & 1;
+    imm10 = (new_offset >> 12) & 0x03FF;
+    imm11 = (new_offset >> 1) & 0x07FF;
+
+    J1 = !(I1 ^ S);
+    J2 = !(I2 ^ S);
+
+    // Обновление инструкции
+    *addr = (0b11110 << 27) | (S << 26) | (imm10 << 16) || (0b11010 << 11) | (J1 << 13) | (J2 << 11) | imm11;
+}
+
+typedef struct {
+    FIL *f2;
+    const elf32_header *pehdr;
+    char* addr; // updatable
+    const int symtab_off;
+    const elf32_sym* psym
+} load_sec_ctx;
+
+inline static uint32_t sec_align(uint32_t addr, uint32_t a) {
+    if (a == 0 || a == 1) return addr;
+    if (a == (1 << 1)) return (addr & 1) ? addr + 1 : addr;
+    for (uint8_t b = 2; b < 32; b++) {
+        if (a == (1 << b)) {
+            if (addr & (a - 1)) {
+                return (addr & (0xFFFFFFFF ^ (a - 1))) + a;
+            }
+            return addr;
+        }
+    }
+    goutf("Unsupported allignment: %d\n", a);
+    return addr;
+}
+
+static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
+    UINT rb;
+    uint8_t* addr = c->addr;
+    elf32_shdr sh;
+    if (f_lseek(c->f2, c->pehdr->sh_offset + sizeof(elf32_shdr) * sec_num) == FR_OK &&
+        f_read(c->f2, &sh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)
+    ) {
+        addr = sec_align((uint32_t)addr, sh.sh_addralign);
+        // todo: enough space?
+        uint32_t sz = sh.sh_size;
+        if (f_lseek(c->f2, sh.sh_offset) == FR_OK &&
+            f_read(c->f2, addr, sh.sh_size, &rb) == FR_OK && rb == sh.sh_size
+        ) { // section in memory now
+            goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
+            // links and relocations
+            f_lseek(c->f2, c->pehdr->sh_offset);
+            while (f_read(c->f2, &sh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)) {
+                if(sh.sh_type == REL_SEC && sh.sh_info == sec_num) {
+                    uint32_t r2 = f_tell(c->f2);
+                    elf32_rel rel;
+                    for (uint32_t j = 0; j < sh.sh_size / sizeof(rel); ++j) {
+                        if (f_lseek(c->f2, sh.sh_offset + j * sizeof(rel)) != FR_OK ||
+                            f_read(c->f2, &rel, sizeof(rel), &rb) != FR_OK || rb != sizeof(rel)
+                        ) {
+                            goutf("Unable to read REL record #%d in section #%d\n", j, sh.sh_info);
+                            return 0;
+                        }
+                        uint32_t rel_sym = rel.rel_info >> 8;
+                        uint8_t rel_type = rel.rel_info & 0xFF;
+                        if (f_lseek(c->f2, c->symtab_off + rel_sym * sizeof(elf32_sym)) != FR_OK ||
+                            f_read(c->f2, c->psym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)
+                        ) {
+                            goutf("Unable to read .symtab section #%d\n", rel_sym);
+                            return 0;
+                        }
+                        char * sec_addr = addr;
+                        goutf("rel_offset: %p; rel_sym: %d; rel_type: %d; -> %d\n", rel.rel_offset, rel_sym, rel_type, c->psym->st_shndx);
+                        if (c->psym->st_shndx != sec_num) {
+                            // lets load other section
+                            c->addr += sz;
+                            // todo: enough space?
+                            sec_addr = load_sec2mem(c, c->psym->st_shndx);
+                            if (sec_addr == 0) { // TODO: already loaded (app context)
+                                return 0;
+                            }
+                        }
+                        uint32_t* rel_addr = (uint32_t*)(sec_addr + rel.rel_offset);
+                        uint32_t A = *rel_addr;
+                        uint32_t P = rel.rel_offset;;
+                        uint32_t S = c->psym->st_value;
+                        // Разрешение ссылки
+                        switch (rel_type) {
+                            case 2: //R_ARM_ABS32:
+                                *rel_addr = S + A;
+                                break;
+                            case 3: //R_ARM_REL32:
+                                *rel_addr = S - P + A; // todo: signed?
+                                break;
+                            case 10: //R_ARM_THM_PC22:
+                                resolve_thm_pc22(rel_addr, S, P);
+                                break;
+                            default:
+                                goutf("Unsupportel REL type: %d\n", rel_type);
+                                return 0;
+                        }
+                    }
+                    f_lseek(c->f2, r2);
+                }
+            }
+        } else {
+            goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
+        }
+    } else {
+        goutf("Unable to read section #%d info\n", sec_num);
+        return 0;
+    }
+    return addr;
 }
 
 static const char* s = "Unexpected ELF file";
@@ -199,48 +328,19 @@ void run_new_app(char * fn, char * fn1) {
             } else {
                 if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
                     char* page = (char*)pvPortMalloc(4 << 10); // a 4k page for the process
-                    if (f_lseek(&f2, ehdr.sh_offset + sizeof(sh) * sym.st_shndx) == FR_OK &&
-                        f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)
-                    ) {
-                        // todo: adjust/ensure align
-                        if (f_lseek(&f2, sh.sh_offset) == FR_OK &&
-                            f_read(&f2, page, sh.sh_size, &rb) == FR_OK && rb == sh.sh_size
-                        ) { // section in memory now
-                            goutf("Program section #%d (%d bytes) allocated into %ph\n", sym.st_shndx, sh.sh_size, page);
-                            // links and relocations
-                            f_lseek(&f2, ehdr.sh_offset);
-                            while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
-                                if(sh.sh_type == REL_SEC && sh.sh_info == sym.st_shndx) {
-                                    uint32_t r2 = f_tell(&f2);
-                                    elf32_rel rel;
-                                    for (uint32_t j = 0; j < sh.sh_size / sizeof(rel); ++j) {
-                                        if (f_lseek(&f2, sh.sh_offset + j * sizeof(rel)) != FR_OK ||
-                                            f_read(&f2, &rel, sizeof(rel), &rb) != FR_OK || rb != sizeof(rel)
-                                        ) {
-                                            goutf("Unable to read REL record #%d in section #%d\n", j, sh.sh_info);
-                                            goto e3;
-                                        }
-                                        uint32_t rel_sym = rel.rel_info >> 8;
-                                        uint8_t rel_type = rel.rel_info & 0xFF;
-                                        f_lseek(&f2, symtab_off + rel_sym * sizeof(sym));
-                                        if (f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
-                                            goutf("Unable to read .symtab section #%d\n", rel_sym);
-                                            goto e3;
-                                        }
-                                        page[rel.rel_offset];
-        goutf("rel_offset: %p; rel_sym: %d; rel_type: %d; -> %d\n", rel.rel_offset, rel_sym, rel_type, sym.st_shndx);
-                                        // todo: update prog
-                                        
-                                    }
-                                    f_lseek(&f2, r2);
-                                }
-                            }
-                        } else {
-                            goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sym.st_shndx, sh.sh_size, page);
-                        }
-                    } else {
-                        goutf("Unable to read section #%d info\n", sym.st_shndx);
+                    load_sec_ctx ctx = {
+                        &f2,
+                        &ehdr,
+                        page,
+                        symtab_off,
+                        &sym
+                    };
+                    if (load_sec2mem(&ctx, sym.st_shndx) == 0) {
+                        // err
                     }
+                    // start it
+                    goutf("OK\n");
+                    
                     vPortFree(page);
                     // TODO:
                     break;
