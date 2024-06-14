@@ -195,10 +195,11 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 return 0;
                             }
                         }
-                        uint32_t* rel_addr = (uint32_t*)(sec_addr + rel.rel_offset);
-                        uint32_t A = *rel_addr;
-                        uint32_t P = rel.rel_offset;;
+                        uint32_t* rel_addr = (uint32_t*)(addr + rel.rel_offset);
+                        uint32_t A = sec_addr;
+                        uint32_t P = *rel_addr;
                         uint32_t S = c->psym->st_value;
+                        goutf("rel_type: %d A: %ph P: %ph S: %ph ", rel_type, A, P, S);
                         // Разрешение ссылки
                         switch (rel_type) {
                             case 2: //R_ARM_ABS32:
@@ -214,6 +215,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 goutf("Unsupportel REL type: %d\n", rel_type);
                                 return 0;
                         }
+                        goutf(" = %ph\n", *rel_addr);
                     }
                     f_lseek(c->f2, r2);
                 }
