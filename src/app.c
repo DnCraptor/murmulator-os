@@ -87,11 +87,6 @@ void run_app(char * name) {
     xTaskCreate(vAppTask, name, configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
 }
 
-bool new_app(char * name) {
-    // TODO:
-    return true;
-}
-
 #include "elf32.h"
 // Декодирование и обновление инструкции BL для ссылки типа R_ARM_THM_PC22
 // Функция для разрешения ссылки типа R_ARM_THM_PC22
@@ -238,11 +233,12 @@ static const char* s = "Unexpected ELF file";
 typedef void (*bootb_ptr_t)( void );
 static bootb_ptr_t bootb_tbl[1] = { 0 }; // tba
 
-void run_new_app(char * fn, char * fn1) {
+
+bool is_new_app(char * fn) {
     FIL f2;
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
         goutf("Unable to open file: '%s'\n", fn);
-        return;
+        return false;
     }
     struct elf32_header ehdr;
     UINT rb;
@@ -279,11 +275,24 @@ void run_new_app(char * fn, char * fn1) {
         goutf("%s '%s' EF_ARM_ABI_FLOAT_HARD: %04Xh\n", s, fn, ehdr.flags);
         goto e1;
     }
-    // TODO: remove it later
-    //goutf("Size of section headers:           %d\n", ehdr.sh_entry_size);
-    //goutf("Number of section headers:         %d\n", ehdr.sh_num);
-    //goutf("Section header string table index: %d\n", ehdr.sh_str_index);
-    //goutf("Start of section headers:          %d\n", ehdr.sh_offset);
+    return true;
+e1:
+    f_close(&f2);
+    return false;
+}
+
+void run_new_app(char * fn, char * fn1) {
+    FIL f2;
+    if (f_open(&f2, fn, FA_READ) != FR_OK) {
+        goutf("Unable to open file: '%s'\n", fn);
+        return;
+    }
+    struct elf32_header ehdr;
+    UINT rb;
+    if (f_read(&f2, &ehdr, sizeof(ehdr), &rb) != FR_OK) {
+        goutf("Unable to read an ELF file header: '%s'\n", fn);
+        goto e1;
+    }
     elf32_shdr sh;
     bool ok = f_lseek(&f2, ehdr.sh_offset + sizeof(sh) * ehdr.sh_str_index) == FR_OK;
     if (!ok || f_read(&f2, &sh, sizeof(sh), &rb) != FR_OK || rb != sizeof(sh)) {
