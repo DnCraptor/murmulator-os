@@ -95,14 +95,15 @@ bool new_app(char * name) {
 #include "elf32.h"
 // Декодирование и обновление инструкции BL для ссылки типа R_ARM_THM_PC22
 // Функция для разрешения ссылки типа R_ARM_THM_PC22
-void resolve_thm_pc22(uint32_t *addr, uint32_t sym_val, uint32_t rel_addr) {
-    register uint32_t instr = *addr;
+void resolve_thm_pc22(uint16_t *addr, uint32_t sym_val) {
+    uint16_t instr0 = *addr;
+    uint16_t instr = *(addr + 1);
     // Декодирование текущего смещения
-    uint32_t S = (instr >> 26) & 1;
+    uint32_t S = (instr0 >> 10) & 1;
     uint32_t J1 = (instr >> 13) & 1;
     uint32_t J2 = (instr >> 11) & 1;
-    uint32_t imm10 = (instr >> 16) & 0x000003FF;
-    uint32_t imm11 = instr & 0x000007FF;
+    uint32_t imm10 = instr0 & 0x03FF;
+    uint32_t imm11 = instr & 0x07FF;
 
     uint32_t I1 = (~(J1 ^ S) & 1);
     uint32_t I2 = (~(J2 ^ S) & 1);
@@ -112,7 +113,7 @@ void resolve_thm_pc22(uint32_t *addr, uint32_t sym_val, uint32_t rel_addr) {
     }
 
     // Вычисление нового смещения
-    uint32_t new_offset = (uint32_t)((int32_t)/*offset + */sym_val - (int32_t)addr);
+    uint32_t new_offset = (uint32_t)((int32_t)offset + (int32_t)sym_val - (int32_t)addr);
     S = new_offset >> 31;
     I1 = (new_offset >> 23) & 1;
     I2 = (new_offset >> 22) & 1;
@@ -124,7 +125,8 @@ void resolve_thm_pc22(uint32_t *addr, uint32_t sym_val, uint32_t rel_addr) {
     goutf("ov: %ph off: %ph noff: %ph -> %d:%d:%d:%x:%x", *addr, offset, new_offset, S, J1, J2, imm10, imm11);
 
     // Обновление инструкции
-    *addr = 0xF0000000 | (S << 26) | (imm10 << 16) | (0b11010 << 11) | (J1 << 13) | (J2 << 11) | imm11;
+    *addr++ = 0xF000 | (S << 10) | imm10;
+    *addr = (0b11010 << 11) | (J1 << 13) | (J2 << 11) | imm11;
 }
 
 typedef struct {
@@ -204,13 +206,13 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                         // Разрешение ссылки
                         switch (rel_type) {
                             case 2: //R_ARM_ABS32:
-                                *rel_addr = S + A + P; // ??
+                                *rel_addr += S + A;
                                 break;
                             case 3: //R_ARM_REL32:
                                 *rel_addr = S - P + A; // todo: signed?
                                 break;
                             case 10: //R_ARM_THM_PC22:
-                                resolve_thm_pc22(rel_addr, A + S, P);
+                                resolve_thm_pc22(rel_addr, A + S);
                                 break;
                             default:
                                 goutf("Unsupportel REL type: %d\n", rel_type);
