@@ -515,11 +515,7 @@ t:
             }
         }
     }
-    if ( strcmp("cls", cmd_t) == 0 ) {
-        clrScr(1);
-        graphics_set_con_pos(0, 0);
-        graphics_set_con_color(7, 0);
-    } else if( strcmp("psram", cmd_t) == 0 ) {
+    if( strcmp("psram", cmd_t) == 0 ) {
         _test_psram(&f0);
     } else if( strcmp("swap", cmd_t) == 0 ) {
         _test_swap(&f0);

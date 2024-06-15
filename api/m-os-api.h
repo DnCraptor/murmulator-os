@@ -543,3 +543,17 @@ inline static int vsnprintf(char *__restrict buff, size_t lim, const char *__res
 
 typedef int	(*goutf_ptr_t)(const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 1, 2)));
 #define goutf ((goutf_ptr_t)_sys_table_ptrs[41])
+
+typedef void (*cls_ptr_t)( uint8_t color );
+inline static void clrScr(uint8_t color) {
+    ((cls_ptr_t)_sys_table_ptrs[44])(color);
+}
+
+typedef void (*graphics_set_con_pos_ptr_t)(int x, int y);
+typedef void (*graphics_set_con_color_ptr_t)(uint8_t color, uint8_t bgcolor);
+inline static void graphics_set_con_pos(int x, int y) {
+    ((graphics_set_con_pos_ptr_t)_sys_table_ptrs[42])(x, y);
+}
+inline static void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
+    ((graphics_set_con_color_ptr_t)_sys_table_ptrs[43])(color, bgcolor);
+}

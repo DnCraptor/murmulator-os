@@ -117,7 +117,7 @@ void resolve_thm_pc22(uint16_t *addr, uint32_t sym_val) {
 
     J1 = (~(I1 ^ S) & 1);
     J2 = (~(I2 ^ S) & 1);
-    goutf("ov: %ph off: %ph noff: %ph -> %d:%d:%d:%x:%x", *addr, offset, new_offset, S, J1, J2, imm10, imm11);
+    //goutf("ov: %ph off: %ph noff: %ph -> %d:%d:%d:%x:%x", *addr, offset, new_offset, S, J1, J2, imm10, imm11);
 
     // Обновление инструкции
     *addr++ = 0xF000 | (S << 10) | imm10;
@@ -125,12 +125,50 @@ void resolve_thm_pc22(uint16_t *addr, uint32_t sym_val) {
 }
 
 typedef struct {
+    char* sec_addr;
+    uint16_t sec_num;
+} sect_entry_t;
+
+typedef struct {
     FIL *f2;
     const elf32_header *pehdr;
     char* addr; // updatable
     const int symtab_off;
-    const elf32_sym* psym
+    const elf32_sym* psym;
+    sect_entry_t* psections_list;
+    uint16_t max_sections_in_list;
 } load_sec_ctx;
+
+char* sec_addr(load_sec_ctx* ctx, uint16_t sec_num) {
+    for (uint16_t i = 0; i < ctx->max_sections_in_list && ctx->psections_list[i].sec_addr != 0; ++i) {
+        if (ctx->psections_list[i].sec_num == sec_num) {
+            //goutf("section #%d found\n", sec_num);
+            return ctx->psections_list[i].sec_addr;
+        }
+    }
+    return 0;
+}
+
+void add_sec(load_sec_ctx* ctx, char* addr, uint16_t num) {
+    uint16_t i = 0;
+    for (; i < ctx->max_sections_in_list && ctx->psections_list[i].sec_addr != 0; ++i);
+    if (i == ctx->max_sections_in_list) {
+        ctx->max_sections_in_list += 2; // may be more? 
+        //goutf("max sections increased uo to %d\n", ctx->max_sections_in_list);
+        sect_entry_t* sects_list = (sect_entry_t*)pvPortMalloc(ctx->max_sections_in_list * sizeof(sect_entry_t));
+        for (uint16_t j = 0; j < ctx->max_sections_in_list - 2; ++j) {
+            sects_list[j] = ctx->psections_list[j];
+        }
+        vPortFree(ctx->psections_list);
+        ctx->psections_list = sects_list;
+    }
+    //goutf("section #%d inserted\n", num);
+    ctx->psections_list[i].sec_addr = addr;
+    ctx->psections_list[i++].sec_num = num;
+    if (i < ctx->max_sections_in_list) {
+        ctx->psections_list[i].sec_addr = 0;
+    }
+}
 
 inline static uint32_t sec_align(uint32_t addr, uint32_t a) {
     if (a == 0 || a == 1) return addr;
@@ -148,8 +186,13 @@ inline static uint32_t sec_align(uint32_t addr, uint32_t a) {
 }
 
 static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
+    uint8_t* addr = sec_addr(c, sec_num);
+    if (addr != 0) {
+        //goutf("Section #%d already in mem @ %p\n", sec_num, addr);
+        return addr;
+    }
     UINT rb;
-    uint8_t* addr = c->addr;
+    addr = c->addr;
     elf32_shdr sh;
     if (f_lseek(c->f2, c->pehdr->sh_offset + sizeof(elf32_shdr) * sec_num) == FR_OK &&
         f_read(c->f2, &sh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)
@@ -160,7 +203,8 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         if (f_lseek(c->f2, sh.sh_offset) == FR_OK &&
             f_read(c->f2, addr, sh.sh_size, &rb) == FR_OK && rb == sh.sh_size
         ) { // section in memory now
-            goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
+            //goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
+            add_sec(c, addr, sec_num);
             // links and relocations
             f_lseek(c->f2, c->pehdr->sh_offset);
             while (f_read(c->f2, &sh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)) {
@@ -186,7 +230,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                         uint32_t P = *rel_addr; /*f7ff fffe 	bl	0*/
                         uint32_t S = c->psym->st_value;
                         char * sec_addr = addr;
-                        goutf("rel_offset: %p; rel_sym: %d; rel_type: %d; -> %d\n", rel.rel_offset, rel_sym, rel_type, c->psym->st_shndx);
+                        //goutf("rel_offset: %p; rel_sym: %d; rel_type: %d; -> %d\n", rel.rel_offset, rel_sym, rel_type, c->psym->st_shndx);
                         if (c->psym->st_shndx != sec_num) {
                             // lets load other section
                             c->addr += sz;
@@ -197,7 +241,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             }
                         }
                         uint32_t A = sec_addr;
-                        goutf("rel_type: %d A: %ph P: %ph S: %ph ", rel_type, A, P, S);
+                        //goutf("rel_type: %d A: %ph P: %ph S: %ph ", rel_type, A, P, S);
                         // Разрешение ссылки
                         switch (rel_type) {
                             case 2: //R_ARM_ABS32:
@@ -213,7 +257,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 goutf("Unsupportel REL type: %d\n", rel_type);
                                 return 0;
                         }
-                        goutf("= %ph\n", *rel_addr);
+                        //goutf("= %ph\n", *rel_addr);
                     }
                     f_lseek(c->f2, r2);
                 }
@@ -230,7 +274,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
 
 static const char* s = "Unexpected ELF file";
 
-typedef void (*bootb_ptr_t)( void );
+typedef int (*bootb_ptr_t)( void );
 static bootb_ptr_t bootb_tbl[1] = { 0 }; // tba
 
 
@@ -345,22 +389,32 @@ void run_new_app(char * fn, char * fn1) {
             } else {
                 if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
                     char* page = (char*)pvPortMalloc(4 << 10); // a 4k page for the process
+                    //char* next_page = page + (4 << 10) - 4; // a place to store next page, in case be allocated
+                    //*(uint32_t*)next_page = 0; // not yet allocated
+                    
+                    uint16_t max_sects = ehdr.sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
+                    sect_entry_t* sects_list = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
+                    sects_list[0].sec_addr = 0;
+
                     load_sec_ctx ctx = {
                         &f2,
                         &ehdr,
                         page,
                         symtab_off,
-                        &sym
+                        &sym,
+                        sects_list,
+                        max_sects
                     };
                     bootb_tbl[0] = load_sec2mem(&ctx, sym.st_shndx) + 1; // TODO:  correct it
                     if (bootb_tbl[0] == 0) {
                         vPortFree(page);
+                        vPortFree(ctx.psections_list);
                         goto e3;
                     }
                     // start it
                     bootb_tbl[0]();
                     goutf("OK\n");
-                    
+                    vPortFree(ctx.psections_list);
                     vPortFree(page);
                     // TODO:
                     break;
