@@ -104,8 +104,8 @@ void resolve_thm_pc22(uint32_t *addr, uint32_t sym_val, uint32_t rel_addr) {
     uint32_t imm10 = (instr >> 16) & 0x03FF;
     uint32_t imm11 = instr & 0x07FF;
 
-    uint32_t I1 = !(J1 ^ S);
-    uint32_t I2 = !(J2 ^ S);
+    uint32_t I1 = ~(J1 ^ S);
+    uint32_t I2 = ~(J2 ^ S);
     uint32_t offset = (I1 << 23) | (I2 << 22) | (imm10 << 12) | (imm11 << 1);
     if (S) {
         offset |= 0xFF800000; // знак расширение
@@ -121,6 +121,7 @@ void resolve_thm_pc22(uint32_t *addr, uint32_t sym_val, uint32_t rel_addr) {
 
     J1 = !(I1 ^ S);
     J2 = !(I2 ^ S);
+    goutf("off: %ph noff: %ph -> %d:%d:%d:%x:%x", offset, new_offset, S, I1, I2, imm10, imm11);
 
     // Обновление инструкции
     *addr = (0b11110 << 27) | (S << 26) | (imm10 << 16) || (0b11010 << 11) | (J1 << 13) | (J2 << 11) | imm11;
@@ -195,15 +196,15 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 return 0;
                             }
                         }
-                        uint32_t* rel_addr = (uint32_t*)(addr + rel.rel_offset);
+                        uint32_t* rel_addr = (uint32_t*)(addr + rel.rel_offset /*20*/); /*14*/
                         uint32_t A = sec_addr;
-                        uint32_t P = *rel_addr;
+                        uint32_t P = *rel_addr; /*14*/
                         uint32_t S = c->psym->st_value;
                         goutf("rel_type: %d A: %ph P: %ph S: %ph ", rel_type, A, P, S);
                         // Разрешение ссылки
                         switch (rel_type) {
                             case 2: //R_ARM_ABS32:
-                                *rel_addr = S + A;
+                                *rel_addr = S + A + P; // ??
                                 break;
                             case 3: //R_ARM_REL32:
                                 *rel_addr = S - P + A; // todo: signed?
@@ -215,7 +216,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 goutf("Unsupportel REL type: %d\n", rel_type);
                                 return 0;
                         }
-                        goutf(" = %ph\n", *rel_addr);
+                        goutf("= %ph\n", *rel_addr);
                     }
                     f_lseek(c->f2, r2);
                 }
