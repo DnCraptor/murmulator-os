@@ -101,30 +101,30 @@ void resolve_thm_pc22(uint32_t *addr, uint32_t sym_val, uint32_t rel_addr) {
     uint32_t S = (instr >> 26) & 1;
     uint32_t J1 = (instr >> 13) & 1;
     uint32_t J2 = (instr >> 11) & 1;
-    uint32_t imm10 = (instr >> 16) & 0x03FF;
-    uint32_t imm11 = instr & 0x07FF;
+    uint32_t imm10 = (instr >> 16) & 0x000003FF;
+    uint32_t imm11 = instr & 0x000007FF;
 
-    uint32_t I1 = ~(J1 ^ S);
-    uint32_t I2 = ~(J2 ^ S);
+    uint32_t I1 = (~(J1 ^ S) & 1);
+    uint32_t I2 = (~(J2 ^ S) & 1);
     uint32_t offset = (I1 << 23) | (I2 << 22) | (imm10 << 12) | (imm11 << 1);
     if (S) {
         offset |= 0xFF800000; // знак расширение
     }
 
     // Вычисление нового смещения
-    uint32_t new_offset = (uint32_t)((int32_t)offset + sym_val - rel_addr);
+    uint32_t new_offset = (uint32_t)((int32_t)/*offset + */sym_val - (int32_t)addr);
     S = new_offset >> 31;
     I1 = (new_offset >> 23) & 1;
     I2 = (new_offset >> 22) & 1;
     imm10 = (new_offset >> 12) & 0x03FF;
     imm11 = (new_offset >> 1) & 0x07FF;
 
-    J1 = !(I1 ^ S);
-    J2 = !(I2 ^ S);
-    goutf("off: %ph noff: %ph -> %d:%d:%d:%x:%x", offset, new_offset, S, I1, I2, imm10, imm11);
+    J1 = (~(I1 ^ S) & 1);
+    J2 = (~(I2 ^ S) & 1);
+    goutf("ov: %ph off: %ph noff: %ph -> %d:%d:%d:%x:%x", *addr, offset, new_offset, S, J1, J2, imm10, imm11);
 
     // Обновление инструкции
-    *addr = (0b11110 << 27) | (S << 26) | (imm10 << 16) || (0b11010 << 11) | (J1 << 13) | (J2 << 11) | imm11;
+    *addr = 0xF0000000 | (S << 26) | (imm10 << 16) | (0b11010 << 11) | (J1 << 13) | (J2 << 11) | imm11;
 }
 
 typedef struct {
@@ -210,7 +210,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 *rel_addr = S - P + A; // todo: signed?
                                 break;
                             case 10: //R_ARM_THM_PC22:
-                                resolve_thm_pc22(rel_addr, S, P);
+                                resolve_thm_pc22(rel_addr, A + S, P);
                                 break;
                             default:
                                 goutf("Unsupportel REL type: %d\n", rel_type);
