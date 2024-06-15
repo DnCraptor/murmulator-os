@@ -185,6 +185,9 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             goutf("Unable to read .symtab section #%d\n", rel_sym);
                             return 0;
                         }
+                        uint32_t* rel_addr = (uint32_t*)(addr + rel.rel_offset /*10*/); /*f7ff fffe 	bl	0*/
+                        uint32_t P = *rel_addr; /*f7ff fffe 	bl	0*/
+                        uint32_t S = c->psym->st_value;
                         char * sec_addr = addr;
                         goutf("rel_offset: %p; rel_sym: %d; rel_type: %d; -> %d\n", rel.rel_offset, rel_sym, rel_type, c->psym->st_shndx);
                         if (c->psym->st_shndx != sec_num) {
@@ -196,10 +199,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 return 0;
                             }
                         }
-                        uint32_t* rel_addr = (uint32_t*)(addr + rel.rel_offset /*20*/); /*14*/
                         uint32_t A = sec_addr;
-                        uint32_t P = *rel_addr; /*14*/
-                        uint32_t S = c->psym->st_value;
                         goutf("rel_type: %d A: %ph P: %ph S: %ph ", rel_type, A, P, S);
                         // Разрешение ссылки
                         switch (rel_type) {
