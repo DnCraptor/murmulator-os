@@ -8,7 +8,7 @@ set(FLASH_SIZE 4096)
 endif ()
 
 
-project(murmulator-os-apps C CXX ASM)
+project(murmulator-os-apps-psram C CXX ASM)
 pico_sdk_init()
 
 SET(BUILD_NAME "${PROJECT_NAME}")
@@ -16,7 +16,7 @@ SET(BUILD_NAME "${PROJECT_NAME}")
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
-set(OUTPUT_DIR "${CMAKE_SOURCE_DIR}/../bin/${CMAKE_BUILD_TYPE}")
+set(OUTPUT_DIR "${CMAKE_SOURCE_DIR}/../../bin/${CMAKE_BUILD_TYPE}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
@@ -33,17 +33,17 @@ foreach (SRC_FILE IN LISTS SRC)
 endforeach ()
 message(STATUS "")
 
-add_executable(${PROJECT_NAME} cls.c)
+add_executable(${PROJECT_NAME} psram.c)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../api
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../api
     )
 
 configure_file(memmap.ld.in memmap.ld @ONLY)
 pico_set_linker_script(${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/memmap.ld)
 
-pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS Applications")
+pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS Applications: psram")
 pico_set_program_version(${PROJECT_NAME} "test")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -57,7 +57,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 target_link_options(${PROJECT_NAME} PRIVATE -Xlinker --print-memory-usage)
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/../api
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../api
 )
 
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")

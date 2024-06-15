@@ -10,6 +10,8 @@
 #include "timers.h" // TODO
 #include "ps2.h"
 #include "app.h"
+#include "cmd.h"
+#include "psram_spi.h"
 
 // to cleanup BOOTA memory region on the MOS flashing
 unsigned long __in_boota() __aligned(4096) cleanup_boota[] = { 0 };
@@ -93,6 +95,21 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     run_app, // 66
     //
     vsnprintf, // 67
+    //
+    get_stdout, // 68
+    get_stderr, // 69
+    //
+    fgoutf, // 70
+    //
+    psram_size, // 71
+    psram_cleanup, // 72
+    write8psram, // 73
+    write16psram, // 74
+    write32psram, // 75
+    read8psram, // 76
+    read16psram, // 77
+    read32psram, // 78
+
     // TODO:
     0
 };

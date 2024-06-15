@@ -124,6 +124,18 @@ void resolve_thm_pc22(uint16_t *addr, uint32_t sym_val) {
     *addr = (0b11010 << 11) | (J1 << 13) | (J2 << 11) | imm11;
 }
 
+static const char* st_predef(const char* v) {
+    if(strlen(v) == 2) {
+        if (v[0] == '%' && v[1] == 't') {
+            return "%%t (Thrumb)";
+        }
+        if (strcmp(v, "%%d") == 0) {
+            return "%%d (data)";
+        }
+    }
+    return v;
+}
+
 typedef struct {
     char* sec_addr;
     uint16_t sec_num;
@@ -135,6 +147,7 @@ typedef struct {
     char* addr; // updatable
     const int symtab_off;
     const elf32_sym* psym;
+    const char* pstrtab;
     sect_entry_t* psections_list;
     uint16_t max_sections_in_list;
 } load_sec_ctx;
@@ -142,7 +155,7 @@ typedef struct {
 char* sec_addr(load_sec_ctx* ctx, uint16_t sec_num) {
     for (uint16_t i = 0; i < ctx->max_sections_in_list && ctx->psections_list[i].sec_addr != 0; ++i) {
         if (ctx->psections_list[i].sec_num == sec_num) {
-            //goutf("section #%d found\n", sec_num);
+            goutf("section #%d found\n", sec_num);
             return ctx->psections_list[i].sec_addr;
         }
     }
@@ -154,7 +167,7 @@ void add_sec(load_sec_ctx* ctx, char* addr, uint16_t num) {
     for (; i < ctx->max_sections_in_list && ctx->psections_list[i].sec_addr != 0; ++i);
     if (i == ctx->max_sections_in_list) {
         ctx->max_sections_in_list += 2; // may be more? 
-        //goutf("max sections increased uo to %d\n", ctx->max_sections_in_list);
+        goutf("max sections count increased up to %d\n", ctx->max_sections_in_list);
         sect_entry_t* sects_list = (sect_entry_t*)pvPortMalloc(ctx->max_sections_in_list * sizeof(sect_entry_t));
         for (uint16_t j = 0; j < ctx->max_sections_in_list - 2; ++j) {
             sects_list[j] = ctx->psections_list[j];
@@ -162,7 +175,7 @@ void add_sec(load_sec_ctx* ctx, char* addr, uint16_t num) {
         vPortFree(ctx->psections_list);
         ctx->psections_list = sects_list;
     }
-    //goutf("section #%d inserted\n", num);
+    goutf("section #%d inserted @ line #%d\n", num, i);
     ctx->psections_list[i].sec_addr = addr;
     ctx->psections_list[i++].sec_num = num;
     if (i < ctx->max_sections_in_list) {
@@ -185,10 +198,29 @@ inline static uint32_t sec_align(uint32_t addr, uint32_t a) {
     return addr;
 }
 
+static const char* st_spec_sec(uint16_t st) {
+    if (st >= 0xff00 && st <= 0xff1f)
+        return "PROC";
+    switch (st)
+    {
+    case 0xffff:
+        return "HIRESERVE";
+    case 0xfff2:
+        return "COMMON";
+    case 0xfff1:
+        return "ABS";
+    case 0:
+        return "UNDEF";
+    default:
+        break;
+    }
+    return 0;
+}
+
 static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
     uint8_t* addr = sec_addr(c, sec_num);
     if (addr != 0) {
-        //goutf("Section #%d already in mem @ %p\n", sec_num, addr);
+        goutf("Section #%d already in mem @ %p\n", sec_num, addr);
         return addr;
     }
     UINT rb;
@@ -203,11 +235,15 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         if (f_lseek(c->f2, sh.sh_offset) == FR_OK &&
             f_read(c->f2, addr, sh.sh_size, &rb) == FR_OK && rb == sh.sh_size
         ) { // section in memory now
-            //goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
+            goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
             add_sec(c, addr, sec_num);
             // links and relocations
-            f_lseek(c->f2, c->pehdr->sh_offset);
+            if (f_lseek(c->f2, c->pehdr->sh_offset) != FR_OK) {
+                goutf("Unable to locate sections @ %ph\n", c->pehdr->sh_offset);
+                return 0;
+            }
             while (f_read(c->f2, &sh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)) {
+                //goutf("Section info: %d type: %d\n", sh.sh_info, sh.sh_type);
                 if(sh.sh_type == REL_SEC && sh.sh_info == sec_num) {
                     uint32_t r2 = f_tell(c->f2);
                     elf32_rel rel;
@@ -220,17 +256,27 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                         }
                         uint32_t rel_sym = rel.rel_info >> 8;
                         uint8_t rel_type = rel.rel_info & 0xFF;
+                        goutf("rel_offset: %p; rel_sym: %d; rel_type: %d\n", rel.rel_offset, rel_sym, rel_type);
+                        
                         if (f_lseek(c->f2, c->symtab_off + rel_sym * sizeof(elf32_sym)) != FR_OK ||
                             f_read(c->f2, c->psym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)
                         ) {
                             goutf("Unable to read .symtab section #%d\n", rel_sym);
                             return 0;
                         }
+                        char* rel_str_sym = st_spec_sec(c->psym->st_shndx);
+                        if (rel_str_sym != 0) {
+                            goutf("Unsupported link from STRTAB record #%d to section #%d (%s): %s\n",
+                                  rel_sym, c->psym->st_shndx, rel_str_sym,
+                                  st_predef(c->pstrtab + c->psym->st_name)
+                            );
+                            return 0;
+                        }
                         uint32_t* rel_addr = (uint32_t*)(addr + rel.rel_offset /*10*/); /*f7ff fffe 	bl	0*/
                         uint32_t P = *rel_addr; /*f7ff fffe 	bl	0*/
                         uint32_t S = c->psym->st_value;
                         char * sec_addr = addr;
-                        //goutf("rel_offset: %p; rel_sym: %d; rel_type: %d; -> %d\n", rel.rel_offset, rel_sym, rel_type, c->psym->st_shndx);
+                        goutf("rel_offset: %p; rel_sym: %d; rel_type: %d -> %d\n", rel.rel_offset, rel_sym, rel_type, c->psym->st_shndx);
                         if (c->psym->st_shndx != sec_num) {
                             // lets load other section
                             c->addr += sz;
@@ -241,7 +287,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             }
                         }
                         uint32_t A = sec_addr;
-                        //goutf("rel_type: %d A: %ph P: %ph S: %ph ", rel_type, A, P, S);
+                        goutf("rel_type: %d A: %ph P: %ph S: %ph ", rel_type, A, P, S);
                         // Разрешение ссылки
                         switch (rel_type) {
                             case 2: //R_ARM_ABS32:
@@ -257,13 +303,14 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 goutf("Unsupportel REL type: %d\n", rel_type);
                                 return 0;
                         }
-                        //goutf("= %ph\n", *rel_addr);
+                        goutf("= %ph\n", *rel_addr);
                     }
                     f_lseek(c->f2, r2);
                 }
             }
         } else {
             goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
+            return 0;
         }
     } else {
         goutf("Unable to read section #%d info\n", sec_num);
@@ -276,7 +323,6 @@ static const char* s = "Unexpected ELF file";
 
 typedef int (*bootb_ptr_t)( void );
 static bootb_ptr_t bootb_tbl[1] = { 0 }; // tba
-
 
 bool is_new_app(char * fn) {
     FIL f2;
@@ -402,6 +448,7 @@ void run_new_app(char * fn, char * fn1) {
                         page,
                         symtab_off,
                         &sym,
+                        strtab,
                         sects_list,
                         max_sects
                     };

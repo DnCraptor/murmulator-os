@@ -1,13 +1,12 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "cmd.h"
-#include "ff.h"
 #include "graphics.h"
 #include "app.h"
 #include "elf.h"
-#include "psram_spi.h"
 #include "ram_page.h"
 #include "overclock.h"
+#include <hardware/timer.h>
 
 static char curr_dir[512] = "MOS"; // TODO: configure start dir
 static char cmd[512] = { 0 };
@@ -18,6 +17,13 @@ static int cmd_history_idx = -2;
 static FIL fh = {0}; // history
 static FIL f0 = {0}; // output (stdout)
 static FIL f1 = {0}; // stderr
+
+FIL * get_stdout() {
+    return &f0;
+}
+FIL * get_stderr() {
+    return &f1;
+}
 
 static char* next_token(char* t) {
     char *t1 = t + strlen(t);
@@ -425,68 +431,6 @@ static void _test_swap(FIL* f) {
     fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
 }
 
-static void _test_psram(FIL* f) {
-    uint32_t sz = psram_size();
-    fgoutf(f, "PSRAM size: %d bytes\n", sz);
-    uint32_t a = 0;
-    uint32_t begin = time_us_32();
-    for (; a < sz; ++a) {
-        write8psram(a, a & 0xFF);
-    }
-    uint32_t elapsed = time_us_32() - begin;
-    float speed = 1.0 * a / elapsed;
-    fgoutf(f, "8-bit line write speed: %f MBps\n", speed);
-
-    begin = time_us_32();
-    for (a = 0; a < sz; ++a) {
-        if ((a & 0xFF) != read8psram(a)) {
-            fgoutf(f, "8-bit read failed at %ph\n", a);
-            break;
-        }
-    }
-    elapsed = time_us_32() - begin;
-    speed = 1.0 * a / elapsed;
-    fgoutf(f, "8-bit line read speed: %f MBps\n", speed);
-
-    begin = time_us_32();
-    for (a = 0; a < sz; a += 2) {
-        write16psram(a, a & 0xFFFF);
-    }
-    elapsed = time_us_32() - begin;
-    speed = 1.0 * a / elapsed;
-    fgoutf(f, "16-bit line write speed: %f MBps\n", speed);
-
-    begin = time_us_32();
-    for (a = 0; a < sz; a += 2) {
-        if ((a & 0xFFFF) != read16psram(a)) {
-            fgoutf(f, "16-bit read failed at %ph\n", a);
-            break;
-        }
-    }
-    elapsed = time_us_32() - begin;
-    speed = 1.0 * a / elapsed;
-    fgoutf(f, "16-bit line read speed: %f MBps\n", speed);
-
-    begin = time_us_32();
-    for (a = 0; a < sz; a += 4) {
-        write32psram(a, a);
-    }
-    elapsed = time_us_32() - begin;
-    speed = 1.0 * a / elapsed;
-    fgoutf(f, "32-bit line write speed: %f MBps\n", speed);
-
-    begin = time_us_32();
-    for (a = 0; a < sz; a += 4) {
-        if (a != read32psram(a)) {
-            fgoutf(f, "32-bit read failed at %ph\n", a);
-            break;
-        }
-    }
-    elapsed = time_us_32() - begin;
-    speed = 1.0 * a / elapsed;
-    fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
-}
-
 void cmd_enter() {
     UINT br;
     if (cmd_pos > 0) { // history
@@ -515,9 +459,7 @@ t:
             }
         }
     }
-    if( strcmp("psram", cmd_t) == 0 ) {
-        _test_psram(&f0);
-    } else if( strcmp("swap", cmd_t) == 0 ) {
+    if( strcmp("swap", cmd_t) == 0 ) {
         _test_swap(&f0);
     } else if( strcmp("sram", cmd_t) == 0 ) {
         _test_sram(&f0);

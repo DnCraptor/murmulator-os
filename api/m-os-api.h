@@ -557,3 +557,48 @@ inline static void graphics_set_con_pos(int x, int y) {
 inline static void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
     ((graphics_set_con_color_ptr_t)_sys_table_ptrs[43])(color, bgcolor);
 }
+
+typedef struct FIL FIL;
+typedef FIL* (*FIL_getter_ptr_t)();
+inline static FIL* get_stdout() {
+    return ((FIL_getter_ptr_t)_sys_table_ptrs[68])();
+}
+inline static FIL* get_stderr() {
+    return ((FIL_getter_ptr_t)_sys_table_ptrs[69])();
+}
+
+typedef int	(*fgoutf_ptr_t)(FIL*, const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 2, 3)));
+#define fgoutf ((fgoutf_ptr_t)_sys_table_ptrs[70])
+
+typedef uint32_t (*u32v_ptr_t)();
+inline static uint32_t psram_size() {
+    return ((u32v_ptr_t)_sys_table_ptrs[71])();
+}
+typedef void (*vv_ptr_t)();
+inline static void psram_cleanup() {
+    return ((vv_ptr_t)_sys_table_ptrs[72])();
+}
+typedef void (*vu32u8_ptr_t)(uint32_t addr32, uint8_t v);
+inline static void write8psram(uint32_t addr32, uint8_t v) {
+    return ((vu32u8_ptr_t)_sys_table_ptrs[73])(addr32, v);
+}
+typedef void (*vu32u16_ptr_t)(uint32_t addr32, uint16_t v);
+inline static void write16psram(uint32_t addr32, uint16_t v) {
+    return ((vu32u16_ptr_t)_sys_table_ptrs[74])(addr32, v);
+}
+typedef void (*vu32u32_ptr_t)(uint32_t addr32, uint32_t v);
+inline static void write32psram(uint32_t addr32, uint32_t v) {
+    return ((vu32u32_ptr_t)_sys_table_ptrs[75])(addr32, v);
+}
+typedef uint8_t (*u8u32_ptr_t)(uint32_t addr32);
+inline static uint8_t read8psram(uint32_t addr32) {
+    return ((u8u32_ptr_t)_sys_table_ptrs[76])(addr32);
+}
+typedef uint16_t (*u16u32_ptr_t)(uint32_t addr32);
+inline static uint16_t read16psram(uint32_t addr32) {
+    return ((u16u32_ptr_t)_sys_table_ptrs[77])(addr32);
+}
+typedef uint32_t (*u32u32_ptr_t)(uint32_t addr32);
+inline static uint32_t read32psram(uint32_t addr32) {
+    return ((u32u32_ptr_t)_sys_table_ptrs[78])(addr32);
+}
