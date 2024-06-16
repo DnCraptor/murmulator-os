@@ -245,12 +245,6 @@ static void type(FIL *f, char *fn) {
     f_close(&f2);
 }
 
-static void del(char *d) {
-    if (f_unlink(d) != FR_OK) {
-        goutf("Unable to unlink: '%s'\n", d);
-    }
-}
-
 static void cp(char *f1, char* f2) {
     FIL fil1, fil2;
     if(f_open(&fil1, f1, FA_READ) != FR_OK) {
@@ -358,13 +352,7 @@ t:
             }
         }
     }
-    if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {
-        if (tokens == 1) {
-            goutf("Unable to remove nothing\n");
-        } else {
-            del((char*)cmd + (next_token(cmd_t) - cmd_t));
-        }
-    } else if (strcmp("cd", cmd_t) == 0) {
+    if (strcmp("cd", cmd_t) == 0) {
         if (tokens == 1) {
             goutf("Unable to change directoy to nothing\n");
         } else {
