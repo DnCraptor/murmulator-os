@@ -230,21 +230,6 @@ static int tokenize_cmd() {
     return inTokenN;
 }
 
-static void type(FIL *f, char *fn) {
-    FIL f2;
-    if (f_open(&f2, fn, FA_READ) != FR_OK) {
-        goutf("Unable to open file: '%s'\n", fn);
-        return;
-    }
-    char buf[512];
-    UINT rb;
-    while(f_read(&f2, buf, 512, &rb) == FR_OK && rb > 0) {
-        buf[rb] = 0;
-        fgoutf(f, buf);
-    }
-    f_close(&f2);
-}
-
 static void cd(char *d) {
     FILINFO fileinfo;
     if (strcmp(d, "\\") == 0 || strcmp(d, "/") == 0) {
@@ -299,8 +284,6 @@ t:
         } else {
             cd((char*)cmd + (next_token(cmd_t) - cmd_t));
         }
-    } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
-        type(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
     } else if (strcmp("elfinfo", cmd_t) == 0) {
         elfinfo(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
     } else {
