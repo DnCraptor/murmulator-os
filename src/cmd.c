@@ -256,37 +256,6 @@ static void cd(char *d) {
     }
 }
 
-static int rmdir(char *d) {
-    DIR dir;
-    FILINFO fileInfo;
-    if (FR_OK != f_opendir(&dir, d)) {
-        goutf("Failed to open directory: '%s'\n", d);
-        return 0;
-    }
-    size_t total_files = 0;
-    char* t = (char*)pvPortMalloc(512);
-    while (f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
-        size_t s = strlen(d);
-        strncpy(t, d, 512);
-        t[s] = '/';
-        strncpy(t + s + 1, fileInfo.fname, 511 - s);
-        if(fileInfo.fattrib & AM_DIR) {
-            total_files += rmdir(t);
-        }
-        if (f_unlink(t) == FR_OK)
-            total_files++;
-        else
-            goutf("Failed to remove file: '%s'\n", t);
-    }
-    vPortFree(t);
-    f_closedir(&dir);
-    if (f_unlink(d) == FR_OK) {
-        total_files++;
-    }
-    goutf("    Total: %d files removed\n", total_files);
-    return total_files;
-}
-
 static cmd_startup_ctx_t cmd_startup_ctx = { cmd, cmd_t, 0 }; // TODO: per process
 cmd_startup_ctx_t * get_cmd_startup_ctx() {
     return &cmd_startup_ctx;
@@ -329,12 +298,6 @@ t:
             fgoutf(&f1, "Unable to change directoy to nothing\n");
         } else {
             cd((char*)cmd + (next_token(cmd_t) - cmd_t));
-        }
-    } else if (strcmp("rmdir", cmd_t) == 0) {
-        if (tokens == 1) {
-            goutf("Unable to remove directoy with no name\n");
-        } else {
-            rmdir((char*)cmd + (next_token(cmd_t) - cmd_t));
         }
     } else if (strcmp("cat", cmd_t) == 0 || strcmp("type", cmd_t) == 0) {
         type(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));

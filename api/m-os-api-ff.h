@@ -236,15 +236,7 @@ inline static FRESULT f_rename (
 ) {
     return ((FRcpCcpC_ptr_t)_sys_table_ptrs[59])(path_old, path_new);
 }
-/* TODO: 60 - replace
-typedef FRESULT (*FRcpCpFI_ptr_t)(const TCHAR*, FILINFO*);
-inline static FRESULT f_stat (
-	const TCHAR* path,	
-	FILINFO* fno		
-) {
-    return ((FRcpCpFI_ptr_t)_sys_table_ptrs[60])(path, fno);
-}
-*/
+
 inline static FRESULT f_getfree (
 	const TCHAR* path,	/* Logical drive number */
 	DWORD* nclst,		/* Pointer to a variable to return number of free clusters */

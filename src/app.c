@@ -127,7 +127,7 @@ void resolve_thm_pc22(uint16_t *addr, uint32_t sym_val) {
 static const char* st_predef(const char* v) {
     if(strlen(v) == 2) {
         if (v[0] == '$' && v[1] == 't') {
-            return "$t (Thrumb)";
+            return "$t (Thumb)";
         }
         if (strcmp(v, "$d") == 0) {
             return "$d (data)";

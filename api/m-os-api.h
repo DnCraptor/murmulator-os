@@ -725,3 +725,13 @@ inline static size_t strlen(const char * s) {
     typedef size_t (*fn_ptr_t)(const char * s);
     return ((fn_ptr_t)_sys_table_ptrs[62])(s);
 }
+
+inline static char* strncpy(char* t, const char * s, size_t sz) {
+    typedef char* (*fn_ptr_t)(char*, const char*, size_t);
+    return ((fn_ptr_t)_sys_table_ptrs[63])(t, s, sz);
+}
+
+inline static char* strcpy(char* t, const char * s) {
+    typedef char* (*fn_ptr_t)(char*, const char*);
+    return ((fn_ptr_t)_sys_table_ptrs[60])(t, s);
+}
