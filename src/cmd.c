@@ -245,28 +245,6 @@ static void type(FIL *f, char *fn) {
     f_close(&f2);
 }
 
-static void cp(char *f1, char* f2) {
-    FIL fil1, fil2;
-    if(f_open(&fil1, f1, FA_READ) != FR_OK) {
-        goutf("Unable to open file: '%s'\n", f1);
-        return;
-    }
-    if (f_open(&fil2, f2, FA_CREATE_NEW | FA_WRITE) != FR_OK) {
-        goutf("Unable to open file to write: '%s'\n", f2);
-        f_close(&fil1);
-        return;
-    }
-    char buf[512];
-    UINT rb;
-    while(f_read(&fil1, buf, 512, &rb) == FR_OK && rb > 0) {
-        if (f_write(&fil2, buf, rb, &rb) != FR_OK) {
-            goutf("Unable to write to file: '%s'\n", f2);
-        }
-    }
-    f_close(&fil2);
-    f_close(&fil1);
-}
-
 static void cd(char *d) {
     FILINFO fileinfo;
     if (strcmp(d, "\\") == 0 || strcmp(d, "/") == 0) {
@@ -275,12 +253,6 @@ static void cd(char *d) {
         goutf("Unable to find directory: '%s'\n", d);
     } else {
         strcpy(curr_dir, d);
-    }
-}
-
-static void mkdir(char *d) {
-    if (f_mkdir(d) != FR_OK) {
-        goutf("Unable to mkdir: '%s'\n", d);
     }
 }
 
@@ -352,25 +324,20 @@ t:
             }
         }
     }
-    if (strcmp("cd", cmd_t) == 0) {
+    if (strcmp("cd", cmd_t) == 0) { // do not extern, due to internal cmd state
         if (tokens == 1) {
-            goutf("Unable to change directoy to nothing\n");
+            fgoutf(&f1, "Unable to change directoy to nothing\n");
         } else {
             cd((char*)cmd + (next_token(cmd_t) - cmd_t));
         }
-    } else if (strcmp("cp", cmd_t) == 0 || strcmp("copy", cmd_t) == 0) {
-        if (tokens < 3) {
-            goutf("Usage: %s <file1> <file2>\n", cmd_t);
-        } else {
-            char* pt1 = next_token(cmd_t);
-            char* pt2 = next_token(pt1);
-            cp(pt1, (char*)cmd + (pt2 - cmd_t));
-        }
-    } else if (strcmp("mkdir", cmd_t) == 0) {
+    } else if (strcmp("mkdir", cmd_t) == 0) { // extern?
         if (tokens == 1) {
-            goutf("Unable to make directoy with no name\n");
+            fgoutf(&f1, "Unable to make directoy with no name\n");
         } else {
-            mkdir((char*)cmd + (next_token(cmd_t) - cmd_t));
+            char * d = (char*)cmd + (next_token(cmd_t) - cmd_t);
+            if (f_mkdir(d) != FR_OK) {
+                fgoutf(&f1, "Unable to mkdir: '%s'\n", d);
+            }
         }
     } else if (strcmp("rmdir", cmd_t) == 0) {
         if (tokens == 1) {
