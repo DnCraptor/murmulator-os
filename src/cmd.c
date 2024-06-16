@@ -4,7 +4,6 @@
 #include "graphics.h"
 #include "app.h"
 #include "elf.h"
-#include "ram_page.h"
 #include "overclock.h"
 #include <hardware/timer.h>
 
@@ -341,31 +340,6 @@ static void dir(FIL *f, char *d) {
     fgoutf(f, "    Total: %d files\n", total_files);
 }
 
-static void _test_sram(FIL* f) {
-    uint32_t sz = swap_base_size();
-    uint8_t* p = swap_base();
-    fgoutf(f, "SWAP BASE size: %d bytes @ %ph\n", sz, p);
-    uint32_t a = 0;
-    uint32_t begin = time_us_32();
-    for (; a < sz; ++a) {
-        p[a] = a & 0xFF;
-    }
-    uint32_t elapsed = time_us_32() - begin;
-    float speed = 1.0 * a / elapsed;
-    fgoutf(f, "8-bit line write speed: %f MBps\n", speed);
-
-    begin = time_us_32();
-    for (a = 0; a < sz; ++a) {
-        if ((a & 0xFF) != p[a]) {
-            fgoutf(f, "8-bit read failed at %ph\n", a);
-            break;
-        }
-    }
-    elapsed = time_us_32() - begin;
-    speed = 1.0 * a / elapsed;
-    fgoutf(f, "8-bit line read speed: %f MBps\n", speed);
-}
-
 void cmd_enter() {
     UINT br;
     if (cmd_pos > 0) { // history
@@ -394,9 +368,7 @@ t:
             }
         }
     }
-    if( strcmp("sram", cmd_t) == 0 ) {
-        _test_sram(&f0);
-    } else if( strcmp("cpu", cmd_t) == 0 ) {
+    if( strcmp("cpu", cmd_t) == 0 ) {
         if (tokens == 1) {
             overcloking();
         } else if (tokens == 2) {
