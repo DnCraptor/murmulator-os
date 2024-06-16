@@ -5,7 +5,7 @@ static const unsigned long * const _sys_table_ptrs = M_OS_API_SYS_TABLE_BASE;
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include "ff.h"
+#include "m-os-api-ff.h"
 
 #define __in_boota(group) __attribute__((section(".boota" group)))
 #define	__aligned(x)	__attribute__((__aligned__(x)))

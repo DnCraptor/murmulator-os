@@ -330,15 +330,6 @@ t:
         } else {
             cd((char*)cmd + (next_token(cmd_t) - cmd_t));
         }
-    } else if (strcmp("mkdir", cmd_t) == 0) { // extern?
-        if (tokens == 1) {
-            fgoutf(&f1, "Unable to make directoy with no name\n");
-        } else {
-            char * d = (char*)cmd + (next_token(cmd_t) - cmd_t);
-            if (f_mkdir(d) != FR_OK) {
-                fgoutf(&f1, "Unable to mkdir: '%s'\n", d);
-            }
-        }
     } else if (strcmp("rmdir", cmd_t) == 0) {
         if (tokens == 1) {
             goutf("Unable to remove directoy with no name\n");
