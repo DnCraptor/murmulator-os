@@ -84,7 +84,7 @@ int main() {
 
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
     sleep_ms(10);
-    set_sys_clock_khz(overcloking_khz, true);
+    set_sys_clock_khz(get_overclocking_khz(), true);
 
     keyboard_init();
     keyboard_send(0xFF);
@@ -130,7 +130,7 @@ int main() {
           "SWAP %d MB\n"
           "\n"
           "%s>",
-          overcloking_khz / 1000,
+          get_overclocking_khz() / 1000,
           ram32 >> 10,
           flash32 >> 20,
           psram32 >> 20,

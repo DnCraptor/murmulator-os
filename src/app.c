@@ -424,19 +424,20 @@ void run_new_app(char * fn, char * fn1) {
     }
     f_lseek(&f2, symtab_off);
     elf32_sym sym;
-    bool lst = strcmp(fn1, "lst") == 0;
-    if (lst) {
-        goutf("Global function names:\n");
-    }
+    //bool lst = strcmp(fn1, "lst") == 0;
+    //if (lst) {
+    //    goutf("Global function names:\n");
+    //}
     for (int i = 0; i < symtab_len / sizeof(sym); ++i) {
         if (f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
             goutf("Unable to read .symtab section #%d\n", i);
             break;
         }
         if (sym.st_info == STR_TAB_GLOBAL_FUNC) {
-            if (lst) {
-                goutf(" - %s\n", strtab + sym.st_name);
-            } else {
+            //if (lst) {
+            //    goutf(" - %s\n", strtab + sym.st_name);
+            //} else
+            {
                 if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
                     char* page = (char*)pvPortMalloc(4 << 10); // a 4k page for the process
                     //char* next_page = page + (4 << 10) - 4; // a place to store next page, in case be allocated

@@ -24,11 +24,12 @@ FIL * get_stderr() {
     return &f1;
 }
 
-static char* next_token(char* t) {
+char* next_token(char* t) {
     char *t1 = t + strlen(t);
     while(!*t1++);
     return t1 - 1;
 }
+
 void cmd_backspace() {
     if (cmd_pos == 0) {
         // TODO: blimp
@@ -340,6 +341,11 @@ static void dir(FIL *f, char *d) {
     fgoutf(f, "    Total: %d files\n", total_files);
 }
 
+static cmd_startup_ctx_t cmd_startup_ctx = { cmd, cmd_t, 0 };
+cmd_startup_ctx_t * get_cmd_startup_ctx() {
+    return &cmd_startup_ctx;
+}
+
 void cmd_enter() {
     UINT br;
     if (cmd_pos > 0) { // history
@@ -349,6 +355,7 @@ void cmd_enter() {
         f_close(&fh);
     }
     int tokens = tokenize_cmd();
+    cmd_startup_ctx.tokens = tokens;
     if (redirect2) {
         if (bAppend) {
             FILINFO fileinfo;
@@ -368,20 +375,7 @@ t:
             }
         }
     }
-    if( strcmp("cpu", cmd_t) == 0 ) {
-        if (tokens == 1) {
-            overcloking();
-        } else if (tokens == 2) {
-            char* nt = next_token(cmd_t);
-            int cpu = atoi(nt);
-            if (cpu > 123 && cpu < 450) {
-                overcloking_khz = cpu * 1000;
-                overcloking();
-            } else {
-                goutf("Unable to change CPU freq. to %s\n", nt);
-            }
-        }
-    } else if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
+    if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
         dir(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
     } else if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {
         if (tokens == 1) {
@@ -426,7 +420,7 @@ t:
             if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
             } if(is_new_app(t)) {
-                run_new_app(t, tokens == 1 ? "main" : (char*)cmd + (next_token(cmd_t) - cmd_t));
+                run_new_app(t, "main");
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
             }

@@ -1,4 +1,6 @@
+#include <pico/stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
@@ -14,6 +16,7 @@
 #include "psram_spi.h"
 #include "math-wrapper.h"
 #include "ram_page.h"
+#include "overclock.h"
 
 // to cleanup BOOTA memory region on the MOS flashing
 unsigned long __in_boota() __aligned(4096) cleanup_boota[] = { 0 };
@@ -133,7 +136,19 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     ram_page_write, // 96
     ram_page_write16, // 97
     ram_page_write32, // 98
-
+    //
+    get_cmd_startup_ctx, // 99
+    //
+    atoi, // 100
+    //
+    overclocking, // 101
+    overclocking_ex, // 102
+    get_overclocking_khz, // 103
+    set_overclocking, // 104
+    set_sys_clock_pll, // 105
+    check_sys_clock_khz, // 106
+    //
+    next_token, // 107
     // TODO:
     0
 };

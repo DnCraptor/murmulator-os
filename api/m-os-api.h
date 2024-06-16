@@ -3,6 +3,7 @@
 #include "FreeRTOSConfig.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define __in_boota(group) __attribute__((section(".boota" group)))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
@@ -675,4 +676,45 @@ inline static void ram_page_write16(uint32_t addr32, uint16_t value) {
 }
 inline static void ram_page_write32(uint32_t addr32, uint32_t value) {
     ((vu32u32_ptr_t)_sys_table_ptrs[98])(addr32, value);
+}
+
+typedef struct {
+    char* cmd;
+    char* cmd_t; // tokenised
+    int tokens;
+} cmd_startup_ctx_t;
+inline static cmd_startup_ctx_t* get_cmd_startup_ctx() {
+    return (cmd_startup_ctx_t*) ((pu8v_ptr_t)_sys_table_ptrs[99])();
+}
+
+typedef int (*ipc_ptr_t)();
+inline static int atoi (const char * s) {
+    return ((ipc_ptr_t)_sys_table_ptrs[100])(s);
+}
+inline static void overclocking() {
+    return ((vv_ptr_t)_sys_table_ptrs[101])();
+}
+typedef void (*vu32u32u32_ptr_t)(uint32_t, uint32_t, uint32_t);
+inline static void overclocking_ex(uint32_t vco, int32_t postdiv1, int32_t postdiv2) {
+    return ((vu32u32u32_ptr_t)_sys_table_ptrs[102])(vco, postdiv1, postdiv2);
+}
+typedef void (*vu32_ptr_t)(uint32_t);
+inline static void set_overclocking(uint32_t khz) {
+    return ((vu32_ptr_t)_sys_table_ptrs[104])(khz);
+}
+inline static uint32_t get_overclocking_khz() {
+    return ((u32v_ptr_t)_sys_table_ptrs[103])();
+}
+
+inline static void set_sys_clock_pll(uint32_t vco_freq, uint32_t post_div1, uint32_t post_div2) {
+    ((vu32u32u32_ptr_t)_sys_table_ptrs[105])(vco_freq, post_div1, post_div2);
+} 
+typedef bool (*bu32pu32pu32pu32_ptr_t)(uint32_t, uint32_t*, uint32_t*, uint32_t*);
+inline static bool check_sys_clock_khz(uint32_t freq_khz, uint32_t *vco_out, uint32_t *postdiv1_out, uint32_t *postdiv2_out) {
+    return ((bu32pu32pu32pu32_ptr_t)_sys_table_ptrs[106])(freq_khz, vco_out, postdiv1_out, postdiv2_out);
+}
+
+typedef char* (*pcpc_ptr_t)(char*);
+inline static char* next_token(char* t) {
+    return ((pcpc_ptr_t)_sys_table_ptrs[107])(t);
 }

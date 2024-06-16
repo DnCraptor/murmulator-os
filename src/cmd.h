@@ -11,3 +11,10 @@ void cmd_push(char c);
 char* get_curr_dir();
 FIL * get_stdout();
 FIL * get_stderr();
+typedef struct {
+    char* cmd;
+    char* cmd_t; // tokenised
+    int tokens;
+} cmd_startup_ctx_t;
+cmd_startup_ctx_t * get_cmd_startup_ctx();
+char* next_token(char* t);

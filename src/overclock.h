@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-extern uint32_t overcloking_khz;
-
-void overcloking();
-void overcloking_ex(uint32_t vco, int32_t postdiv1, int32_t postdiv2);
+void set_overclocking(uint32_t khz);
+uint32_t get_overclocking_khz();
+void overclocking();
+void overclocking_ex(uint32_t vco, uint32_t postdiv1, uint32_t postdiv2);

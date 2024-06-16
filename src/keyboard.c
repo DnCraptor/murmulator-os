@@ -189,8 +189,14 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         return true;
     }
     if (bTabPressed && bCtrlPressed) {
-        if (bPlusPressed) { overcloking_khz += 1000; overcloking(); }
-        if (bMinusPressed) { overcloking_khz -= 1000; overcloking(); }
+        if (bPlusPressed) {
+            set_overclocking(get_overclocking_khz() + 1000);
+            overclocking();
+        }
+        if (bMinusPressed) {
+            set_overclocking(get_overclocking_khz() - 1000);
+            overclocking();
+        }
     }
     if (c || input < 86) {
         if (!c) {
