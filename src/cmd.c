@@ -321,27 +321,7 @@ static int rmdir(char *d) {
     return total_files;
 }
 
-static void dir(FIL *f, char *d) {
-    DIR dir;
-    FILINFO fileInfo;
-    if (FR_OK != f_opendir(&dir, d)) {
-        goutf("Failed to open directory: '%s'\n", d);
-        return;
-    }
-    if (strlen(d) > 1) {
-        fgoutf(f, "D ..\n");
-    }
-    int total_files = 0;
-    while (f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
-        fgoutf(f, fileInfo.fattrib & AM_DIR ? "D " : "  ");
-        fgoutf(f, "%s\n", fileInfo.fname);
-        total_files++;
-    }
-    f_closedir(&dir);
-    fgoutf(f, "    Total: %d files\n", total_files);
-}
-
-static cmd_startup_ctx_t cmd_startup_ctx = { cmd, cmd_t, 0 };
+static cmd_startup_ctx_t cmd_startup_ctx = { cmd, cmd_t, 0 }; // TODO: per process
 cmd_startup_ctx_t * get_cmd_startup_ctx() {
     return &cmd_startup_ctx;
 }
@@ -356,6 +336,9 @@ void cmd_enter() {
     }
     int tokens = tokenize_cmd();
     cmd_startup_ctx.tokens = tokens;
+    cmd_startup_ctx.curr_dir = curr_dir;
+    cmd_startup_ctx.pstdout = &f0;
+    cmd_startup_ctx.pstrerr = &f1;
     if (redirect2) {
         if (bAppend) {
             FILINFO fileinfo;
@@ -375,9 +358,7 @@ t:
             }
         }
     }
-    if (strcmp("dir", cmd_t) == 0 || strcmp("ls", cmd_t) == 0) {
-        dir(&f0, tokens == 1 ? curr_dir : (char*)cmd + (next_token(cmd_t) - cmd_t));
-    } else if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {
+    if (strcmp("rm", cmd_t) == 0 || strcmp("del", cmd_t) == 0 || strcmp("era", cmd_t) == 0) {
         if (tokens == 1) {
             goutf("Unable to remove nothing\n");
         } else {

@@ -1,6 +1,6 @@
-#include "m-os-api.h"
-
 #if TESTS
+
+#include "m-os-api.h"
 
 void vTask1(void *pv) {
     char string[64] = {0};

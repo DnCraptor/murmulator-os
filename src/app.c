@@ -424,53 +424,42 @@ void run_new_app(char * fn, char * fn1) {
     }
     f_lseek(&f2, symtab_off);
     elf32_sym sym;
-    //bool lst = strcmp(fn1, "lst") == 0;
-    //if (lst) {
-    //    goutf("Global function names:\n");
-    //}
     for (int i = 0; i < symtab_len / sizeof(sym); ++i) {
         if (f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
             goutf("Unable to read .symtab section #%d\n", i);
             break;
         }
         if (sym.st_info == STR_TAB_GLOBAL_FUNC) {
-            //if (lst) {
-            //    goutf(" - %s\n", strtab + sym.st_name);
-            //} else
-            {
-                if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
-                    char* page = (char*)pvPortMalloc(4 << 10); // a 4k page for the process
-                    //char* next_page = page + (4 << 10) - 4; // a place to store next page, in case be allocated
-                    //*(uint32_t*)next_page = 0; // not yet allocated
-                    
-                    uint16_t max_sects = ehdr.sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
-                    sect_entry_t* sects_list = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
-                    sects_list[0].sec_addr = 0;
+            if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
+                char* page = (char*)pvPortMalloc(4 << 10); // a 4k page for the process
+                //char* next_page = page + (4 << 10) - 4; // a place to store next page, in case be allocated
+                //*(uint32_t*)next_page = 0; // not yet allocated
+                
+                uint16_t max_sects = ehdr.sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
+                sect_entry_t* sects_list = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
+                sects_list[0].sec_addr = 0;
 
-                    load_sec_ctx ctx = {
-                        &f2,
-                        &ehdr,
-                        page,
-                        symtab_off,
-                        &sym,
-                        strtab,
-                        sects_list,
-                        max_sects
-                    };
-                    bootb_tbl[0] = load_sec2mem(&ctx, sym.st_shndx) + 1; // TODO:  correct it
-                    if (bootb_tbl[0] == 0) {
-                        vPortFree(page);
-                        vPortFree(ctx.psections_list);
-                        goto e3;
-                    }
-                    // start it
-                    bootb_tbl[0]();
-                    goutf("OK\n");
-                    vPortFree(ctx.psections_list);
+                load_sec_ctx ctx = {
+                    &f2,
+                    &ehdr,
+                    page,
+                    symtab_off,
+                    &sym,
+                    strtab,
+                    sects_list,
+                    max_sects
+                };
+                bootb_tbl[0] = load_sec2mem(&ctx, sym.st_shndx) + 1; // TODO:  correct it
+                if (bootb_tbl[0] == 0) {
                     vPortFree(page);
-                    // TODO:
-                    break;
+                    vPortFree(ctx.psections_list);
+                    goto e3;
                 }
+                // start it
+                bootb_tbl[0]();
+                vPortFree(ctx.psections_list);
+                vPortFree(page);
+                break;
             }
         }
     }

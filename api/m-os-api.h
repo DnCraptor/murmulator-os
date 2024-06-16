@@ -682,6 +682,9 @@ typedef struct {
     char* cmd;
     char* cmd_t; // tokenised
     int tokens;
+    char* curr_dir;
+    FIL * pstdout;
+    FIL * pstderr;
 } cmd_startup_ctx_t;
 inline static cmd_startup_ctx_t* get_cmd_startup_ctx() {
     return (cmd_startup_ctx_t*) ((pu8v_ptr_t)_sys_table_ptrs[99])();
@@ -717,4 +720,238 @@ inline static bool check_sys_clock_khz(uint32_t freq_khz, uint32_t *vco_out, uin
 typedef char* (*pcpc_ptr_t)(char*);
 inline static char* next_token(char* t) {
     return ((pcpc_ptr_t)_sys_table_ptrs[107])(t);
+}
+
+
+/* File attribute bits for directory entry (FILINFO.fattrib) */
+#define	AM_RDO	0x01	/* Read only */
+#define	AM_HID	0x02	/* Hidden */
+#define	AM_SYS	0x04	/* System */
+#define AM_DIR	0x10	/* Directory */
+#define AM_ARC	0x20	/* Archive */
+
+/* File function return code (FRESULT) */
+
+typedef enum {
+	FR_OK = 0,				/* (0) Succeeded */
+	FR_DISK_ERR,			/* (1) A hard error occurred in the low level disk I/O layer */
+	FR_INT_ERR,				/* (2) Assertion failed */
+	FR_NOT_READY,			/* (3) The physical drive cannot work */
+	FR_NO_FILE,				/* (4) Could not find the file */
+	FR_NO_PATH,				/* (5) Could not find the path */
+	FR_INVALID_NAME,		/* (6) The path name format is invalid */
+	FR_DENIED,				/* (7) Access denied due to prohibited access or directory full */
+	FR_EXIST,				/* (8) Access denied due to prohibited access */
+	FR_INVALID_OBJECT,		/* (9) The file/directory object is invalid */
+	FR_WRITE_PROTECTED,		/* (10) The physical drive is write protected */
+	FR_INVALID_DRIVE,		/* (11) The logical drive number is invalid */
+	FR_NOT_ENABLED,			/* (12) The volume has no work area */
+	FR_NO_FILESYSTEM,		/* (13) There is no valid FAT volume */
+	FR_MKFS_ABORTED,		/* (14) The f_mkfs() aborted due to any problem */
+	FR_TIMEOUT,				/* (15) Could not get a grant to access the volume within defined period */
+	FR_LOCKED,				/* (16) The operation is rejected according to the file sharing policy */
+	FR_NOT_ENOUGH_CORE,		/* (17) LFN working buffer could not be allocated */
+	FR_TOO_MANY_OPEN_FILES,	/* (18) Number of open files > FF_FS_LOCK */
+	FR_INVALID_PARAMETER	/* (19) Given parameter is invalid */
+} FRESULT;
+typedef char TCHAR;
+typedef unsigned int	UINT;	/* int must be 16-bit or 32-bit */
+typedef unsigned char	BYTE;	/* char must be 8-bit */
+typedef uint16_t		WORD;	/* 16-bit unsigned integer */
+typedef uint32_t		DWORD;	/* 32-bit unsigned integer */
+typedef uint64_t		QWORD;	/* 64-bit unsigned integer */
+typedef WORD			WCHAR;	/* UTF-16 character type */
+
+typedef FRESULT (*FRFcpCB_ptr_t)(FIL*, const TCHAR*, BYTE);
+inline static FRESULT f_open (
+	FIL* fp,			/* Pointer to the blank file object */
+	const TCHAR* path,	/* Pointer to the file name */
+	BYTE mode			/* Access mode and open mode flags */
+) {
+    return ((FRFcpCB_ptr_t)_sys_table_ptrs[46])(fp, path, mode);
+}
+typedef FRESULT (*FRF_ptr_t)(FIL*);
+inline static FRESULT f_close (
+	FIL* fp		/* Open file to be closed */
+) {
+    return ((FRF_ptr_t)_sys_table_ptrs[47])(fp);
+}
+typedef FRESULT (*FRFcpvUpU_ptr_t)(FIL*, const void*, UINT, UINT*);
+inline static FRESULT f_write (
+	FIL* fp,			/* Open file to be written */
+	const void* buff,	/* Data to be written */
+	UINT btw,			/* Number of bytes to write */
+	UINT* bw			/* Number of bytes written */
+) {
+    return ((FRFcpvUpU_ptr_t)_sys_table_ptrs[48])(fp, buff, btw, bw);
+}
+typedef FRESULT (*FRFpvUpU_ptr_t)(FIL*, void*, UINT, UINT*);
+inline static FRESULT f_read (
+	FIL* fp, 	/* Open file to be read */
+	void* buff,	/* Data buffer to store the read data */
+	UINT btr,	/* Number of bytes to read */
+	UINT* br	/* Number of bytes read */
+) {
+    return ((FRFpvUpU_ptr_t)_sys_table_ptrs[49])(fp, buff, btr, br);
+}
+
+/* File information structure (FILINFO) */
+typedef QWORD FSIZE_t;
+#define FF_LFN_BUF		255
+#define FF_SFN_BUF		12
+typedef struct {
+	FSIZE_t	fsize;			/* File size */
+	WORD	fdate;			/* Modified date */
+	WORD	ftime;			/* Modified time */
+	BYTE	fattrib;		/* File attribute */
+	TCHAR	altname[FF_SFN_BUF + 1];/* Altenative file name */
+	TCHAR	fname[FF_LFN_BUF + 1];	/* Primary file name */
+} FILINFO;
+
+typedef FRESULT (*FRcpCpFI_ptr_t)(const TCHAR*, FILINFO*);
+inline static FRESULT f_stat (
+	const TCHAR* path,	/* Pointer to the file path */
+	FILINFO* fno		/* Pointer to file information to return */
+) {
+    return ((FRcpCpFI_ptr_t)_sys_table_ptrs[50])(path, fno);
+}
+
+typedef FRESULT (*FRpFFZ_ptr_t)(FIL*, FSIZE_t);
+inline static FRESULT f_lseek (
+	FIL* fp,		/* Pointer to the file object */
+	FSIZE_t ofs		/* File pointer from top of file */
+) {
+    return ((FRpFFZ_ptr_t)_sys_table_ptrs[51])(fp, ofs);
+}
+inline static FRESULT f_truncate (
+	FIL* fp		/* Pointer to the file object */
+) {
+    return ((FRF_ptr_t)_sys_table_ptrs[52])(fp);
+}
+inline static FRESULT f_sync (
+	FIL* fp		/* Open file to be synced */
+) {
+    return ((FRF_ptr_t)_sys_table_ptrs[53])(fp);
+}
+
+/* Filesystem object structure (FATFS) */
+#define FF_MIN_SS		512
+#define FF_MAX_SS		512
+typedef DWORD LBA_t;
+
+typedef struct {
+	BYTE	fs_type;		/* Filesystem type (0:not mounted) */
+	BYTE	pdrv;			/* Associated physical drive */
+	BYTE	n_fats;			/* Number of FATs (1 or 2) */
+	BYTE	wflag;			/* win[] flag (b0:dirty) */
+	BYTE	fsi_flag;		/* FSINFO flags (b7:disabled, b0:dirty) */
+	WORD	id;				/* Volume mount ID */
+	WORD	n_rootdir;		/* Number of root directory entries (FAT12/16) */
+	WORD	csize;			/* Cluster size [sectors] */
+	WCHAR*	lfnbuf;			/* LFN working buffer */
+	BYTE*	dirbuf;			/* Directory entry block scratchpad buffer for exFAT */
+	DWORD	last_clst;		/* Last allocated cluster */
+	DWORD	free_clst;		/* Number of free clusters */
+	DWORD	n_fatent;		/* Number of FAT entries (number of clusters + 2) */
+	DWORD	fsize;			/* Size of an FAT [sectors] */
+	LBA_t	volbase;		/* Volume base sector */
+	LBA_t	fatbase;		/* FAT base sector */
+	LBA_t	dirbase;		/* Root directory base sector/cluster */
+	LBA_t	database;		/* Data base sector */
+	LBA_t	bitbase;		/* Allocation bitmap base sector */
+	LBA_t	winsect;		/* Current sector appearing in the win[] */
+	BYTE	win[FF_MAX_SS];	/* Disk access window for Directory, FAT (and file data at tiny cfg) */
+} FATFS;
+
+/* Object ID and allocation information (FFOBJID) */
+
+typedef struct {
+	FATFS*	fs;				/* Pointer to the hosting volume of this object */
+	WORD	id;				/* Hosting volume mount ID */
+	BYTE	attr;			/* Object attribute */
+	BYTE	stat;			/* Object chain status (b1-0: =0:not contiguous, =2:contiguous, =3:fragmented in this session, b2:sub-directory stretched) */
+	DWORD	sclust;			/* Object data start cluster (0:no cluster or root directory) */
+	FSIZE_t	objsize;		/* Object size (valid when sclust != 0) */
+	DWORD	n_cont;			/* Size of first fragment - 1 (valid when stat == 3) */
+	DWORD	n_frag;			/* Size of last fragment needs to be written to FAT (valid when not zero) */
+	DWORD	c_scl;			/* Containing directory start cluster (valid when sclust != 0) */
+	DWORD	c_size;			/* b31-b8:Size of containing directory, b7-b0: Chain status (valid when c_scl != 0) */
+	DWORD	c_ofs;			/* Offset in the containing directory (valid when file object and sclust != 0) */
+} FFOBJID;
+
+/* Directory object structure (DIR) */
+
+typedef struct {
+	FFOBJID	obj;			/* Object identifier */
+	DWORD	dptr;			/* Current read/write offset */
+	DWORD	clust;			/* Current cluster */
+	LBA_t	sect;			/* Current sector (0:Read operation has terminated) */
+	BYTE*	dir;			/* Pointer to the directory item in the win[] */
+	BYTE	fn[12];			/* SFN (in/out) {body[8],ext[3],status[1]} */
+	DWORD	blk_ofs;		/* Offset of current entry block being processed (0xFFFFFFFF:Invalid) */
+} DIR;
+
+typedef FRESULT (*FRpDcpC_ptr_t)(DIR*, const TCHAR*);
+inline static FRESULT f_opendir (
+	DIR* dp,			/* Pointer to directory object to create */
+	const TCHAR* path	/* Pointer to the directory path */
+) {
+    return ((FRpDcpC_ptr_t)_sys_table_ptrs[54])(dp, path);
+}
+
+typedef FRESULT (*FRpD_ptr_t)(DIR*);
+inline static FRESULT f_closedir (
+	DIR *dp		/* Pointer to the directory object to be closed */
+) {
+    return ((FRpD_ptr_t)_sys_table_ptrs[55])(dp);
+}
+
+typedef FRESULT (*FRpDpFI_ptr_t)(DIR*, FILINFO*);
+inline static FRESULT f_readdir (
+	DIR* dp,			/* Pointer to the open directory object */
+	FILINFO* fno		/* Pointer to file information to return */
+) {
+    return ((FRpDpFI_ptr_t)_sys_table_ptrs[56])(dp, fno);
+}
+
+typedef FRESULT (*FRcpC_ptr_t)(const TCHAR*);
+inline static FRESULT f_mkdir (
+	const TCHAR* path		/* Pointer to the directory path */
+) {
+    return ((FRcpC_ptr_t)_sys_table_ptrs[57])(path);
+}
+inline static FRESULT f_unlink (
+	const TCHAR* path		/* Pointer to the file or directory path */
+) {
+    return ((FRcpC_ptr_t)_sys_table_ptrs[58])(path);
+}
+
+typedef FRESULT (*FRcpCcpC_ptr_t)(const TCHAR*, const TCHAR*);
+inline static FRESULT f_rename (
+	const TCHAR* path_old,	/* Pointer to the object name to be renamed */
+	const TCHAR* path_new	/* Pointer to the new name */
+) {
+    return ((FRcpCcpC_ptr_t)_sys_table_ptrs[59])(path_old, path_new);
+}
+/* TODO: 60 - replace
+typedef FRESULT (*FRcpCpFI_ptr_t)(const TCHAR*, FILINFO*);
+inline static FRESULT f_stat (
+	const TCHAR* path,	
+	FILINFO* fno		
+) {
+    return ((FRcpCpFI_ptr_t)_sys_table_ptrs[60])(path, fno);
+}
+*/
+inline static FRESULT f_getfree (
+	const TCHAR* path,	/* Logical drive number */
+	DWORD* nclst,		/* Pointer to a variable to return number of free clusters */
+	FATFS** fatfs		/* Pointer to return pointer to corresponding filesystem object */
+) {
+    typedef FRESULT (*fn_ptr_t)(const TCHAR*, DWORD*, FATFS**);
+    return ((fn_ptr_t)_sys_table_ptrs[61])(path, nclst, fatfs);
+}
+
+inline static size_t strlen(const char * s) {
+    typedef size_t (*fn_ptr_t)(const char * s);
+    return ((fn_ptr_t)_sys_table_ptrs[62])(s);
 }
