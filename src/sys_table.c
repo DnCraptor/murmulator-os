@@ -13,6 +13,7 @@
 #include "cmd.h"
 #include "psram_spi.h"
 #include "math-wrapper.h"
+#include "ram_page.h"
 
 // to cleanup BOOTA memory region on the MOS flashing
 unsigned long __in_boota() __aligned(4096) cleanup_boota[] = { 0 };
@@ -122,6 +123,17 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     __ddf_mul, // 87
     __ffu32_div, // 88
     __ddu32_div, // 89
+    //
+    swap_size, // 90
+    swap_base_size, // 91
+    swap_base, // 92
+    ram_page_read, // 93
+    ram_page_read16, // 94
+    ram_page_read32, // 95
+    ram_page_write, // 96
+    ram_page_write16, // 97
+    ram_page_write32, // 98
+
     // TODO:
     0
 };

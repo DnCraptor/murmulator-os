@@ -645,3 +645,34 @@ inline static float __ffu32_div(float x, uint32_t y) {
 inline static double __ddu32_div(double x, uint32_t y) {
     return ((ddu32_ptr_t)_sys_table_ptrs[89])(x, y);
 }
+
+inline static uint32_t swap_size() {
+    return ((u32v_ptr_t)_sys_table_ptrs[90])();
+}
+inline static uint32_t swap_base_size() {
+    return ((u32v_ptr_t)_sys_table_ptrs[91])();
+}
+typedef uint8_t* (*pu8v_ptr_t)();
+inline static uint8_t* swap_base() {
+    return ((pu8v_ptr_t)_sys_table_ptrs[92])();
+}
+
+inline static uint8_t ram_page_read(uint32_t addr32) {
+    return ((u8u32_ptr_t)_sys_table_ptrs[93])(addr32);
+}
+inline static uint16_t ram_page_read16(uint32_t addr32) {
+    return ((u16u32_ptr_t)_sys_table_ptrs[94])(addr32);
+}
+inline static uint32_t ram_page_read32(uint32_t addr32) {
+    return ((u32u32_ptr_t)_sys_table_ptrs[95])(addr32);
+}
+
+inline static void ram_page_write(uint32_t addr32, uint8_t value) {
+    ((vu32u8_ptr_t)_sys_table_ptrs[96])(addr32, value);
+}
+inline static void ram_page_write16(uint32_t addr32, uint16_t value) {
+    ((vu32u16_ptr_t)_sys_table_ptrs[97])(addr32, value);
+}
+inline static void ram_page_write32(uint32_t addr32, uint32_t value) {
+    ((vu32u32_ptr_t)_sys_table_ptrs[98])(addr32, value);
+}
