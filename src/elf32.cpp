@@ -241,11 +241,11 @@ static const char* st_info_bind2str(char c) {
 }
 static const char* st_predef(const char* v) {
     if(strlen(v) == 2) {
-        if (v[0] == '%' && v[1] == 't') {
-            return "%%t (Thrumb)";
+        if (v[0] == '$' && v[1] == 't') {
+            return "$t (Thrumb)";
         }
-        if (strcmp(v, "%%d") == 0) {
-            return "%%d (data)";
+        if (strcmp(v, "$d") == 0) {
+            return "$d (data)";
         }
     }
     return v;

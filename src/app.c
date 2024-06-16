@@ -126,11 +126,11 @@ void resolve_thm_pc22(uint16_t *addr, uint32_t sym_val) {
 
 static const char* st_predef(const char* v) {
     if(strlen(v) == 2) {
-        if (v[0] == '%' && v[1] == 't') {
-            return "%%t (Thrumb)";
+        if (v[0] == '$' && v[1] == 't') {
+            return "$t (Thrumb)";
         }
-        if (strcmp(v, "%%d") == 0) {
-            return "%%d (data)";
+        if (strcmp(v, "$d") == 0) {
+            return "$d (data)";
         }
     }
     return v;
@@ -155,7 +155,7 @@ typedef struct {
 char* sec_addr(load_sec_ctx* ctx, uint16_t sec_num) {
     for (uint16_t i = 0; i < ctx->max_sections_in_list && ctx->psections_list[i].sec_addr != 0; ++i) {
         if (ctx->psections_list[i].sec_num == sec_num) {
-            goutf("section #%d found\n", sec_num);
+            // goutf("section #%d found\n", sec_num);
             return ctx->psections_list[i].sec_addr;
         }
     }
@@ -167,7 +167,7 @@ void add_sec(load_sec_ctx* ctx, char* addr, uint16_t num) {
     for (; i < ctx->max_sections_in_list && ctx->psections_list[i].sec_addr != 0; ++i);
     if (i == ctx->max_sections_in_list) {
         ctx->max_sections_in_list += 2; // may be more? 
-        goutf("max sections count increased up to %d\n", ctx->max_sections_in_list);
+        // goutf("max sections count increased up to %d\n", ctx->max_sections_in_list);
         sect_entry_t* sects_list = (sect_entry_t*)pvPortMalloc(ctx->max_sections_in_list * sizeof(sect_entry_t));
         for (uint16_t j = 0; j < ctx->max_sections_in_list - 2; ++j) {
             sects_list[j] = ctx->psections_list[j];
@@ -175,7 +175,7 @@ void add_sec(load_sec_ctx* ctx, char* addr, uint16_t num) {
         vPortFree(ctx->psections_list);
         ctx->psections_list = sects_list;
     }
-    goutf("section #%d inserted @ line #%d\n", num, i);
+    //goutf("section #%d inserted @ line #%d\n", num, i);
     ctx->psections_list[i].sec_addr = addr;
     ctx->psections_list[i++].sec_num = num;
     if (i < ctx->max_sections_in_list) {
@@ -220,7 +220,7 @@ static const char* st_spec_sec(uint16_t st) {
 static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
     uint8_t* addr = sec_addr(c, sec_num);
     if (addr != 0) {
-        goutf("Section #%d already in mem @ %p\n", sec_num, addr);
+        //goutf("Section #%d already in mem @ %p\n", sec_num, addr);
         return addr;
     }
     UINT rb;
@@ -256,8 +256,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                         }
                         uint32_t rel_sym = rel.rel_info >> 8;
                         uint8_t rel_type = rel.rel_info & 0xFF;
-                        goutf("rel_offset: %p; rel_sym: %d; rel_type: %d\n", rel.rel_offset, rel_sym, rel_type);
-                        
+                        //goutf("rel_offset: %p; rel_sym: %d; rel_type: %d\n", rel.rel_offset, rel_sym, rel_type);
                         if (f_lseek(c->f2, c->symtab_off + rel_sym * sizeof(elf32_sym)) != FR_OK ||
                             f_read(c->f2, c->psym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)
                         ) {
@@ -273,6 +272,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             return 0;
                         }
                         uint32_t* rel_addr = (uint32_t*)(addr + rel.rel_offset /*10*/); /*f7ff fffe 	bl	0*/
+                        //("rel_addr: [%ph]: %p\n", rel_addr, *rel_addr);
                         uint32_t P = *rel_addr; /*f7ff fffe 	bl	0*/
                         uint32_t S = c->psym->st_value;
                         char * sec_addr = addr;

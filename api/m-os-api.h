@@ -602,3 +602,46 @@ typedef uint32_t (*u32u32_ptr_t)(uint32_t addr32);
 inline static uint32_t read32psram(uint32_t addr32) {
     return ((u32u32_ptr_t)_sys_table_ptrs[78])(addr32);
 }
+
+typedef uint32_t (*u32u32u32_ptr_t)(uint32_t, uint32_t);
+inline static uint32_t __u32u32u32_div(uint32_t x, uint32_t y) {
+    return ((u32u32u32_ptr_t)_sys_table_ptrs[79])(x, y);
+}
+inline static uint32_t __u32u32u32_rem(uint32_t x, uint32_t y) {
+    return ((u32u32u32_ptr_t)_sys_table_ptrs[80])(x, y);
+}
+
+typedef float (*fff_ptr_t)(float, float);
+inline static float __fff_div(float x, float y) {
+    return ((fff_ptr_t)_sys_table_ptrs[81])(x, y);
+}
+inline static float __fff_mul(float x, float y) {
+    return ((fff_ptr_t)_sys_table_ptrs[82])(x, y);
+}
+typedef float (*ffu32_ptr_t)(float, uint32_t);
+inline static float __ffu32_mul(float x, uint32_t y) {
+    return ((ffu32_ptr_t)_sys_table_ptrs[83])(x, y);
+}
+
+typedef double (*ddd_ptr_t)(double, double);
+inline static double __ddd_div(double x, double y) {
+    return ((ddd_ptr_t)_sys_table_ptrs[84])(x, y);
+}
+inline static double __ddd_mul(double x, double y) {
+    return ((ddd_ptr_t)_sys_table_ptrs[85])(x, y);
+}
+typedef double (*ddu32_ptr_t)(double, uint32_t);
+inline static double __ddu32_mul(double x, uint32_t y) {
+    return ((ddu32_ptr_t)_sys_table_ptrs[86])(x, y);
+}
+typedef double (*ddf_ptr_t)(double, float);
+inline static double __ddf_mul(double x, float y) {
+    return ((ddf_ptr_t)_sys_table_ptrs[87])(x, y);
+}
+
+inline static float __ffu32_div(float x, uint32_t y) {
+    return ((ffu32_ptr_t)_sys_table_ptrs[88])(x, y);
+}
+inline static double __ddu32_div(double x, uint32_t y) {
+    return ((ddu32_ptr_t)_sys_table_ptrs[89])(x, y);
+}
