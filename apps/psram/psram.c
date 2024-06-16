@@ -11,7 +11,8 @@ int main() {
         write8psram(a, a & 0xFF);
     }
     uint32_t elapsed = time_us_32() - begin;
-    float speed = __ffu32_div(__ffu32_mul(1.0f, a), elapsed);
+    double d = 1.0;
+    double speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "8-bit line write speed: %f MBps\n", speed);
     begin = time_us_32();
     for (a = 0; a < sz; ++a) {
@@ -21,7 +22,7 @@ int main() {
         }
     }
     elapsed = time_us_32() - begin;
-    speed = __ffu32_div(__ffu32_mul(1.0f, a), elapsed);
+    speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "8-bit line read speed: %f MBps\n", speed);
 
     begin = time_us_32();
@@ -29,7 +30,7 @@ int main() {
         write16psram(a, a & 0xFFFF);
     }
     elapsed = time_us_32() - begin;
-    speed = __ffu32_div(__ffu32_mul(1.0f, a), elapsed);
+    speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "16-bit line write speed: %f MBps\n", speed);
 
     begin = time_us_32();
@@ -40,7 +41,7 @@ int main() {
         }
     }
     elapsed = time_us_32() - begin;
-    speed = __ffu32_div(__ffu32_mul(1.0f, a), elapsed);
+    speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "16-bit line read speed: %f MBps\n", speed);
 
     begin = time_us_32();
@@ -48,7 +49,7 @@ int main() {
         write32psram(a, a);
     }
     elapsed = time_us_32() - begin;
-    speed = __ffu32_div(__ffu32_mul(1.0f, a), elapsed);
+    speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "32-bit line write speed: %f MBps\n", speed);
 
     begin = time_us_32();
@@ -59,7 +60,7 @@ int main() {
         }
     }
     elapsed = time_us_32() - begin;
-    speed = __ffu32_div(__ffu32_mul(1.0f, a), elapsed);
+    speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
     return 0;
 }

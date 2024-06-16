@@ -167,7 +167,7 @@ void add_sec(load_sec_ctx* ctx, char* addr, uint16_t num) {
     for (; i < ctx->max_sections_in_list && ctx->psections_list[i].sec_addr != 0; ++i);
     if (i == ctx->max_sections_in_list) {
         ctx->max_sections_in_list += 2; // may be more? 
-        // goutf("max sections count increased up to %d\n", ctx->max_sections_in_list);
+        //goutf("max sections count increased up to %d\n", ctx->max_sections_in_list);
         sect_entry_t* sects_list = (sect_entry_t*)pvPortMalloc(ctx->max_sections_in_list * sizeof(sect_entry_t));
         for (uint16_t j = 0; j < ctx->max_sections_in_list - 2; ++j) {
             sects_list[j] = ctx->psections_list[j];
@@ -185,10 +185,14 @@ void add_sec(load_sec_ctx* ctx, char* addr, uint16_t num) {
 
 inline static uint32_t sec_align(uint32_t addr, uint32_t a) {
     if (a == 0 || a == 1) return addr;
-    if (a == (1 << 1)) return (addr & 1) ? addr + 1 : addr;
+    if (a == (1 << 1)) {
+        //goutf("%ph alliged to %ph by %d\n", addr, (addr & 1) ? addr + 1 : addr, a);
+        return (addr & 1) ? addr + 1 : addr;
+    }
     for (uint8_t b = 2; b < 32; b++) {
         if (a == (1 << b)) {
             if (addr & (a - 1)) {
+                //goutf("%ph alliged to %ph by %d\n", addr, (addr & (0xFFFFFFFF ^ (a - 1))) + a, a);
                 return (addr & (0xFFFFFFFF ^ (a - 1))) + a;
             }
             return addr;
@@ -234,8 +238,8 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         uint32_t sz = sh.sh_size;
         if (f_lseek(c->f2, sh.sh_offset) == FR_OK &&
             f_read(c->f2, addr, sh.sh_size, &rb) == FR_OK && rb == sh.sh_size
-        ) { // section in memory now
-            goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
+        ) {
+            //goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
             add_sec(c, addr, sec_num);
             // links and relocations
             if (f_lseek(c->f2, c->pehdr->sh_offset) != FR_OK) {
@@ -272,11 +276,11 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             return 0;
                         }
                         uint32_t* rel_addr = (uint32_t*)(addr + rel.rel_offset /*10*/); /*f7ff fffe 	bl	0*/
-                        //("rel_addr: [%ph]: %p\n", rel_addr, *rel_addr);
-                        uint32_t P = *rel_addr; /*f7ff fffe 	bl	0*/
+                        // DO NOT resolve it for any case, it may be 16-bit alligned, and will hand to load 32-bit
+                        //uint32_t P = *rel_addr; /*f7ff fffe 	bl	0*/
                         uint32_t S = c->psym->st_value;
                         char * sec_addr = addr;
-                        goutf("rel_offset: %p; rel_sym: %d; rel_type: %d -> %d\n", rel.rel_offset, rel_sym, rel_type, c->psym->st_shndx);
+                        //goutf("rel_offset: %p; rel_sym: %d; rel_type: %d -> %d\n", rel.rel_offset, rel_sym, rel_type, c->psym->st_shndx);
                         if (c->psym->st_shndx != sec_num) {
                             // lets load other section
                             c->addr += sz;
@@ -287,15 +291,15 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             }
                         }
                         uint32_t A = sec_addr;
-                        goutf("rel_type: %d A: %ph P: %ph S: %ph ", rel_type, A, P, S);
+                        //goutf("rel_type: %d A: %ph P: %ph S: %ph ", rel_type, A, P, S);
                         // Разрешение ссылки
                         switch (rel_type) {
                             case 2: //R_ARM_ABS32:
                                 *rel_addr += S + A;
                                 break;
-                            case 3: //R_ARM_REL32:
-                                *rel_addr = S - P + A; // todo: signed?
-                                break;
+                          //  case 3: //R_ARM_REL32:
+                          //      *rel_addr = S - P + A; // todo: signed?
+                          //      break;
                             case 10: //R_ARM_THM_PC22:
                                 resolve_thm_pc22(rel_addr, A + S);
                                 break;
@@ -303,7 +307,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 goutf("Unsupportel REL type: %d\n", rel_type);
                                 return 0;
                         }
-                        goutf("= %ph\n", *rel_addr);
+                        //goutf("= %ph\n", *rel_addr);
                     }
                     f_lseek(c->f2, r2);
                 }
