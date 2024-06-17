@@ -17,6 +17,7 @@
 #include "math-wrapper.h"
 #include "ram_page.h"
 #include "overclock.h"
+#include "hardfault.h"
 
 // to cleanup BOOTA memory region on the MOS flashing
 unsigned long __in_boota() __aligned(4096) cleanup_boota[] = { 0 };
@@ -152,6 +153,10 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     strcmp, // 108
     strncmp, // 109
+    //
+    vPortGetHeapStats, // 110
+    get_cpu_ram_size, // 111
+    get_cpu_flash_size, // 112
     // TODO:
     0
 };

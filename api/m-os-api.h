@@ -752,6 +752,31 @@ inline static int strncmp(const char * s1, const char * s2, size_t sz) {
     return ((fn_ptr_t)_sys_table_ptrs[109])(s1, s2, sz);
 }
 
+/* Used to pass information about the heap out of vPortGetHeapStats(). */
+typedef struct xHeapStats
+{
+    size_t xAvailableHeapSpaceInBytes;      /* The total heap size currently available - this is the sum of all the free blocks, not the largest block that can be allocated. */
+    size_t xSizeOfLargestFreeBlockInBytes;  /* The maximum size, in bytes, of all the free blocks within the heap at the time vPortGetHeapStats() is called. */
+    size_t xSizeOfSmallestFreeBlockInBytes; /* The minimum size, in bytes, of all the free blocks within the heap at the time vPortGetHeapStats() is called. */
+    size_t xNumberOfFreeBlocks;             /* The number of free memory blocks within the heap at the time vPortGetHeapStats() is called. */
+    size_t xMinimumEverFreeBytesRemaining;  /* The minimum amount of total free memory (sum of all free blocks) there has been in the heap since the system booted. */
+    size_t xNumberOfSuccessfulAllocations;  /* The number of calls to pvPortMalloc() that have returned a valid memory block. */
+    size_t xNumberOfSuccessfulFrees;        /* The number of calls to vPortFree() that has successfully freed a block of memory. */
+} HeapStats_t;
+inline static void vPortGetHeapStats( HeapStats_t * pxHeapStats ) {
+    typedef void (*fn_ptr_t)(HeapStats_t *);
+    ((fn_ptr_t)_sys_table_ptrs[110])(pxHeapStats);
+}
+
+inline static uint32_t get_cpu_ram_size() {
+    typedef uint32_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[111])();
+}
+inline static uint32_t get_cpu_flash_size() {
+    typedef uint32_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[112])();
+}
+   
 #ifdef __cplusplus
 }
 #endif
