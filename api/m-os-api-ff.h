@@ -2,6 +2,16 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#define f_eof(fp) ((int)((fp)->fptr == (fp)->obj.objsize))
+#define f_error(fp) ((fp)->err)
+#define f_tell(fp) ((fp)->fptr)
+#define f_size(fp) ((fp)->obj.objsize)
+#define f_rewind(fp) f_lseek((fp), 0)
+#define f_rewinddir(dp) f_readdir((dp), 0)
+#define f_rmdir(path) f_unlink(path)
+#define f_unmount(path) f_mount(0, path, 0)
+
+
 /* File attribute bits for directory entry (FILINFO.fattrib) */
 #define	AM_RDO	0x01	/* Read only */
 #define	AM_HID	0x02	/* Hidden */

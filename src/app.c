@@ -326,10 +326,9 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
 static const char* s = "Unexpected ELF file";
 
 typedef int (*bootb_ptr_t)( void );
-static bootb_ptr_t bootb_tbl[1] = { 0 }; // tba
 
 bool is_new_app(char * fn) {
-    FIL f2;
+    FIL f2; // TODO: dyn
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
         goutf("Unable to open file: '%s'\n", fn);
         return false;
@@ -375,8 +374,11 @@ e1:
     return false;
 }
 
-void run_new_app(char * fn, char * fn1) {
-    FIL f2;
+int run_new_app(char * fn, char * fn1) {
+  bootb_ptr_t bootb_tbl[1] = { 0 }; // TODO: avoid table?
+  char* page = 0;
+  {
+    FIL f2; // TODO: dyn
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
         goutf("Unable to open file: '%s'\n", fn);
         return;
@@ -424,14 +426,17 @@ void run_new_app(char * fn, char * fn1) {
     }
     f_lseek(&f2, symtab_off);
     elf32_sym sym;
-    for (int i = 0; i < symtab_len / sizeof(sym); ++i) {
+    uint32_t main_idx = 0xFFFFFFFF; // TODO: calc req. size
+    // TODO: req. version
+    for (uint32_t i = 0; i < symtab_len / sizeof(sym); ++i) {
         if (f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
             goutf("Unable to read .symtab section #%d\n", i);
             break;
         }
         if (sym.st_info == STR_TAB_GLOBAL_FUNC) {
             if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
-                char* page = (char*)pvPortMalloc(4 << 10); // a 4k page for the process
+                main_idx = i;
+                page = (char*)pvPortMalloc(4 << 10); // a 4k page for the process
                 //char* next_page = page + (4 << 10) - 4; // a place to store next page, in case be allocated
                 //*(uint32_t*)next_page = 0; // not yet allocated
                 
@@ -450,15 +455,7 @@ void run_new_app(char * fn, char * fn1) {
                     max_sects
                 };
                 bootb_tbl[0] = load_sec2mem(&ctx, sym.st_shndx) + 1; // TODO:  correct it
-                if (bootb_tbl[0] == 0) {
-                    vPortFree(page);
-                    vPortFree(ctx.psections_list);
-                    goto e3;
-                }
-                // start it
-                bootb_tbl[0]();
                 vPortFree(ctx.psections_list);
-                vPortFree(page);
                 break;
             }
         }
@@ -469,4 +466,13 @@ e2:
     vPortFree(symtab);
 e1:
     f_close(&f2);
+  }
+  if (bootb_tbl[0] == 0) {
+    goutf("'%s' global function is not found in the '%s' elf-file\n", fn1, fn);
+    return -1;
+  }
+  // start it
+  int res = bootb_tbl[0]();
+  vPortFree(page);
+  return res;
 }

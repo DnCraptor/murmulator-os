@@ -1,8 +1,4 @@
 #include "elf32.h"
-#include "graphics.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "string.h"
 
 // we require 256 (as this is the page size supported by the device)
 #define LOG2_PAGE_SIZE 8u
@@ -63,11 +59,12 @@ int check_address_range(
     bool uninitialized,
     address_range &ar
 ) {
+    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     for(int i = 0; i < 3; i++) {
         const auto& range = valid_ranges[i];
         if (range.from <= addr && range.to >= addr + size) {
             if (range.type == address_range::type::NO_CONTENTS && !uninitialized) {
-                goutf("%s; it contains memory contents for uninitialized memory\n", s);
+                fgoutf(ctx->pstderr, "%s; it contains uninitialized memory\n", s);
                 return -1;
             }
             ar = range;
@@ -76,7 +73,7 @@ int check_address_range(
             return 0;
         }
     }
-    goutf("%s. Memory segment %08x->%08x is outside of valid address range for device\n", addr, addr+size);
+    fgoutf(ctx->pstderr, "%s. Memory segment %08x->%08x is outside of valid address range for device\n", addr, addr+size);
     return -1;
 }
 
@@ -87,19 +84,19 @@ static int read_and_check_elf32_ph_entries(
     const address_range* valid_ranges
 ) {
     if (eh.ph_entry_size != sizeof(elf32_ph_entry)) {
-        goutf("%s program header size: %d; expected: %d\n", s, eh.ph_entry_size, sizeof(eh.ph_entry_size));
+        fgoutf(get_cmd_startup_ctx()->pstderr, "%s program header size: %d; expected: %d\n", s, eh.ph_entry_size, sizeof(eh.ph_entry_size));
         return -1;
     }
     if (eh.ph_num) {
         elf32_ph_entry entry;
         if (f_lseek(f2, eh.ph_offset) != FR_OK) {
-            goutf("%s f_lseek error to %d\n", s, eh.ph_offset);
+            fgoutf(get_cmd_startup_ctx()->pstderr, "%s f_lseek error to %d\n", s, eh.ph_offset);
             return -1;
         }
         UINT r;
-        for(uint i = 0; i < eh.ph_num; i++) {
+        for(uint32_t i = 0; i < eh.ph_num; i++) {
             if (f_read(f2, &entry, sizeof(struct elf32_ph_entry), &r) != FR_OK || r != sizeof(struct elf32_ph_entry)) {
-                goutf("%s f_read error (i=%d)\n", i);
+                fgoutf(get_cmd_startup_ctx()->pstderr, "%s f_read error (i=%d)\n", i);
                 return -1;
             }
             fgoutf(f, "entry.type: %d; entry.memsz: %d; entry.filez: %d\n", entry.type, entry.memsz, entry.filez);
@@ -107,7 +104,7 @@ static int read_and_check_elf32_ph_entries(
             if (entry.type == PT_LOAD && entry.memsz) {
                 address_range ar;
                 int rc;
-                uint mapped_size = entry.filez > entry.memsz ? entry.memsz : entry.filez;
+                uint32_t mapped_size = entry.filez > entry.memsz ? entry.memsz : entry.filez;
                 if (mapped_size) {
                     rc = check_address_range(f, valid_ranges, entry.paddr, entry.vaddr, mapped_size, false, ar);
                     if (rc) return rc;
@@ -116,12 +113,12 @@ static int read_and_check_elf32_ph_entries(
                         fgoutf(f, "  ignored\n");
                         continue;
                     }
-                    uint addr = entry.paddr;
-                    uint remaining = mapped_size;
-                    uint file_offset = entry.offset;
+                    uint32_t addr = entry.paddr;
+                    uint32_t remaining = mapped_size;
+                    uint32_t file_offset = entry.offset;
                     while (remaining) {
-                        uint off = addr & (PAGE_SIZE - 1);
-                        uint len = remaining > PAGE_SIZE - off ? PAGE_SIZE - off : remaining;
+                        uint32_t off = addr & (PAGE_SIZE - 1);
+                        uint32_t len = remaining > PAGE_SIZE - off ? PAGE_SIZE - off : remaining;
                    //     auto &fragments = pages[addr - off]; // list of fragments
                         // note if filesz is zero, we want zero init which is handled because the
                         // statement above creates an empty page fragment list
@@ -244,7 +241,7 @@ static const char* st_predef(const char* v) {
         if (v[0] == '$' && v[1] == 't') {
             return "$t (Thumb)";
         }
-        if (strcmp(v, "$d") == 0) {
+        if (v[0] == '$' && v[1] == 'd') {
             return "$d (data)";
         }
     }
@@ -269,43 +266,51 @@ static const char* st_spec_sec(uint16_t st) {
     return "";
 }
 
-extern "C" void elfinfo(FIL *f, char *fn) {
-    FIL f2;
+static FIL f2;
+
+int main() {
+    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+    if (ctx->tokens == 1) {
+        fgoutf(ctx->pstderr, "Unable to show info for a file with no name\n");
+        return 1;
+    }
+    char* fn = (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t);
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
-        goutf("Unable to open file: '%s'\n", fn);
-        return;
+        fgoutf(ctx->pstderr, "Unable to open file: '%s'\n", fn);
+        return 2;
     }
     struct elf32_header ehdr;
     UINT rb;
     if (f_read(&f2, &ehdr, sizeof(ehdr), &rb) != FR_OK) {
-        goutf("Unable to read an ELF file header: '%s'\n", fn);
+        fgoutf(ctx->pstderr, "Unable to read an ELF file header: '%s'\n", fn);
         f_close(&f2);
-        return;
+        return 3;
     }
     if (ehdr.common.magic != ELF_MAGIC) {
-        goutf("It is not an ELF file: '%s'\n", fn);
+        fgoutf(ctx->pstderr, "It is not an ELF file: '%s'\n", fn);
         f_close(&f2);
-        return;
+        return 4;
     }
     if (ehdr.common.version != 1 || ehdr.common.version2 != 1) {
-        goutf("%s '%s' version: %d:%d\n", s, fn, ehdr.common.version, ehdr.common.version2);
+        fgoutf(ctx->pstderr, "%s '%s' version: %d:%d\n", s, fn, ehdr.common.version, ehdr.common.version2);
     }
     if (ehdr.common.arch_class != 1 || ehdr.common.endianness != 1) {
-        goutf("%s '%s' class: %d; endian: %d\n", s, fn, ehdr.common.arch_class, ehdr.common.endianness);
+        fgoutf(ctx->pstderr, "%s '%s' class: %d; endian: %d\n", s, fn, ehdr.common.arch_class, ehdr.common.endianness);
     }
     if (ehdr.eh_size != sizeof(struct elf32_header)) {
-        goutf("%s '%s' header size: %d; expected: %d\n", s, fn, ehdr.eh_size, sizeof(ehdr));
+        fgoutf(ctx->pstderr, "%s '%s' header size: %d; expected: %d\n", s, fn, ehdr.eh_size, sizeof(ehdr));
     }
     if (ehdr.common.machine != EM_ARM) {
-        goutf("%s '%s' machine type: %d; expected: %d\n", s, fn, ehdr.common.machine, EM_ARM);
+        fgoutf(ctx->pstderr, "%s '%s' machine type: %d; expected: %d\n", s, fn, ehdr.common.machine, EM_ARM);
     }
     if (ehdr.common.abi != 0) {
-        goutf("%s '%s' ABI type: %d; expected: %d\n", s, fn, ehdr.common.abi, 0);
+        fgoutf(ctx->pstderr, "%s '%s' ABI type: %d; expected: %d\n", s, fn, ehdr.common.abi, 0);
     }
     if (ehdr.flags & EF_ARM_ABI_FLOAT_HARD) {
-        goutf("%s '%s' EF_ARM_ABI_FLOAT_HARD: %04Xh\n", s, fn, ehdr.flags);
+        fgoutf(ctx->pstderr, "%s '%s' EF_ARM_ABI_FLOAT_HARD: %04Xh\n", s, fn, ehdr.flags);
     }
     bool ram_style = is_address_initialized(rp2040_address_ranges_ram, ehdr.entry);
+    FIL* f = ctx->pstdout;
     if (ram_style) fgoutf(f, "RAM style binary\n");
     else fgoutf(f, "FLASH style binary\n");
     const address_range *valid_ranges = ram_style ? rp2040_address_ranges_ram : rp2040_address_ranges_flash;
@@ -317,13 +322,13 @@ extern "C" void elfinfo(FIL *f, char *fn) {
     elf32_shdr sh;
     bool ok = f_lseek(&f2, ehdr.sh_offset + sizeof(sh) * ehdr.sh_str_index) == FR_OK;
     if (!ok || f_read(&f2, &sh, sizeof(sh), &rb) != FR_OK || rb != sizeof(sh)) {
-        goutf("Unable to read .shstrtab section header @ %d+%d (read: %d)\n", f_tell(&f2), sizeof(sh), rb);
+        fgoutf(ctx->pstderr, "Unable to read .shstrtab section header @ %d+%d (read: %d)\n", f_tell(&f2), sizeof(sh), rb);
     } else {
         // TODO: check type?
         char* symtab = (char*)pvPortMalloc(sh.sh_size);
         ok = f_lseek(&f2, sh.sh_offset) == FR_OK;
         if (!ok || f_read(&f2, symtab, sh.sh_size, &rb) != FR_OK || rb != sh.sh_size) {
-            goutf("Unable to read .shstrtab section @ %d+%d (read: %d)\n", f_tell(&f2), sh.sh_size, rb);
+            fgoutf(ctx->pstderr, "Unable to read .shstrtab section @ %d+%d (read: %d)\n", f_tell(&f2), sh.sh_size, rb);
         }
 
         int symtab_off, strtab_off, dyntab_off, dynstr_off = -1;
@@ -375,21 +380,21 @@ extern "C" void elfinfo(FIL *f, char *fn) {
         }
         vPortFree(symtab);
         if (symtab_off < 0) {
-            goutf("Unable to find .symtab section header\n");            
+            fgoutf(ctx->pstderr, "Unable to find .symtab section header\n");            
         } else if (strtab_off < 0) {
-            goutf("Unable to find .strtab section header\n");            
+            fgoutf(ctx->pstderr, "Unable to find .strtab section header\n");            
         } else {
             fgoutf(f, "SYMTAB:\n");
             char* strtab = (char*)pvPortMalloc(strtab_len);
             f_lseek(&f2, strtab_off);
             if(f_read(&f2, strtab, strtab_len, &rb) != FR_OK || rb != strtab_len) {
-                goutf("%s '%s' Unable to read .strtab section #%d\n", s, fn, i);
+                fgoutf(ctx->pstderr, "%s '%s' Unable to read .strtab section #%d\n", s, fn, i);
             } else {                
                 f_lseek(&f2, symtab_off);
                 elf32_sym sym;
                 for(int i = 0; i < symtab_len / sizeof(sym); ++i) {
                     if(f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
-                        goutf("Unable to read .symtab section #%d\n", i);
+                        fgoutf(ctx->pstderr, "Unable to read .symtab section #%d\n", i);
                         break;
                     }
                     fgoutf(f, "%02d %ph %s %s %s (%d) -> %d%s\n",
@@ -404,21 +409,21 @@ extern "C" void elfinfo(FIL *f, char *fn) {
             vPortFree(strtab);
         }
         if (dyntab_off < 0) {
-            goutf("Unable to find .dynsym section header\n");            
+            fgoutf(f, "No .dynsym section header found\n");            
         } else if (dynstr_off < 0) {
-            goutf("Unable to find .dynstr section header\n");            
+            fgoutf(ctx->pstderr, "Unable to find .dynstr section header\n");            
         } else {
             fgoutf(f, "DYNTAB:\n");
             char* strtab = (char*)pvPortMalloc(dynstr_len);
             f_lseek(&f2, dynstr_off);
             if(f_read(&f2, strtab, dynstr_len, &rb) != FR_OK || rb != dynstr_len) {
-                goutf("Unable to read .dynstr section #%d\n", i);
+                fgoutf(ctx->pstderr, "Unable to read .dynstr section #%d\n", i);
             } else {                
                 f_lseek(&f2, dyntab_off);
                 elf32_sym sym;
                 for(int i = 0; i < dyntab_len / sizeof(sym); ++i) {
                     if(f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
-                        goutf("Unable to read .dyntab section #%d\n", i);
+                        fgoutf(ctx->pstderr, "Unable to read .dyntab section #%d\n", i);
                         break;
                     }
                     fgoutf(f, "%02d %ph %s %s %s (%d) -> %d%s\n",
@@ -431,4 +436,5 @@ extern "C" void elfinfo(FIL *f, char *fn) {
         }
     }
     f_close(&f2);
+    return 0;
 }

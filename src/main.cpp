@@ -105,7 +105,7 @@ int main() {
 
     clrScr(1);
     //graphics_set_con_color(13, 1);
-    const char tmp[] = "                      ZX Murmulator (RP2040) OS v.0.0.2 Alfa                    ";
+    const char tmp[] = "                      ZX Murmulator (RP2040) OS v.0.0.3 Alfa                    ";
     draw_text(tmp, 0, 0, 13, 1);
     draw_text(tmp, 0, 29, 13, 1);
     graphics_set_con_pos(0, 1);

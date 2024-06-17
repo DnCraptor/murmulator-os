@@ -5,6 +5,7 @@
         "list.h": "c",
         "freertosconfig.h": "c",
         "overclock.h": "c",
-        "elf.h": "c"
+        "elf.h": "c",
+        "m-os-api-ff.h": "c"
     }
 }

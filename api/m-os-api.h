@@ -1,5 +1,11 @@
-#define M_OS_API_SYS_TABLE_BASE (void*)0x10001000ul
-static const unsigned long * const _sys_table_ptrs = M_OS_API_SYS_TABLE_BASE;
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)
+static const unsigned long * const _sys_table_ptrs = (const unsigned long * const)M_OS_API_SYS_TABLE_BASE;
 
 #include "FreeRTOSConfig.h"
 #include <stdint.h>
@@ -492,9 +498,9 @@ typedef void (*vApplicationMallocFailedHookPtr)( void );
 typedef vApplicationMallocFailedHookPtr (*getApplicationMallocFailedHookPtr_ptr_t)();
 typedef void (*setApplicationMallocFailedHookPtr_ptr_t)(vApplicationMallocFailedHookPtr ptr);
 inline static vApplicationMallocFailedHookPtr getApplicationMallocFailedHookPtr() {
-    return ((getApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_getApplicationMallocFailedHookPtrPtrIdx]);
+    return (vApplicationMallocFailedHookPtr)((getApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_getApplicationMallocFailedHookPtrPtrIdx]);
 }
-inline static setApplicationMallocFailedHookPtr(vApplicationMallocFailedHookPtr ptr) {
+inline static void setApplicationMallocFailedHookPtr(vApplicationMallocFailedHookPtr ptr) {
     ((setApplicationMallocFailedHookPtr_ptr_t)_sys_table_ptrs[_setApplicationMallocFailedHookPtrPtrIdx])(ptr);
 }
 
@@ -689,7 +695,7 @@ inline static cmd_startup_ctx_t* get_cmd_startup_ctx() {
     return (cmd_startup_ctx_t*) ((pu8v_ptr_t)_sys_table_ptrs[99])();
 }
 
-typedef int (*ipc_ptr_t)();
+typedef int (*ipc_ptr_t)(const char *);
 inline static int atoi (const char * s) {
     return ((ipc_ptr_t)_sys_table_ptrs[100])(s);
 }
@@ -735,3 +741,17 @@ inline static char* strcpy(char* t, const char * s) {
     typedef char* (*fn_ptr_t)(char*, const char*);
     return ((fn_ptr_t)_sys_table_ptrs[60])(t, s);
 }
+
+inline static int strcmp(const char * s1, const char * s2) {
+    typedef int (*fn_ptr_t)(const char*, const char*);
+    return ((fn_ptr_t)_sys_table_ptrs[108])(s1, s2);
+}
+
+inline static int strncmp(const char * s1, const char * s2, size_t sz) {
+    typedef int (*fn_ptr_t)(const char*, const char*, size_t);
+    return ((fn_ptr_t)_sys_table_ptrs[109])(s1, s2, sz);
+}
+
+#ifdef __cplusplus
+}
+#endif

@@ -149,6 +149,9 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     check_sys_clock_khz, // 106
     //
     next_token, // 107
+    //
+    strcmp, // 108
+    strncmp, // 109
     // TODO:
     0
 };
