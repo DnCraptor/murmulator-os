@@ -18,6 +18,9 @@
 #include "ram_page.h"
 #include "overclock.h"
 #include "hardfault.h"
+#include "keyboard.h"
+
+FATFS* get_mount_fs(); // only one FS is supported foe now
 
 // to cleanup BOOTA memory region on the MOS flashing
 unsigned long __in_boota() __aligned(4096) cleanup_boota[] = { 0 };
@@ -157,6 +160,18 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     vPortGetHeapStats, // 110
     get_cpu_ram_size, // 111
     get_cpu_flash_size, // 112
+    //
+    get_mount_fs, // 113
+    f_getfree32, // 114
+    //
+    get_scancode_handler, // 115
+    set_scancode_handler, // 116
+    get_cp866_handler, // 117
+    set_cp866_handler, // 118
+    gbackspace, // 119
+    //
+    is_new_app, // 120
+    run_new_app, // 121
     // TODO:
     0
 };

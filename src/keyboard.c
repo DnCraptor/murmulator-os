@@ -99,23 +99,40 @@ static char tricode2c(char tricode[4], size_t s) {
     return (char)r & 0xFF;
 }
 
+static scancode_handler_t scancode_handler = 0;
+scancode_handler_t get_scancode_handler() {
+    return scancode_handler;
+}
+void set_scancode_handler(scancode_handler_t h) {
+    scancode_handler = h;
+}
+static cp866_handler_t cp866_handler = 0;
+cp866_handler_t get_cp866_handler() {
+    return cp866_handler;
+}
+void set_cp866_handler(cp866_handler_t h) {
+    cp866_handler = h;
+}
+
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
+    if (scancode_handler) {
+        if (scancode_handler(ps2scancode)) {
+            return true;
+        }
+    }
     FIL f = { 0 };
     UINT br;
     static char tricode[4] = {0};
-    //char tmp[32];
     size_t s;
     char c = 0;
-    //snprintf(tmp, 32, "%ph", ps2scancode);
-    //draw_text(tmp, 0, 29, 13, 1);
     input = ps2scancode;
     if (ps2scancode == 0xE048 || ps2scancode == 0x48 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
         input = 0;
-        cmd_up();
+        if (cp866_handler) cp866_handler(17 /*up*/, ps2scancode);
     }
     if (ps2scancode == 0xE050 || ps2scancode == 0x50 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
         input = 0;
-        cmd_down();
+        if (cp866_handler) cp866_handler(18 /*down*/, ps2scancode);
     }
     switch ((uint8_t)input & 0xFF) {
         case 0x1D:
@@ -157,7 +174,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             bCapsLock = !bCapsLock;
             break;
         case 0x0E:
-            cmd_backspace();
+            if (cp866_handler) cp866_handler(8 /*BS*/, ps2scancode);
             break;
         case 0x0F:
             bTabPressed = true;
@@ -223,16 +240,11 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                 }
             }
             if (c == '\t') {
-                cmd_tab();
+                if (cp866_handler) cp866_handler(c, ps2scancode);
                 c = 0;
             }
-            else goutf("%c", c); // TODO: putc
         }
-        if (c == '\n') {
-            cmd_enter();
-        } else if (c) {
-            cmd_push(c);
-        }
+        if (cp866_handler) cp866_handler(c, ps2scancode);
     }
     return true;
 }

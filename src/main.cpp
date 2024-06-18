@@ -27,11 +27,15 @@ extern "C" {
 #include "hardware/exception.h"
 #include "ram_page.h"
 #include "overclock.h"
+#include "app.h"
 }
 
 #include "nespad.h"
 
 static FATFS fs;
+extern "C" FATFS* get_mount_fs() { // only one FS is supported foe now
+    return &fs;
+}
 semaphore vga_start_semaphore;
 #define DISP_WIDTH (320)
 #define DISP_HEIGHT (240)
@@ -78,6 +82,11 @@ void __time_critical_func(render_core)() {
     __unreachable();
 }
 
+extern "C" void vCmdTask(void *pv) {
+    run_new_app("/mos/cmd", "main");
+    vTaskDelete( NULL );
+}
+
 int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -103,48 +112,19 @@ int main() {
     sem_release(&vga_start_semaphore);
     sleep_ms(30);
 
-    clrScr(1);
-    //graphics_set_con_color(13, 1);
-    const char tmp[] = "                      ZX Murmulator (RP2040) OS v.0.0.3 Alfa                    ";
-    draw_text(tmp, 0, 0, 13, 1);
-    draw_text(tmp, 0, 29, 13, 1);
-    graphics_set_con_pos(0, 1);
-    graphics_set_con_color(7, 0);
-    char* curr_dir = get_curr_dir();
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
-    uint32_t ram32 = get_cpu_ram_size();
-    uint32_t flash32 = get_cpu_flash_size();
-    
+   
     if (FR_OK != f_mount(&fs, "SD", 1)) {
         graphics_set_con_color(12, 0);
         goutf("SD Card not inserted or SD Card error!");
         while (true);
     }
-    uint32_t psram32 = init_psram();
-    uint32_t swap = init_vram();
-    goutf("CPU %d MHz\n"
-          "SRAM %d KB\n"
-          "FLASH %d MB\n"
-          "PSRAM %d MB\n"
-          "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
-          "SWAP %d MB\n"
-          "\n"
-          "%s>",
-          get_overclocking_khz() / 1000,
-          ram32 >> 10,
-          flash32 >> 20,
-          psram32 >> 20,
-          fs.n_fats,
-          f_getfree32(&fs),
-          fs.csize / 2,
-          swap >> 20,
-          curr_dir
-    );
+    f_mkdir(get_curr_dir());
+    init_psram();
+    init_vram();
+    clrScr(1);
 
-    f_mkdir(curr_dir);
-#if TESTS
-    start_test();
-#endif
+    xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
  	/* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return

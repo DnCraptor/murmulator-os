@@ -776,7 +776,57 @@ inline static uint32_t get_cpu_flash_size() {
     typedef uint32_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[112])();
 }
-   
+
+inline static FATFS* get_mount_fs() { // only one FS is supported foe now
+    typedef FATFS* (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[113])();
+}
+inline static uint32_t f_getfree32(FATFS * fs) {
+    typedef uint32_t (*fn_ptr_t)(FATFS*);
+    return ((fn_ptr_t)_sys_table_ptrs[114])(fs);
+}
+
+typedef bool (*scancode_handler_t)(const uint32_t);
+inline static scancode_handler_t get_scancode_handler() {
+    typedef scancode_handler_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[115])();
+}
+inline static void set_scancode_handler(scancode_handler_t h) {
+    typedef void (*fn_ptr_t)(scancode_handler_t);
+    ((fn_ptr_t)_sys_table_ptrs[116])(h);
+}
+typedef bool (*cp866_handler_t)(const char, uint32_t);
+inline static cp866_handler_t get_cp866_handler() {
+    typedef cp866_handler_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[117])();
+}
+inline static void set_cp866_handler(cp866_handler_t h) {
+    typedef void (*fn_ptr_t)(cp866_handler_t);
+    ((fn_ptr_t)_sys_table_ptrs[118])(h);
+}
+inline static void gbackspace() {
+    typedef void (*fn_ptr_t)();
+    ((fn_ptr_t)_sys_table_ptrs[119])();
+}
+
+inline static bool load_firmware(const char* path) {
+    typedef bool (*fn_ptr_t)(const char*);
+    return ((fn_ptr_t)_sys_table_ptrs[65])(path);
+}
+inline static void run_app(char * name) {
+    typedef void (*fn_ptr_t)(char*);
+    ((fn_ptr_t)_sys_table_ptrs[66])(name);
+}
+
+inline static bool is_new_app(char * name) {
+    typedef bool (*fn_ptr_t)(char*);
+    return ((fn_ptr_t)_sys_table_ptrs[120])(name);
+}
+inline static int run_new_app(char * name, char * fn) {
+    typedef int (*fn_ptr_t)(char*, char*);
+    return ((fn_ptr_t)_sys_table_ptrs[121])(name, fn);
+}
+
 #ifdef __cplusplus
 }
 #endif
