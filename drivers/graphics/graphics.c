@@ -88,6 +88,11 @@ void gbackspace() {
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }
 
+void __putc(char c) {
+    char t[2] = { c, 0 };
+    gouta(t);
+}
+
 void gouta(char* buf) {
     uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
     char c;

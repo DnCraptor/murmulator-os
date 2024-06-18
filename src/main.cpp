@@ -87,6 +87,8 @@ extern "C" void vCmdTask(void *pv) {
     vTaskDelete( NULL );
 }
 
+const char tmp[] = "                      ZX Murmulator (RP2040) OS v.0.0.3 Alfa                    ";
+
 int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -123,7 +125,35 @@ int main() {
     init_psram();
     init_vram();
 
-    xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
+    draw_text(tmp, 0, 0, 13, 1);
+    draw_text(tmp, 0, 29, 13, 1);
+    graphics_set_con_pos(0, 1);
+    graphics_set_con_color(7, 0);
+    char* curr_dir = get_curr_dir();
+    uint32_t ram32 = get_cpu_ram_size();
+    uint32_t flash32 = get_cpu_flash_size();
+    uint32_t psram32 = psram_size();
+    uint32_t swap = swap_size();
+    FATFS* fs = get_mount_fs();
+    goutf("CPU %d MHz\n"
+          "SRAM %d KB\n"
+          "FLASH %d MB\n"
+          "PSRAM %d MB\n"
+          "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
+          "SWAP %d MB\n"
+          "\n",
+          get_overclocking_khz() / 1000,
+          ram32 >> 10,
+          flash32 >> 20,
+          psram32 >> 20,
+          fs->n_fats,
+          f_getfree32(fs),
+          fs->csize >> 1,
+          swap >> 20
+    );
+
+    run_new_app("/mos/cmd", "main");
+    //xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
  	/* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return

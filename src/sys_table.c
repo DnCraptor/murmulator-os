@@ -172,6 +172,9 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     is_new_app, // 120
     run_new_app, // 121
+    //
+    __getc, // 122
+    __putc, // 123
     // TODO:
     0
 };

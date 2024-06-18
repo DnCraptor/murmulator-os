@@ -114,6 +114,7 @@ void set_cp866_handler(cp866_handler_t h) {
     cp866_handler = h;
 }
 
+static volatile char __c = 0;
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     if (scancode_handler) {
         if (scancode_handler(ps2scancode)) {
@@ -129,10 +130,14 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     if (ps2scancode == 0xE048 || ps2scancode == 0x48 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
         input = 0;
         if (cp866_handler) cp866_handler(17 /*up*/, ps2scancode);
+        __c = 17;
+        return true;
     }
     if (ps2scancode == 0xE050 || ps2scancode == 0x50 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
         input = 0;
         if (cp866_handler) cp866_handler(18 /*down*/, ps2scancode);
+        __c = 18;
+        return true;
     }
     switch ((uint8_t)input & 0xFF) {
         case 0x1D:
@@ -148,7 +153,11 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         case 0xB8:
             bAltPressed = false;
             s = strlen(tricode);
-            if (s) c = tricode2c(tricode, s);
+            if (s) {
+                c = tricode2c(tricode, s);
+                __c = c;
+                return true;
+            }
             break;
         case 0x53:
             bDelPressed = true;
@@ -175,7 +184,8 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             break;
         case 0x0E:
             if (cp866_handler) cp866_handler(8 /*BS*/, ps2scancode);
-            break;
+            __c = 8;
+            return true;
         case 0x0F:
             bTabPressed = true;
             break;
@@ -239,12 +249,16 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
                     return true;
                 }
             }
-            if (c == '\t') {
-                if (cp866_handler) cp866_handler(c, ps2scancode);
-                c = 0;
-            }
         }
         if (cp866_handler) cp866_handler(c, ps2scancode);
+        __c = c;
     }
     return true;
+}
+
+char __getc() {
+    while(!__c) sleep_ms(50); // TODO: Queue ?
+    char c = __c;
+    __c = 0;
+    return c;
 }

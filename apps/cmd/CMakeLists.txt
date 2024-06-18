@@ -47,9 +47,8 @@ pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS Applications: cmd")
 pico_set_program_version(${PROJECT_NAME} "test")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    pico_runtime
-    pico_stdlib
-        
+#    pico_runtime
+#    pico_stdlib
 )
 
 #family_configure_device_example(${PROJECT_NAME} noos)

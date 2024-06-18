@@ -350,11 +350,6 @@ bool is_new_app(char * fn) {
         goutf("%s '%s' class: %d; endian: %d\n", s, fn, ehdr.common.arch_class, ehdr.common.endianness);
         goto e1;
     }
-// TODO: ???
-//    if (ehdr.eh_size != sizeof(struct elf32_header)) {
-//        goutf("%s '%s' header size: %d; expected: %d\n", s, fn, ehdr.eh_size, sizeof(ehdr));
-//        goto e1;
-//    }
     if (ehdr.common.machine != EM_ARM) {
         goutf("%s '%s' machine type: %d; expected: %d\n", s, fn, ehdr.common.machine, EM_ARM);
         goto e1;
@@ -374,7 +369,7 @@ e1:
 }
 
 int run_new_app(char * fn, char * fn1) {
-  bootb_ptr_t bootb_tbl[1] = { 0 }; // TODO: avoid table?
+  bootb_ptr_t bootb_tbl[4] = { 0, 0, 0, 0 };
   sect_entry_t* sects_list = 0;
   {
     FIL f2; // TODO: dyn
@@ -425,33 +420,79 @@ int run_new_app(char * fn, char * fn1) {
     }
     f_lseek(&f2, symtab_off);
     elf32_sym sym;
-    uint32_t main_idx = 0xFFFFFFFF; // TODO: calc req. size
-    // TODO: req. version
+    uint32_t _init_idx = 0xFFFFFFFF;
+    uint32_t _fini_idx = 0xFFFFFFFF;
+    uint32_t main_idx = 0xFFFFFFFF;
+    uint32_t req_idx = 0xFFFFFFFF;
+    // TODO: precalc req. size
+    uint16_t max_sects = ehdr.sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
+    sects_list = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
+    sects_list[0].sec_addr = 0;
+    load_sec_ctx ctx = {
+        &f2,
+        &ehdr,
+        symtab_off,
+        &sym,
+        strtab,
+        sects_list,
+        max_sects
+    };
+
     for (uint32_t i = 0; i < symtab_len / sizeof(sym); ++i) {
         if (f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
             goutf("Unable to read .symtab section #%d\n", i);
             break;
         }
         if (sym.st_info == STR_TAB_GLOBAL_FUNC) {
-            if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
+            if (0 == strcmp("_init", strtab + sym.st_name)) {
+                _init_idx = i;
+            }
+            if (0 == strcmp("__required_m_api_verion", strtab + sym.st_name)) {
+                req_idx = i;
+            }
+            else if (0 == strcmp("_fini", strtab + sym.st_name)) {
+                _fini_idx = i;
+            }
+            else if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
                 main_idx = i;
-                uint16_t max_sects = ehdr.sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
-                sects_list = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
-                sects_list[0].sec_addr = 0;
-
-                load_sec_ctx ctx = {
-                    &f2,
-                    &ehdr,
-                    symtab_off,
-                    &sym,
-                    strtab,
-                    sects_list,
-                    max_sects
-                };
-                bootb_tbl[0] = load_sec2mem(&ctx, sym.st_shndx) + 1; // TODO:  correct it
-                break;
             }
         }
+    }
+    if (req_idx != 0xFFFFFFFF) {
+        if (f_lseek(&f2, symtab_off + req_idx * sizeof(sym)) != FR_OK ||
+            f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)
+        ) {
+            goutf("Unable to read .symtab section for __required_m_api_version #%d\n", req_idx);
+            goto e3;
+        }
+        bootb_tbl[0] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+    }
+    if (_init_idx != 0xFFFFFFFF) {
+        if (f_lseek(&f2, symtab_off + _init_idx * sizeof(sym)) != FR_OK ||
+            f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)
+        ) {
+            goutf("Unable to read .symtab section for _init #%d\n", _init_idx);
+            goto e3;
+        }
+        bootb_tbl[1] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+    }
+    if (main_idx != 0xFFFFFFFF) {
+        if (f_lseek(&f2, symtab_off + main_idx * sizeof(sym)) != FR_OK ||
+            f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)
+        ) {
+            goutf("Unable to read .symtab section for %s #%d\n", fn1, main_idx);
+            goto e3;
+        }
+        bootb_tbl[2] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+    }
+    if (_fini_idx != 0xFFFFFFFF) {
+        if (f_lseek(&f2, symtab_off + _fini_idx * sizeof(sym)) != FR_OK ||
+            f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)
+        ) {
+            goutf("Unable to read .symtab section for _fini #%d\n", _fini_idx);
+            goto e3;
+        }
+        bootb_tbl[3] = load_sec2mem(&ctx, sym.st_shndx) + 1;
     }
 e3:
     vPortFree(strtab);
@@ -460,12 +501,25 @@ e2:
 e1:
     f_close(&f2);
   }
-  if (bootb_tbl[0] == 0) {
+  if (bootb_tbl[2] == 0) {
     goutf("'%s' global function is not found in the '%s' elf-file\n", fn1, fn);
     return -1;
   }
   // start it
-  int res = bootb_tbl[0]();
+  if (bootb_tbl[0]) {
+    bootb_tbl[0](); // tood: ensure stack
+  }
+  if (bootb_tbl[1]) {
+    int rav = bootb_tbl[1]();
+    if (rav > M_API_VERSION) {
+        goutf("Required M-API version %d is grater than provided M-API version %d in the '%s' elf-file\n", rav, M_API_VERSION, fn);
+        return -2;
+    }
+  }
+  int res = bootb_tbl[2]();
+  if (bootb_tbl[3]) {
+    bootb_tbl[3]();
+  }
   goutf("RET_CODE: %d\n", res);
   if (sects_list) {
     for (uint16_t i = 0; sects_list[i].sec_addr != 0; ++i) {
