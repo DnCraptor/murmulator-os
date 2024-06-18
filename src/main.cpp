@@ -169,8 +169,11 @@ static void load_config_sys() {
     }
 }
 
+bootb_ptr_t bootb_tbl[4] = { 0, 0, 0, 0 };
+sect_entry_t* sl;
+
 extern "C" void vCmdTask(void *pv) {
-    run_new_app(comspec, 0);
+    exec(sl, bootb_tbl);
     vTaskDelete( NULL );
 }
 
@@ -241,9 +244,15 @@ int main() {
           swap >> 20
     );
 
-    run_new_app(comspec, 0);
-    //xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
- 	/* Start the scheduler. */
+    bootb_ptr_t bootb_tbl[4] = { 0, 0, 0, 0 };
+    sect_entry_t* sl;
+    int res = load_app(comspec, "main", bootb_tbl, &sl);
+    if (res < 0) {
+        goutf("Failed on load COMSPEC=%s for execution\n", comspec);
+    } else {
+        xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
+ 	}
+    /* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return
     draw_text("vTaskStartScheduler failed", 0, 4, 13, 1);

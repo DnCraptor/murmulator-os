@@ -137,11 +137,6 @@ static const char* st_predef(const char* v) {
 }
 
 typedef struct {
-    char* sec_addr;
-    uint16_t sec_num;
-} sect_entry_t;
-
-typedef struct {
     FIL *f2;
     const elf32_header *pehdr;
     const int symtab_off;
@@ -324,8 +319,6 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
 
 static const char* s = "Unexpected ELF file";
 
-typedef int (*bootb_ptr_t)( void );
-
 bool is_new_app(char * fn) {
     FIL f2; // TODO: dyn
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
@@ -369,15 +362,20 @@ e1:
 }
 
 int run_new_app(char * fn, char * fn1) {
-    if(!fn1) fn1 = "main";
-goutf("[%s][%s]\n", fn, fn1);
+  if(!fn1) fn1 = "main";
+  goutf("[%s][%s]\n", fn, fn1);
   bootb_ptr_t bootb_tbl[4] = { 0, 0, 0, 0 };
-  sect_entry_t* sects_list = 0;
-  {
+  sect_entry_t* sl;
+  int res = load_app(fn, fn1, bootb_tbl, &sl);
+  if (res < 0) return res;
+  return exec(sl, bootb_tbl);
+}
+
+int load_app(char * fn, char * fn1, bootb_ptr_t bootb_tbl[4], sect_entry_t** psects_list) {
     FIL f2; // TODO: dyn
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
         goutf("Unable to open file: '%s'\n", fn);
-        return;
+        return -1;
     }
     struct elf32_header ehdr;
     UINT rb;
@@ -428,18 +426,17 @@ goutf("[%s][%s]\n", fn, fn1);
     uint32_t req_idx = 0xFFFFFFFF;
     // TODO: precalc req. size
     uint16_t max_sects = ehdr.sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
-    sects_list = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
-    sects_list[0].sec_addr = 0;
+    *psects_list = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
+    (*psects_list)[0].sec_addr = 0;
     load_sec_ctx ctx = {
         &f2,
         &ehdr,
         symtab_off,
         &sym,
         strtab,
-        sects_list,
+        *psects_list,
         max_sects
     };
-
     for (uint32_t i = 0; i < symtab_len / sizeof(sym); ++i) {
         if (f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
             goutf("Unable to read .symtab section #%d\n", i);
@@ -502,16 +499,19 @@ e2:
     vPortFree(symtab);
 e1:
     f_close(&f2);
-  }
-  if (bootb_tbl[2] == 0) {
-    goutf("'%s' global function is not found in the '%s' elf-file\n", fn1, fn);
-    return -1;
-  }
+    *psects_list = ctx.psections_list;
+    if (bootb_tbl[2] == 0) {
+        goutf("'%s' global function is not found in the '%s' elf-file\n", fn1, fn);
+        return -1;
+    }
+}
+
+int exec(sect_entry_t* sects_list, bootb_ptr_t bootb_tbl[4]) {
   // start it
   if (bootb_tbl[0]) {
     int rav = bootb_tbl[0]();
     if (rav > M_API_VERSION) {
-        goutf("Required M-API version %d is grater than provided M-API version %d in the '%s' elf-file\n", rav, M_API_VERSION, fn);
+        goutf("Required M-API version %d is grater than provided M-API version %d\n", rav, M_API_VERSION);
         return -2;
     }
   }
