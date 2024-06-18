@@ -295,7 +295,7 @@ t:
     cmd_pos = 0;
 }
 
-static char c;
+static volatile char c;
 
 static bool handler(const uint8_t c_in, uint32_t sc) {
     c = c_in;

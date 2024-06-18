@@ -122,7 +122,6 @@ int main() {
     f_mkdir(get_curr_dir());
     init_psram();
     init_vram();
-    clrScr(1);
 
     xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
  	/* Start the scheduler. */
