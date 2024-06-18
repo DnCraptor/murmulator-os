@@ -342,3 +342,7 @@ int main() {
     vPortFree(cmd_history_file);
     return 0;
 }
+
+int __required_m_api_verion() {
+    return 2;
+}

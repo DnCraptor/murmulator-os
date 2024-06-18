@@ -165,7 +165,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         PSRAM_PIN_MISO=21
 
         SWAP_BLOCK_1k
-        M_API_VERSION=1
+        M_API_VERSION=2
 
         TESTS=0
 )

@@ -373,17 +373,21 @@ void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
 
 int run_new_app(char * fn, char * fn1) {
     if(!fn1) fn1 = "main";
-    bootb_ctx_t bootb_ctx = { 0 };
-    int res = load_app(fn, fn1, &bootb_ctx);
+    bootb_ctx_t* bootb_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
+    memset(bootb_ctx, 0, sizeof(bootb_ctx_t));
+    int res = load_app(fn, fn1, bootb_ctx);
     if (res < 0) {
-        cleanup_bootb_ctx(&bootb_ctx);
+        cleanup_bootb_ctx(bootb_ctx);
+        vPortFree(bootb_ctx);
         return res;
     }
-    return exec(&bootb_ctx);
+    res = exec(bootb_ctx);
+    vPortFree(bootb_ctx);
+    return res;
 }
 
 int load_app(char * fn, char * fn1, bootb_ctx_t* bootb_ctx) {
-  goutf("[%s][%s]\n", fn, fn1);
+    //goutf("[%s][%s]\n", fn, fn1);
     FIL f2; // TODO: dyn
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
         goutf("Unable to open file: '%s'\n", fn);
@@ -533,7 +537,7 @@ int exec(bootb_ctx_t* bootb_ctx) {
     if (bootb_ctx->bootb[3]) {
         bootb_ctx->bootb[3]();
     }
-    goutf("RET_CODE: %d\n", res);
+    //goutf("RET_CODE: %d\n", res); // todo: ctx?
     cleanup_bootb_ctx(bootb_ctx);
     return res;
 }

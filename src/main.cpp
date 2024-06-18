@@ -172,9 +172,7 @@ static void load_config_sys() {
 static bootb_ctx_t bootb_ctx = { 0 };
 
 extern "C" void vCmdTask(void *pv) {
-    taskENTER_CRITICAL(); // TODO: to libs level
     exec(&bootb_ctx);
-    taskEXIT_CRITICAL();
     vTaskDelete( NULL );
 }
 
@@ -250,7 +248,8 @@ int main() {
         goutf("Failed on load COMSPEC=%s for execution\n", comspec);
         cleanup_bootb_ctx(&bootb_ctx);
     } else {
-        xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
+       // exec(&bootb_ctx);
+       xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
  	}
     /* Start the scheduler. */
 	vTaskStartScheduler();
