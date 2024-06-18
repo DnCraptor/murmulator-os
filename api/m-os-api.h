@@ -690,6 +690,7 @@ typedef struct {
     char* curr_dir;
     FIL * pstdout;
     FIL * pstderr;
+    char* path;
 } cmd_startup_ctx_t;
 inline static cmd_startup_ctx_t* get_cmd_startup_ctx() {
     return (cmd_startup_ctx_t*) ((pu8v_ptr_t)_sys_table_ptrs[99])();
@@ -822,9 +823,9 @@ inline static bool is_new_app(char * name) {
     typedef bool (*fn_ptr_t)(char*);
     return ((fn_ptr_t)_sys_table_ptrs[120])(name);
 }
-inline static int run_new_app(char * name, char * fn) {
+inline static int run_new_app(char * name) {
     typedef int (*fn_ptr_t)(char*, char*);
-    return ((fn_ptr_t)_sys_table_ptrs[121])(name, fn);
+    return ((fn_ptr_t)_sys_table_ptrs[121])(name, 0);
 }
 
 inline static char getc() {

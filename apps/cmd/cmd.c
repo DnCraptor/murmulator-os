@@ -14,24 +14,36 @@ static char* next_on(char* l, char *bi) {
     return *l == 0 ? b : bi;
 }
 
-static bool exists(char* t, const char * cmd) {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
-    char* curr_dir = ctx->curr_dir;
+inline static void concat (char* t, const char* s1 , const char* s2) {
+    size_t s = strlen(s1);
+    strncpy(t, s1, 511);
+    t[s] = '/';
+    strncpy(t + s + 1, s2, 510 - s);
+}
+
+static bool exists(cmd_startup_ctx_t* ctx, char* t) {
+    char * cmd = ctx->cmd_t;
     FILINFO fileinfo;
     bool r = f_stat(cmd, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
     if (r) {
         strncpy(t, cmd, 511);
         return r;
     }
-    size_t s = strlen(curr_dir);
-    strncpy(t, curr_dir, 511);
-    t[s] = '/';
-    strncpy(t + s + 1, cmd, 511 - s);
-    return f_stat(t, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
+    char* dir = ctx->curr_dir;
+    concat(t, dir, cmd);
+    r = f_stat(t, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
+    if (r) return r;
+    dir = ctx->path;
+    while (dir) {
+        concat(t, dir, cmd);
+        r = f_stat(t, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
+        if (r) return r;
+        dir = next_token(dir);
+    }
+    return false;
 }
 
-static void cmd_backspace() {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+static void cmd_backspace(cmd_startup_ctx_t* ctx) {
     size_t cmd_pos = strlen(ctx->cmd);
     if (cmd_pos == 0) {
         // TODO: blimp
@@ -41,12 +53,11 @@ static void cmd_backspace() {
     gbackspace();
 }
 
-static int history_steps() {
+inline static int history_steps(cmd_startup_ctx_t* ctx) {
     size_t j = 0;
     int idx = 0;
     UINT br;
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
-    f_open(&fh, cmd_history_file, FA_READ); // TODO: 
+    f_open(&fh, cmd_history_file, FA_READ); 
     while(f_read(&fh, ctx->cmd_t, 512, &br) == FR_OK && br) {
         for(size_t i = 0; i < br; ++i) {
             char t = ctx->cmd_t[i];
@@ -65,19 +76,18 @@ static int history_steps() {
     return idx;
 }
 
-static void type_char(char c) {
-    goutf("%c", c); // TODO: putc
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+inline static void type_char(cmd_startup_ctx_t* ctx, char c) {
     size_t cmd_pos = strlen(ctx->cmd);
     if (cmd_pos >= 512) {
         // TODO: blimp
+        return;
     }
+    putc(c);
     ctx->cmd[cmd_pos++] = c;
     ctx->cmd[cmd_pos] = 0;
 }
 
-static void cmd_tab() {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+inline static void cmd_tab(cmd_startup_ctx_t* ctx) {
     char * p = ctx->cmd;
     char * p2 = ctx->cmd;
     while (*p) {
@@ -114,7 +124,7 @@ static void cmd_tab() {
     if (total_files == 1) {
         p3 = ctx->cmd_t;
         while (*p3) {
-            type_char(*p3++);
+            type_char(ctx, *p3++);
         }
     } else {
         // TODO: blimp
@@ -122,21 +132,19 @@ static void cmd_tab() {
     f_closedir(&dir);
 }
 
-inline static void cmd_up() {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+inline static void cmd_up(cmd_startup_ctx_t* ctx) {
     size_t cmd_pos = strlen(ctx->cmd);
     while(cmd_pos) {
         ctx->cmd[--cmd_pos] = 0;
         gbackspace();
     }
     cmd_history_idx--;
-    int idx = history_steps();
+    int idx = history_steps(ctx);
     if (cmd_history_idx < 0) cmd_history_idx = idx;
     goutf(ctx->cmd);
 }
 
-inline static void cmd_down() {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+inline static void cmd_down(cmd_startup_ctx_t* ctx) {
     size_t cmd_pos = strlen(ctx->cmd);
     while(cmd_pos) {
         ctx->cmd[--cmd_pos] = 0;
@@ -144,12 +152,11 @@ inline static void cmd_down() {
     }
     if (cmd_history_idx == -2) cmd_history_idx = -1;
     cmd_history_idx++;
-    history_steps();
+    history_steps(ctx);
     goutf(ctx->cmd);
 }
 
-
-static char tolower_token(char t) {
+inline static char tolower_token(char t) {
     if (t == ' ') {
         return 0;
     }
@@ -169,10 +176,8 @@ static char tolower_token(char t) {
 static bool bAppend = false;
 static char* redirect2 = NULL;
 
-static int tokenize_cmd() {
-    redirect2 = NULL;
+inline static int tokenize_cmd(cmd_startup_ctx_t* ctx) {
     bAppend = false;
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     if (ctx->cmd[0] == 0) {
         ctx->cmd_t[0] = 0;
         return 0;
@@ -219,9 +224,8 @@ static int tokenize_cmd() {
     return inTokenN;
 }
 
-static void cd(char *d) {
+inline static void cd(cmd_startup_ctx_t* ctx, char *d) {
     FILINFO fileinfo;
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     if (strcmp(d, "\\") == 0 || strcmp(d, "/") == 0) {
         strcpy(ctx->curr_dir, d);
     } else if (f_stat(d, &fileinfo) != FR_OK || !(fileinfo.fattrib & AM_DIR)) {
@@ -231,8 +235,7 @@ static void cd(char *d) {
     }
 }
 
-static void cmd_push(char c) {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+inline static void cmd_push(cmd_startup_ctx_t* ctx, char c) {
     size_t cmd_pos = strlen(ctx->cmd);
     if (cmd_pos >= 512) {
         // TODO: blimp
@@ -254,7 +257,7 @@ inline static void cmd_enter(cmd_startup_ctx_t* ctx) {
     } else {
         goto r;
     }
-    int tokens = tokenize_cmd();
+    int tokens = tokenize_cmd(ctx);
     ctx->cmd = ctx->cmd;
     ctx->cmd_t = ctx->cmd_t;
     ctx->tokens = tokens;
@@ -283,16 +286,17 @@ t:
         if (tokens == 1) {
             fgoutf(ctx->pstderr, "Unable to change directoy to nothing\n");
         } else {
-            cd((char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t));
+            cd(ctx, (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t));
         }
     } else {
         char* t = pvPortMalloc(512);
-        if (exists(t, ctx->cmd_t)) {
+        if (exists(ctx, t)) {
             int len = strlen(t);
             if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
             } if(is_new_app(t)) {
-                run_new_app(t, "main");
+                int ret = run_new_app(t);
+                // todo
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
             }
@@ -309,28 +313,32 @@ r:
     ctx->cmd[0] = 0;
 }
 
+const char* tmp = "/.cmd_history"; // TODO: configure it
+
 int main() {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     char* curr_dir = ctx->curr_dir;
     goutf("%s>", curr_dir);
-    ctx->cmd = pvPortMalloc(512);
-    ctx->cmd_t = pvPortMalloc(512);
     bExit = false;
     cmd_history_idx = -2;
-    cmd_history_file = "\\MOS\\.cmd_history"; // TODO: configure it
+    size_t cdl = strlen(curr_dir);
+    cmd_history_file = (char*)pvPortMalloc(cdl + strlen(tmp));
+    strcpy(cmd_history_file, curr_dir);
+    strcpy(cmd_history_file + cdl, tmp);
+    bAppend = false;
+    redirect2 = NULL;
     while(!bExit) {
         char c = getc();
         if (c) {
-            if (c == 8) cmd_backspace();
-            else if (c == 17) cmd_up();
-            else if (c == 18) cmd_down();
-            else if (c == '\t') cmd_tab();
+            if (c == 8) cmd_backspace(ctx);
+            else if (c == 17) cmd_up(ctx);
+            else if (c == 18) cmd_down(ctx);
+            else if (c == '\t') cmd_tab(ctx);
             else if (c == '\n') cmd_enter(ctx);
-            else cmd_push(c);
+            else cmd_push(ctx, c);
             c = 0;
         }
     }
-    vPortFree(ctx->cmd);
-    vPortFree(ctx->cmd_t);
+    vPortFree(cmd_history_file);
     return 0;
 }

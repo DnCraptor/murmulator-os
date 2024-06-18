@@ -82,8 +82,95 @@ void __time_critical_func(render_core)() {
     __unreachable();
 }
 
+static cmd_startup_ctx_t ctx = { 0 };
+
+extern "C" {
+cmd_startup_ctx_t * get_cmd_startup_ctx() {
+    return &ctx;
+}
+FIL * get_stdout() {
+    return ctx.pstdout;
+}
+FIL * get_stderr() {
+    return ctx.pstderr;
+}
+char* get_curr_dir() {
+    return ctx.curr_dir;
+}
+char* next_token(char* t) {
+    char *t1 = t + strlen(t);
+    while(!*t1++);
+    return t1 - 1;
+}
+}
+
+inline static void tokenizeCfg(char* s, size_t sz) {
+    for (size_t i = 0; i < sz; ++i) {
+        if (s[i] == '=' || s[i] == '\n') {
+            s[i] = 0;
+        }
+    }
+}
+
+inline static void tokenizePath(char* s) {
+    for (size_t i = 0; i < strlen(s); ++i) {
+        if (s[i] == ';' || s[i] == ',' || s[i] == ':') {
+            s[i] = 0;
+        }
+    }
+}
+
+static char* comspec;
+
+static void load_config_sys() {
+    ctx.cmd = (char*)pvPortMalloc(512); ctx.cmd[0] = 0;
+    ctx.cmd_t = (char*)pvPortMalloc(512); ctx.cmd_t[0] = 0;
+    ctx.curr_dir = (char*)pvPortMalloc(512);
+    ctx.pstdout = (FIL*)pvPortMalloc(sizeof(FIL)); memset(ctx.pstdout, 0, 512);
+    ctx.pstderr = (FIL*)pvPortMalloc(sizeof(FIL)); memset(ctx.pstderr, 0, 512);
+    ctx.path = (char*)pvPortMalloc(512);
+    strcpy(ctx.curr_dir, "MOS");
+    strcpy(ctx.path, "MOS");
+    comspec = "/mos/cmd";
+    FIL f;
+    if(f_open(&f, "/config.sys", FA_READ) != FR_OK) {
+        if(f_open(&f, "/mos/config.sys", FA_READ) != FR_OK) {
+            return;
+        }
+    }
+    char buff[512];
+    UINT br;
+    if (f_read(&f, buff, 512, &br) != FR_OK) {
+        goutf("Failed to read config.sys\n");
+    }
+    f_close(&f);
+    tokenizeCfg(buff, br);
+    char *t = buff;
+    while (t - buff < br) {
+        if (strcmp(t, "PATH") == 0) {
+            t = next_token(t);
+            strcpy(ctx.path, t);
+            tokenizePath(ctx.path);
+        } else if (strcmp(t, "COMSPEC") == 0) {
+            t = next_token(t);
+            comspec = (char*)pvPortMalloc(strlen(t));
+            strcpy(comspec, t);
+        } else if (strcmp(t, "SWAP") == 0) {
+            t = next_token(t);
+            // TODO:
+        } else if (strcmp(t, "GMODE") == 0) {
+            t = next_token(t);
+            // TODO:
+        } else if (strcmp(t, "BASE") == 0) {
+            t = next_token(t);
+            strcpy(ctx.curr_dir, t);
+        }
+        t = next_token(t);
+    }
+}
+
 extern "C" void vCmdTask(void *pv) {
-    run_new_app("/mos/cmd", "main");
+    run_new_app(comspec, 0);
     vTaskDelete( NULL );
 }
 
@@ -121,6 +208,8 @@ int main() {
         goutf("SD Card not inserted or SD Card error!");
         while (true);
     }
+    load_config_sys();
+
     f_mkdir(get_curr_dir());
     init_psram();
     init_vram();
@@ -152,7 +241,7 @@ int main() {
           swap >> 20
     );
 
-    run_new_app("/mos/cmd", "main");
+    run_new_app(comspec, 0);
     //xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
  	/* Start the scheduler. */
 	vTaskStartScheduler();

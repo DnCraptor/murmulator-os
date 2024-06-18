@@ -1,0 +1,3 @@
+COMSPEC=/mos/cmd
+BASE=MOS
+PATH=MOS

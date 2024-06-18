@@ -10,7 +10,8 @@ typedef struct {
     int tokens;
     char* curr_dir;
     FIL * pstdout;
-    FIL * pstrerr;
+    FIL * pstderr;
+    char *path;
 } cmd_startup_ctx_t;
 cmd_startup_ctx_t * get_cmd_startup_ctx();
 char* next_token(char* t);

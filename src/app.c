@@ -369,6 +369,8 @@ e1:
 }
 
 int run_new_app(char * fn, char * fn1) {
+    if(!fn1) fn1 = "main";
+goutf("[%s][%s]\n", fn, fn1);
   bootb_ptr_t bootb_tbl[4] = { 0, 0, 0, 0 };
   sect_entry_t* sects_list = 0;
   {
@@ -507,16 +509,16 @@ e1:
   }
   // start it
   if (bootb_tbl[0]) {
-    bootb_tbl[0](); // tood: ensure stack
-  }
-  if (bootb_tbl[1]) {
-    int rav = bootb_tbl[1]();
+    int rav = bootb_tbl[0]();
     if (rav > M_API_VERSION) {
         goutf("Required M-API version %d is grater than provided M-API version %d in the '%s' elf-file\n", rav, M_API_VERSION, fn);
         return -2;
     }
   }
-  int res = bootb_tbl[2]();
+  if (bootb_tbl[1]) {
+    bootb_tbl[1](); // tood: ensure stack
+  }
+  int res = bootb_tbl[2] ? bootb_tbl[2]() : -1;
   if (bootb_tbl[3]) {
     bootb_tbl[3]();
   }
