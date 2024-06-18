@@ -169,11 +169,12 @@ static void load_config_sys() {
     }
 }
 
-bootb_ptr_t bootb_tbl[4] = { 0, 0, 0, 0 };
-sect_entry_t* sl;
+static bootb_ctx_t bootb_ctx = { 0 };
 
 extern "C" void vCmdTask(void *pv) {
-    exec(sl, bootb_tbl);
+    taskENTER_CRITICAL(); // TODO: to libs level
+    exec(&bootb_ctx);
+    taskEXIT_CRITICAL();
     vTaskDelete( NULL );
 }
 
@@ -244,11 +245,10 @@ int main() {
           swap >> 20
     );
 
-    bootb_ptr_t bootb_tbl[4] = { 0, 0, 0, 0 };
-    sect_entry_t* sl;
-    int res = load_app(comspec, "main", bootb_tbl, &sl);
+    int res = load_app(comspec, "main", &bootb_ctx);
     if (res < 0) {
         goutf("Failed on load COMSPEC=%s for execution\n", comspec);
+        cleanup_bootb_ctx(&bootb_ctx);
     } else {
         xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
  	}

@@ -361,17 +361,29 @@ e1:
     return false;
 }
 
-int run_new_app(char * fn, char * fn1) {
-  if(!fn1) fn1 = "main";
-  goutf("[%s][%s]\n", fn, fn1);
-  bootb_ptr_t bootb_tbl[4] = { 0, 0, 0, 0 };
-  sect_entry_t* sl;
-  int res = load_app(fn, fn1, bootb_tbl, &sl);
-  if (res < 0) return res;
-  return exec(sl, bootb_tbl);
+void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
+    if (bootb_ctx->sect_entries) {
+        for (uint16_t i = 0; bootb_ctx->sect_entries[i].sec_addr != 0; ++i) {
+            vPortFree(bootb_ctx->sect_entries[i].sec_addr);
+        }
+        vPortFree(bootb_ctx->sect_entries);
+        bootb_ctx->sect_entries = 0;
+    }
 }
 
-int load_app(char * fn, char * fn1, bootb_ptr_t bootb_tbl[4], sect_entry_t** psects_list) {
+int run_new_app(char * fn, char * fn1) {
+    if(!fn1) fn1 = "main";
+    bootb_ctx_t bootb_ctx = { 0 };
+    int res = load_app(fn, fn1, &bootb_ctx);
+    if (res < 0) {
+        cleanup_bootb_ctx(&bootb_ctx);
+        return res;
+    }
+    return exec(&bootb_ctx);
+}
+
+int load_app(char * fn, char * fn1, bootb_ctx_t* bootb_ctx) {
+  goutf("[%s][%s]\n", fn, fn1);
     FIL f2; // TODO: dyn
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
         goutf("Unable to open file: '%s'\n", fn);
@@ -426,15 +438,15 @@ int load_app(char * fn, char * fn1, bootb_ptr_t bootb_tbl[4], sect_entry_t** pse
     uint32_t req_idx = 0xFFFFFFFF;
     // TODO: precalc req. size
     uint16_t max_sects = ehdr.sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
-    *psects_list = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
-    (*psects_list)[0].sec_addr = 0;
+    bootb_ctx->sect_entries = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
+    bootb_ctx->sect_entries[0].sec_addr = 0;
     load_sec_ctx ctx = {
         &f2,
         &ehdr,
         symtab_off,
         &sym,
         strtab,
-        *psects_list,
+        bootb_ctx->sect_entries,
         max_sects
     };
     for (uint32_t i = 0; i < symtab_len / sizeof(sym); ++i) {
@@ -464,7 +476,7 @@ int load_app(char * fn, char * fn1, bootb_ptr_t bootb_tbl[4], sect_entry_t** pse
             goutf("Unable to read .symtab section for __required_m_api_version #%d\n", req_idx);
             goto e3;
         }
-        bootb_tbl[0] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+        bootb_ctx->bootb[0] = load_sec2mem(&ctx, sym.st_shndx) + 1;
     }
     if (_init_idx != 0xFFFFFFFF) {
         if (f_lseek(&f2, symtab_off + _init_idx * sizeof(sym)) != FR_OK ||
@@ -473,7 +485,7 @@ int load_app(char * fn, char * fn1, bootb_ptr_t bootb_tbl[4], sect_entry_t** pse
             goutf("Unable to read .symtab section for _init #%d\n", _init_idx);
             goto e3;
         }
-        bootb_tbl[1] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+        bootb_ctx->bootb[1] = load_sec2mem(&ctx, sym.st_shndx) + 1;
     }
     if (main_idx != 0xFFFFFFFF) {
         if (f_lseek(&f2, symtab_off + main_idx * sizeof(sym)) != FR_OK ||
@@ -482,7 +494,7 @@ int load_app(char * fn, char * fn1, bootb_ptr_t bootb_tbl[4], sect_entry_t** pse
             goutf("Unable to read .symtab section for %s #%d\n", fn1, main_idx);
             goto e3;
         }
-        bootb_tbl[2] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+        bootb_ctx->bootb[2] = load_sec2mem(&ctx, sym.st_shndx) + 1;
     }
     if (_fini_idx != 0xFFFFFFFF) {
         if (f_lseek(&f2, symtab_off + _fini_idx * sizeof(sym)) != FR_OK ||
@@ -491,7 +503,7 @@ int load_app(char * fn, char * fn1, bootb_ptr_t bootb_tbl[4], sect_entry_t** pse
             goutf("Unable to read .symtab section for _fini #%d\n", _fini_idx);
             goto e3;
         }
-        bootb_tbl[3] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+        bootb_ctx->bootb[3] = load_sec2mem(&ctx, sym.st_shndx) + 1;
     }
 e3:
     vPortFree(strtab);
@@ -499,37 +511,29 @@ e2:
     vPortFree(symtab);
 e1:
     f_close(&f2);
-    *psects_list = ctx.psections_list;
-    if (bootb_tbl[2] == 0) {
+    bootb_ctx->sect_entries = ctx.psections_list;
+    if (bootb_ctx->bootb[2] == 0) {
         goutf("'%s' global function is not found in the '%s' elf-file\n", fn1, fn);
         return -1;
     }
 }
 
-int exec(sect_entry_t* sects_list, bootb_ptr_t bootb_tbl[4]) {
-  // start it
-  if (bootb_tbl[0]) {
-    int rav = bootb_tbl[0]();
-    if (rav > M_API_VERSION) {
-        goutf("Required M-API version %d is grater than provided M-API version %d\n", rav, M_API_VERSION);
-        return -2;
+int exec(bootb_ctx_t* bootb_ctx) {
+    if (bootb_ctx->bootb[0]) {
+        int rav = bootb_ctx->bootb[0]();
+        if (rav > M_API_VERSION) {
+            goutf("Required M-API version %d is grater than provided M-API version %d\n", rav, M_API_VERSION);
+            return -2;
+        }
     }
-  }
-  if (bootb_tbl[1]) {
-    bootb_tbl[1](); // tood: ensure stack
-  }
-  int res = bootb_tbl[2] ? bootb_tbl[2]() : -1;
-  if (bootb_tbl[3]) {
-    bootb_tbl[3]();
-  }
-  goutf("RET_CODE: %d\n", res);
-  if (sects_list) {
-    for (uint16_t i = 0; sects_list[i].sec_addr != 0; ++i) {
-        //goutf("vPortFree( %ph )\n", sects_list[i].sec_addr);
-        vPortFree(sects_list[i].sec_addr);
+    if (bootb_ctx->bootb[1]) {
+        bootb_ctx->bootb[1](); // tood: ensure stack
     }
-    //goutf("vPortFree( %ph )\n", sects_list);
-    vPortFree(sects_list);
-  }
-  return res;
+    int res = bootb_ctx->bootb[2] ? bootb_ctx->bootb[2]() : -3;
+    if (bootb_ctx->bootb[3]) {
+        bootb_ctx->bootb[3]();
+    }
+    goutf("RET_CODE: %d\n", res);
+    cleanup_bootb_ctx(bootb_ctx);
+    return res;
 }
