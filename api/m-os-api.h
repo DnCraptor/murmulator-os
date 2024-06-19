@@ -548,7 +548,7 @@ inline static int vsnprintf(char *__restrict buff, size_t lim, const char *__res
     return ((vsnprintf_ptr_t)_sys_table_ptrs[67])(buff, lim, msg, lst);
 }
 
-typedef int	(*goutf_ptr_t)(const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 1, 2)));
+typedef void (*goutf_ptr_t)(const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 1, 2)));
 #define goutf ((goutf_ptr_t)_sys_table_ptrs[41])
 
 typedef void (*cls_ptr_t)( uint8_t color );
@@ -573,7 +573,7 @@ inline static FIL* get_stderr() {
     return ((FIL_getter_ptr_t)_sys_table_ptrs[69])();
 }
 
-typedef int	(*fgoutf_ptr_t)(FIL*, const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 2, 3)));
+typedef void (*fgoutf_ptr_t)(FIL*, const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 2, 3)));
 #define fgoutf ((fgoutf_ptr_t)_sys_table_ptrs[70])
 
 typedef uint32_t (*u32v_ptr_t)();

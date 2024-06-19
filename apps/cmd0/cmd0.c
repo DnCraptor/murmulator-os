@@ -168,7 +168,6 @@ int main() {
     char* curr_dir = ctx->curr_dir;
     goutf("%s>", curr_dir);
     bExit = false;
-    size_t cdl = strlen(curr_dir);
     while(!bExit) {
         char c = getc();
         if (c) {
@@ -184,6 +183,7 @@ int main() {
     return 0;
 }
 
+int ver = 2;
 int __required_m_api_verion() {
-    return 2;
+    return ver;
 }
