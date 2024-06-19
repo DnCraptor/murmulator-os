@@ -248,8 +248,8 @@ int main() {
         goutf("Failed on load COMSPEC=%s for execution\n", comspec);
         cleanup_bootb_ctx(&bootb_ctx);
     } else {
-        exec(&bootb_ctx);
-     //  xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
+       // exec(&bootb_ctx);
+       xTaskCreate(vCmdTask, "cmd", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
  	}
     /* Start the scheduler. */
 	vTaskStartScheduler();
