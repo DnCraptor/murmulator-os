@@ -146,19 +146,19 @@ typedef struct {
     uint16_t max_sections_in_list;
 } load_sec_ctx;
 
-char* sec_addr(load_sec_ctx* ctx, uint16_t sec_num) {
-    for (uint16_t i = 0; i < ctx->max_sections_in_list && ctx->psections_list[i].sec_addr != 0; ++i) {
+static char* sec_prg_addr(load_sec_ctx* ctx, uint16_t sec_num) {
+    for (uint16_t i = 0; i < ctx->max_sections_in_list && ctx->psections_list[i].prg_addr != 0; ++i) {
         if (ctx->psections_list[i].sec_num == sec_num) {
             // goutf("section #%d found\n", sec_num);
-            return ctx->psections_list[i].sec_addr;
+            return ctx->psections_list[i].prg_addr;
         }
     }
     return 0;
 }
 
-void add_sec(load_sec_ctx* ctx, char* addr, uint16_t num) {
+static void add_sec(load_sec_ctx* ctx, char* del_addr, char* prg_addr, uint16_t num) {
     uint16_t i = 0;
-    for (; i < ctx->max_sections_in_list - 1 && ctx->psections_list[i].sec_addr != 0; ++i);
+    for (; i < ctx->max_sections_in_list - 1 && ctx->psections_list[i].del_addr != 0; ++i);
     if (i == ctx->max_sections_in_list - 1) {
         ctx->max_sections_in_list += 2; // may be more? 
         //goutf("max sections count increased up to %d\n", ctx->max_sections_in_list);
@@ -170,11 +170,12 @@ void add_sec(load_sec_ctx* ctx, char* addr, uint16_t num) {
         ctx->psections_list = sects_list;
     }
     //goutf("section #%d inserted @ line #%d\n", num, i);
-    ctx->psections_list[i].sec_addr = addr;
+    ctx->psections_list[i].del_addr = del_addr;
+    ctx->psections_list[i].prg_addr = prg_addr;
     ctx->psections_list[i++].sec_num = num;
     if (i < ctx->max_sections_in_list) {
         //goutf("next section line #%d\n", i);
-        ctx->psections_list[i].sec_addr = 0;
+        ctx->psections_list[i].del_addr = 0;
     }
 }
 
@@ -217,10 +218,10 @@ static const char* st_spec_sec(uint16_t st) {
 }
 
 static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
-    uint8_t* addr = sec_addr(c, sec_num);
-    if (addr != 0) {
+    uint8_t* prg_addr = sec_prg_addr(c, sec_num);
+    if (prg_addr != 0) {
         //goutf("Section #%d already in mem @ %p\n", sec_num, addr);
-        return addr;
+        return prg_addr;
     }
     UINT rb;
     elf32_shdr sh;
@@ -229,14 +230,13 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
     ) {
         // todo: enough space?
         uint32_t sz = sh.sh_size;
-        addr = (char*)pvPortMalloc((sz + 0xF) & 0xFFFFFFF0);
-// TODO:
-//        addr = sec_align((uint32_t)addr, sh.sh_addralign);
+        char* del_addr = (char*)pvPortMalloc(sz);
+        prg_addr = sec_align((uint32_t)del_addr, sh.sh_addralign);
         if (f_lseek(c->f2, sh.sh_offset) == FR_OK &&
-            f_read(c->f2, addr, sh.sh_size, &rb) == FR_OK && rb == sh.sh_size
+            f_read(c->f2, prg_addr, sh.sh_size, &rb) == FR_OK && rb == sh.sh_size
         ) {
             //goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
-            add_sec(c, addr, sec_num);
+            add_sec(c, del_addr, prg_addr, sec_num);
             // links and relocations
             if (f_lseek(c->f2, c->pehdr->sh_offset) != FR_OK) {
                 goutf("Unable to locate sections @ %ph\n", c->pehdr->sh_offset);
@@ -271,11 +271,11 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             );
                             return 0;
                         }
-                        uint32_t* rel_addr = (uint32_t*)(addr + rel.rel_offset /*10*/); /*f7ff fffe 	bl	0*/
+                        uint32_t* rel_addr = (uint32_t*)(prg_addr + rel.rel_offset /*10*/); /*f7ff fffe 	bl	0*/
                         // DO NOT resolve it for any case, it may be 16-bit alligned, and will hand to load 32-bit
                         //uint32_t P = *rel_addr; /*f7ff fffe 	bl	0*/
                         uint32_t S = c->psym->st_value;
-                        char * sec_addr = addr;
+                        char * sec_addr = prg_addr;
                         //goutf("rel_offset: %p; rel_sym: %d; rel_type: %d -> %d\n", rel.rel_offset, rel_sym, rel_type, c->psym->st_shndx);
                         if (c->psym->st_shndx != sec_num) {
                             sec_addr = load_sec2mem(c, c->psym->st_shndx);
@@ -306,15 +306,15 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                 }
             }
         } else {
-            vPortFree(addr);
-            goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, addr);
+            vPortFree(del_addr);
+            goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, del_addr);
             return 0;
         }
     } else {
         goutf("Unable to read section #%d info\n", sec_num);
         return 0;
     }
-    return addr;
+    return prg_addr;
 }
 
 static const char* s = "Unexpected ELF file";
@@ -363,9 +363,9 @@ e1:
 
 void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
     if (bootb_ctx->sect_entries) {
-        for (uint16_t i = 0; bootb_ctx->sect_entries[i].sec_addr != 0; ++i) {
+        for (uint16_t i = 0; bootb_ctx->sect_entries[i].del_addr != 0; ++i) {
             // goutf("#%d: [%p]\n", i, bootb_ctx->sect_entries[i]);
-            vPortFree(bootb_ctx->sect_entries[i].sec_addr);
+            vPortFree(bootb_ctx->sect_entries[i].del_addr);
         }
         // goutf("[%p] end\n", bootb_ctx->sect_entries);
         vPortFree(bootb_ctx->sect_entries);
@@ -447,7 +447,7 @@ int load_app(char * fn, char * fn1, bootb_ctx_t* bootb_ctx) {
     // TODO: precalc req. size
     uint16_t max_sects = ehdr.sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
     bootb_ctx->sect_entries = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
-    bootb_ctx->sect_entries[0].sec_addr = 0;
+    bootb_ctx->sect_entries[0].del_addr = 0;
     load_sec_ctx ctx = {
         &f2,
         &ehdr,

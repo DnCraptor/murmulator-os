@@ -13,7 +13,8 @@ bool is_new_app(char * name);
 int run_new_app(char * name, char * fn);
 
 typedef struct {
-    char* sec_addr;
+    char* del_addr;
+    char* prg_addr;
     uint16_t sec_num;
 } sect_entry_t;
 
