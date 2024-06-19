@@ -178,6 +178,7 @@ static char* redirect2 = NULL;
 
 inline static int tokenize_cmd(cmd_startup_ctx_t* ctx) {
     bAppend = false;
+    redirect2 = NULL;
     if (ctx->cmd[0] == 0) {
         ctx->cmd_t[0] = 0;
         return 0;
@@ -258,8 +259,6 @@ inline static void cmd_enter(cmd_startup_ctx_t* ctx) {
         goto r;
     }
     int tokens = tokenize_cmd(ctx);
-    ctx->cmd = ctx->cmd;
-    ctx->cmd_t = ctx->cmd_t;
     ctx->tokens = tokens;
     if (redirect2) {
         if (bAppend) {
@@ -289,24 +288,27 @@ t:
             cd(ctx, (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t));
         }
     } else {
-        char* t = pvPortMalloc(512);
+        char* t = (char*)pvPortMalloc(512);
         if (exists(ctx, t)) {
             int len = strlen(t);
             if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
-            } if(is_new_app(t)) {
+            } else if(is_new_app(t)) {
                 int ret = run_new_app(t);
-                // todo
+                goutf("RET_CODE: %d\n", ret); // todo
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
             }
         } else {
             goutf("Illegal command: '%s'\n", ctx->cmd);
         }
+    goutf("pf\n");
         vPortFree(t);
     }
+    goutf("br\n");
     if (redirect2) {
         f_close(ctx->pstdout);
+        redirect2 = NULL;
     }
 r:
     goutf("%s>", ctx->curr_dir);
