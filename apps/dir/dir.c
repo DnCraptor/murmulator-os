@@ -23,3 +23,7 @@ int main() {
     fgoutf(ctx->pstdout, "    Total: %d files\n", total_files);
     return 0;
 }
+
+int __required_m_api_verion() {
+    return 2;
+}
