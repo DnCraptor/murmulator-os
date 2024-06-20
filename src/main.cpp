@@ -173,10 +173,11 @@ static bootb_ctx_t bootb_ctx = { 0 };
 
 extern "C" void vCmdTask(void *pv) {
     exec(&bootb_ctx);
+    cleanup_bootb_ctx(&bootb_ctx);
     vTaskDelete( NULL );
 }
 
-const char tmp[] = "                      ZX Murmulator (RP2040) OS v.0.0.3 Alfa                    ";
+const char tmp[] = "                      ZX Murmulator (RP2040) OS v.0.0.4 Alfa                    ";
 
 int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);

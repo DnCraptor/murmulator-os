@@ -327,8 +327,8 @@ inline static int run_new_app(char * name) {
     return ((fn_ptr_t)_sys_table_ptrs[121])(name, 0);
 }
 
-inline static char getc() {
-    typedef char (*fn_ptr_t)();
+inline static char getc(void) {
+    typedef char (*fn_ptr_t)(void);
     return ((fn_ptr_t)_sys_table_ptrs[122])();
 }
 inline static void putc(char c) {

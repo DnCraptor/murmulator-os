@@ -117,6 +117,7 @@ inline static void cmd_push(cmd_startup_ctx_t* ctx, char c) {
 
 inline static void cmd_enter(cmd_startup_ctx_t* ctx) {
     UINT br;
+    int ret = 0;
     putc('\n');
     size_t cmd_pos = strlen(ctx->cmd);
     if (!cmd_pos) {
@@ -139,8 +140,7 @@ inline static void cmd_enter(cmd_startup_ctx_t* ctx) {
             if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
             } else if(is_new_app(t)) {
-                int ret = run_new_app(t);
-                goutf("RET_CODE: %d\n", ret); // todo
+                ret = run_new_app(t);
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
             }
@@ -174,7 +174,6 @@ int main(void) {
     return 0;
 }
 
-int ver = 2;
 int __required_m_api_verion(void) {
-    return ver;
+    return 2;
 }

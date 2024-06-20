@@ -259,8 +259,8 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
 #include "FreeRTOS.h"
 #include "task.h"
 
-char __getc() {
-    while(!__c) vTaskDelay(50); // TODO: Queue ?
+char __getc(void) {
+    while(!__c); // vTaskDelay(50); // TODO: Queue ?
     char c = __c;
     __c = 0;
     return c;

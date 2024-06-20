@@ -5,6 +5,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "ff.h"
+#include "graphics.h"
 
 #define M_OS_APP_TABLE_BASE ((size_t*)0x10002000ul)
 typedef int (*boota_ptr_t)( void *argv );
@@ -364,10 +365,10 @@ e1:
 void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
     if (bootb_ctx->sect_entries) {
         for (uint16_t i = 0; bootb_ctx->sect_entries[i].del_addr != 0; ++i) {
-            // goutf("#%d: [%p]\n", i, bootb_ctx->sect_entries[i]);
+             goutf("#%d: [%p]\n", i, bootb_ctx->sect_entries[i]);
             vPortFree(bootb_ctx->sect_entries[i].del_addr);
         }
-        // goutf("[%p] end\n", bootb_ctx->sect_entries);
+         goutf("[%p] end\n", bootb_ctx->sect_entries);
         vPortFree(bootb_ctx->sect_entries);
         bootb_ctx->sect_entries = 0;
     }
@@ -384,9 +385,8 @@ int run_new_app(char * fn, char * fn1) {
         return res;
     }
     res = exec(bootb_ctx);
-    // goutf("[%p] [%p] [%p] [%p] / [%p]\n", bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3], bootb_ctx->sect_entries);
-    vPortFree(bootb_ctx);
-    // goutf("RES: %d\n", res);
+  //  cleanup_bootb_ctx(bootb_ctx);
+    //vPortFree(bootb_ctx);
     return res;
 }
 
@@ -541,7 +541,5 @@ int exec(bootb_ctx_t* bootb_ctx) {
     if (bootb_ctx->bootb[3]) {
         bootb_ctx->bootb[3]();
     }
-    //goutf("RET_CODE: %d\n", res); // todo: ctx?
-    cleanup_bootb_ctx(bootb_ctx);
     return res;
 }
