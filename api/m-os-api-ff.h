@@ -204,11 +204,11 @@ inline static FRESULT f_sync (
     return ((FRF_ptr_t)_sys_table_ptrs[53])(fp);
 }
 
-typedef FRESULT (*FRpDcpC_ptr_t)(DIR*, const TCHAR*);
 inline static FRESULT f_opendir (
 	DIR* dp,			/* Pointer to directory object to create */
 	const TCHAR* path	/* Pointer to the directory path */
 ) {
+    typedef FRESULT (*FRpDcpC_ptr_t)(DIR*, const TCHAR*);
     return ((FRpDcpC_ptr_t)_sys_table_ptrs[54])(dp, path);
 }
 
@@ -219,11 +219,11 @@ inline static FRESULT f_closedir (
     return ((FRpD_ptr_t)_sys_table_ptrs[55])(dp);
 }
 
-typedef FRESULT (*FRpDpFI_ptr_t)(DIR*, FILINFO*);
 inline static FRESULT f_readdir (
 	DIR* dp,			/* Pointer to the open directory object */
 	FILINFO* fno		/* Pointer to file information to return */
 ) {
+    typedef FRESULT (*FRpDpFI_ptr_t)(DIR*, FILINFO*);
     return ((FRpDpFI_ptr_t)_sys_table_ptrs[56])(dp, fno);
 }
 

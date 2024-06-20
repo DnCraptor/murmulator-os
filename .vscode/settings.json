@@ -8,6 +8,8 @@
         "elf.h": "c",
         "m-os-api-ff.h": "c",
         "ff.h": "c",
-        "graphics.h": "c"
+        "graphics.h": "c",
+        "stdio.h": "c",
+        "string.h": "c"
     }
 }
