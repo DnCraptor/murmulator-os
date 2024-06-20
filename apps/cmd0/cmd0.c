@@ -138,7 +138,10 @@ inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
             if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
             } else if(is_new_app(t)) {
+                register uint32_t sp __asm("sp");
+                goutf("1: %p\n", sp);
                 run_new_app(t);
+                goutf("2: %p\n", sp);
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
             }

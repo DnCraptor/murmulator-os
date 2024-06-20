@@ -365,10 +365,10 @@ e1:
 void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
     if (bootb_ctx->sect_entries) {
         for (uint16_t i = 0; bootb_ctx->sect_entries[i].del_addr != 0; ++i) {
-             goutf("#%d: [%p]\n", i, bootb_ctx->sect_entries[i]);
+            // goutf("#%d: [%p]\n", i, bootb_ctx->sect_entries[i]);
             vPortFree(bootb_ctx->sect_entries[i].del_addr);
         }
-         goutf("[%p] end\n", bootb_ctx->sect_entries);
+        // goutf("[%p] end\n", bootb_ctx->sect_entries);
         vPortFree(bootb_ctx->sect_entries);
         bootb_ctx->sect_entries = 0;
     }
@@ -385,8 +385,8 @@ int run_new_app(char * fn, char * fn1) {
         return res;
     }
     res = exec(bootb_ctx);
-  //  cleanup_bootb_ctx(bootb_ctx);
-    //vPortFree(bootb_ctx);
+    cleanup_bootb_ctx(bootb_ctx);
+    vPortFree(bootb_ctx);
     return res;
 }
 
