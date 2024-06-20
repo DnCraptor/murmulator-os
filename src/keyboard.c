@@ -260,7 +260,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
 #include "task.h"
 
 char __getc(void) {
-    while(!__c); // vTaskDelay(50); // TODO: Queue ?
+    while(!__c) vTaskDelay(50); // TODO: Queue ?
     char c = __c;
     __c = 0;
     return c;

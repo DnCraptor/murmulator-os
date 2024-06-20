@@ -1,7 +1,5 @@
 #include "m-os-api.h"
 
-bool bExit;
-
 inline static void concat (char* t, const char* s1 , const char* s2) {
     size_t s = strlen(s1);
     strncpy(t, s1, 511);
@@ -115,9 +113,8 @@ inline static void cmd_push(cmd_startup_ctx_t* ctx, char c) {
     putc(c);
 }
 
-inline static void cmd_enter(cmd_startup_ctx_t* ctx) {
+inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
     UINT br;
-    int ret = 0;
     putc('\n');
     size_t cmd_pos = strlen(ctx->cmd);
     if (!cmd_pos) {
@@ -126,21 +123,22 @@ inline static void cmd_enter(cmd_startup_ctx_t* ctx) {
     int tokens = tokenize_cmd(ctx);
     ctx->tokens = tokens;
     if (strcmp("exit", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
-        bExit = true;
-    } else if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
+        return true;
+    }
+    if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
         if (tokens == 1) {
             fgoutf(ctx->pstderr, "Unable to change directoy to nothing\n");
         } else {
             cd(ctx, (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t));
         }
     } else {
-        char* t = (char*)pvPortMalloc(512);
+        char* t = (char*)pvPortMalloc(512); // TODO: optimize
         if (exists(ctx, t)) {
             int len = strlen(t);
             if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
             } else if(is_new_app(t)) {
-                ret = run_new_app(t);
+                run_new_app(t);
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
             }
@@ -152,26 +150,26 @@ inline static void cmd_enter(cmd_startup_ctx_t* ctx) {
 r:
     goutf("%s>", ctx->curr_dir);
     ctx->cmd[0] = 0;
+    return false;
 }
 
 int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     char* curr_dir = ctx->curr_dir;
     goutf("%s>", curr_dir);
-    bExit = false;
-    while(!bExit) {
+    while(1) {
         char c = getc();
         if (c) {
             if (c == 8) {}
             else if (c == 17) {}
             else if (c == 18) {}
             else if (c == '\t') {}
-            else if (c == '\n') cmd_enter(ctx);
+            else if (c == '\n') if ( cmd_enter(ctx) ) return 0;
             else cmd_push(ctx, c);
             c = 0;
         }
     }
-    return 0;
+    __unreachable();
 }
 
 int __required_m_api_verion(void) {
