@@ -244,7 +244,7 @@ int main() {
           swap >> 20
     );
 
-    int res = load_app(comspec, "main", &bootb_ctx);
+    int res = load_app(comspec, &bootb_ctx);
     if (res < 0) {
         goutf("Failed on load COMSPEC=%s for execution\n", comspec);
         cleanup_bootb_ctx(&bootb_ctx);

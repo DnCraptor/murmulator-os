@@ -189,6 +189,7 @@ typedef struct {
     FIL * pstdout;
     FIL * pstderr;
     char* path;
+    int ret_code;
 } cmd_startup_ctx_t;
 inline static cmd_startup_ctx_t* get_cmd_startup_ctx() {
     typedef cmd_startup_ctx_t* (*f_ptr_t)();
@@ -309,8 +310,8 @@ inline static void gbackspace() {
     ((fn_ptr_t)_sys_table_ptrs[119])();
 }
 
-inline static bool load_firmware(const char* path) {
-    typedef bool (*fn_ptr_t)(const char*);
+inline static bool load_firmware(char* path) {
+    typedef bool (*fn_ptr_t)(char*);
     return ((fn_ptr_t)_sys_table_ptrs[65])(path);
 }
 inline static void run_app(char * name) {
@@ -323,8 +324,8 @@ inline static bool is_new_app(char * name) {
     return ((fn_ptr_t)_sys_table_ptrs[120])(name);
 }
 inline static int run_new_app(char * name) {
-    typedef int (*fn_ptr_t)(char*, char*);
-    return ((fn_ptr_t)_sys_table_ptrs[121])(name, 0);
+    typedef int (*fn_ptr_t)(char*);
+    return ((fn_ptr_t)_sys_table_ptrs[121])(name);
 }
 
 inline static char getc(void) {

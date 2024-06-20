@@ -6,11 +6,11 @@
 extern "C" {
 #endif
 
-bool load_firmware(const char pathname[256]);
+bool load_firmware(char* pathname);
 void run_app(char * name);
 
 bool is_new_app(char * name);
-int run_new_app(char * name, char * fn);
+int run_new_app(char * name);
 
 typedef struct {
     char* del_addr;
@@ -25,7 +25,7 @@ typedef struct {
     sect_entry_t* sect_entries;
 } bootb_ctx_t;
 
-int load_app(char * fn, char * fn1, bootb_ctx_t* bootb_ctx);
+int load_app(char* name, bootb_ctx_t* bootb_ctx);
 int exec(bootb_ctx_t* bootb_ctx);
 void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx);
 

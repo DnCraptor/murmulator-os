@@ -11,7 +11,8 @@ typedef struct {
     char* curr_dir;
     FIL * pstdout;
     FIL * pstderr;
-    char *path;
+    char* path;
+    int ret_code;
 } cmd_startup_ctx_t;
-cmd_startup_ctx_t * get_cmd_startup_ctx();
+cmd_startup_ctx_t* get_cmd_startup_ctx();
 char* next_token(char* t);

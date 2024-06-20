@@ -24,7 +24,7 @@ typedef struct {
     uint32_t magicEnd;
 } UF2_Block_t;
 
-bool __not_in_flash_func(load_firmware)(const char pathname[256]) {
+bool __not_in_flash_func(load_firmware)(char* pathname) {
     UINT bytes_read = 0;
     FIL file;
     if (FR_OK != f_open(&file, pathname, FA_READ)) {
@@ -374,11 +374,10 @@ void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
     }
 }
 
-int run_new_app(char * fn, char * fn1) {
-    if(!fn1) fn1 = "main";
+int run_new_app(char * fn) {
     bootb_ctx_t* bootb_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
     memset(bootb_ctx, 0, sizeof(bootb_ctx_t));
-    int res = load_app(fn, fn1, bootb_ctx);
+    int res = load_app(fn, bootb_ctx);
     if (res < 0) {
         cleanup_bootb_ctx(bootb_ctx);
         vPortFree(bootb_ctx);
@@ -390,7 +389,7 @@ int run_new_app(char * fn, char * fn1) {
     return res;
 }
 
-int load_app(char * fn, char * fn1, bootb_ctx_t* bootb_ctx) {
+int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
     //goutf("[%s][%s]\n", fn, fn1);
     FIL f2; // TODO: dyn
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
@@ -472,7 +471,7 @@ int load_app(char * fn, char * fn1, bootb_ctx_t* bootb_ctx) {
             else if (0 == strcmp("_fini", strtab + sym.st_name)) {
                 _fini_idx = i;
             }
-            else if (0 == strcmp(fn1, strtab + sym.st_name)) { // found req. function
+            else if (0 == strcmp("main", strtab + sym.st_name)) {
                 main_idx = i;
             }
         }
@@ -499,7 +498,7 @@ int load_app(char * fn, char * fn1, bootb_ctx_t* bootb_ctx) {
         if (f_lseek(&f2, symtab_off + main_idx * sizeof(sym)) != FR_OK ||
             f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)
         ) {
-            goutf("Unable to read .symtab section for %s #%d\n", fn1, main_idx);
+            goutf("Unable to read .symtab section for main #%d\n", main_idx);
             goto e3;
         }
         bootb_ctx->bootb[2] = load_sec2mem(&ctx, sym.st_shndx) + 1;
@@ -521,7 +520,7 @@ e1:
     f_close(&f2);
     bootb_ctx->sect_entries = ctx.psections_list;
     if (bootb_ctx->bootb[2] == 0) {
-        goutf("'%s' global function is not found in the '%s' elf-file\n", fn1, fn);
+        goutf("'main' global function is not found in the '%s' elf-file\n", fn);
         return -1;
     }
 }
