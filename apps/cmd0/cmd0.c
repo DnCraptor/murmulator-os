@@ -164,9 +164,10 @@ int main(void) {
             else if (c == 17) {}
             else if (c == 18) {}
             else if (c == '\t') {}
-            else if (c == '\n') if ( cmd_enter(ctx) ) return 0;
-            else cmd_push(ctx, c);
-            c = 0;
+            else if (c == '\n') {
+                if ( cmd_enter(ctx) )
+                    return 0;
+            } else cmd_push(ctx, c);
         }
     }
     __unreachable();
