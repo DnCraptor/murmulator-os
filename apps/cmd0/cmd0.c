@@ -2,15 +2,6 @@
 
 bool bExit;
 
-static char* next_on(char* l, char *bi) {
-    char *b = bi;
-    while(*l && *b && *l == *b) {
-        l++;
-        b++;
-    }
-    return *l == 0 ? b : bi;
-}
-
 inline static void concat (char* t, const char* s1 , const char* s2) {
     size_t s = strlen(s1);
     strncpy(t, s1, 511);
@@ -18,7 +9,7 @@ inline static void concat (char* t, const char* s1 , const char* s2) {
     strncpy(t + s + 1, s2, 510 - s);
 }
 
-static bool exists(cmd_startup_ctx_t* ctx, char* t) {
+inline static bool exists(cmd_startup_ctx_t* ctx, char* t) {
     char * cmd = ctx->cmd_t;
     FILINFO fileinfo;
     bool r = f_stat(cmd, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
@@ -40,7 +31,7 @@ static bool exists(cmd_startup_ctx_t* ctx, char* t) {
     return false;
 }
 
-static void cmd_backspace(cmd_startup_ctx_t* ctx) {
+inline static void cmd_backspace(cmd_startup_ctx_t* ctx) {
     size_t cmd_pos = strlen(ctx->cmd);
     if (cmd_pos == 0) {
         // TODO: blimp
@@ -163,7 +154,7 @@ r:
     ctx->cmd[0] = 0;
 }
 
-int main() {
+int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     char* curr_dir = ctx->curr_dir;
     goutf("%s>", curr_dir);
@@ -184,6 +175,6 @@ int main() {
 }
 
 int ver = 2;
-int __required_m_api_verion() {
+int __required_m_api_verion(void) {
     return ver;
 }

@@ -1,7 +1,7 @@
 #include "m-os-api.h"
 #include <hardware/timer.h>
 
-int main() {
+int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     char* d = ctx->tokens == 1 ? ctx->curr_dir : (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t);
     DIR* pdir = (DIR*)pvPortMalloc(sizeof(DIR));
@@ -23,10 +23,10 @@ int main() {
     vPortFree(pfileInfo);
     f_closedir(pdir);
     vPortFree(pdir);
-    fgoutf(ctx->pstdout, "    Total: %d files\n", total_files);
+    fgoutf(ctx->pstdout, "    Total: %d files.\n", total_files);
     return 0;
 }
 
-int __required_m_api_verion() {
+int __required_m_api_verion(void) {
     return 2;
 }
