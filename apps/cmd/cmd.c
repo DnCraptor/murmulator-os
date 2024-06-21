@@ -1,9 +1,8 @@
 #include "m-os-api.h"
 
-FIL fh;
+FIL* pfh;
 char* cmd_history_file;
 int cmd_history_idx;
-bool bExit;
 
 static char* next_on(char* l, char *bi) {
     char *b = bi;
@@ -21,7 +20,7 @@ inline static void concat (char* t, const char* s1 , const char* s2) {
     strncpy(t + s + 1, s2, 510 - s);
 }
 
-static bool exists(cmd_startup_ctx_t* ctx, char* t) {
+inline static bool exists(cmd_startup_ctx_t* ctx, char* t) {
     char * cmd = ctx->cmd_t;
     FILINFO fileinfo;
     bool r = f_stat(cmd, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
@@ -57,8 +56,8 @@ inline static int history_steps(cmd_startup_ctx_t* ctx) {
     size_t j = 0;
     int idx = 0;
     UINT br;
-    f_open(&fh, cmd_history_file, FA_READ); 
-    while(f_read(&fh, ctx->cmd_t, 512, &br) == FR_OK && br) {
+    f_open(pfh, cmd_history_file, FA_READ); 
+    while(f_read(pfh, ctx->cmd_t, 512, &br) == FR_OK && br) {
         for(size_t i = 0; i < br; ++i) {
             char t = ctx->cmd_t[i];
             if(t == '\n') { // next line
@@ -72,7 +71,7 @@ inline static int history_steps(cmd_startup_ctx_t* ctx) {
             }
         }
     }
-    f_close(&fh);
+    f_close(pfh);
     return idx;
 }
 
@@ -246,15 +245,15 @@ inline static void cmd_push(cmd_startup_ctx_t* ctx, char c) {
     putc(c);
 }
 
-inline static void cmd_enter(cmd_startup_ctx_t* ctx) {
+inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
     UINT br;
     putc('\n');
     size_t cmd_pos = strlen(ctx->cmd);
     if (cmd_pos > 0) { // history
-        f_open(&fh, cmd_history_file, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
-        f_write(&fh, ctx->cmd, cmd_pos, &br);
-        f_write(&fh, "\n", 1, &br);
-        f_close(&fh);
+        f_open(pfh, cmd_history_file, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
+        f_write(pfh, ctx->cmd, cmd_pos, &br);
+        f_write(pfh, "\n", 1, &br);
+        f_close(pfh);
     } else {
         goto r;
     }
@@ -280,8 +279,9 @@ t:
         }
     }
     if (strcmp("exit", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
-        bExit = true;
-    } else if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
+        return true;
+    }
+    if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
         if (tokens == 1) {
             fgoutf(ctx->pstderr, "Unable to change directoy to nothing\n");
         } else {
@@ -294,18 +294,16 @@ t:
             if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
             } else if(is_new_app(t)) {
-                int ret = run_new_app(t);
-                goutf("RET_CODE: %d\n", ret); // todo
+                ctx->ret_code = run_new_app(t);
+                goutf("RET_CODE: %d\n", ctx->ret_code); // todo
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
             }
         } else {
             goutf("Illegal command: '%s'\n", ctx->cmd);
         }
-    goutf("pf\n");
         vPortFree(t);
     }
-    goutf("br\n");
     if (redirect2) {
         f_close(ctx->pstdout);
         redirect2 = NULL;
@@ -313,6 +311,7 @@ t:
 r:
     goutf("%s>", ctx->curr_dir);
     ctx->cmd[0] = 0;
+    return false;
 }
 
 const char* tmp = "/.cmd_history"; // TODO: configure it
@@ -321,28 +320,32 @@ int main() {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     char* curr_dir = ctx->curr_dir;
     goutf("%s>", curr_dir);
-    bExit = false;
     cmd_history_idx = -2;
     size_t cdl = strlen(curr_dir);
     cmd_history_file = (char*)pvPortMalloc(cdl + strlen(tmp));
+    pfh = (FIL*)pvPortMalloc(sizeof(FIL)); 
     strcpy(cmd_history_file, curr_dir);
     strcpy(cmd_history_file + cdl, tmp);
     bAppend = false;
     redirect2 = NULL;
-    while(!bExit) {
+    while(1) {
         char c = getc();
         if (c) {
             if (c == 8) cmd_backspace(ctx);
             else if (c == 17) cmd_up(ctx);
             else if (c == 18) cmd_down(ctx);
             else if (c == '\t') cmd_tab(ctx);
-            else if (c == '\n') cmd_enter(ctx);
-            else cmd_push(ctx, c);
+            else if (c == '\n') {
+                if ( cmd_enter(ctx) ) {
+                    vPortFree(cmd_history_file);
+                    vPortFree(pfh);
+                    return 0;
+                }
+            } else cmd_push(ctx, c);
             c = 0;
         }
     }
-    vPortFree(cmd_history_file);
-    return 0;
+    __unreachable();
 }
 
 int __required_m_api_verion() {

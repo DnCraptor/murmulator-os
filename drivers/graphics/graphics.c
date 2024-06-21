@@ -97,6 +97,7 @@ void gouta(char* buf) {
     uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
     char c;
     while (c = *buf++) {
+        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
         if (c == '\n') {
             pos_x = 0;
             pos_y++;
