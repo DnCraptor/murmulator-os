@@ -46,8 +46,37 @@ inline static int vsnprintf(char *__restrict buff, size_t lim, const char *__res
     return ((vsnprintf_ptr_t)_sys_table_ptrs[67])(buff, lim, msg, lst);
 }
 
-typedef void (*goutf_ptr_t)(const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 1, 2)));
-#define goutf ((goutf_ptr_t)_sys_table_ptrs[41])
+//typedef void (*goutf_ptr_t)(const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 1, 2)));
+//#define goutf ((goutf_ptr_t)_sys_table_ptrs[41])
+
+/* typedef va_list only when required */
+#if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE
+#ifdef __GNUC__
+#ifndef _VA_LIST_DEFINED
+typedef __gnuc_va_list va_list;
+#define _VA_LIST_DEFINED
+#endif
+#else /* !__GNUC__ */
+#include <stdarg.h>
+#endif
+#endif /* __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE */
+#define va_start(v,l)	__builtin_va_start(v,l)
+#define va_end(v)	__builtin_va_end(v)
+
+inline static void gouta(char* string) {
+    typedef void (*t_ptr_t)(char*);
+    ((t_ptr_t)_sys_table_ptrs[127])(string);
+}
+
+static void goutf(const char *__restrict str, ...) {
+    va_list ap;
+    char* buf = (char*)pvPortMalloc(512);
+    va_start(ap, str);
+    vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
+    va_end(ap);
+    gouta(buf);
+    vPortFree(buf);
+}
 
 typedef void (*cls_ptr_t)( uint8_t color );
 inline static void clrScr(uint8_t color) {
@@ -336,6 +365,33 @@ inline static void putc(char c) {
     typedef void (*fn_ptr_t)(char);
     ((fn_ptr_t)_sys_table_ptrs[123])(c);
 }
+
+typedef struct {
+    char* del_addr;
+    char* prg_addr;
+    uint16_t sec_num;
+} sect_entry_t;
+
+typedef int (*bootb_ptr_t)( void );
+
+typedef struct {
+    bootb_ptr_t bootb[4];
+    sect_entry_t* sect_entries;
+} bootb_ctx_t;
+
+inline static void cleanup_bootb_ctx(bootb_ctx_t* b) {
+    typedef void (*fn_ptr_t)(bootb_ctx_t*);
+    ((fn_ptr_t)_sys_table_ptrs[124])(b);
+}
+inline static int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
+    typedef int (*fn_ptr_t)(char * fn, bootb_ctx_t* bootb_ctx);
+    return ((fn_ptr_t)_sys_table_ptrs[125])(fn, bootb_ctx);
+}
+inline static int exec(bootb_ctx_t * b) {
+    typedef int (*fn_ptr_t)(bootb_ctx_t*);
+    return ((fn_ptr_t)_sys_table_ptrs[126])(b);
+}
+
 
 #ifdef __cplusplus
 }

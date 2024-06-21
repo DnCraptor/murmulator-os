@@ -390,7 +390,6 @@ int run_new_app(char * fn) {
 }
 
 int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
-    //goutf("[%s][%s]\n", fn, fn1);
     FIL f2; // TODO: dyn
     if (f_open(&f2, fn, FA_READ) != FR_OK) {
         goutf("Unable to open file: '%s'\n", fn);

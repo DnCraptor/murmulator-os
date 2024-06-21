@@ -167,7 +167,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         SWAP_BLOCK_1k
         M_API_VERSION=2
 
-        TESTS=1
+        TESTS=0
 )
 
 

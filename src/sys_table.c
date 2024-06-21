@@ -179,6 +179,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     cleanup_bootb_ctx, // 124
     load_app, // 125
     exec, // 126
+    //
+    gouta, // 127
     // TODO:
     0
 };
