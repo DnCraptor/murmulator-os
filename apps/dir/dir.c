@@ -1,5 +1,11 @@
 #include "m-os-api.h"
-#include <hardware/timer.h>
+
+void* memset (void* b, int v, size_t sz) {
+    for (size_t i = 0; i < sz; ++i) {
+        ((char*)b)[i] = v;
+    }
+    return b;
+}
 
 int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
@@ -15,11 +21,17 @@ int main(void) {
     }
     int total_files = 0;
     FILINFO* pfileInfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
+    char* buf = (char*)pvPortMalloc(81);
     while (f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
-        fgoutf(ctx->pstdout, pfileInfo->fattrib & AM_DIR ? "D " : "  ");
-        fgoutf(ctx->pstdout, "%s\n", pfileInfo->fname);
+        for(int i = 0; i < 80; ++i) buf[i] = ' '; buf[80] = 0;
+        if (pfileInfo->fattrib & AM_DIR) strncpy(buf, "D ", 2);
+        snprintf(buf + 2, 8, "%08d", pfileInfo->fsize);
+        size_t sl = strlen(pfileInfo->fname);
+        strncpy(buf + 11, pfileInfo->fname, MAX(sl, 69));
+        fgoutf(ctx->pstdout, buf);
         total_files++;
     }
+    vPortFree(buf);
     vPortFree(pfileInfo);
     f_closedir(pdir);
     vPortFree(pdir);

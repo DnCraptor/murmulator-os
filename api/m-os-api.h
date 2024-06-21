@@ -21,10 +21,24 @@ static const unsigned long * const _sys_table_ptrs = (const unsigned long * cons
 #define _draw_text_ptr_idx 30
 #define _draw_window_ptr_idx 31
 
+/*! \brief Macro to return the maximum of two comparable values
+ *  \ingroup pico_platform
+ */
+#ifndef MAX
+#define MAX(a, b) ((a)>(b)?(a):(b))
+#endif
+
+/*! \brief Macro to return the minimum of two comparable values
+ *  \ingroup pico_platform
+ */
+#ifndef MIN
+#define MIN(a, b) ((b)>(a)?(a):(b))
+#endif
+
 
 //#include <stdio.h>
 typedef int	(*snprintf_ptr_t)(char *__restrict, size_t, const char *__restrict, ...) _ATTRIBUTE ((__format__ (__printf__, 3, 4)));
-#define snprintf ((snprintf_ptr_t)_sys_table_ptrs[_snprintfPtrIdx])
+#define snprintf(...) ((snprintf_ptr_t)_sys_table_ptrs[_snprintfPtrIdx])(__VA_ARGS__)
 
 // grapthics.h
 typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor);
