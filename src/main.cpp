@@ -82,55 +82,20 @@ void __time_critical_func(render_core)() {
     __unreachable();
 }
 
-static cmd_startup_ctx_t ctx = { 0 };
-
-extern "C" {
-cmd_startup_ctx_t * get_cmd_startup_ctx() {
-    return &ctx;
-}
-FIL * get_stdout() {
-    return ctx.pstdout;
-}
-FIL * get_stderr() {
-    return ctx.pstderr;
-}
-char* get_curr_dir() {
-    return ctx.curr_dir;
-}
-char* next_token(char* t) {
-    char *t1 = t + strlen(t);
-    while(!*t1++);
-    return t1 - 1;
-}
-}
-
 inline static void tokenizeCfg(char* s, size_t sz) {
-    for (size_t i = 0; i < sz; ++i) {
+    size_t i = 0;
+    for (; i < sz; ++i) {
         if (s[i] == '=' || s[i] == '\n') {
             s[i] = 0;
         }
     }
-}
-
-inline static void tokenizePath(char* s) {
-    for (size_t i = 0; i < strlen(s); ++i) {
-        if (s[i] == ';' || s[i] == ',' || s[i] == ':') {
-            s[i] = 0;
-        }
-    }
+    s[i] = 0;
 }
 
 static char* comspec;
 
 static void load_config_sys() {
-    ctx.cmd = (char*)pvPortMalloc(512); ctx.cmd[0] = 0;
-    ctx.cmd_t = (char*)pvPortMalloc(512); ctx.cmd_t[0] = 0;
-    ctx.curr_dir = (char*)pvPortMalloc(512);
-    ctx.pstdout = (FIL*)pvPortMalloc(sizeof(FIL)); memset(ctx.pstdout, 0, 512);
-    ctx.pstderr = (FIL*)pvPortMalloc(sizeof(FIL)); memset(ctx.pstderr, 0, 512);
-    ctx.path = (char*)pvPortMalloc(512);
-    strcpy(ctx.curr_dir, "MOS");
-    strcpy(ctx.path, "MOS");
+    cmd_startup_ctx_t* ctx = init_ctx();
     comspec = "/mos/cmd";
     FIL f;
     if(f_open(&f, "/config.sys", FA_READ) != FR_OK) {
@@ -149,8 +114,7 @@ static void load_config_sys() {
     while (t - buff < br) {
         if (strcmp(t, "PATH") == 0) {
             t = next_token(t);
-            strcpy(ctx.path, t);
-            tokenizePath(ctx.path);
+            strncpy(ctx->path, t, 511);
         } else if (strcmp(t, "COMSPEC") == 0) {
             t = next_token(t);
             comspec = (char*)pvPortMalloc(strlen(t));
@@ -163,7 +127,7 @@ static void load_config_sys() {
             // TODO:
         } else if (strcmp(t, "BASE") == 0) {
             t = next_token(t);
-            strcpy(ctx.curr_dir, t);
+            strncpy(ctx->curr_dir, t, 511);
         }
         t = next_token(t);
     }
@@ -172,8 +136,39 @@ static void load_config_sys() {
 static bootb_ctx_t bootb_ctx = { 0 };
 
 extern "C" void vCmdTask(void *pv) {
-    exec(&bootb_ctx);
-    cleanup_bootb_ctx(&bootb_ctx);
+    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+    while(1) {
+        bool inCmd = false; // not in command processor mode
+        if (!ctx->cmd[0]) {
+            strncpy(ctx->cmd, comspec, 511);
+            strncpy(ctx->cmd_t, comspec, 511);
+            ctx->tokens = 1;
+            inCmd = true;
+        }
+        ///goutf("Lookup for: %s (mode: %d)\n", ctx->cmd_t, inCmd);
+        char* t = exists(ctx);
+        if (t) {
+            //goutf("Command found: %s (mode: %d)\n", t, inCmd);
+            if(is_new_app(t)) {
+                //gouta("Command has appropriate format\n");
+                ctx->ret_code = load_app(t, &bootb_ctx);
+                //goutf("LOAD RET_CODE: %d\n", ctx->ret_code);
+                if (ctx->ret_code == 0) {
+                    ctx->ret_code = exec(&bootb_ctx);
+                    //goutf("EXEC RET_CODE: %d; cmd: '%s' cmd_t: '%s' tokens: %d\n", ctx->ret_code, ctx->cmd, ctx->cmd_t, ctx->tokens);
+                }
+                cleanup_bootb_ctx(&bootb_ctx);
+            } else {
+                goutf("Unable to execute command: '%s'\n", t);
+            }
+            vPortFree(t);
+        } else {
+            goutf("Illegal command: '%s'\n", ctx->cmd);
+        }
+        if (!inCmd) { // it is expected cmd/cmd0 will prepare ctx for next run for application
+            ctx->cmd[0] = 0;
+        }
+    }
     vTaskDelete( NULL );
 }
 
@@ -244,14 +239,7 @@ int main() {
           swap >> 20
     );
 
-    int res = load_app(comspec, &bootb_ctx);
-    if (res < 0) {
-        goutf("Failed on load COMSPEC=%s for execution\n", comspec);
-        cleanup_bootb_ctx(&bootb_ctx);
-    } else {
-       // TODO: stack
-       xTaskCreate(vCmdTask, "cmd", 4096, NULL, configMAX_PRIORITIES - 1, NULL);
- 	}
+    xTaskCreate(vCmdTask, "main", 4096, NULL, configMAX_PRIORITIES - 1, NULL);
     /* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return

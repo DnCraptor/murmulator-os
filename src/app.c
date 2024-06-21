@@ -298,7 +298,7 @@ int run_new_app(char * fn) {
     res = exec(bootb_ctx);
     cleanup_bootb_ctx(bootb_ctx);
     vPortFree(bootb_ctx);
-    goutf("RET_CODE: %d\n", res);
+    //goutf("RET_CODE: %d\n", res);
     return res;
 }
 

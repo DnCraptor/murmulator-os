@@ -1,5 +1,6 @@
 #pragma once
 #include <stdbool.h>
+#include <stddef.h>
 #include "ff.h"
 char* get_curr_dir();
 FIL * get_stdout();
@@ -14,5 +15,9 @@ typedef struct {
     char* path;
     int ret_code;
 } cmd_startup_ctx_t;
+cmd_startup_ctx_t* init_ctx();
 cmd_startup_ctx_t* get_cmd_startup_ctx();
 char* next_token(char* t);
+char* concat(const char* s1, const char* s2);
+char* exists(cmd_startup_ctx_t* ctx);
+char* concat2(const char* s1, size_t sz, const char* s2);

@@ -322,7 +322,7 @@ int main() {
     goutf("%s>", curr_dir);
     cmd_history_idx = -2;
     size_t cdl = strlen(curr_dir);
-    cmd_history_file = (char*)pvPortMalloc(cdl + strlen(tmp));
+    cmd_history_file = (char*)pvPortMalloc(cdl + strlen(tmp) + 1);
     pfh = (FIL*)pvPortMalloc(sizeof(FIL)); 
     strcpy(cmd_history_file, curr_dir);
     strcpy(cmd_history_file + cdl, tmp);

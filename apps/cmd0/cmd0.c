@@ -1,34 +1,5 @@
 #include "m-os-api.h"
 
-inline static void concat (char* t, const char* s1 , const char* s2) {
-    size_t s = strlen(s1);
-    strncpy(t, s1, 511);
-    t[s] = '/';
-    strncpy(t + s + 1, s2, 510 - s);
-}
-
-inline static bool exists(cmd_startup_ctx_t* ctx, char* t) {
-    char * cmd = ctx->cmd_t;
-    FILINFO fileinfo;
-    bool r = f_stat(cmd, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
-    if (r) {
-        strncpy(t, cmd, 511);
-        return r;
-    }
-    char* dir = ctx->curr_dir;
-    concat(t, dir, cmd);
-    r = f_stat(t, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
-    if (r) return r;
-    dir = ctx->path;
-    while (dir) {
-        concat(t, dir, cmd);
-        r = f_stat(t, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
-        if (r) return r;
-        dir = next_token(dir);
-    }
-    return false;
-}
-
 inline static void cmd_backspace(cmd_startup_ctx_t* ctx) {
     size_t cmd_pos = strlen(ctx->cmd);
     if (cmd_pos == 0) {
@@ -123,15 +94,20 @@ inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
     int tokens = tokenize_cmd(ctx);
     ctx->tokens = tokens;
     if (strcmp("exit", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
+        ctx->cmd[0] = 0;
         return true;
-    }
-    if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
+    } else if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
         if (tokens == 1) {
             fgoutf(ctx->pstderr, "Unable to change directoy to nothing\n");
         } else {
             cd(ctx, (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t));
         }
+        goto r;
     } else {
+        return true;
+    }
+    /*
+     else {
         char* t = (char*)pvPortMalloc(512); // TODO: optimize
         if (exists(ctx, t)) {
             int len = strlen(t);
@@ -147,6 +123,7 @@ inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
         }
         vPortFree(t);
     }
+    */
 r:
     goutf("%s>", ctx->curr_dir);
     ctx->cmd[0] = 0;
@@ -156,11 +133,14 @@ r:
 int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     char* curr_dir = ctx->curr_dir;
+    ctx->cmd[0] = 0;
+    ctx->cmd_t[0] = 0;
+    ctx->tokens = 0;
     goutf("%s>", curr_dir);
     while(1) {
         char c = getc();
         if (c) {
-            if (c == 8) {}
+            if (c == 8) cmd_backspace(ctx);
             else if (c == 17) {}
             else if (c == 18) {}
             else if (c == '\t') {}

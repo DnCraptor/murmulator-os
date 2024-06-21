@@ -181,6 +181,10 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     exec, // 126
     //
     gouta, // 127
+    //
+    exists, // 128
+    concat, // 129
+    concat2, // 120
     // TODO:
     0
 };
