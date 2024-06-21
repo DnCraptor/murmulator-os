@@ -37,3 +37,7 @@ usage:
     }
     return 0;
 }
+
+int __required_m_api_verion() {
+    return 2;
+}

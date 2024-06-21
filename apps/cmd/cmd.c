@@ -282,6 +282,7 @@ t:
 r:
     goutf("%s>", ctx->curr_dir);
     ctx->cmd[0] = 0;
+    ctx->cmd_t[0] = 0;
     return false;
 }
 
