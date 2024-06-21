@@ -123,11 +123,12 @@ void gouta(char* buf) {
 
 void goutf(const char *__restrict str, ...) {
     va_list ap;
-    char buf[512]; // TODO: some const?
+    char* buf = (char*)pvPortMalloc(512);
     va_start(ap, str);
     vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
     va_end(ap);
     gouta(buf);
+    vPortFree(buf);
 }
 
 void fgoutf(FIL *f, const char *__restrict str, ...) {
