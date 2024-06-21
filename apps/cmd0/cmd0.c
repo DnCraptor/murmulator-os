@@ -106,26 +106,8 @@ inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
     } else {
         return true;
     }
-    /*
-     else {
-        char* t = (char*)pvPortMalloc(512); // TODO: optimize
-        if (exists(ctx, t)) {
-            int len = strlen(t);
-            if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
-                run_app(t);
-            } else if(is_new_app(t)) {
-                ctx->ret_code = run_new_app(t);
-            } else {
-                goutf("Unable to execute command: '%s'\n", t);
-            }
-        } else {
-            goutf("Illegal command: '%s'\n", ctx->cmd);
-        }
-        vPortFree(t);
-    }
-    */
 r:
-    goutf("%s>", ctx->curr_dir);
+    goutf("%s#", ctx->curr_dir);
     ctx->cmd[0] = 0;
     return false;
 }
@@ -136,7 +118,7 @@ int main(void) {
     ctx->cmd[0] = 0;
     ctx->cmd_t[0] = 0;
     ctx->tokens = 0;
-    goutf("%s>", curr_dir);
+    goutf("%s#", curr_dir);
     while(1) {
         char c = getc();
         if (c) {

@@ -13,35 +13,6 @@ static char* next_on(char* l, char *bi) {
     return *l == 0 ? b : bi;
 }
 
-inline static void concat (char* t, const char* s1 , const char* s2) {
-    size_t s = strlen(s1);
-    strncpy(t, s1, 511);
-    t[s] = '/';
-    strncpy(t + s + 1, s2, 510 - s);
-}
-
-inline static bool exists(cmd_startup_ctx_t* ctx, char* t) {
-    char * cmd = ctx->cmd_t;
-    FILINFO fileinfo;
-    bool r = f_stat(cmd, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
-    if (r) {
-        strncpy(t, cmd, 511);
-        return r;
-    }
-    char* dir = ctx->curr_dir;
-    concat(t, dir, cmd);
-    r = f_stat(t, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
-    if (r) return r;
-    dir = ctx->path;
-    while (dir) {
-        concat(t, dir, cmd);
-        r = f_stat(t, &fileinfo) == FR_OK && !(fileinfo.fattrib & AM_DIR);
-        if (r) return r;
-        dir = next_token(dir);
-    }
-    return false;
-}
-
 static void cmd_backspace(cmd_startup_ctx_t* ctx) {
     size_t cmd_pos = strlen(ctx->cmd);
     if (cmd_pos == 0) {
@@ -263,18 +234,18 @@ inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
         if (bAppend) {
             FILINFO fileinfo;
             if (f_stat(redirect2, &fileinfo) != FR_OK) {
-                goutf("Unable to find file: '%s'\n", redirect2);
+                goutf("Unable to find file for append: '%s'\n", redirect2);
                 goto t;
             } else {
                 if (f_open(ctx->pstdout, redirect2, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND) != FR_OK) {
                     f_lseek(ctx->pstdout, fileinfo.fsize);
-                    goutf("Unable to open file: '%s'\n", redirect2);
+                    goutf("Unable to open file for append: '%s'\n", redirect2);
                 }
             }
         } else {
 t:
             if (f_open(ctx->pstdout, redirect2, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
-                goutf("Unable to open file: '%s'\n", redirect2);
+                goutf("Unable to open file to redirect: '%s'\n", redirect2);
             }
         }
     }
@@ -288,21 +259,21 @@ t:
             cd(ctx, (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t));
         }
     } else {
-        char* t = (char*)pvPortMalloc(512);
-        if (exists(ctx, t)) {
+        char* t = exists(ctx);
+        if (t) {
             int len = strlen(t);
+            //goutf("'%s' (%d)\n", t, len);
             if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
             } else if(is_new_app(t)) {
                 ctx->ret_code = run_new_app(t);
-                goutf("RET_CODE: %d\n", ctx->ret_code); // todo
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
             }
+            vPortFree(t);
         } else {
             goutf("Illegal command: '%s'\n", ctx->cmd);
         }
-        vPortFree(t);
     }
     if (redirect2) {
         f_close(ctx->pstdout);
@@ -319,6 +290,9 @@ const char* tmp = "/.cmd_history"; // TODO: configure it
 int main() {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     char* curr_dir = ctx->curr_dir;
+    ctx->cmd[0] = 0;
+    ctx->cmd_t[0] = 0;
+    ctx->tokens = 0;
     goutf("%s>", curr_dir);
     cmd_history_idx = -2;
     size_t cdl = strlen(curr_dir);
@@ -339,10 +313,12 @@ int main() {
                 if ( cmd_enter(ctx) ) {
                     vPortFree(cmd_history_file);
                     vPortFree(pfh);
+                    ctx->cmd[0] = 0;
+                    ctx->cmd_t[0] = 0;
+                    ctx->tokens = 0;
                     return 0;
                 }
             } else cmd_push(ctx, c);
-            c = 0;
         }
     }
     __unreachable();

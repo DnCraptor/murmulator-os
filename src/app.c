@@ -280,26 +280,13 @@ int run_new_app(char * fn) {
     bootb_ctx_t* bootb_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
     bootb_ctx->sect_entries = 0;
     bootb_ctx->bootb[0] = 0; bootb_ctx->bootb[1] = 0; bootb_ctx->bootb[2] = 0; bootb_ctx->bootb[3] = 0;
-    //goutf("loading: %s\n", fn);
-    int res = load_app(fn, bootb_ctx);
-    /*
-    if (bootb_ctx->sect_entries) {
-        for (uint16_t i = 0; bootb_ctx->sect_entries[i].del_addr != 0; ++i) {
-            goutf("sec #%d: [%p][%p] %d\n", i, bootb_ctx->sect_entries[i].del_addr,bootb_ctx->sect_entries[i].prg_addr,bootb_ctx->sect_entries[i].sec_num);
-        }
+    int ret_code = load_app(fn, bootb_ctx);
+    if (ret_code == 0) {
+        ret_code = exec(bootb_ctx);
     }
-    goutf("res: %d; [%p][%p][%p][%p]\n", res, bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3]);
-    */
-    if (res < 0) {
-        cleanup_bootb_ctx(bootb_ctx);
-        vPortFree(bootb_ctx);
-        return res;
-    }
-    res = exec(bootb_ctx);
     cleanup_bootb_ctx(bootb_ctx);
     vPortFree(bootb_ctx);
-    //goutf("RET_CODE: %d\n", res);
-    return res;
+    return ret_code;
 }
 
 static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {

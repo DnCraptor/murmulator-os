@@ -394,11 +394,11 @@ inline static int exec(bootb_ctx_t * b) {
 
 inline static char* exists(cmd_startup_ctx_t* ctx) {
     typedef char* (*fn_ptr_t)(bootb_ctx_t*);
-    return ((fn_ptr_t)_sys_table_ptrs[127])(ctx);
+    return ((fn_ptr_t)_sys_table_ptrs[128])(ctx);
 }
-inline static char* concat(const char* s1 , const char* s2) {
+inline static char* concat(const char* s1, const char* s2) {
     typedef char* (*fn_ptr_t)(const char*, const char*);
-    return ((fn_ptr_t)_sys_table_ptrs[128])(s1, s2);
+    return ((fn_ptr_t)_sys_table_ptrs[129])(s1, s2);
 }
 
 #ifdef __cplusplus

@@ -21,13 +21,18 @@ int main() {
         f_close(&fil1);
         return 3;
     }
-    UINT rb;
+    UINT rb, wb;
     while(f_read(&fil1, buf, 512, &rb) == FR_OK && rb > 0) {
-        if (f_write(&fil2, buf, rb, &rb) != FR_OK) {
+        if (f_write(&fil2, buf, rb, &wb) != FR_OK) {
             fgoutf(ctx->pstderr, "Unable to write to file: '%s'\n", f2);
+            goutf("%d %d\n", rb, wb);
         }
     }
     f_close(&fil2);
     f_close(&fil1);
     return 0;
+}
+
+int __required_m_api_verion() {
+    return 2;
 }
