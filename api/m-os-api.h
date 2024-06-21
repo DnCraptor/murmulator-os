@@ -46,8 +46,8 @@ inline static int vsnprintf(char *__restrict buff, size_t lim, const char *__res
     return ((vsnprintf_ptr_t)_sys_table_ptrs[67])(buff, lim, msg, lst);
 }
 
-//typedef void (*goutf_ptr_t)(const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 1, 2)));
-//#define goutf ((goutf_ptr_t)_sys_table_ptrs[41])
+typedef void (*goutf_ptr_t)(const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 1, 2)));
+#define goutf(...) ((goutf_ptr_t)_sys_table_ptrs[41])(__VA_ARGS__)
 
 /* typedef va_list only when required */
 #if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE
@@ -67,7 +67,7 @@ inline static void gouta(char* string) {
     typedef void (*t_ptr_t)(char*);
     ((t_ptr_t)_sys_table_ptrs[127])(string);
 }
-
+/*
 static void goutf(const char *__restrict str, ...) {
     va_list ap;
     char* buf = (char*)pvPortMalloc(512);
@@ -77,7 +77,7 @@ static void goutf(const char *__restrict str, ...) {
     gouta(buf);
     vPortFree(buf);
 }
-
+*/
 typedef void (*cls_ptr_t)( uint8_t color );
 inline static void clrScr(uint8_t color) {
     ((cls_ptr_t)_sys_table_ptrs[44])(color);
@@ -101,7 +101,7 @@ inline static FIL* get_stderr() {
 }
 
 typedef void (*fgoutf_ptr_t)(FIL*, const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 2, 3)));
-#define fgoutf ((fgoutf_ptr_t)_sys_table_ptrs[70])
+#define fgoutf(...) ((fgoutf_ptr_t)_sys_table_ptrs[70])(__VA_ARGS__)
 
 typedef uint32_t (*u32v_ptr_t)();
 inline static uint32_t psram_size() {

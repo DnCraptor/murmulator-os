@@ -28,3 +28,7 @@ int main() {
     vPortFree(f);
     return 0;
 }
+
+int __required_m_api_verion(void) {
+    return 2;
+}

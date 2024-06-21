@@ -24,9 +24,9 @@ typedef struct {
     uint32_t magicEnd;
 } UF2_Block_t;
 
+FIL file;
 bool __not_in_flash_func(load_firmware)(char* pathname) {
     UINT bytes_read = 0;
-    FIL file;
     if (FR_OK != f_open(&file, pathname, FA_READ)) {
         return false;
     }
@@ -37,7 +37,7 @@ bool __not_in_flash_func(load_firmware)(char* pathname) {
     uint32_t flash_target_offset = 0x2000;
     uint32_t data_sector_index = 0;
 
-    multicore_lockout_start_blocking();
+    multicore_lockout_start_blocking(); // critical section?
     const uint32_t ints = save_and_disable_interrupts();
     int i = 0;
     do {
@@ -139,10 +139,10 @@ static const char* st_predef(const char* v) {
 
 typedef struct {
     FIL *f2;
-    const elf32_header *pehdr;
-    const int symtab_off;
-    const elf32_sym* psym;
-    const char* pstrtab;
+    elf32_header *pehdr;
+    int symtab_off;
+    elf32_sym* psym;
+    char* pstrtab;
     sect_entry_t* psections_list;
     uint16_t max_sections_in_list;
 } load_sec_ctx;
@@ -221,45 +221,47 @@ static const char* st_spec_sec(uint16_t st) {
 static const char* s = "Unexpected ELF file";
 
 bool is_new_app(char * fn) {
-    FIL f2; // TODO: dyn
-    if (f_open(&f2, fn, FA_READ) != FR_OK) {
+    FIL* f = (FIL*)pvPortMalloc(sizeof(FIL));
+    if (f_open(f, fn, FA_READ) != FR_OK) {
+        vPortFree(f);
         goutf("Unable to open file: '%s'\n", fn);
         return false;
     }
     struct elf32_header ehdr;
     UINT rb;
-    if (f_read(&f2, &ehdr, sizeof(ehdr), &rb) != FR_OK) {
+    if (f_read(f, &ehdr, sizeof(ehdr), &rb) != FR_OK) {
+        f_close(f);
+        vPortFree(f);
         goutf("Unable to read an ELF file header: '%s'\n", fn);
-        goto e1;
+        return false;
     }
+    f_close(f);
+    vPortFree(f);
     if (ehdr.common.magic != ELF_MAGIC) {
         goutf("It is not an ELF file: '%s'\n", fn);
-        goto e1;
+        return false;
     }
     if (ehdr.common.version != 1 || ehdr.common.version2 != 1) {
         goutf("%s '%s' version: %d:%d\n", s, fn, ehdr.common.version, ehdr.common.version2);
-        goto e1;
+        return false;
     }
     if (ehdr.common.arch_class != 1 || ehdr.common.endianness != 1) {
         goutf("%s '%s' class: %d; endian: %d\n", s, fn, ehdr.common.arch_class, ehdr.common.endianness);
-        goto e1;
+        return false;
     }
     if (ehdr.common.machine != EM_ARM) {
         goutf("%s '%s' machine type: %d; expected: %d\n", s, fn, ehdr.common.machine, EM_ARM);
-        goto e1;
+        return false;
     }
     if (ehdr.common.abi != 0) {
         goutf("%s '%s' ABI type: %d; expected: %d\n", s, fn, ehdr.common.abi, 0);
-        goto e1;
+        return false;
     }
     if (ehdr.flags & EF_ARM_ABI_FLOAT_HARD) {
         goutf("%s '%s' EF_ARM_ABI_FLOAT_HARD: %04Xh\n", s, fn, ehdr.flags);
-        goto e1;
+        return false;
     }
     return true;
-e1:
-    f_close(&f2);
-    return false;
 }
 
 void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
@@ -306,35 +308,38 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         return prg_addr;
     }
     UINT rb;
-    elf32_shdr sh;
+    char* del_addr = 0;
+    elf32_shdr* psh = (elf32_shdr*)pvPortMalloc(sizeof(elf32_shdr));
     if (f_lseek(c->f2, c->pehdr->sh_offset + sizeof(elf32_shdr) * sec_num) == FR_OK &&
-        f_read(c->f2, &sh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)
+        f_read(c->f2, psh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)
     ) {
         // todo: enough space?
-        uint32_t sz = sh.sh_size;
-        char* del_addr = (char*)pvPortMalloc(sz);
-        prg_addr = sec_align((uint32_t)del_addr, sh.sh_addralign);
-        if (f_lseek(c->f2, sh.sh_offset) == FR_OK &&
-            f_read(c->f2, prg_addr, sh.sh_size, &rb) == FR_OK && rb == sh.sh_size
+        uint32_t sz = psh->sh_size;
+        del_addr = (char*)pvPortMalloc(sz);
+        prg_addr = sec_align((uint32_t)del_addr, psh->sh_addralign);
+        if (f_lseek(c->f2, psh->sh_offset) == FR_OK &&
+            f_read(c->f2, prg_addr, psh->sh_size, &rb) == FR_OK && rb == psh->sh_size
         ) {
              // goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, prg_addr);
             add_sec(c, del_addr, prg_addr, sec_num);
             // links and relocations
             if (f_lseek(c->f2, c->pehdr->sh_offset) != FR_OK) {
                 goutf("Unable to locate sections @ %ph\n", c->pehdr->sh_offset);
-                return 0;
+                prg_addr = 0;
+                goto e1;
             }
-            while (f_read(c->f2, &sh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)) {
+            while (f_read(c->f2, psh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)) {
                 // goutf("Section info: %d type: %d\n", sh.sh_info, sh.sh_type);
-                if(sh.sh_type == REL_SEC && sh.sh_info == sec_num) {
+                if (psh->sh_type == REL_SEC && psh->sh_info == sec_num) {
                     uint32_t r2 = f_tell(c->f2);
                     elf32_rel rel;
-                    for (uint32_t j = 0; j < sh.sh_size / sizeof(rel); ++j) {
-                        if (f_lseek(c->f2, sh.sh_offset + j * sizeof(rel)) != FR_OK ||
+                    for (uint32_t j = 0; j < psh->sh_size / sizeof(rel); ++j) {
+                        if (f_lseek(c->f2, psh->sh_offset + j * sizeof(rel)) != FR_OK ||
                             f_read(c->f2, &rel, sizeof(rel), &rb) != FR_OK || rb != sizeof(rel)
                         ) {
-                            goutf("Unable to read REL record #%d in section #%d\n", j, sh.sh_info);
-                            return 0;
+                            goutf("Unable to read REL record #%d in section #%d\n", j, psh->sh_info);
+                            prg_addr = 0;
+                            goto e1;
                         }
                         uint32_t rel_sym = rel.rel_info >> 8;
                         uint8_t rel_type = rel.rel_info & 0xFF;
@@ -343,7 +348,8 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             f_read(c->f2, c->psym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)
                         ) {
                             goutf("Unable to read .symtab section #%d\n", rel_sym);
-                            return 0;
+                            prg_addr = 0;
+                            goto e1;
                         }
                         char* rel_str_sym = st_spec_sec(c->psym->st_shndx);
                         if (rel_str_sym != 0) {
@@ -351,7 +357,8 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                   rel_sym, c->psym->st_shndx, rel_str_sym,
                                   st_predef(c->pstrtab + c->psym->st_name)
                             );
-                            return 0;
+                            prg_addr = 0;
+                            goto e1;
                         }
                         uint32_t* rel_addr = (uint32_t*)(prg_addr + rel.rel_offset /*10*/); /*f7ff fffe 	bl	0*/
                         // DO NOT resolve it for any case, it may be 16-bit alligned, and will hand to load 32-bit
@@ -362,7 +369,8 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                         if (c->psym->st_shndx != sec_num) {
                             sec_addr = load_sec2mem(c, c->psym->st_shndx);
                             if (sec_addr == 0) { // TODO: already loaded (app context)
-                                return 0;
+                                prg_addr = 0;
+                                goto e1;
                             }
                         }
                         uint32_t A = sec_addr;
@@ -380,7 +388,8 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 break;
                             default:
                                 goutf("Unsupportel REL type: %d\n", rel_type);
-                                return 0;
+                                prg_addr = 0;
+                                goto e1;
                         }
                         //goutf("= %ph\n", *rel_addr);
                     }
@@ -388,15 +397,19 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                 }
             }
         } else {
-            vPortFree(del_addr);
             //goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, del_addr);
-            return 0;
+            prg_addr = 0;
+            goto e1;
         }
         //goutf("Section #%d - load completed @%ph\n", sec_num, prg_addr);
     } else {
         goutf("Unable to read section #%d info\n", sec_num);
-        return 0;
+        prg_addr = 0;
+        goto e1;
     }
+e1:
+    vPortFree(psh);
+    if (!prg_addr && del_addr) vPortFree(del_addr);
     return prg_addr;
 }
 
@@ -407,35 +420,35 @@ int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
         goutf("Unable to open file: '%s'\n", fn);
         return -1;
     }
-    struct elf32_header ehdr;
+    elf32_header* pehdr = (elf32_header*)pvPortMalloc(sizeof(elf32_header));
     UINT rb;
-    if (f_read(f, &ehdr, sizeof(ehdr), &rb) != FR_OK) {
+    if (f_read(f, pehdr, sizeof(elf32_header), &rb) != FR_OK) {
         goutf("Unable to read an ELF file header: '%s'\n", fn);
         goto e1;
     }
-    elf32_shdr sh;
-    bool ok = f_lseek(f, ehdr.sh_offset + sizeof(sh) * ehdr.sh_str_index) == FR_OK;
-    if (!ok || f_read(f, &sh, sizeof(sh), &rb) != FR_OK || rb != sizeof(sh)) {
-        goutf("Unable to read .shstrtab section header @ %d+%d (read: %d)\n", f_tell(f), sizeof(sh), rb);
-        goto e1;
+    elf32_shdr* psh = (elf32_shdr*)pvPortMalloc(sizeof(elf32_shdr));
+    bool ok = f_lseek(f, pehdr->sh_offset + sizeof(elf32_shdr) * pehdr->sh_str_index) == FR_OK;
+    if (!ok || f_read(f, psh, sizeof(elf32_shdr), &rb) != FR_OK || rb != sizeof(elf32_shdr)) {
+        goutf("Unable to read .shstrtab section header @ %d+%d (read: %d)\n", f_tell(f), sizeof(elf32_shdr), rb);
+        goto e11;
     }
-    char* symtab = (char*)pvPortMalloc(sh.sh_size);
-    ok = f_lseek(f, sh.sh_offset) == FR_OK;
-    if (!ok || f_read(f, symtab, sh.sh_size, &rb) != FR_OK || rb != sh.sh_size) {
-        goutf("Unable to read .shstrtab section @ %d+%d (read: %d)\n", f_tell(f), sh.sh_size, rb);
+    char* symtab = (char*)pvPortMalloc(psh->sh_size);
+    ok = f_lseek(f, psh->sh_offset) == FR_OK;
+    if (!ok || f_read(f, symtab, psh->sh_size, &rb) != FR_OK || rb != psh->sh_size) {
+        goutf("Unable to read .shstrtab section @ %d+%d (read: %d)\n", f_tell(f), psh->sh_size, rb);
         goto e2;
     }
-    f_lseek(f, ehdr.sh_offset);
+    f_lseek(f, pehdr->sh_offset);
     int symtab_off, strtab_off = -1;
     UINT symtab_len, strtab_len = 0;
-    while ((symtab_off < 0 || strtab_off < 0) && f_read(f, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) { 
-        if(sh.sh_type == 2 && 0 == strcmp(symtab + sh.sh_name, ".symtab")) {
-            symtab_off = sh.sh_offset;
-            symtab_len = sh.sh_size;
+    while ((symtab_off < 0 || strtab_off < 0) && f_read(f, psh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)) { 
+        if(psh->sh_type == 2 && 0 == strcmp(symtab + psh->sh_name, ".symtab")) {
+            symtab_off = psh->sh_offset;
+            symtab_len = psh->sh_size;
         }
-        if(sh.sh_type == 3 && 0 == strcmp(symtab + sh.sh_name, ".strtab")) {
-            strtab_off = sh.sh_offset;
-            strtab_len = sh.sh_size;
+        if(psh->sh_type == 3 && 0 == strcmp(symtab + psh->sh_name, ".strtab")) {
+            strtab_off = psh->sh_offset;
+            strtab_len = psh->sh_size;
         }
     }
     if (symtab_off < 0 || strtab_off < 0) {
@@ -455,18 +468,17 @@ int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
     uint32_t main_idx = 0xFFFFFFFF;
     uint32_t req_idx = 0xFFFFFFFF;
     // TODO: precalc req. size
-    uint16_t max_sects = ehdr.sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
+    uint16_t max_sects = pehdr->sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
     bootb_ctx->sect_entries = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
     bootb_ctx->sect_entries[0].del_addr = 0;
-    load_sec_ctx ctx = {
-        f,
-        &ehdr,
-        symtab_off,
-        &sym,
-        strtab,
-        bootb_ctx->sect_entries,
-        max_sects
-    };
+    load_sec_ctx* pctx = (load_sec_ctx*)pvPortMalloc(sizeof(load_sec_ctx));
+    pctx->f2 = f;
+    pctx->pehdr = pehdr;
+    pctx->symtab_off = symtab_off;
+    pctx->psym = &sym;
+    pctx->pstrtab = strtab;
+    pctx->psections_list = bootb_ctx->sect_entries;
+    pctx->max_sections_in_list = max_sects;
     for (uint32_t i = 0; i < symtab_len / sizeof(sym); ++i) {
         if (f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
             goutf("Unable to read .symtab section #%d\n", i);
@@ -494,7 +506,7 @@ int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
             goutf("Unable to read .symtab section for __required_m_api_version #%d\n", req_idx);
             goto e3;
         }
-        bootb_ctx->bootb[0] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+        bootb_ctx->bootb[0] = load_sec2mem(pctx, sym.st_shndx) + 1;
     }
     if (_init_idx != 0xFFFFFFFF) {
         if (f_lseek(f, symtab_off + _init_idx * sizeof(sym)) != FR_OK ||
@@ -503,7 +515,7 @@ int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
             goutf("Unable to read .symtab section for _init #%d\n", _init_idx);
             goto e3;
         }
-        bootb_ctx->bootb[1] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+        bootb_ctx->bootb[1] = load_sec2mem(pctx, sym.st_shndx) + 1;
     }
     if (main_idx != 0xFFFFFFFF) {
         if (f_lseek(f, symtab_off + main_idx * sizeof(sym)) != FR_OK ||
@@ -512,7 +524,7 @@ int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
             goutf("Unable to read .symtab section for main #%d\n", main_idx);
             goto e3;
         }
-        bootb_ctx->bootb[2] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+        bootb_ctx->bootb[2] = load_sec2mem(pctx, sym.st_shndx) + 1;
     }
     if (_fini_idx != 0xFFFFFFFF) {
         if (f_lseek(f, symtab_off + _fini_idx * sizeof(sym)) != FR_OK ||
@@ -521,7 +533,7 @@ int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
             goutf("Unable to read .symtab section for _fini #%d\n", _fini_idx);
             goto e3;
         }
-        bootb_ctx->bootb[3] = load_sec2mem(&ctx, sym.st_shndx) + 1;
+        bootb_ctx->bootb[3] = load_sec2mem(pctx, sym.st_shndx) + 1;
     }
     /*
     if (bootb_ctx->sect_entries) {
@@ -535,10 +547,14 @@ e3:
     vPortFree(strtab);
 e2:
     vPortFree(symtab);
+e11:
+    vPortFree(psh);
 e1:
+    vPortFree(pehdr);
     f_close(f);
     vPortFree(f);
-    bootb_ctx->sect_entries = ctx.psections_list;
+    bootb_ctx->sect_entries = pctx->psections_list;
+    vPortFree(pctx);
     if (bootb_ctx->bootb[2] == 0) {
         goutf("'main' global function is not found in the '%s' elf-file\n", fn);
         return -1;

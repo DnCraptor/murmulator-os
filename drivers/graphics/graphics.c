@@ -132,7 +132,7 @@ void goutf(const char *__restrict str, ...) {
 }
 
 void fgoutf(FIL *f, const char *__restrict str, ...) {
-    char buf[512]; // TODO: some const?
+    char* buf = (char*)pvPortMalloc(512);
     va_list ap;
     va_start(ap, str);
     vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
@@ -143,4 +143,5 @@ void fgoutf(FIL *f, const char *__restrict str, ...) {
         UINT bw;
         f_write(f, buf, strlen(buf), &bw); // TODO: error handling
     }
+    vPortFree(buf);
 }
