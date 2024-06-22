@@ -2,7 +2,7 @@
 
 static HeapStats_t stat;
 
-int main() {
+int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     uint32_t flash32 = get_cpu_flash_size();
     uint32_t ram32 = get_cpu_ram_size();
@@ -39,4 +39,8 @@ int main() {
             stat.xNumberOfSuccessfulAllocations, stat.xNumberOfSuccessfulFrees
     );
     return 0;
+}
+
+int __required_m_api_verion(void) {
+    return 2;
 }

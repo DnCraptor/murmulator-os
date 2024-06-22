@@ -266,77 +266,81 @@ static const char* st_spec_sec(uint16_t st) {
     return "";
 }
 
-static FIL f2;
-
-int main() {
+extern "C" int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     if (ctx->tokens == 1) {
         fgoutf(ctx->pstderr, "Unable to show info for a file with no name\n");
         return 1;
     }
     char* fn = (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t);
-    if (f_open(&f2, fn, FA_READ) != FR_OK) {
+    FIL* f = (FIL*)pvPortMalloc(sizeof(FIL));
+    if (f_open(f, fn, FA_READ) != FR_OK) {
+        vPortFree(f);
         fgoutf(ctx->pstderr, "Unable to open file: '%s'\n", fn);
         return 2;
     }
-    struct elf32_header ehdr;
+    elf32_header* pehdr = (elf32_header*)pvPortMalloc(sizeof(elf32_header));
     UINT rb;
-    if (f_read(&f2, &ehdr, sizeof(ehdr), &rb) != FR_OK) {
+    if (f_read(f, pehdr, sizeof(elf32_header), &rb) != FR_OK) {
         fgoutf(ctx->pstderr, "Unable to read an ELF file header: '%s'\n", fn);
-        f_close(&f2);
+        f_close(f);
+        vPortFree(f);
+        vPortFree(pehdr);
         return 3;
     }
-    if (ehdr.common.magic != ELF_MAGIC) {
+    if (pehdr->common.magic != ELF_MAGIC) {
         fgoutf(ctx->pstderr, "It is not an ELF file: '%s'\n", fn);
-        f_close(&f2);
+        f_close(f);
+        vPortFree(f);
+        vPortFree(pehdr);
         return 4;
     }
-    if (ehdr.common.version != 1 || ehdr.common.version2 != 1) {
-        fgoutf(ctx->pstderr, "%s '%s' version: %d:%d\n", s, fn, ehdr.common.version, ehdr.common.version2);
+    if (pehdr->common.version != 1 || pehdr->common.version2 != 1) {
+        fgoutf(ctx->pstderr, "%s '%s' version: %d:%d\n", s, fn, pehdr->common.version, pehdr->common.version2);
     }
-    if (ehdr.common.arch_class != 1 || ehdr.common.endianness != 1) {
-        fgoutf(ctx->pstderr, "%s '%s' class: %d; endian: %d\n", s, fn, ehdr.common.arch_class, ehdr.common.endianness);
+    if (pehdr->common.arch_class != 1 || pehdr->common.endianness != 1) {
+        fgoutf(ctx->pstderr, "%s '%s' class: %d; endian: %d\n", s, fn, pehdr->common.arch_class, pehdr->common.endianness);
     }
-    if (ehdr.eh_size != sizeof(struct elf32_header)) {
-        fgoutf(ctx->pstderr, "%s '%s' header size: %d; expected: %d\n", s, fn, ehdr.eh_size, sizeof(ehdr));
+    if (pehdr->eh_size != sizeof(struct elf32_header)) {
+        fgoutf(ctx->pstderr, "%s '%s' header size: %d; expected: %d\n", s, fn, pehdr->eh_size, sizeof(elf32_header));
     }
-    if (ehdr.common.machine != EM_ARM) {
-        fgoutf(ctx->pstderr, "%s '%s' machine type: %d; expected: %d\n", s, fn, ehdr.common.machine, EM_ARM);
+    if (pehdr->common.machine != EM_ARM) {
+        fgoutf(ctx->pstderr, "%s '%s' machine type: %d; expected: %d\n", s, fn, pehdr->common.machine, EM_ARM);
     }
-    if (ehdr.common.abi != 0) {
-        fgoutf(ctx->pstderr, "%s '%s' ABI type: %d; expected: %d\n", s, fn, ehdr.common.abi, 0);
+    if (pehdr->common.abi != 0) {
+        fgoutf(ctx->pstderr, "%s '%s' ABI type: %d; expected: %d\n", s, fn, pehdr->common.abi, 0);
     }
-    if (ehdr.flags & EF_ARM_ABI_FLOAT_HARD) {
-        fgoutf(ctx->pstderr, "%s '%s' EF_ARM_ABI_FLOAT_HARD: %04Xh\n", s, fn, ehdr.flags);
+    if (pehdr->flags & EF_ARM_ABI_FLOAT_HARD) {
+        fgoutf(ctx->pstderr, "%s '%s' EF_ARM_ABI_FLOAT_HARD: %04Xh\n", s, fn, pehdr->flags);
     }
-    bool ram_style = is_address_initialized(rp2040_address_ranges_ram, ehdr.entry);
-    FIL* f = ctx->pstdout;
-    if (ram_style) fgoutf(f, "RAM style binary\n");
-    else fgoutf(f, "FLASH style binary\n");
+    bool ram_style = is_address_initialized(rp2040_address_ranges_ram, pehdr->entry);
+    FIL* f2 = ctx->pstdout;
+    if (ram_style) fgoutf(f2, "RAM style binary\n");
+    else fgoutf(f2, "FLASH style binary\n");
     const address_range *valid_ranges = ram_style ? rp2040_address_ranges_ram : rp2040_address_ranges_flash;
-    int rc = read_and_check_elf32_ph_entries(f, &f2, ehdr, valid_ranges);
-    fgoutf(f, "Size of section headers:           %d\n", ehdr.sh_entry_size);
-    fgoutf(f, "Number of section headers:         %d\n", ehdr.sh_num);
-    fgoutf(f, "Section header string table index: %d\n", ehdr.sh_str_index);
-    fgoutf(f, "Start of section headers:          %d\n", ehdr.sh_offset);
+    int rc = read_and_check_elf32_ph_entries(f2, f, *pehdr, valid_ranges);
+    fgoutf(f2, "Size of section headers:           %d\n", pehdr->sh_entry_size);
+    fgoutf(f2, "Number of section headers:         %d\n", pehdr->sh_num);
+    fgoutf(f2, "Section header string table index: %d\n", pehdr->sh_str_index);
+    fgoutf(f2, "Start of section headers:          %d\n", pehdr->sh_offset);
     elf32_shdr sh;
-    bool ok = f_lseek(&f2, ehdr.sh_offset + sizeof(sh) * ehdr.sh_str_index) == FR_OK;
-    if (!ok || f_read(&f2, &sh, sizeof(sh), &rb) != FR_OK || rb != sizeof(sh)) {
-        fgoutf(ctx->pstderr, "Unable to read .shstrtab section header @ %d+%d (read: %d)\n", f_tell(&f2), sizeof(sh), rb);
+    bool ok = f_lseek(f, pehdr->sh_offset + sizeof(sh) * pehdr->sh_str_index) == FR_OK;
+    if (!ok || f_read(f, &sh, sizeof(sh), &rb) != FR_OK || rb != sizeof(sh)) {
+        fgoutf(ctx->pstderr, "Unable to read .shstrtab section header @ %d+%d (read: %d)\n", f_tell(f), sizeof(sh), rb);
     } else {
         // TODO: check type?
         char* symtab = (char*)pvPortMalloc(sh.sh_size);
-        ok = f_lseek(&f2, sh.sh_offset) == FR_OK;
-        if (!ok || f_read(&f2, symtab, sh.sh_size, &rb) != FR_OK || rb != sh.sh_size) {
-            fgoutf(ctx->pstderr, "Unable to read .shstrtab section @ %d+%d (read: %d)\n", f_tell(&f2), sh.sh_size, rb);
+        ok = f_lseek(f, sh.sh_offset) == FR_OK;
+        if (!ok || f_read(f, symtab, sh.sh_size, &rb) != FR_OK || rb != sh.sh_size) {
+            fgoutf(ctx->pstderr, "Unable to read .shstrtab section @ %d+%d (read: %d)\n", f_tell(f), sh.sh_size, rb);
         }
 
         int symtab_off, strtab_off, dyntab_off, dynstr_off = -1;
         UINT symtab_len, strtab_len, dyntab_len, dynstr_len = 0;
-        f_lseek(&f2, ehdr.sh_offset);
+        f_lseek(f, pehdr->sh_offset);
         int i = 0;
-        while (f_read(&f2, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
-            fgoutf(f, "%02d %s(%x) %s%s%s%s (%02xh) %p:%p (%04d) A%04d E%02d L%02d %s",
+        while (f_read(f, &sh, sizeof(sh), &rb) == FR_OK && rb == sizeof(sh)) {
+            fgoutf(f2, "%02d %s(%x) %s%s%s%s (%02xh) %p:%p (%04d) A%04d E%02d L%02d %s\n",
                    i,
                    sh_type2name(sh.sh_type), sh.sh_type,
                    sh_flags_w(sh.sh_flags), sh_flags_a(sh.sh_flags), sh_flags_x(sh.sh_flags), sh_flags_s(sh.sh_flags), sh.sh_flags,
@@ -363,18 +367,18 @@ int main() {
                 dynstr_len = sh.sh_size;
             }
             if(sh.sh_type == REL_SEC) {
-                uint32_t r2 = f_tell(&f2);
-                f_lseek(&f2, sh.sh_offset);
+                uint32_t r2 = f_tell(f);
+                f_lseek(f, sh.sh_offset);
                 uint32_t len = sh.sh_size;
                 elf32_rel rel;
                 int rn = 0;
                 while(len) {
-                    f_read(&f2, &rel, sizeof(rel), &rb);
-                    fgoutf(f, "REL#%d off: %p r_sym: %d r_type: %d\n", rn, rel.rel_offset, rel.rel_info >> 8, rel.rel_info & 0xFF);
+                    f_read(f, &rel, sizeof(rel), &rb);
+                    fgoutf(f2, "REL#%d off: %p r_sym: %d r_type: %d\n", rn, rel.rel_offset, rel.rel_info >> 8, rel.rel_info & 0xFF);
                     len -= sh.sh_entsize;
                     ++rn;
                 }
-                f_lseek(&f2, r2);
+                f_lseek(f, r2);
             }
             i++;
         }
@@ -386,18 +390,18 @@ int main() {
         } else {
             fgoutf(f, "SYMTAB:\n");
             char* strtab = (char*)pvPortMalloc(strtab_len);
-            f_lseek(&f2, strtab_off);
-            if(f_read(&f2, strtab, strtab_len, &rb) != FR_OK || rb != strtab_len) {
+            f_lseek(f, strtab_off);
+            if(f_read(f, strtab, strtab_len, &rb) != FR_OK || rb != strtab_len) {
                 fgoutf(ctx->pstderr, "%s '%s' Unable to read .strtab section #%d\n", s, fn, i);
             } else {                
-                f_lseek(&f2, symtab_off);
+                f_lseek(f, symtab_off);
                 elf32_sym sym;
                 for(int i = 0; i < symtab_len / sizeof(sym); ++i) {
-                    if(f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
+                    if(f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
                         fgoutf(ctx->pstderr, "Unable to read .symtab section #%d\n", i);
                         break;
                     }
-                    fgoutf(f, "%02d %ph %s %s %s (%d) -> %d%s\n",
+                    fgoutf(f2, "%02d %ph %s %s %s (%d) -> %d%s\n",
                            i, sym.st_value,
                            st_info_type2str(sym.st_info & 0xF),
                            st_info_bind2str(sym.st_info >> 4),
@@ -409,24 +413,24 @@ int main() {
             vPortFree(strtab);
         }
         if (dyntab_off < 0) {
-            fgoutf(f, "No .dynsym section header found\n");            
+            fgoutf(f2, "No .dynsym section header found\n");            
         } else if (dynstr_off < 0) {
             fgoutf(ctx->pstderr, "Unable to find .dynstr section header\n");            
         } else {
-            fgoutf(f, "DYNTAB:\n");
+            fgoutf(f2, "DYNTAB:\n");
             char* strtab = (char*)pvPortMalloc(dynstr_len);
-            f_lseek(&f2, dynstr_off);
-            if(f_read(&f2, strtab, dynstr_len, &rb) != FR_OK || rb != dynstr_len) {
+            f_lseek(f, dynstr_off);
+            if(f_read(f, strtab, dynstr_len, &rb) != FR_OK || rb != dynstr_len) {
                 fgoutf(ctx->pstderr, "Unable to read .dynstr section #%d\n", i);
             } else {                
-                f_lseek(&f2, dyntab_off);
+                f_lseek(f, dyntab_off);
                 elf32_sym sym;
                 for(int i = 0; i < dyntab_len / sizeof(sym); ++i) {
-                    if(f_read(&f2, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
+                    if(f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
                         fgoutf(ctx->pstderr, "Unable to read .dyntab section #%d\n", i);
                         break;
                     }
-                    fgoutf(f, "%02d %ph %s %s %s (%d) -> %d%s\n",
+                    fgoutf(f2, "%02d %ph %s %s %s (%d) -> %d%s\n",
                            i, sym.st_value, st_info_type2str(sym.st_info & 0xF), st_info_bind2str(sym.st_info >> 4),
                            strtab + sym.st_name, sym.st_size, sym.st_shndx, st_spec_sec(sym.st_shndx)
                     );
@@ -435,6 +439,12 @@ int main() {
             vPortFree(strtab);
         }
     }
-    f_close(&f2);
+    f_close(f);
+    vPortFree(f);
+    vPortFree(pehdr);
     return 0;
+}
+
+extern "C" int __required_m_api_verion(void) {
+    return 2;
 }
