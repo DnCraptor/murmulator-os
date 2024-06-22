@@ -233,6 +233,7 @@ typedef struct {
     FIL * pstderr;
     char* path;
     int ret_code;
+    char* base;
 } cmd_startup_ctx_t;
 inline static cmd_startup_ctx_t* get_cmd_startup_ctx() {
     typedef cmd_startup_ctx_t* (*f_ptr_t)();

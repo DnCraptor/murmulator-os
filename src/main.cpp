@@ -186,8 +186,11 @@ extern "C" void vCmdTask(void *pv) {
         ///goutf("Lookup for: %s (mode: %d)\n", ctx->cmd_t, inCmd);
         char* t = exists(ctx);
         if (t) {
+            size_t len = strlen(t);
             //goutf("Command found: %s (mode: %d)\n", t, inCmd);
-            if(is_new_app(t)) {
+             if (len > 3 && strcmp(t + len - 4, ".uf2") == 0 && load_firmware(t)) {
+                run_app(t);
+            } else if(is_new_app(t)) {
                 //gouta("Command has appropriate format\n");
                 ctx->ret_code = load_app(t, &bootb_ctx);
                 //goutf("LOAD RET_CODE: %d\n", ctx->ret_code);
@@ -203,14 +206,20 @@ extern "C" void vCmdTask(void *pv) {
         } else {
             goutf("Illegal command: '%s'\n", ctx->cmd);
         }
-        if (!inCmd) { // it is expected cmd/cmd0 will prepare ctx for next run for application
+        if (!inCmd) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
             ctx->cmd[0] = 0;
+            ctx->cmd_t[0] = 0;
+            ctx->tokens = 0;
+            f_close(ctx->pstdout);
+            f_close(ctx->pstderr);
         }
     }
     vTaskDelete( NULL );
 }
 
-const char tmp[] = "                      ZX Murmulator (RP2040) OS v.0.0.4 Alfa                    ";
+const char tmp[] = "                      ZX Murmulator (RP2040) OS v."
+                    MOS_VERSION_STR
+                   " Alfa                    ";
 
 int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);

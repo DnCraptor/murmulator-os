@@ -140,6 +140,10 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         return true;
     }
     switch ((uint8_t)input & 0xFF) {
+        case 0x81: // ESC
+            if (cp866_handler) cp866_handler(0x1B /*ESC*/, ps2scancode);
+            __c = 0x1B;
+            return true;
         case 0x1D:
             bCtrlPressed = true;
             if (bRightShift || bLeftShift) bRus = !bRus;

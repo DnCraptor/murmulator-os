@@ -250,6 +250,9 @@ t:
         }
     }
     if (strcmp("exit", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
+        ctx->cmd[0] = 0;
+        ctx->cmd_t[0] = 0;
+        ctx->tokens = 0;
         return true;
     }
     if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
@@ -259,6 +262,8 @@ t:
             cd(ctx, (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t));
         }
     } else {
+        return true;
+        /*
         char* t = exists(ctx);
         if (t) {
             int len = strlen(t);
@@ -274,11 +279,12 @@ t:
         } else {
             goutf("Illegal command: '%s'\n", ctx->cmd);
         }
+        */
     }
-    if (redirect2) {
-        f_close(ctx->pstdout);
-        redirect2 = NULL;
-    }
+//    if (redirect2) {
+//        f_close(ctx->pstdout);
+//        redirect2 = NULL;
+//    }
 r:
     goutf("%s>", ctx->curr_dir);
     ctx->cmd[0] = 0;
@@ -314,9 +320,6 @@ int main() {
                 if ( cmd_enter(ctx) ) {
                     vPortFree(cmd_history_file);
                     vPortFree(pfh);
-                    ctx->cmd[0] = 0;
-                    ctx->cmd_t[0] = 0;
-                    ctx->tokens = 0;
                     return 0;
                 }
             } else cmd_push(ctx, c);

@@ -21,7 +21,9 @@ if(NOT FLASH_SIZE)
 set(FLASH_SIZE 4096)
 endif ()
 
-SET(BUILD_NAME "${PROJECT_NAME}-${FLASH_SIZE}K")
+set(MOS_VERSION 0.0.5)
+
+SET(BUILD_NAME "${PROJECT_NAME}-${FLASH_SIZE}K-${MOS_VERSION}")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -67,7 +69,7 @@ configure_file(memmap.ld.in memmap.ld @ONLY)
 pico_set_linker_script(${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/memmap.ld)
 
 pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS")
-pico_set_program_version(${PROJECT_NAME} "0.0.4")
+pico_set_program_version(${PROJECT_NAME} "${MOS_VERSION}")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         psram
@@ -167,6 +169,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         SWAP_BLOCK_1k
         M_API_VERSION=2
+        MOS_VERSION_STR="${MOS_VERSION}"
+        FLASH_SIZE_STR="${FLASH_SIZE}"
 
         TESTS=0
 )

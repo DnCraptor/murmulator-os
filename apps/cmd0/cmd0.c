@@ -95,6 +95,8 @@ inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
     ctx->tokens = tokens;
     if (strcmp("exit", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
         ctx->cmd[0] = 0;
+        ctx->cmd_t[0] = 0;
+        ctx->tokens = 0;
         return true;
     } else if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
         if (tokens == 1) {
@@ -109,6 +111,7 @@ inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
 r:
     goutf("%s#", ctx->curr_dir);
     ctx->cmd[0] = 0;
+    ctx->cmd_t[0] = 0;
     return false;
 }
 

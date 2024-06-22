@@ -7,10 +7,12 @@ static cmd_startup_ctx_t ctx = { 0 };
 cmd_startup_ctx_t* init_ctx() {
     ctx.cmd = (char*)pvPortMalloc(512); ctx.cmd[0] = 0;
     ctx.cmd_t = (char*)pvPortMalloc(512); ctx.cmd_t[0] = 0;
+    ctx.tokens = 0;
     ctx.curr_dir = (char*)pvPortMalloc(512);
     ctx.pstdout = (FIL*)pvPortMalloc(sizeof(FIL)); memset(ctx.pstdout, 0, 512);
     ctx.pstderr = (FIL*)pvPortMalloc(sizeof(FIL)); memset(ctx.pstderr, 0, 512);
     ctx.path = (char*)pvPortMalloc(512);
+    ctx.base = "MOS";
     strcpy(ctx.curr_dir, "MOS");
     strcpy(ctx.path, "MOS");
     return &ctx;
@@ -61,12 +63,21 @@ char* exists(cmd_startup_ctx_t* ctx) {
         res = copy_str(cmd);
         goto r1;
     }
-    char* dir = ctx->curr_dir;
+
+    char* dir = ctx->base;
     res = concat(dir, cmd);
     r = f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
     if (r) goto r1;
     vPortFree(res);
-    res = 0; 
+    res = 0;
+
+    dir = ctx->curr_dir;
+    res = concat(dir, cmd);
+    r = f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
+    if (r) goto r1;
+    vPortFree(res);
+    res = 0;
+
     dir = ctx->path;
     size_t sz = strlen(dir);
     char* e = dir;

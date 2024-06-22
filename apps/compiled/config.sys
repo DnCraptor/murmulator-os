@@ -1,3 +1,3 @@
-COMSPEC=/mos/cmd0
+COMSPEC=/mos/cmd
 BASE=MOS
 PATH=MOS

@@ -88,10 +88,20 @@ bool restore_tbl(char* fn) {
         if (*b++ != *fl++) {
             b--; fl--;
             goutf("Restoring OS API functions table, because [%p]:%02X <> %02X\n", fl, *fl, *b);
-            goutf("Flash [%p] -> [%p]. Press ENTER to confirm...\n", buffer, M_OS_API_TABLE_BASE);
-            while(__getc() != '\n');
+            goutf("Flash [%p] -> [%p]. Press ENTER to confirm or ESC to skip it...\n", buffer, M_OS_API_TABLE_BASE);
+            while(1) {
+                char c = __getc();
+                if(c == '\n') {
+                    break;
+                }
+                if (c == 0x1B/*ESC*/) {
+                    vPortFree(alloc);
+                    return false;
+                }
+            }
             flash_block(buffer, M_OS_API_TABLE_BASE - XIP_BASE);
-            break;
+            vPortFree(alloc);
+            return true;
         }
     }
     vPortFree(alloc);
