@@ -188,8 +188,10 @@ extern "C" void vCmdTask(void *pv) {
         if (t) {
             size_t len = strlen(t);
             //goutf("Command found: %s (mode: %d)\n", t, inCmd);
-             if (len > 3 && strcmp(t + len - 4, ".uf2") == 0 && load_firmware(t)) {
-                run_app(t);
+             if (len > 3 && strcmp(t + len - 4, ".uf2") == 0) {
+                if(load_firmware(t)) {
+                    run_app(t);
+                }
             } else if(is_new_app(t)) {
                 //gouta("Command has appropriate format\n");
                 ctx->ret_code = load_app(t, &bootb_ctx);

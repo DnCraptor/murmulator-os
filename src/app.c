@@ -27,12 +27,14 @@ typedef struct {
     uint32_t magicEnd;
 } UF2_Block_t;
 
-inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expected_flash_target_offset, UF2_Block_t* puf2) {
+inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expected_flash_target_offset, UF2_Block_t* puf2, size_t* psz) {
+    *psz = 0;
     UINT bytes_read = 0;
     uint32_t data_sector_index = 0;
     for(; data_sector_index < FLASH_SECTOR_SIZE; data_sector_index += 256) {
         fgoutf(get_stdout(), "Read block: %ph; ", f_tell(f));
         f_read(f, puf2, sizeof(UF2_Block_t), &bytes_read);
+        *psz += bytes_read;
         fgoutf(get_stdout(), "(%d bytes) ", bytes_read);
         if (!bytes_read) {
             break;
@@ -40,6 +42,7 @@ inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expe
         if (expected_flash_target_offset != puf2->targetAddr - XIP_BASE) {
             f_lseek(f, f_tell(f) - sizeof(UF2_Block_t)); // we will reread this block, it doesnt belong to this continues block
             expected_flash_target_offset = puf2->targetAddr - XIP_BASE;
+            *psz -= bytes_read;
             fgoutf(get_stdout(), "Flash target offset: %ph\n", expected_flash_target_offset);
             break;
         }
@@ -118,14 +121,21 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     char* buffer = (char*)((uint32_t)(alloc + FLASH_SECTOR_SIZE - 1) & 0xFFFFFE00); // align 512
 
     uint32_t flash_target_offset = 0;
-    bool toff = false;
+    bool boot_replaced = false;
     while(true) {
-        uint32_t next_flash_target_offset = read_flash_block(&file, buffer, flash_target_offset, uf2);
+        size_t sz = 0;
+        uint32_t next_flash_target_offset = read_flash_block(&file, buffer, flash_target_offset, uf2, &sz);
         if (next_flash_target_offset == flash_target_offset) {
             break;
         }
+        if (sz == 0) { // replace target
+            flash_target_offset = next_flash_target_offset; 
+            fgoutf(get_stdout(), "Replace targe offset: %ph\n", flash_target_offset);
+            continue;
+        }
         //подмена загрузчика boot2 прошивки на записанный ранее
         if (flash_target_offset == 0) {
+            boot_replaced = true;
             memcpy(buffer, (uint8_t *)XIP_BASE, 256);
             fgoutf(get_stdout(), "Replace loader @ offset 0\n");
         }
@@ -135,20 +145,20 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     }
     vPortFree(alloc);
     f_close(&file);
-    
-    f_open(&file, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
-    fgoutf(&file, "%s", pathname);
-    f_close(&file);
-    
-    f_close(get_stdout());
-    f_close(get_stderr());
+    if (boot_replaced) {
+        f_open(&file, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
+        fgoutf(&file, "%s", pathname);
+        f_close(&file);
 
-    watchdog_enable(100, true);
+        f_close(get_stdout());
+        f_close(get_stderr());
 
+        watchdog_enable(100, true);
+    }
     vPortFree(uf2);
 
-    while(1);
-    __unreachable();
+    while(boot_replaced);
+    return !boot_replaced;
 }
 
 bool load_firmware(char* pathname) {
@@ -180,12 +190,13 @@ bool load_firmware(char* pathname) {
 
 void vAppTask(void *pv) {
     int res = ((boota_ptr_t)M_OS_APP_TABLE_BASE[0])(pv); // TODO:
+    goutf("RET_CODE: %d\n", res);
     vTaskDelete( NULL );
     // TODO: ?? return res;
 }
 
 void run_app(char * name) {
-    xTaskCreate(vAppTask, name, configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
+    xTaskCreate(vAppTask, name, 2048, NULL, configMAX_PRIORITIES - 1, NULL);
 }
 
 #include "elf32.h"

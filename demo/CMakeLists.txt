@@ -33,7 +33,7 @@ foreach (SRC_FILE IN LISTS SRC)
 endforeach ()
 message(STATUS "")
 
-add_executable(${PROJECT_NAME} main.c testTask1.c)
+add_executable(${PROJECT_NAME} main.c)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
