@@ -2,14 +2,14 @@
 
 static int rmdir(const char* d) {
     DIR* dir = (DIR*)pvPortMalloc(sizeof(DIR));
-    if (FR_OK != f_opendir(&dir, d)) {
+    if (FR_OK != f_opendir(dir, d)) {
         vPortFree(dir);
         fgoutf(get_cmd_startup_ctx()->pstderr, "Failed to open directory: '%s'\n", d);
         return 0;
     }
     size_t total_files = 0;
     FILINFO* fileInfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
-    while (f_readdir(dir, &fileInfo) == FR_OK && fileInfo->fname[0] != '\0') {
+    while (f_readdir(dir, fileInfo) == FR_OK && fileInfo->fname[0] != '\0') {
         char* t = concat(d, fileInfo->fname);
         if(fileInfo->fattrib & AM_DIR) {
             total_files += rmdir(t);
@@ -30,7 +30,7 @@ static int rmdir(const char* d) {
     return total_files;
 }
 
-int main() {
+int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     if (ctx->tokens == 1) {
         fgoutf(ctx->pstderr, "Unable to remove directoy with no name\n");
