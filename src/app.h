@@ -33,7 +33,7 @@ int load_app(char* name, bootb_ctx_t* bootb_ctx);
 int exec(bootb_ctx_t* bootb_ctx);
 void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx);
 bool restore_tbl(char* fn);
-void flash_block(uint8_t* buffer, size_t flash_target_offset);
+void flash_block_wrapper(uint8_t* buffer, size_t flash_target_offset);
 
 #ifdef __cplusplus
 }

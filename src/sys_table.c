@@ -186,8 +186,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     concat, // 129
     concat2, // 120
     //
-    restore_tbl, // 121
-    flash_block, // 122
+    flash_block_wrapper, // 121
+    0, // 122
     // TODO:
     0
 };

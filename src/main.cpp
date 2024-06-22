@@ -170,6 +170,10 @@ static void load_config_sys() {
 static bootb_ctx_t bootb_ctx = { 0 };
 
 extern "C" void vCmdTask(void *pv) {
+    char* t = concat(get_cmd_startup_ctx()->base, OS_TABLE_BACKUP_FN);
+    restore_tbl(t); // TODO: error handling
+    vPortFree(t);
+
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     while(1) {
         bool inCmd = false; // not in command processor mode
@@ -284,11 +288,7 @@ int main() {
           swap >> 20
     );
 
-    char* t = concat(get_cmd_startup_ctx()->base, OS_TABLE_BACKUP_FN);
-    restore_tbl(t); // TODO: error handling
-    vPortFree(t);
-
-    xTaskCreate(vCmdTask, "main", 4096, NULL, configMAX_PRIORITIES - 1, NULL);
+    xTaskCreate(vCmdTask, "cmd", 4096, NULL, configMAX_PRIORITIES - 1, NULL);
     /* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return

@@ -52,7 +52,7 @@ inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expe
 static FIL file;
 static FILINFO fileinfo;
 
-void flash_block(uint8_t* buffer, size_t flash_target_offset) {
+void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offset) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     multicore_lockout_start_blocking();
     const uint32_t ints = save_and_disable_interrupts();
@@ -63,14 +63,19 @@ void flash_block(uint8_t* buffer, size_t flash_target_offset) {
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
-static uint8_t __aligned(4) buffer[FLASH_SECTOR_SIZE];
+void flash_block_wrapper(uint8_t* buffer, size_t flash_target_offset) {
+    flash_block(buffer, flash_target_offset);
+}
 
-bool __not_in_flash_func(restore_tbl)(char* fn) {
+bool restore_tbl(char* fn) {
     if (f_open(&file, fn, FA_READ) != FR_OK) {
         return false;
     }
     UINT rb;
+    char* alloc = (char*)pvPortMalloc(FLASH_SECTOR_SIZE << 1);
+    char* buffer = (char*)((uint32_t)(alloc + FLASH_SECTOR_SIZE - 1) & 0xFFFFFE00); // align 512
     if (f_read(&file, buffer, FLASH_SECTOR_SIZE, &rb) != FR_OK || rb != FLASH_SECTOR_SIZE) {
+        vPortFree(alloc);
         goutf("Failed to read '%s' file to restore OS API\n", fn);
         f_close(&file);
         return false;
@@ -82,12 +87,14 @@ bool __not_in_flash_func(restore_tbl)(char* fn) {
         if (*b++ != *fl++) {
             b--; fl--;
             goutf("Restoring OS API functions table, because [%p]:%02X <> %02X\n", fl, *fl, *b);
+            goutf("Flash [%p] -> [%p]\n", buffer, M_OS_API_TABLE_BASE);
             sleep_ms(15000);
 
-            flash_block(b, M_OS_API_TABLE_BASE - XIP_BASE);
+            flash_block(buffer, M_OS_API_TABLE_BASE - XIP_BASE);
             break;
         }
     }
+    vPortFree(alloc);
     return true;
 }
 
@@ -97,6 +104,8 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         return false;
     }
     UF2_Block_t* uf2 = (UF2_Block_t*)pvPortMalloc(sizeof(UF2_Block_t));
+    char* alloc = (char*)pvPortMalloc(FLASH_SECTOR_SIZE << 1);
+    char* buffer = (char*)((uint32_t)(alloc + FLASH_SECTOR_SIZE - 1) & 0xFFFFFE00); // align 512
 
     uint32_t flash_target_offset = 0;
     bool toff = false;
@@ -114,10 +123,13 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         flash_block(buffer, flash_target_offset);
         flash_target_offset = next_flash_target_offset;
     }
+    vPortFree(alloc);
     f_close(&file);
+    
     f_open(&file, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
     fgoutf(&file, "%s", pathname);
     f_close(&file);
+    
     f_close(get_stdout());
     f_close(get_stderr());
 
