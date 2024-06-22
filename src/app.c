@@ -7,6 +7,7 @@
 #include "ff.h"
 #include "graphics.h"
 #include "cmd.h"
+#include "keyboard.h"
 
 #define M_OS_API_TABLE_BASE ((size_t*)0x10001000ul)
 #define M_OS_APP_TABLE_BASE ((size_t*)0x10002000ul)
@@ -87,9 +88,8 @@ bool restore_tbl(char* fn) {
         if (*b++ != *fl++) {
             b--; fl--;
             goutf("Restoring OS API functions table, because [%p]:%02X <> %02X\n", fl, *fl, *b);
-            goutf("Flash [%p] -> [%p]\n", buffer, M_OS_API_TABLE_BASE);
-            sleep_ms(15000);
-
+            goutf("Flash [%p] -> [%p]. Press ENTER to confirm...\n", buffer, M_OS_API_TABLE_BASE);
+            while(__getc() != '\n');
             flash_block(buffer, M_OS_API_TABLE_BASE - XIP_BASE);
             break;
         }
