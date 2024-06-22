@@ -6,7 +6,9 @@
 #include "task.h"
 #include "ff.h"
 #include "graphics.h"
+#include "cmd.h"
 
+#define M_OS_API_TABLE_BASE ((size_t*)0x10001000ul)
 #define M_OS_APP_TABLE_BASE ((size_t*)0x10002000ul)
 typedef int (*boota_ptr_t)( void *argv );
 
@@ -24,9 +26,74 @@ typedef struct {
     uint32_t magicEnd;
 } UF2_Block_t;
 
-FIL file;
-bool __not_in_flash_func(load_firmware)(char* pathname) {
+inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expected_flash_target_offset, UF2_Block_t* puf2) {
     UINT bytes_read = 0;
+    uint32_t data_sector_index = 0;
+    int i = 0;
+    for(; data_sector_index < FLASH_SECTOR_SIZE; data_sector_index += 256) {
+        gpio_put(PICO_DEFAULT_LED_PIN, (i++) & 1);
+        fgoutf(get_stdout(), "Read block: %ph; ", f_tell(f));
+        f_read(f, puf2, sizeof(UF2_Block_t), &bytes_read);
+        fgoutf(get_stdout(), "(%d bytes) ", bytes_read);
+        if (!bytes_read) {
+            break;
+        }
+        if (expected_flash_target_offset != puf2->targetAddr - XIP_BASE) {
+            f_lseek(f, f_tell(f) - sizeof(UF2_Block_t)); // we will reread this block, it doesnt belong to this continues block
+            expected_flash_target_offset = puf2->targetAddr - XIP_BASE;
+            fgoutf(get_stdout(), "Flash target offset: %ph\n", expected_flash_target_offset);
+            break;
+        }
+        fgoutf(get_stdout(), "Flash target offset: %ph\n", expected_flash_target_offset);
+        memcpy(buffer + data_sector_index, puf2->data, 256);
+        expected_flash_target_offset += 256;
+    }
+    return expected_flash_target_offset;
+}
+
+static FIL file;
+static FILINFO fileinfo;
+
+void flash_block(uint8_t* buffer, size_t flash_target_offset) {
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    multicore_lockout_start_blocking();
+    const uint32_t ints = save_and_disable_interrupts();
+    flash_range_erase(flash_target_offset, FLASH_SECTOR_SIZE);
+    flash_range_program(flash_target_offset, buffer, FLASH_SECTOR_SIZE);
+    restore_interrupts(ints);
+    multicore_lockout_end_blocking();
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+}
+
+bool restore_tbl(char* fn) {
+    if (f_open(&file, fn, FA_READ) != FR_OK) {
+        return false;
+    }
+    UINT rb;
+    uint8_t buffer[FLASH_SECTOR_SIZE];
+    if (f_read(&file, buffer, FLASH_SECTOR_SIZE, &rb) != FR_OK || rb != FLASH_SECTOR_SIZE) {
+        goutf("Failed to read for restore: '%s'\n", fn);
+        f_close(&file);
+        return false;
+    }
+    f_close(&file);
+    uint8_t* b = buffer;
+    uint8_t* fl = (uint8_t*)M_OS_API_TABLE_BASE;
+    for (int i = 0; i < 400; ++i) { // it is enough to test first 100 addresses
+        if (*b++ != *fl++) {
+            b--; fl--;
+            goutf("Restoring OS API functions table, because [%p]:%02X <> %02X\n", fl, *fl, *b);
+            sleep_ms(15000);
+
+            flash_block(b, M_OS_API_TABLE_BASE - XIP_BASE);
+            break;
+        }
+    }
+    return true;
+}
+
+
+bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     if (FR_OK != f_open(&file, pathname, FA_READ)) {
         return false;
     }
@@ -34,48 +101,69 @@ bool __not_in_flash_func(load_firmware)(char* pathname) {
     uint8_t* buffer = (uint8_t*)pvPortMalloc(FLASH_SECTOR_SIZE);
     UF2_Block_t* uf2 = (UF2_Block_t*)pvPortMalloc(sizeof(UF2_Block_t));
 
-    uint32_t flash_target_offset = 0x2000;
-    uint32_t data_sector_index = 0;
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
 
-    multicore_lockout_start_blocking(); // critical section?
-    const uint32_t ints = save_and_disable_interrupts();
-    int i = 0;
-    do {
-        f_read(&file, uf2, sizeof(UF2_Block_t), &bytes_read); // err?
-       // snprintf(tmp, 80, "#%d (%d) %ph", uf2->blockNo, uf2->payloadSize, uf2->targetAddr);
-       // draw_text(tmp, 0, uf2->blockNo % 30, 7, 0);
-        memcpy(buffer + data_sector_index, uf2->data, uf2->payloadSize);
-        data_sector_index += uf2->payloadSize;
-        if (flash_target_offset == 0)
-            flash_target_offset = uf2->targetAddr - XIP_BASE;
-            // TODO: order?
+    uint32_t flash_target_offset = 0;
 
-        if (data_sector_index == FLASH_SECTOR_SIZE || bytes_read == 0) {
-            data_sector_index = 0;
-            //подмена загрузчика boot2 прошивки на записанный ранее
-        //    if (flash_target_offset == 0) {
-        //        memcpy(buffer, (uint8_t *)XIP_BASE, 256);
-        //    }
-            flash_range_erase(flash_target_offset, FLASH_SECTOR_SIZE);
-            flash_range_program(flash_target_offset, buffer, FLASH_SECTOR_SIZE);
-
-        //    gpio_put(PICO_DEFAULT_LED_PIN, flash_target_offset & 1);
-            //snprintf(tmp, 80, "#%d %ph -> %ph", uf2->blockNo, uf2->targetAddr, flash_target_offset);
-            //draw_text(tmp, 0, i++, 7, 0);
-        
-            flash_target_offset = 0;
+    bool toff = false;
+    while(true) {
+        uint8_t buffer[FLASH_SECTOR_SIZE];
+        uint32_t next_flash_target_offset = read_flash_block(&file, buffer, flash_target_offset, uf2);
+        if (next_flash_target_offset == flash_target_offset) {
+            break;
         }
+        //подмена загрузчика boot2 прошивки на записанный ранее
+        if (flash_target_offset == 0) {
+            memcpy(buffer, (uint8_t *)XIP_BASE, 256);
+            fgoutf(get_stdout(), "Replace loader @ offset 0\n");
+        }
+        fgoutf(get_stdout(), "Erase and write to flash, offset: %ph\n", flash_target_offset);
+        flash_block(buffer, flash_target_offset);
+        flash_target_offset = next_flash_target_offset;
     }
-    while (bytes_read != 0);
-
-    restore_interrupts(ints);
-    multicore_lockout_end_blocking();
 
     gpio_put(PICO_DEFAULT_LED_PIN, false);
     f_close(&file);
+    f_open(&file, "/.firmware", FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
+    fgoutf(&file, "%s", pathname);
+    f_close(&file);
+    f_close(get_stdout());
+    f_close(get_stderr());
+
+    watchdog_enable(100, true);
+
     vPortFree(buffer);
     vPortFree(uf2);
-    return true;
+
+    while(1);
+    __unreachable();
+}
+
+bool load_firmware(char* pathname) {
+    f_stat(pathname, &fileinfo);
+    if (FLASH_SIZE - 64 << 10 < fileinfo.fsize / 2) {
+        fgoutf(get_stdout(), "ERROR: Firmware too large (%dK)! Canceled!\n", fileinfo.fsize >> 11);
+        return false;
+    }
+    char* t = concat(get_cmd_startup_ctx()->base, ".os-tbl-backup");
+    fgoutf(get_stdout(), "Backup OS functions table tp '%s'\n", t);
+    if (FR_OK != f_open(&file, t, FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_WRITE) ) {
+        fgoutf(get_stdout(), "ERROR: Unable to open backup file: '%s'!\n", t);
+        vPortFree(t);
+        return false;
+    }
+    UINT wb = 0;
+    if (FR_OK != f_write(&file, M_OS_API_TABLE_BASE, FLASH_SECTOR_SIZE, &wb) || wb != FLASH_SECTOR_SIZE)  {
+        fgoutf(get_stdout(), "ERROR: Unable to write to backup file: '%s'!\n", t);
+        vPortFree(t);
+        f_close(&file);
+        return false;
+    }
+    vPortFree(t);
+    f_close(&file);
+
+    fgoutf(get_stdout(), "Loading firmware: '%s'\n", pathname);
+    return load_firmware_sram(pathname);
 }
 
 void vAppTask(void *pv) {

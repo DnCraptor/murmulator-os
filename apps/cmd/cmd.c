@@ -263,7 +263,7 @@ t:
         if (t) {
             int len = strlen(t);
             //goutf("'%s' (%d)\n", t, len);
-            if (len > 3 && strcmp(t, ".uf2") == 0 && load_firmware(t)) {
+            if (len > 3 && strcmp(t + len - 4, ".uf2") == 0 && load_firmware(t)) {
                 run_app(t);
             } else if(is_new_app(t)) {
                 ctx->ret_code = run_new_app(t);

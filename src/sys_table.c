@@ -185,6 +185,9 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     exists, // 128
     concat, // 129
     concat2, // 120
+    //
+    restore_tbl, // 121
+    flash_block, // 122
     // TODO:
     0
 };

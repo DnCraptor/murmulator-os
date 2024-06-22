@@ -17,7 +17,8 @@ option(HDMI "Enable HDMI display" OFF)
 option(FLASH_SIZE "Target Flash Size" 2048)
 
 if(NOT FLASH_SIZE)
-set(FLASH_SIZE 2048)
+#set(FLASH_SIZE 2048)
+set(FLASH_SIZE 4096)
 endif ()
 
 SET(BUILD_NAME "${PROJECT_NAME}-${FLASH_SIZE}K")
@@ -172,7 +173,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 
 pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
-math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 72) + 0x10000000")
+math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 76) + 0x10000000")
 message(STATUS "${CUSTOM_XIP_BASE}")
 target_compile_definitions(slower_boot2 PRIVATE CUSTOM_XIP_BASE=${CUSTOM_XIP_BASE})
 target_compile_definitions(slower_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)

@@ -92,14 +92,45 @@ inline static void tokenizeCfg(char* s, size_t sz) {
     s[i] = 0;
 }
 
+static void __always_inline run_application() {
+    multicore_reset_core1();
+
+    asm volatile (
+        "mov r0, %[start]\n"
+        "ldr r1, =%[vtable]\n"
+        "str r0, [r1]\n"
+        "ldmia r0, {r0, r1}\n"
+        "msr msp, r0\n"
+        "bx r1\n"
+        :: [start] "r" (XIP_BASE + 0x100), [vtable] "X" (PPB_BASE + M0PLUS_VTOR_OFFSET)
+    );
+
+    __unreachable();
+}
+
+static void __always_inline check_firmware() {
+    FIL f;
+    if(f_open(&f, "/.firmware", FA_READ) == FR_OK) {
+        f_close(&f);
+        f_unmount("SD");
+        run_application();
+    }
+}
+
+inline static void unlink_firmware() {
+    f_unlink("/.firmware");
+}
+
 static char* comspec;
 
 static void load_config_sys() {
     cmd_startup_ctx_t* ctx = init_ctx();
     comspec = "/mos/cmd";
+    ctx->base = "MOS";
     FIL f;
     if(f_open(&f, "/config.sys", FA_READ) != FR_OK) {
         if(f_open(&f, "/mos/config.sys", FA_READ) != FR_OK) {
+            f_mkdir(ctx->base);
             return;
         }
     }
@@ -117,7 +148,7 @@ static void load_config_sys() {
             strncpy(ctx->path, t, 511);
         } else if (strcmp(t, "COMSPEC") == 0) {
             t = next_token(t);
-            comspec = (char*)pvPortMalloc(strlen(t));
+            comspec = (char*)pvPortMalloc(strlen(t) + 1);
             strcpy(comspec, t);
         } else if (strcmp(t, "SWAP") == 0) {
             t = next_token(t);
@@ -128,9 +159,12 @@ static void load_config_sys() {
         } else if (strcmp(t, "BASE") == 0) {
             t = next_token(t);
             strncpy(ctx->curr_dir, t, 511);
+            ctx->base = (char*)pvPortMalloc(strlen(t) + 1);
+            strcpy(ctx->base, t);
         }
         t = next_token(t);
     }
+    f_mkdir(ctx->base);
 }
 
 static bootb_ctx_t bootb_ctx = { 0 };
@@ -188,10 +222,6 @@ int main() {
 
     nespad_read();
     sleep_ms(50);
-    // F12 Boot to USB FIRMWARE UPDATE mode
-    if (nespad_state & DPAD_START || get_last_scancode() == 0x58) {
-        reset_usb_boot(0, 0);
-    }
 
     SCREEN = (uint8_t*)pvPortMalloc(80 * 30 * 2);
     sem_init(&vga_start_semaphore, 0, 1);
@@ -199,16 +229,31 @@ int main() {
     sem_release(&vga_start_semaphore);
     sleep_ms(30);
 
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    bool mount_res = (FR_OK == f_mount(&fs, "SD", 1));
+
+    // F12 Boot to USB FIRMWARE UPDATE mode
+    if (nespad_state & DPAD_START || get_last_scancode() == 0x58 /*F12*/) {
+        unlink_firmware();
+        reset_usb_boot(0, 0);
+    }
+    if (nespad_state & DPAD_SELECT || get_last_scancode() == 0x57 /*F11*/) {
+        unlink_firmware(); // return to OS
+    }
+    if (mount_res) {
+        check_firmware();
+    }
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
    
-    if (FR_OK != f_mount(&fs, "SD", 1)) {
+    if (!mount_res) {
         graphics_set_con_color(12, 0);
         goutf("SD Card not inserted or SD Card error!");
         while (true);
     }
     load_config_sys();
 
-    f_mkdir(get_curr_dir());
     init_psram();
     init_vram();
 
@@ -238,6 +283,10 @@ int main() {
           fs->csize >> 1,
           swap >> 20
     );
+
+    char* t = concat(get_cmd_startup_ctx()->base, ".os-tbl-backup");
+    restore_tbl(t); // TODO: error handling
+    vPortFree(t);
 
     xTaskCreate(vCmdTask, "main", 4096, NULL, configMAX_PRIORITIES - 1, NULL);
     /* Start the scheduler. */
