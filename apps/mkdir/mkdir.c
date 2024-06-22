@@ -1,6 +1,6 @@
 #include "m-os-api.h"
 
-int main() {
+int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     if (ctx->tokens == 1) {
         fgoutf(ctx->pstderr, "Unable to make directoy with no name\n");
@@ -13,4 +13,8 @@ int main() {
         }
     }
     return 0;
+}
+
+int __required_m_api_verion(void) {
+    return 2;
 }

@@ -1,7 +1,7 @@
 #include "m-os-api.h"
 #include <hardware/timer.h>
 
-int main() {
+int main(void) {
     FIL * f = get_stdout();
     uint32_t sz = psram_size();
     fgoutf(f, "PSRAM size: %d bytes\n", sz);
@@ -63,4 +63,8 @@ int main() {
     speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
     return 0;
+}
+
+int __required_m_api_verion(void) {
+    return 2;
 }
