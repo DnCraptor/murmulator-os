@@ -1,12 +1,5 @@
 #include "m-os-api.h"
 
-void* memset (void* b, int v, size_t sz) {
-    for (size_t i = 0; i < sz; ++i) {
-        ((char*)b)[i] = v;
-    }
-    return b;
-}
-
 int main(void) {
     cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
     char* d = ctx->tokens == 1 ? ctx->curr_dir : (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t);
@@ -21,17 +14,18 @@ int main(void) {
     }
     int total_files = 0;
     FILINFO* pfileInfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
-    char* buf = (char*)pvPortMalloc(81);
     while (f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
-        for(int i = 0; i < 80; ++i) buf[i] = ' '; buf[80] = 0;
-        if (pfileInfo->fattrib & AM_DIR) strncpy(buf, "D ", 2);
-        snprintf(buf + 2, 8, "%08d", pfileInfo->fsize);
-        size_t sl = strlen(pfileInfo->fname);
-        strncpy(buf + 11, pfileInfo->fname, MAX(sl, 69));
-        fgoutf(ctx->pstdout, buf);
+        fgoutf( ctx->pstdout, (pfileInfo->fattrib & AM_DIR) ? "D " : "  ");
+        if ((pfileInfo->fsize >> 20) > 9) {
+            fgoutf( ctx->pstdout, "%04dM",  (uint32_t)(pfileInfo->fsize >> 20));
+        } else if ((pfileInfo->fsize >> 10) > 9) {
+            fgoutf( ctx->pstdout, "%04dK",  (uint32_t)(pfileInfo->fsize >> 10));
+        } else {
+            fgoutf( ctx->pstdout, "%04dB",  (uint32_t)pfileInfo->fsize);
+        }
+        fgoutf( ctx->pstdout, " %s\n", pfileInfo->fname);
         total_files++;
     }
-    vPortFree(buf);
     vPortFree(pfileInfo);
     f_closedir(pdir);
     vPortFree(pdir);
