@@ -29,9 +29,7 @@ typedef struct {
 inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expected_flash_target_offset, UF2_Block_t* puf2) {
     UINT bytes_read = 0;
     uint32_t data_sector_index = 0;
-    int i = 0;
     for(; data_sector_index < FLASH_SECTOR_SIZE; data_sector_index += 256) {
-        gpio_put(PICO_DEFAULT_LED_PIN, (i++) & 1);
         fgoutf(get_stdout(), "Read block: %ph; ", f_tell(f));
         f_read(f, puf2, sizeof(UF2_Block_t), &bytes_read);
         fgoutf(get_stdout(), "(%d bytes) ", bytes_read);
@@ -65,14 +63,15 @@ void flash_block(uint8_t* buffer, size_t flash_target_offset) {
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
-bool restore_tbl(char* fn) {
+static uint8_t __aligned(4) buffer[FLASH_SECTOR_SIZE];
+
+bool __not_in_flash_func(restore_tbl)(char* fn) {
     if (f_open(&file, fn, FA_READ) != FR_OK) {
         return false;
     }
     UINT rb;
-    uint8_t buffer[FLASH_SECTOR_SIZE];
     if (f_read(&file, buffer, FLASH_SECTOR_SIZE, &rb) != FR_OK || rb != FLASH_SECTOR_SIZE) {
-        goutf("Failed to read for restore: '%s'\n", fn);
+        goutf("Failed to read '%s' file to restore OS API\n", fn);
         f_close(&file);
         return false;
     }
@@ -97,17 +96,11 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     if (FR_OK != f_open(&file, pathname, FA_READ)) {
         return false;
     }
-
-    uint8_t* buffer = (uint8_t*)pvPortMalloc(FLASH_SECTOR_SIZE);
     UF2_Block_t* uf2 = (UF2_Block_t*)pvPortMalloc(sizeof(UF2_Block_t));
 
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-
     uint32_t flash_target_offset = 0;
-
     bool toff = false;
     while(true) {
-        uint8_t buffer[FLASH_SECTOR_SIZE];
         uint32_t next_flash_target_offset = read_flash_block(&file, buffer, flash_target_offset, uf2);
         if (next_flash_target_offset == flash_target_offset) {
             break;
@@ -121,10 +114,8 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         flash_block(buffer, flash_target_offset);
         flash_target_offset = next_flash_target_offset;
     }
-
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
     f_close(&file);
-    f_open(&file, "/.firmware", FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
+    f_open(&file, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
     fgoutf(&file, "%s", pathname);
     f_close(&file);
     f_close(get_stdout());
@@ -132,7 +123,6 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
 
     watchdog_enable(100, true);
 
-    vPortFree(buffer);
     vPortFree(uf2);
 
     while(1);
@@ -145,7 +135,7 @@ bool load_firmware(char* pathname) {
         fgoutf(get_stdout(), "ERROR: Firmware too large (%dK)! Canceled!\n", fileinfo.fsize >> 11);
         return false;
     }
-    char* t = concat(get_cmd_startup_ctx()->base, ".os-tbl-backup");
+    char* t = concat(get_cmd_startup_ctx()->base, OS_TABLE_BACKUP_FN);
     fgoutf(get_stdout(), "Backup OS functions table tp '%s'\n", t);
     if (FR_OK != f_open(&file, t, FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_WRITE) ) {
         fgoutf(get_stdout(), "ERROR: Unable to open backup file: '%s'!\n", t);

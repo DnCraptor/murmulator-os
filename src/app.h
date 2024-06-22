@@ -7,6 +7,9 @@
 extern "C" {
 #endif
 
+#define OS_TABLE_BACKUP_FN ".os-tbl-backup"
+#define FIRMWARE_MARKER_FN "/.firmware"
+
 bool load_firmware(char* pathname);
 void run_app(char * name);
 

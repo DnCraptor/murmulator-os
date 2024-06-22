@@ -110,7 +110,7 @@ static void __always_inline run_application() {
 
 static void __always_inline check_firmware() {
     FIL f;
-    if(f_open(&f, "/.firmware", FA_READ) == FR_OK) {
+    if(f_open(&f, FIRMWARE_MARKER_FN, FA_READ) == FR_OK) {
         f_close(&f);
         f_unmount("SD");
         run_application();
@@ -118,7 +118,7 @@ static void __always_inline check_firmware() {
 }
 
 inline static void unlink_firmware() {
-    f_unlink("/.firmware");
+    f_unlink(FIRMWARE_MARKER_FN);
 }
 
 static char* comspec;
@@ -284,7 +284,7 @@ int main() {
           swap >> 20
     );
 
-    char* t = concat(get_cmd_startup_ctx()->base, ".os-tbl-backup");
+    char* t = concat(get_cmd_startup_ctx()->base, OS_TABLE_BACKUP_FN);
     restore_tbl(t); // TODO: error handling
     vPortFree(t);
 
