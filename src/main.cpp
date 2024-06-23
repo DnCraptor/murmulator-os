@@ -155,7 +155,12 @@ static void load_config_sys() {
             // TODO:
         } else if (strcmp(t, "GMODE") == 0) {
             t = next_token(t);
-            // TODO:
+            graphics_mode_t mode = (graphics_mode_t)atoi(t);
+            if (mode == TEXTMODE_DEFAULT || mode == TEXTMODE_53x30 || mode == TEXTMODE_160x100) {
+                graphics_set_mode(mode);
+            } else {
+                goutf("Unsupported GMODE: %d\n", mode);
+            }
         } else if (strcmp(t, "BASE") == 0) {
             t = next_token(t);
             strncpy(ctx->curr_dir, t, 511);
