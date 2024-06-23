@@ -25,15 +25,17 @@ int main(void) {
     fgoutf(ctx->pstdout,
             "Heap memory: %d (%dK)\n"
             " available bytes total: %d (%dK)\n"
-            "         largets block: %d (%dK)\n"
+            "         largets block: %d (%dK)\n",
+            heap, heap >> 10,
+            stat.xAvailableHeapSpaceInBytes, stat.xAvailableHeapSpaceInBytes >> 10,
+            stat.xSizeOfLargestFreeBlockInBytes, stat.xSizeOfLargestFreeBlockInBytes >> 10
+    );
+    fgoutf(ctx->pstdout,
             "        smallest block: %d (%dK)\n"
             "           free blocks: %d\n"
             "    min free remaining: %d (%dK)\n"
             "           allocations: %d\n"
             "                 frees: %d\n",
-            heap << 10, heap,
-            stat.xAvailableHeapSpaceInBytes, stat.xAvailableHeapSpaceInBytes >> 10,
-            stat.xSizeOfLargestFreeBlockInBytes, stat.xSizeOfLargestFreeBlockInBytes >> 10,
             stat.xSizeOfSmallestFreeBlockInBytes, stat.xSizeOfSmallestFreeBlockInBytes >> 10,
             stat.xNumberOfFreeBlocks,
             stat.xMinimumEverFreeBytesRemaining, stat.xMinimumEverFreeBytesRemaining >> 10,

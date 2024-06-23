@@ -416,19 +416,19 @@ inline static char* concat(const char* s1, const char* s2) {
     return ((fn_ptr_t)_sys_table_ptrs[129])(s1, s2);
 }
 
-size_t get_heap_total() {
+inline static size_t get_heap_total() {
     typedef size_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[132])();
 }
-uint32_t swap_pages() {
+inline static uint32_t swap_pages() {
     typedef uint32_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[133])();
 }
-uint16_t* swap_pages_base() {
+inline static uint16_t* swap_pages_base() {
     typedef uint16_t* (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[134])();
 }
-uint32_t swap_page_size() {
+inline static uint32_t swap_page_size() {
     typedef uint32_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[135])();
 }
