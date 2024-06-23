@@ -6,8 +6,8 @@
 #include "graphics.h"
 
 #define TOTAL_VIRTUAL_MEMORY_KBS (8*1024)
-uint8_t RAM[RAM_SIZE] = { 0 };
-uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
+__aligned(4) uint8_t RAM[RAM_SIZE] = { 0 };
+__aligned(4) uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 
 uint32_t swap_base_size() { return RAM_SIZE; }
 uint8_t* swap_base() { return RAM; }

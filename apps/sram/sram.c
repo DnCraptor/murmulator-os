@@ -7,6 +7,7 @@ int main(void) {
     uint8_t* p = swap_base();
     fgoutf(f, "SWAP BASE size: %d bytes @ %ph\n", sz, p);
     uint32_t a = 0;
+
     uint32_t begin = time_us_32();
     for (; a < sz; ++a) {
         p[a] = a & 0xFF;
@@ -26,6 +27,45 @@ int main(void) {
     elapsed = time_us_32() - begin;
     speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "8-bit line read speed: %f MBps\n", speed);
+
+    begin = time_us_32();
+    for (a = 0; a < sz; a += 2) {
+        *(uint16_t*)(p + a) = a & 0xFFFF;
+    }
+    elapsed = time_us_32() - begin;
+    speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
+    fgoutf(f, "16-bit line write speed: %f MBps\n", speed);
+
+    begin = time_us_32();
+    for (a = 0; a < sz; a += 2) {
+        if ((a & 0xFFFF) != *(uint16_t*)(p + a)) {
+            fgoutf(f, "16-bit read failed at %ph\n", a);
+            break;
+        }
+    }
+    elapsed = time_us_32() - begin;
+    speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
+    fgoutf(f, "16-bit line read speed: %f MBps\n", speed);
+
+    begin = time_us_32();
+    for (a = 0; a < sz; a += 4) {
+        *(uint32_t*)(p + a) = a;
+    }
+    elapsed = time_us_32() - begin;
+    speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
+    fgoutf(f, "32-bit line write speed: %f MBps\n", speed);
+
+    begin = time_us_32();
+    for (a = 0; a < sz; a += 4) {
+        if (a != *(uint32_t*)(p + a)) {
+            fgoutf(f, "32-bit read failed at %ph\n", a);
+            break;
+        }
+    }
+    elapsed = time_us_32() - begin;
+    speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
+    fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
+
     return 0;
 }
 

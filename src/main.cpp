@@ -221,7 +221,7 @@ extern "C" void vCmdTask(void *pv) {
 
 const char tmp[] = "                      ZX Murmulator (RP2040) OS v."
                     MOS_VERSION_STR
-                   " Alfa                    ";
+                   " Alpha                   ";
 
 int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);
