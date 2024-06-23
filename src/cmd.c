@@ -3,6 +3,11 @@
 #include "FreeRTOS.h"
 
 static cmd_startup_ctx_t ctx = { 0 };
+static size_t TOTAL_HEAP_SIZE = configTOTAL_HEAP_SIZE;
+
+size_t get_heap_total() {
+    return TOTAL_HEAP_SIZE;
+}
 
 cmd_startup_ctx_t* init_ctx() {
     ctx.cmd = (char*)pvPortMalloc(512); ctx.cmd[0] = 0;
@@ -66,6 +71,7 @@ char* exists(cmd_startup_ctx_t* ctx) {
 
     char* dir = ctx->base;
     res = concat(dir, cmd);
+    //goutf("base: %s\n", res);
     r = f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
     if (r) goto r1;
     vPortFree(res);
@@ -73,6 +79,7 @@ char* exists(cmd_startup_ctx_t* ctx) {
 
     dir = ctx->curr_dir;
     res = concat(dir, cmd);
+    //goutf("curr: %s\n", res);
     r = f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
     if (r) goto r1;
     vPortFree(res);

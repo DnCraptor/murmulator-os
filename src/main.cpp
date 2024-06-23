@@ -142,6 +142,8 @@ static void load_config_sys() {
     f_close(&f);
     tokenizeCfg(buff, br);
     char *t = buff;
+    bool b_swap = false;
+    bool b_base = false;
     while (t - buff < br) {
         if (strcmp(t, "PATH") == 0) {
             t = next_token(t);
@@ -152,7 +154,8 @@ static void load_config_sys() {
             strcpy(comspec, t);
         } else if (strcmp(t, "SWAP") == 0) {
             t = next_token(t);
-            // TODO:
+            init_vram(t);
+            b_swap = true;
         } else if (strcmp(t, "GMODE") == 0) {
             t = next_token(t);
             graphics_mode_t mode = (graphics_mode_t)atoi(t);
@@ -166,10 +169,19 @@ static void load_config_sys() {
             strncpy(ctx->curr_dir, t, 511);
             ctx->base = (char*)pvPortMalloc(strlen(t) + 1);
             strcpy(ctx->base, t);
+            f_mkdir(ctx->base);
+            b_base = true;
         }
         t = next_token(t);
     }
-    f_mkdir(ctx->base);
+    if (!b_base) f_mkdir(ctx->base);
+    if (!b_swap) {
+        char* t1 = "/mos/pagefile.sys 1M 64K 4K";
+        char* t2 = (char*)pvPortMalloc(strlen(t1) + 1);
+        strcpy(t2, t1);
+        init_vram(t2);
+        vPortFree(t2);
+    }
 }
 
 static bootb_ctx_t bootb_ctx = { 0 };
@@ -263,36 +275,35 @@ int main() {
     if (mount_res) {
         check_firmware();
     }
+
+    draw_text(tmp, 0, 0, 13, 1);
+    draw_text(tmp, 0, 29, 13, 1);
+    graphics_set_con_pos(0, 1);
+    graphics_set_con_color(7, 0);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
    
     if (!mount_res) {
         graphics_set_con_color(12, 0);
-        goutf("SD Card not inserted or SD Card error!");
+        gouta("SD Card not inserted or SD Card error!");
         while (true);
     }
     load_config_sys();
 
     init_psram();
-    init_vram();
 
-    draw_text(tmp, 0, 0, 13, 1);
-    draw_text(tmp, 0, 29, 13, 1);
-    graphics_set_con_pos(0, 1);
-    graphics_set_con_color(7, 0);
     char* curr_dir = get_curr_dir();
     uint32_t ram32 = get_cpu_ram_size();
     uint32_t flash32 = get_cpu_flash_size();
     uint32_t psram32 = psram_size();
-    uint32_t swap = swap_size();
     FATFS* fs = get_mount_fs();
     goutf("CPU %d MHz\n"
           "SRAM %d KB\n"
           "FLASH %d MB\n"
           "PSRAM %d MB\n"
           "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
-          "SWAP %d MB\n"
+          "SWAP %d MB; BASE: %ph (%d KB); PAGES INDEX: %ph (%d x %d KB)\n"
           "\n",
           get_overclocking_khz() / 1000,
           ram32 >> 10,
@@ -301,10 +312,10 @@ int main() {
           fs->n_fats,
           f_getfree32(fs),
           fs->csize >> 1,
-          swap >> 20
+          swap_size() >> 20, swap_base(), swap_base_size() >> 10, swap_pages_base(), swap_pages(), swap_page_size() >> 10
     );
 
-    xTaskCreate(vCmdTask, "cmd", 4096, NULL, configMAX_PRIORITIES - 1, NULL);
+    xTaskCreate(vCmdTask, "cmd", 1024/*x4=4096k*/, NULL, configMAX_PRIORITIES - 1, NULL);
     /* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return

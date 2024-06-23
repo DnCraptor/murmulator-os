@@ -4,7 +4,8 @@
 int main() {
     FIL * f = get_stdout();
     uint32_t sz = swap_size();
-    fgoutf(f, "SWAP size: %d bytes\n", sz);
+    fgoutf(f, "SWAP size: %d bytes, base RAM at %ph (%d KB)\nPages index at %ph (for %d RAM pages, %d KB each one)\n",
+              sz, swap_base(), swap_base_size() >> 10, swap_pages_base(), swap_pages(), swap_page_size() >> 10);
     uint32_t a = 0;
     uint32_t begin = time_us_32();
     for (; a < sz; ++a) {
@@ -70,5 +71,5 @@ int main() {
 }
 
 int __required_m_api_verion(void) {
-    return 2;
+    return 3;
 }

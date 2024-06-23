@@ -54,7 +54,7 @@
 // Здесь указывается частота в Гц, с которой тактируется внутреннее ядро микроконтроллера. На основе этой частоты аппаратный
 // таймер будет генерировать прерывание тика. Обычно эта та же самая частота, на которой работает CPU. Это значение необходимо
 // для корректного конфигурирования периферийных устройств таймера.
-#define configCPU_RATE_HZ                       (252ul * 1000 * 1000)
+#define configCPU_RATE_HZ                       (366ul * 1000 * 1000)
 // Частота прерываний тиков RTOS.
 // Прерывание тика используется для измерения времени. Таким образом, чем выше частота тика, тем выше разрешающая способность
 // отсчета времени. Однако высокая частота тиков также означает, что ядро RTOS будет больше тратить процессорного времени CPU,
@@ -128,7 +128,8 @@
 /* Memory allocation related definitions. */
 #define configSUPPORT_STATIC_ALLOCATION         0
 #define configSUPPORT_DYNAMIC_ALLOCATION        1
-#define configTOTAL_HEAP_SIZE                   (100*1024)
+// 100 + 128
+#define configTOTAL_HEAP_SIZE                   (228*1024)
 #define configAPPLICATION_ALLOCATED_HEAP        0
 
 /* Hook function related definitions. */

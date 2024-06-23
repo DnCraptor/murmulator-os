@@ -1,3 +1,5 @@
 COMSPEC=/mos/cmd
 BASE=MOS
 PATH=MOS
+GMODE=0
+SWAP=/mos/pagefile.sys 1M 64K 4K

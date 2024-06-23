@@ -21,16 +21,17 @@ int main(void) {
     fgoutf(ctx->pstdout,
             "SWAP SRAM size: %d (%dK) bytes\n", sz, sz >> 10);
     vPortGetHeapStats(&stat);
+    size_t heap = get_heap_total();
     fgoutf(ctx->pstdout,
             "Heap memory: %d (%dK)\n"
-            " alailable bytes total: %d (%dK)\n"
+            " available bytes total: %d (%dK)\n"
             "         largets block: %d (%dK)\n"
             "        smallest block: %d (%dK)\n"
             "           free blocks: %d\n"
             "    min free remaining: %d (%dK)\n"
             "           allocations: %d\n"
             "                 frees: %d\n",
-            100 << 10, 100, // TODO:
+            heap << 10, heap,
             stat.xAvailableHeapSpaceInBytes, stat.xAvailableHeapSpaceInBytes >> 10,
             stat.xSizeOfLargestFreeBlockInBytes, stat.xSizeOfLargestFreeBlockInBytes >> 10,
             stat.xSizeOfSmallestFreeBlockInBytes, stat.xSizeOfSmallestFreeBlockInBytes >> 10,
@@ -42,5 +43,5 @@ int main(void) {
 }
 
 int __required_m_api_verion(void) {
-    return 2;
+    return 3;
 }

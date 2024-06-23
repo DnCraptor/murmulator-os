@@ -4,27 +4,41 @@
 #include <pico.h>
 #include <pico/stdlib.h>
 #include "graphics.h"
+#include <string.h>
 
-#define TOTAL_VIRTUAL_MEMORY_KBS (8*1024)
-__aligned(4) uint8_t RAM[RAM_SIZE] = { 0 };
-__aligned(4) uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
+static FIL file;
+static uint32_t _swap_size = 0;
+static uint32_t _swap_base_size = 0;
+static uint32_t _swap_page_size = 0;
+static uint32_t _swap_page_mask = 0;
+static uint32_t _swap_pages = 0;
+static uint8_t _swap_page_div = 0;
+static char* path = 0;
+static char* _swap_base = 0;
+static char* _swap_pages_base = 0;
 
-uint32_t swap_base_size() { return RAM_SIZE; }
+static uint8_t* RAM = 0;
+static uint16_t* RAM_PAGES = 0;
+
+uint32_t swap_base_size() { return _swap_base_size; }
+uint32_t swap_page_size() { return _swap_page_size; }
 uint8_t* swap_base() { return RAM; }
+uint32_t swap_pages() { return _swap_pages; }
+uint16_t* swap_pages_base() { return RAM_PAGES; }
 
 static uint32_t get_ram_page_for(const uint32_t addr32);
 
 uint8_t ram_page_read(uint32_t addr32) {
     const register uint32_t ram_page = get_ram_page_for(addr32);
-    const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+    const register uint32_t addr_in_page = addr32 & _swap_page_mask;
 #ifdef BOOT_DEBUG_ACC
-    uint8_t res = RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
+    uint8_t res = RAM[(ram_page * _swap_page_size) + addr_in_page];
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "R %08X ->   %02X", addr32, res); logMsg(tmp);
+        goutf("R %08X ->   %02X\n", addr32, res);
     }
     return res;
 #else
-    return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
+    return RAM[(ram_page * _swap_page_size) + addr_in_page];
 #endif
 }
 
@@ -37,15 +51,15 @@ inline static uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr
 
 uint16_t ram_page_read16(uint32_t addr32) {
     const register uint32_t ram_page = get_ram_page_for(addr32);
-    const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+    const register uint32_t addr_in_page = addr32 & _swap_page_mask;
 #ifdef BOOT_DEBUG_ACC
-    uint16_t res = read16arr(RAM, 0, (ram_page * RAM_PAGE_SIZE) + addr_in_page);
+    uint16_t res = read16arr(RAM, 0, (ram_page * _swap_page_size) + addr_in_page);
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "R %08X -> %04X", addr32, res); logMsg(tmp);
+        goutf("R %08X -> %04X\n", addr32, res);
     }
     return res;
 #else
-    return read16arr(RAM, 0, (ram_page * RAM_PAGE_SIZE) + addr_in_page);
+    return read16arr(RAM, 0, (ram_page * _swap_page_size) + addr_in_page);
 #endif
 }
 
@@ -60,27 +74,27 @@ inline static uint32_t read32arr(uint8_t* arr, uint32_t base_addr, uint32_t addr
 
 uint32_t ram_page_read32(uint32_t addr32) {
     const register uint32_t ram_page = get_ram_page_for(addr32);
-    const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+    const register uint32_t addr_in_page = addr32 & _swap_page_mask;
 #ifdef BOOT_DEBUG_ACC
-    uint16_t res = read32arr(RAM, 0, (ram_page * RAM_PAGE_SIZE) + addr_in_page);
+    uint16_t res = read32arr(RAM, 0, (ram_page * _swap_page_size) + addr_in_page);
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "R %08X -> %08X", addr32, res); logMsg(tmp);
+        goutf("R %08X -> %08X\n", addr32, res);
     }
     return res;
 #else
-    return read32arr(RAM, 0, (ram_page * RAM_PAGE_SIZE) + addr_in_page);
+    return read32arr(RAM, 0, (ram_page * _swap_page_size) + addr_in_page);
 #endif
 }
 
 void ram_page_write(uint32_t addr32, uint8_t value) {
 #ifdef BOOT_DEBUG_ACC
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "W %08X <-   %02X", addr32, value); logMsg(tmp);
+        goutf("W %08X <-   %02X\n", addr32, value);
     }
 #endif
     register uint32_t ram_page = get_ram_page_for(addr32);
-    register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-    RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
+    register uint32_t addr_in_page = addr32 & _swap_page_mask;
+    RAM[(ram_page * _swap_page_size) + addr_in_page] = value;
     register uint16_t ram_page_desc = RAM_PAGES[ram_page];
     if (!(ram_page_desc & 0x8000)) {
         // if higest (15) bit is set, it means - the page has changes
@@ -91,12 +105,12 @@ void ram_page_write(uint32_t addr32, uint8_t value) {
 void ram_page_write16(uint32_t addr32, uint16_t value) {
 #ifdef BOOT_DEBUG_ACC
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "W %08X <- %04X", addr32, value); logMsg(tmp);
+        goutf("W %08X <- %04X\n", addr32, value);
     }
 #endif
     register uint32_t ram_page = get_ram_page_for(addr32);
-    register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-    register uint8_t* addr_in_ram = RAM + ram_page * RAM_PAGE_SIZE + addr_in_page;
+    register uint32_t addr_in_page = addr32 & _swap_page_mask;
+    register uint8_t* addr_in_ram = RAM + ram_page * _swap_page_size + addr_in_page;
     *addr_in_ram++     = (uint8_t) value;
     *addr_in_ram       = (uint8_t)(value >> 8);
     register uint16_t ram_page_desc = RAM_PAGES[ram_page];
@@ -109,12 +123,12 @@ void ram_page_write16(uint32_t addr32, uint16_t value) {
 void ram_page_write32(uint32_t addr32, uint32_t value) {
 #ifdef BOOT_DEBUG_ACC
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "Q %08X <- %08X", addr32, value); logMsg(tmp);
+        goutf("Q %08X <- %08X\n", addr32, value);
     }
 #endif
     register uint32_t ram_page = get_ram_page_for(addr32);
-    register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-    register uint8_t* addr_in_ram = RAM + ram_page * RAM_PAGE_SIZE + addr_in_page;
+    register uint32_t addr_in_page = addr32 & _swap_page_mask;
+    register uint8_t* addr_in_ram = RAM + ram_page * _swap_page_size + addr_in_page;
     *addr_in_ram++     = (uint8_t) value;
     *addr_in_ram++     = (uint8_t)(value >> 8);
     *addr_in_ram++     = (uint8_t)(value >> 16);
@@ -131,12 +145,12 @@ static uint16_t last_ram_page = 0;
 static uint32_t last_lba_page = 0;
 
 uint32_t get_ram_page_for(const uint32_t addr32) {
-    const register uint32_t lba_page = addr32 >> SHIFT_AS_DIV; // page idx
+    const register uint32_t lba_page = addr32 >> _swap_page_div; // page idx
     if (last_lba_page == lba_page) {
         return last_ram_page;
     }
     last_lba_page = lba_page;
-    for (register uint32_t ram_page = 1; ram_page < RAM_BLOCKS; ++ram_page) {
+    for (register uint32_t ram_page = 1; ram_page < _swap_pages; ++ram_page) {
         register uint16_t ram_page_desc = RAM_PAGES[ram_page];
         register uint16_t lba_page_in_ram = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for 4K LBA bloks
         if (lba_page_in_ram == lba_page) {
@@ -145,11 +159,11 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         }
     }
 #ifdef BOOT_DEBUG_ACC
-    sprintf(tmp, "VRAM page: 0x%X", lba_page); logMsg(tmp);
+    goutf("VRAM page: 0x%X\n", lba_page);
 #endif
     // rolling page usage
     uint16_t ram_page = oldest_ram_page++;
-    if (oldest_ram_page >= RAM_BLOCKS - 1) oldest_ram_page = 1; // do not use first page (id == 0)
+    if (oldest_ram_page >= _swap_pages - 1) oldest_ram_page = 1; // do not use first page (id == 0)
     uint16_t ram_page_desc = RAM_PAGES[ram_page];
     bool ro_page_was_found = !(ram_page_desc & 0x8000);
     // higest (15) bit is set, it means - the page has changes (RW page)
@@ -158,59 +172,128 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     if (ro_page_was_found) {
         // just replace RO page (faster than RW flush to sdcard)
 #ifdef BOOT_DEBUG_ACC
-        sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
+        goutf("1 RAM page 0x%X / VRAM page: 0x%X\n", ram_page, lba_page);
 #endif
-        uint32_t ram_page_offset = ((uint32_t)ram_page) * RAM_PAGE_SIZE;
-        uint32_t lba_page_offset = lba_page * RAM_PAGE_SIZE;
-        read_vram_block(RAM + ram_page_offset, lba_page_offset, RAM_PAGE_SIZE);
+        uint32_t ram_page_offset = ((uint32_t)ram_page) * _swap_page_size;
+        uint32_t lba_page_offset = lba_page * _swap_page_size;
+        read_vram_block(RAM + ram_page_offset, lba_page_offset, _swap_page_size);
         last_ram_page = ram_page;
         return ram_page;
     }
     // Lets flush found RW page to sdcard
 #ifdef BOOT_DEBUG_ACC
-    sprintf(tmp, "2 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
+    goutf("2 RAM page 0x%X / VRAM page: 0x%X\n", ram_page, lba_page);
 #endif
-    uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
-    uint32_t lba_page_offset = old_lba_page * RAM_PAGE_SIZE;
+    uint32_t ram_page_offset = ram_page * _swap_page_size;
+    uint32_t lba_page_offset = old_lba_page * _swap_page_size;
 #ifdef BOOT_DEBUG_ACC
-    sprintf(tmp, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, lba_page_offset); logMsg(tmp);
+    goutf("2 RAM offs 0x%X / VRAM offs: 0x%X\n", ram_page_offset, lba_page_offset);
 #endif
-    flush_vram_block(RAM + ram_page_offset, lba_page_offset, RAM_PAGE_SIZE);
+    flush_vram_block(RAM + ram_page_offset, lba_page_offset, _swap_page_size);
     // use new page:
-    lba_page_offset = lba_page * RAM_PAGE_SIZE;
-    read_vram_block(RAM + ram_page_offset, lba_page_offset, RAM_PAGE_SIZE);
+    lba_page_offset = lba_page * _swap_page_size;
+    read_vram_block(RAM + ram_page_offset, lba_page_offset, _swap_page_size);
     last_ram_page = ram_page;
     return ram_page;
 }
-
-static const char* path = "\\MOS\\pagefile.sys";
-static FIL file;
-static uint32_t _swap_size = 0;
 
 uint32_t swap_size() {
     return _swap_size;
 }
 
-uint32_t init_vram() {
+inline static void tokenize(char* s) {
+    while(*s) {
+        if (*s == ' ') {
+            *s = 0;
+        }
+        s++;
+    }
+}
+
+inline static uint8_t get_shift(char* s) {
+    while(*s) {
+        if (*s == 'K' || *s == 'k') {
+            *s = 0;
+            return 10;
+        }
+        if (*s == 'M' || *s == 'm') {
+            *s = 0;
+            return 20;
+        }
+        s++;
+    }
+    return 0;
+}
+
+uint32_t init_vram(char* cfg) { // "/mos/pagefile.sys 8M 128K 4K"
+    tokenize(cfg);
+    size_t sz = strlen(cfg);
+    if (!sz) {
+        return 0;
+    }
+    path = (char*)pvPortMalloc(sz + 1);
+    strcpy(path, cfg);
+    char* vszs = next_token(cfg);
+    char* bszs = next_token(vszs);
+    char* pszs = next_token(bszs);
+    
+    uint8_t shift = get_shift(vszs);
+    _swap_size = atoi(vszs) << shift;
+
+    shift = get_shift(bszs);
+    _swap_base_size = atoi(bszs) << shift;
+
+    shift = get_shift(pszs);
+    _swap_page_size = atoi(pszs) << shift;
+    switch(_swap_page_size) {
+        case 1024:
+            _swap_page_mask = 0x000003FF;
+            _swap_page_div = 10;
+            break;
+        case 2048:
+            _swap_page_mask = 0x000007FF;
+            _swap_page_div = 11;
+            break;
+        case 4096:
+            _swap_page_mask = 0x00000FFF;
+            _swap_page_div = 12;
+            break;
+        default:
+            goutf("Unsupported swap page size %d ignored, 2K is used instead\n", _swap_page_size);
+            _swap_page_size = 2048;
+            _swap_page_mask = 0x000007FF;
+            _swap_page_div = 11;
+            break;
+    }
+    if (!_swap_base_size || !_swap_size || _swap_size < _swap_base_size) {
+        return 0;
+    }
+    _swap_pages = _swap_base_size / _swap_page_size;
+    _swap_pages_base = (uint16_t*)pvPortMalloc((_swap_pages << 1) + 3);
+    _swap_base = (uint8_t*)pvPortMalloc(_swap_base_size + 3);
+    RAM = (uint8_t*)((uint32_t)(_swap_base + 3) & 0xFFFFFFFC);
+    RAM_PAGES = (uint16_t*)((uint32_t)(_swap_pages_base + 3) & 0xFFFFFFFC);
+    memset(RAM, 0, _swap_base_size);
+    memset(RAM_PAGES, 0, _swap_pages << 1);
+
     FRESULT fresult = f_stat(path , &file);
     f_unlink(path); // ensure it is new file
     FRESULT result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_ALWAYS);
     if (result == FR_OK) {
-        result = f_lseek(&file, TOTAL_VIRTUAL_MEMORY_KBS * 1024);
+        result = f_lseek(&file, _swap_size);
         if (result != FR_OK) {
-            goutf("Unable to init <SD-card>\\MOS\\pagefile.sys\n");
+            goutf("Unable to init %s\n", path);
             return 0;
         }
     } else {
-        goutf("Unable to create <SD-card>\\MOS\\pagefile.sys\n");
+        goutf("Unable to create %s\n", path);
         return 0;
     }
     f_close(&file);
     result = f_open(&file, path, FA_READ | FA_WRITE);
     if (result != FR_OK) {
-        goutf("Unable to open <SD-card>\\MOS\\pagefile.sys\n");
+        goutf("Unable to open %s\n", path);
     }
-    _swap_size = TOTAL_VIRTUAL_MEMORY_KBS << 10;
     return _swap_size;
 }
 
@@ -219,20 +302,19 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
     if (result != FR_OK) {
         result = f_open(&file, path, FA_READ | FA_WRITE);
         if (result != FR_OK) {
-            goutf("Unable to open pagefile.sys: %s (%d)", FRESULT_str(result), result);
+            goutf("Unable to open file '%s': %s (%d)\n", path, FRESULT_str(result), result);
             return result;
         }
-        goutf("Failed to f_lseek: %s (%d)", FRESULT_str(result), result);
+        goutf("Failed to f_lseek: %s (%d)\n", FRESULT_str(result), result);
     }
     return result;
 }
 
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-  //  if (file_offset >= 0x100000) {
-  //      sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
-  //      logMsg(tmp);
-  //  }
+#ifdef BOOT_DEBUG_ACC
+    goutf("Read  pagefile 0x%X<-0x%X\n", dst, file_offset);
+#endif
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;

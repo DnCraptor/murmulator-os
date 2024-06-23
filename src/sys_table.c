@@ -184,10 +184,13 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     exists, // 128
     concat, // 129
-    concat2, // 120
+    concat2, // 130
     //
-    flash_block_wrapper, // 121
-    0, // 122
+    flash_block_wrapper, // 131
+    get_heap_total, // 132
+    swap_pages, // 133
+    swap_pages_base, // 134
+    swap_page_size, // 135
     // TODO:
     0
 };

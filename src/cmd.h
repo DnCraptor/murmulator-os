@@ -8,6 +8,7 @@ extern "C" {
 #include <stddef.h>
 #include "ff.h"
 
+size_t get_heap_total();
 char* get_curr_dir();
 FIL * get_stdout();
 FIL * get_stderr();
