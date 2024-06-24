@@ -1,8 +1,9 @@
 #include "m-os-api.h"
 
-FIL* pfh;
-char* cmd_history_file;
-int cmd_history_idx;
+static FIL* pfh;
+static char* cmd_history_file;
+static int cmd_history_idx;
+static char* cmd = 0;
 
 static char* next_on(char* l, char *bi) {
     char *b = bi;
@@ -13,17 +14,17 @@ static char* next_on(char* l, char *bi) {
     return *l == 0 ? b : bi;
 }
 
-static void cmd_backspace(cmd_startup_ctx_t* ctx) {
-    size_t cmd_pos = strlen(ctx->cmd);
+inline static void cmd_backspace() {
+    size_t cmd_pos = strlen(cmd);
     if (cmd_pos == 0) {
         // TODO: blimp
         return;
     }
-    ctx->cmd[--cmd_pos] = 0;
+    cmd[--cmd_pos] = 0;
     gbackspace();
 }
 
-inline static int history_steps(cmd_startup_ctx_t* ctx) {
+inline static int history_steps(cmd_ctx_t* ctx) {
     size_t j = 0;
     int idx = 0;
     UINT br;
@@ -46,18 +47,18 @@ inline static int history_steps(cmd_startup_ctx_t* ctx) {
     return idx;
 }
 
-inline static void type_char(cmd_startup_ctx_t* ctx, char c) {
-    size_t cmd_pos = strlen(ctx->cmd);
+inline static void type_char(char c) {
+    size_t cmd_pos = strlen(cmd);
     if (cmd_pos >= 512) {
         // TODO: blimp
         return;
     }
     putc(c);
-    ctx->cmd[cmd_pos++] = c;
-    ctx->cmd[cmd_pos] = 0;
+    cmd[cmd_pos++] = c;
+    cmd[cmd_pos] = 0;
 }
 
-inline static void cmd_tab(cmd_startup_ctx_t* ctx) {
+inline static void cmd_tab(cmd_ctx_t* ctx) {
     char * p = ctx->cmd;
     char * p2 = ctx->cmd;
     while (*p) {
@@ -102,28 +103,28 @@ inline static void cmd_tab(cmd_startup_ctx_t* ctx) {
     f_closedir(&dir);
 }
 
-inline static void cmd_up(cmd_startup_ctx_t* ctx) {
-    size_t cmd_pos = strlen(ctx->cmd);
+inline static void cmd_up(cmd_ctx_t* ctx) {
+    size_t cmd_pos = strlen(cmd);
     while(cmd_pos) {
-        ctx->cmd[--cmd_pos] = 0;
+        cmd[--cmd_pos] = 0;
         gbackspace();
     }
     cmd_history_idx--;
     int idx = history_steps(ctx);
     if (cmd_history_idx < 0) cmd_history_idx = idx;
-    goutf(ctx->cmd);
+    goutf(cmd);
 }
 
-inline static void cmd_down(cmd_startup_ctx_t* ctx) {
-    size_t cmd_pos = strlen(ctx->cmd);
+inline static void cmd_down(cmd_ctx_t* ctx) {
+    size_t cmd_pos = strlen(cmd);
     while(cmd_pos) {
-        ctx->cmd[--cmd_pos] = 0;
+        cmd[--cmd_pos] = 0;
         gbackspace();
     }
     if (cmd_history_idx == -2) cmd_history_idx = -1;
     cmd_history_idx++;
     history_steps(ctx);
-    goutf(ctx->cmd);
+    goutf(cmd);
 }
 
 inline static char tolower_token(char t) {
@@ -146,17 +147,17 @@ inline static char tolower_token(char t) {
 static bool bAppend = false;
 static char* redirect2 = NULL;
 
-inline static int tokenize_cmd(cmd_startup_ctx_t* ctx) {
+inline static int tokenize_cmd(cmd_ctx_t* ctx) {
     bAppend = false;
     redirect2 = NULL;
-    if (ctx->cmd[0] == 0) {
-        ctx->cmd_t[0] = 0;
+    if (cmd[0] == 0) {
         return 0;
     }
+    ctx->orig_cmd = copy_str(cmd);
     bool inSpace = true;
     int inTokenN = 0;
-    char* t1 = ctx->cmd;
-    char* t2 = ctx->cmd_t;
+    char* t1 = ctx->orig_cmd;
+    char* t2 = cmd;
     while(*t1) {
         char c = tolower_token(*t1++);
         if (c == '>') {
@@ -195,15 +196,22 @@ inline static int tokenize_cmd(cmd_startup_ctx_t* ctx) {
     return inTokenN;
 }
 
-inline static void cd(cmd_startup_ctx_t* ctx, char *d) {
-    FILINFO fileinfo;
+inline static void cd(cmd_ctx_t* ctx, char *d) {
+    FILINFO* pfileinfo = (FILINFO*)malloc(sizeof(FILINFO));
     if (strcmp(d, "\\") == 0 || strcmp(d, "/") == 0) {
-        strcpy(ctx->curr_dir, d);
-    } else if (f_stat(d, &fileinfo) != FR_OK || !(fileinfo.fattrib & AM_DIR)) {
+        goto a;
+    } else if (f_stat(d, pfileinfo) != FR_OK || !(pfileinfo->fattrib & AM_DIR)) {
         goutf("Unable to find directory: '%s'\n", d);
-    } else {
-        strcpy(ctx->curr_dir, d);
+        goto r;
     }
+a:
+    {
+        char* bk = ctx->curr_dir;
+        ctx->curr_dir = copy_str(d);
+        free(bk);
+    }
+r:
+    free(pfileinfo);
 }
 
 inline static void cmd_push(cmd_startup_ctx_t* ctx, char c) {
@@ -294,34 +302,34 @@ r:
     return false;
 }
 
-const char* tmp = "/.cmd_history"; // TODO: configure it
+const char* hist = ".cmd_history"; // TODO: configure it
 
-int main() {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
-    char* curr_dir = ctx->curr_dir;
-    ctx->cmd[0] = 0;
-    ctx->cmd_t[0] = 0;
-    ctx->tokens = 0;
-    goutf("%s>", curr_dir);
+int main(void) {
+    cmd_ctx_t* ctx = get_cmd_ctx();
+    cleanup_ctx(ctx);
+    cmd = malloc(512);
+    cmd[0] = 0;
+    goutf("[%s]$", ctx->curr_dir);
     cmd_history_idx = -2;
-    size_t cdl = strlen(curr_dir);
-    cmd_history_file = (char*)pvPortMalloc(cdl + strlen(tmp) + 1);
-    pfh = (FIL*)pvPortMalloc(sizeof(FIL)); 
-    strcpy(cmd_history_file, curr_dir);
-    strcpy(cmd_history_file + cdl, tmp);
+    char* tmp = get_ctx_var("TEMP");
+    if(!tmp) tmp = "";
+    size_t cdl = strlen(tmp);
+    cmd_history_file = concat(tmp, hist);
+    pfh = (FIL*)malloc(sizeof(FIL)); 
     bAppend = false;
     redirect2 = NULL;
     while(1) {
         char c = getc();
         if (c) {
-            if (c == 8) cmd_backspace(ctx);
+            if (c == 8) cmd_backspace();
             else if (c == 17) cmd_up(ctx);
             else if (c == 18) cmd_down(ctx);
             else if (c == '\t') cmd_tab(ctx);
             else if (c == '\n') {
                 if ( cmd_enter(ctx) ) {
-                    vPortFree(cmd_history_file);
-                    vPortFree(pfh);
+                    free(pfh);
+                    free(cmd_history_file);
+                    free(cmd);
                     return 0;
                 }
             } else cmd_push(ctx, c);
@@ -330,6 +338,6 @@ int main() {
     __unreachable();
 }
 
-int __required_m_api_verion() {
-    return 2;
+int __required_m_api_verion(void) {
+    return M_API_VERSION;
 }

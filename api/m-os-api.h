@@ -484,6 +484,14 @@ inline static void free(void * pv) {
     typedef void (*vPortFree_ptr_t)( void * pv );
     ((vPortFree_ptr_t)_sys_table_ptrs[33])(pv);
 }
+inline static char* get_ctx_var(const char* k) {
+    typedef char* (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[140])(k);
+}
+inline static cmd_ctx_t* set_ctx_var(const char* k, char* v) {
+    typedef void (*fn_ptr_t)(const char*, char*);
+    ((fn_ptr_t)_sys_table_ptrs[141])(k, v);
+}
 
 #ifdef __cplusplus
 }

@@ -196,6 +196,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     copy_str, // 137
     get_cmd_ctx, // 138
     cleanup_ctx, // 139
+    get_ctx_var, // 140
+    set_ctx_var, // 141
     // TODO:
     0
 };

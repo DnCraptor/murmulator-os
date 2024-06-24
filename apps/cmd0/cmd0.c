@@ -71,12 +71,18 @@ inline static int tokenize_cmd(cmd_ctx_t* ctx) {
 inline static void cd(cmd_ctx_t* ctx, char *d) {
     FILINFO* pfileinfo = (FILINFO*)malloc(sizeof(FILINFO));
     if (strcmp(d, "\\") == 0 || strcmp(d, "/") == 0) {
-        strcpy(ctx->curr_dir, d);
+        goto a;
     } else if (f_stat(d, pfileinfo) != FR_OK || !(pfileinfo->fattrib & AM_DIR)) {
         goutf("Unable to find directory: '%s'\n", d);
-    } else {
-        strcpy(ctx->curr_dir, d);
+        goto r;
     }
+a:
+    {
+        char* bk = ctx->curr_dir;
+        ctx->curr_dir = copy_str(d);
+        free(bk);
+    }
+r:
     free(pfileinfo);
 }
 
