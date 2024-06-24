@@ -167,7 +167,8 @@ bool load_firmware(char* pathname) {
         fgoutf(get_stdout(), "ERROR: Firmware too large (%dK)! Canceled!\n", fileinfo.fsize >> 11);
         return false;
     }
-    char* t = concat(get_cmd_startup_ctx()->base, OS_TABLE_BACKUP_FN);
+    char* t = get_ctx_var(get_cmd_startup_ctx(), "TEMP");
+    t = concat(t ? t : "", OS_TABLE_BACKUP_FN);
     fgoutf(get_stdout(), "Backup OS functions table tp '%s'\n", t);
     if (FR_OK != f_open(&file, t, FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_WRITE) ) {
         fgoutf(get_stdout(), "ERROR: Unable to open backup file: '%s'!\n", t);
@@ -661,12 +662,14 @@ e1:
 }
 
 int exec(bootb_ctx_t* bootb_ctx) {
-    if (bootb_ctx->bootb[0]) {
-        int rav = bootb_ctx->bootb[0]();
-        if (rav > M_API_VERSION) {
-            goutf("Required M-API version %d is grater than provided M-API version %d\n", rav, M_API_VERSION);
-            return -2;
-        }
+    int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 0;
+    if (rav > M_API_VERSION) {
+        goutf("Required M-API version %d is grater than provided M-API version %d\n", rav, M_API_VERSION);
+        return -2;
+    }
+    if (rav < 4) { // unsupported earliest versions
+        goutf("Application uses M-API version %d, that less than minimal required version %d\n", rav, M_API_VERSION);
+        return -3;
     }
     if (bootb_ctx->bootb[1]) {
         bootb_ctx->bootb[1](); // tood: ensure stack

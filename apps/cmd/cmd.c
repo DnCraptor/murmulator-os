@@ -228,7 +228,9 @@ inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
     } else {
         goto r;
     }
+    //goutf("cmd: %s\n", ctx->cmd);
     int tokens = tokenize_cmd(ctx);
+    //goutf("cmd_t: %s; tokens: %d\n", ctx->cmd_t, tokens);
     ctx->tokens = tokens;
     if (redirect2) {
         if (bAppend) {

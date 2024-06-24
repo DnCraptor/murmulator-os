@@ -4,6 +4,10 @@
 extern "C" {
 #endif
 
+#if !M_API_VERSION
+#define M_API_VERSION 4
+#endif
+
 #define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)
 static const unsigned long * const _sys_table_ptrs = (const unsigned long * const)M_OS_API_SYS_TABLE_BASE;
 
@@ -225,21 +229,49 @@ inline static void ram_page_write32(uint32_t addr32, uint32_t value) {
 }
 
 typedef struct {
-    char* cmd;
-    char* cmd_t; // tokenised
-    int tokens;
-    char* curr_dir;
-    FIL * pstdout;
-    FIL * pstderr;
-    char* path;
+    char* del_addr;
+    char* prg_addr;
+    uint16_t sec_num;
+} sect_entry_t;
+
+typedef int (*bootb_ptr_t)( void );
+
+typedef struct {
+    bootb_ptr_t bootb[4];
+    sect_entry_t* sect_entries;
+} bootb_ctx_t;
+
+typedef struct {
+    const char* key;
+    char* value;
+} vars_t;
+
+
+typedef struct cmd_ctx {
+    uint32_t argc;
+    char** argv;
+    char* orig_cmd;
+
+    FIL* std_in;
+    FIL* std_out;
+    FIL* std_err;
     int ret_code;
-    char* base;
-} cmd_startup_ctx_t;
+    bool detached;
+
+    char* curr_dir;
+    bootb_ctx_t* pboot_ctx;
+
+    vars_t* vars;
+    size_t vars_num;
+
+    struct cmd_ctx* pipe;
+} cmd_ctx_t;
+/*
 inline static cmd_startup_ctx_t* get_cmd_startup_ctx() {
     typedef cmd_startup_ctx_t* (*f_ptr_t)();
     return ((f_ptr_t)_sys_table_ptrs[99])();
 }
-
+*/
 typedef int (*ipc_ptr_t)(const char *);
 inline static int atoi (const char * s) {
     return ((ipc_ptr_t)_sys_table_ptrs[100])(s);
@@ -381,19 +413,6 @@ inline static void putc(char c) {
     ((fn_ptr_t)_sys_table_ptrs[123])(c);
 }
 
-typedef struct {
-    char* del_addr;
-    char* prg_addr;
-    uint16_t sec_num;
-} sect_entry_t;
-
-typedef int (*bootb_ptr_t)( void );
-
-typedef struct {
-    bootb_ptr_t bootb[4];
-    sect_entry_t* sect_entries;
-} bootb_ctx_t;
-
 inline static void cleanup_bootb_ctx(bootb_ctx_t* b) {
     typedef void (*fn_ptr_t)(bootb_ctx_t*);
     ((fn_ptr_t)_sys_table_ptrs[124])(b);
@@ -407,8 +426,8 @@ inline static int exec(bootb_ctx_t * b) {
     return ((fn_ptr_t)_sys_table_ptrs[126])(b);
 }
 
-inline static char* exists(cmd_startup_ctx_t* ctx) {
-    typedef char* (*fn_ptr_t)(cmd_startup_ctx_t*);
+inline static char* exists(cmd_ctx_t* ctx) {
+    typedef char* (*fn_ptr_t)(cmd_ctx_t*);
     return ((fn_ptr_t)_sys_table_ptrs[128])(ctx);
 }
 inline static char* concat(const char* s1, const char* s2) {
@@ -431,6 +450,28 @@ inline static uint16_t* swap_pages_base() {
 inline static uint32_t swap_page_size() {
     typedef uint32_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[135])();
+}
+
+inline static char* copy_str(const char* s) {
+    typedef char* (*fn_ptr_t)(const char*);
+    return ((fn_ptr_t)_sys_table_ptrs[137])(s);
+}
+inline static cmd_ctx_t* get_cmd_ctx() {
+    typedef cmd_ctx_t* (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[138])();
+}
+inline static void cleanup_ctx(cmd_ctx_t* src) {
+    typedef void (*fn_ptr_t)(cmd_ctx_t*);
+    ((fn_ptr_t)_sys_table_ptrs[139])(src);
+}
+
+inline static void* malloc(size_t xWantedSize) {
+    typedef void* (*pvPortMalloc_ptr_t)( size_t xWantedSize );
+    return ((pvPortMalloc_ptr_t)_sys_table_ptrs[32])(xWantedSize);
+}
+inline static void free(void * pv) {
+    typedef void (*vPortFree_ptr_t)( void * pv );
+    ((vPortFree_ptr_t)_sys_table_ptrs[33])(pv);
 }
 
 #ifdef __cplusplus

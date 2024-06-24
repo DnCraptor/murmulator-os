@@ -85,7 +85,7 @@ void __time_critical_func(render_core)() {
 inline static void tokenizeCfg(char* s, size_t sz) {
     size_t i = 0;
     for (; i < sz; ++i) {
-        if (s[i] == '=' || s[i] == '\n') {
+        if (s[i] == '=' || s[i] == '\n' || s[i] == '\r') {
             s[i] = 0;
         }
     }
@@ -121,20 +121,20 @@ inline static void unlink_firmware() {
     f_unlink(FIRMWARE_MARKER_FN);
 }
 
-static char* comspec;
+static char* comspec = "/mos/cmd";
 
 static void load_config_sys() {
-    cmd_startup_ctx_t* ctx = init_ctx();
-    comspec = "/mos/cmd";
-    ctx->base = "MOS";
+    cmd_ctx_t* ctx = get_cmd_startup_ctx();
+    set_ctx_var(ctx, "BASE", "MOS");
+    set_ctx_var(ctx, "TEMP", "tmp");
     FIL f;
     if(f_open(&f, "/config.sys", FA_READ) != FR_OK) {
         if(f_open(&f, "/mos/config.sys", FA_READ) != FR_OK) {
-            f_mkdir(ctx->base);
+            f_mkdir("MOS"); f_mkdir("tmp");
             return;
         }
     }
-    char buff[512];
+    char* buff = (char*)pvPortMalloc(512); // todo: filesize
     UINT br;
     if (f_read(&f, buff, 512, &br) != FR_OK) {
         goutf("Failed to read config.sys\n");
@@ -144,10 +144,16 @@ static void load_config_sys() {
     char *t = buff;
     bool b_swap = false;
     bool b_base = false;
+    bool b_temp = false;
     while (t - buff < br) {
         if (strcmp(t, "PATH") == 0) {
             t = next_token(t);
-            strncpy(ctx->path, t, 511);
+            set_ctx_var(ctx, "PATH", t);
+        } else if (strcmp(t, "TEMP") == 0) {
+            t = next_token(t);
+            set_ctx_var(ctx, "TEMP", t);
+            f_mkdir(t);
+            b_temp = true;
         } else if (strcmp(t, "COMSPEC") == 0) {
             t = next_token(t);
             comspec = (char*)pvPortMalloc(strlen(t) + 1);
@@ -166,72 +172,98 @@ static void load_config_sys() {
             }
         } else if (strcmp(t, "BASE") == 0) {
             t = next_token(t);
-            strncpy(ctx->curr_dir, t, 511);
-            ctx->base = (char*)pvPortMalloc(strlen(t) + 1);
-            strcpy(ctx->base, t);
-            f_mkdir(ctx->base);
+            set_ctx_var(ctx, "BASE", t);
+            f_mkdir(t);
             b_base = true;
+        } else {
+            char* k = copy_str(t);
+            t = next_token(t);
+            set_ctx_var(ctx, k, t);
         }
         t = next_token(t);
     }
-    if (!b_base) f_mkdir(ctx->base);
+    if (!b_temp) f_mkdir("tmp");
+    if (!b_base) f_mkdir("MOS");
     if (!b_swap) {
-        char* t1 = "/mos/pagefile.sys 1M 64K 4K";
+        char* t1 = "/tmp/pagefile.sys 1M 64K 4K";
         char* t2 = (char*)pvPortMalloc(strlen(t1) + 1);
         strcpy(t2, t1);
         init_vram(t2);
         vPortFree(t2);
     }
+    vPortFree(buff);
 }
 
-static bootb_ctx_t bootb_ctx = { 0 };
+extern "C" void vAppDetachedTask(void *pv) {
+    const TaskHandle_t th = xTaskGetCurrentTaskHandle();
+    cmd_ctx_t* ctx = clone_ctx();
+    vTaskSetThreadLocalStoragePointer(th, 0, ctx);
+    exec(ctx->pboot_ctx);
+    remove_ctx(ctx);
+    vTaskDelete( NULL );
+}
 
 extern "C" void vCmdTask(void *pv) {
-    char* t = concat(get_cmd_startup_ctx()->base, OS_TABLE_BACKUP_FN);
+    const TaskHandle_t th = xTaskGetCurrentTaskHandle();
+    cmd_ctx_t* ctx = get_cmd_startup_ctx();
+
+    char* t = get_ctx_var(ctx, "TEMP");
+    t = concat(t ? t : "", OS_TABLE_BACKUP_FN);
     restore_tbl(t); // TODO: error handling
     vPortFree(t);
 
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+    vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     while(1) {
         bool inCmd = false; // not in command processor mode
-        if (!ctx->cmd[0]) {
-            strncpy(ctx->cmd, comspec, 511);
-            strncpy(ctx->cmd_t, comspec, 511);
-            ctx->tokens = 1;
+        if (!ctx->argc && !ctx->argv) {
+            ctx->argc = 1;
+            ctx->argv = (char**)pvPortMalloc(sizeof(char*));
+            ctx->argv[0] = copy_str(comspec);
+            ctx->orig_cmd = copy_str(comspec);
             inCmd = true;
         }
-        ///goutf("Lookup for: %s (mode: %d)\n", ctx->cmd_t, inCmd);
+        //goutf("Lookup for: %s (mode: %d)\n", ctx->cmd_t, inCmd);
         char* t = exists(ctx);
         if (t) {
             size_t len = strlen(t);
             //goutf("Command found: %s (mode: %d)\n", t, inCmd);
-             if (len > 3 && strcmp(t + len - 4, ".uf2") == 0) {
+            if (len > 3 && strcmp(t + len - 4, ".uf2") == 0) {
                 if(load_firmware(t)) {
                     run_app(t);
                 }
             } else if(is_new_app(t)) {
                 //gouta("Command has appropriate format\n");
-                ctx->ret_code = load_app(t, &bootb_ctx);
+                ctx->pboot_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
+                ctx->ret_code = load_app(t, ctx->pboot_ctx);
                 //goutf("LOAD RET_CODE: %d\n", ctx->ret_code);
                 if (ctx->ret_code == 0) {
-                    ctx->ret_code = exec(&bootb_ctx);
-                    //goutf("EXEC RET_CODE: %d; cmd: '%s' cmd_t: '%s' tokens: %d\n", ctx->ret_code, ctx->cmd, ctx->cmd_t, ctx->tokens);
+                    if (ctx->detached) {
+                        ctx->ret_code = 0;
+                        xTaskCreate(vAppDetachedTask, ctx->argv[0], 1024/*x4=4096k*/, NULL, configMAX_PRIORITIES - 1, NULL);
+                    } else {
+                        ctx->ret_code = exec(ctx->pboot_ctx);
+                        //goutf("EXEC RET_CODE: %d; cmd: '%s' cmd_t: '%s' tokens: %d\n", ctx->ret_code, ctx->cmd, ctx->cmd_t, ctx->tokens);
+                    }
                 }
-                cleanup_bootb_ctx(&bootb_ctx);
+                if (!ctx->detached) {
+                    cleanup_bootb_ctx(ctx->pboot_ctx);
+                    vPortFree(ctx->pboot_ctx);
+                    ctx->pboot_ctx = 0;
+                }
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
             }
             vPortFree(t);
         } else {
-            goutf("Illegal command: '%s'\n", ctx->cmd);
+            goutf("Illegal command: '%s'\n", ctx->orig_cmd);
         }
-        if (!inCmd) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
-            ctx->cmd[0] = 0;
-            ctx->cmd_t[0] = 0;
-            ctx->tokens = 0;
-            f_close(ctx->pstdout);
-            f_close(ctx->pstderr);
-        }
+    //    if (!inCmd) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
+    //        ctx->cmd[0] = 0;
+    //        ctx->cmd_t[0] = 0;
+    //        ctx->tokens = 0;
+    //        f_close(ctx->pstdout);
+    //        f_close(ctx->pstderr);
+    //    }
     }
     vTaskDelete( NULL );
 }
@@ -240,7 +272,7 @@ const char tmp[] = "                      ZX Murmulator (RP2040) OS v."
                     MOS_VERSION_STR
                    " Alpha                   ";
 
-int main() {
+static void init() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
@@ -292,8 +324,9 @@ int main() {
     load_config_sys();
 
     init_psram();
+}
 
-    char* curr_dir = get_curr_dir();
+static void info() {
     uint32_t ram32 = get_cpu_ram_size();
     uint32_t flash32 = get_cpu_flash_size();
     uint32_t psram32 = psram_size();
@@ -314,22 +347,18 @@ int main() {
           fs->csize >> 1,
           swap_size() >> 20, swap_base(), swap_base_size() >> 10, swap_pages_base(), swap_pages(), swap_page_size() >> 10
     );
+}
+
+int main() {
+    init();
+    info();
 
     xTaskCreate(vCmdTask, "cmd", 1024/*x4=4096k*/, NULL, configMAX_PRIORITIES - 1, NULL);
     /* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return
     draw_text("vTaskStartScheduler failed", 0, 4, 13, 1);
-    size_t i = 0;
-    while(sys_table_ptrs[++i]); // to ensure linked (TODO: other way)
-
-	/* If all is well, the scheduler will now be running, and the following
-	line will never be reached.  If the following line does execute, then
-	there was insufficient FreeRTOS heap memory available for the Idle and/or
-	timer tasks to be created.  See the memory management section on the
-	FreeRTOS web site for more details on the FreeRTOS heap
-	http://www.freertos.org/a00111.html. */
-	for( ;; );
+    while(sys_table_ptrs[0]); // to ensure linked (TODO: other way)
 
     __unreachable();
 }

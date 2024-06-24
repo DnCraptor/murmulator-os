@@ -7,28 +7,52 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include "ff.h"
+#include "app.h"
 
 size_t get_heap_total();
-char* get_curr_dir();
-FIL * get_stdout();
-FIL * get_stderr();
+
+char* get_curr_dir(); // old system
+FIL * get_stdout(); // old system
+FIL * get_stderr(); // old system
+
 typedef struct {
-    char* cmd;
-    char* cmd_t; // tokenised
-    int tokens;
-    char* curr_dir;
-    FIL * pstdout;
-    FIL * pstderr;
-    char* path;
+    const char* key;
+    char* value;
+} vars_t;
+
+typedef struct cmd_ctx {
+    uint32_t argc;
+    char** argv;
+    char* orig_cmd;
+
+    FIL* std_in;
+    FIL* std_out;
+    FIL* std_err;
     int ret_code;
-    char* base;
-} cmd_startup_ctx_t;
-cmd_startup_ctx_t* init_ctx();
-cmd_startup_ctx_t* get_cmd_startup_ctx();
+    bool detached;
+
+    char* curr_dir;
+    bootb_ctx_t* pboot_ctx;
+
+    vars_t* vars;
+    size_t vars_num;
+
+    struct cmd_ctx* pipe;
+} cmd_ctx_t;
+
+cmd_ctx_t* get_cmd_startup_ctx(); // system
+cmd_ctx_t* get_cmd_ctx();
+cmd_ctx_t* clone_ctx();
+void remove_ctx(cmd_ctx_t*);
+void set_ctx_var(cmd_ctx_t*, const char* key, const char* val);
+char* get_ctx_var(cmd_ctx_t*, const char* key);
+void cleanup_ctx(cmd_ctx_t* src);
+
 char* next_token(char* t);
 char* concat(const char* s1, const char* s2);
-char* exists(cmd_startup_ctx_t* ctx);
+char* exists(cmd_ctx_t* ctx);
 char* concat2(const char* s1, size_t sz, const char* s2);
+char* copy_str(const char* s);
 
 #ifdef __cplusplus
 }

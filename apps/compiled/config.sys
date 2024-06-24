@@ -1,5 +1,6 @@
-COMSPEC=/mos/cmd
+COMSPEC=/mos/cmd0
 BASE=MOS
 PATH=MOS
+TEMP=tmp
 GMODE=0
-SWAP=/mos/pagefile.sys 1M 64K 4K
+SWAP=/tmp/pagefile.sys 1M 64K 4K

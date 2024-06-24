@@ -1,35 +1,112 @@
 #include "cmd.h"
 #include <string.h>
 #include "FreeRTOS.h"
+#include "task.h"
 
-static cmd_startup_ctx_t ctx = { 0 };
+static cmd_ctx_t ctx = { 0 };
 static size_t TOTAL_HEAP_SIZE = configTOTAL_HEAP_SIZE;
 
 size_t get_heap_total() {
     return TOTAL_HEAP_SIZE;
 }
-
-cmd_startup_ctx_t* init_ctx() {
-    ctx.cmd = (char*)pvPortMalloc(512); ctx.cmd[0] = 0;
-    ctx.cmd_t = (char*)pvPortMalloc(512); ctx.cmd_t[0] = 0;
-    ctx.tokens = 0;
-    ctx.curr_dir = (char*)pvPortMalloc(512);
-    ctx.pstdout = (FIL*)pvPortMalloc(sizeof(FIL)); memset(ctx.pstdout, 0, 512);
-    ctx.pstderr = (FIL*)pvPortMalloc(sizeof(FIL)); memset(ctx.pstderr, 0, 512);
-    ctx.path = (char*)pvPortMalloc(512);
-    ctx.base = "MOS";
-    strcpy(ctx.curr_dir, "MOS");
-    strcpy(ctx.path, "MOS");
+char* copy_str(const char* s) {
+    char* res = (char*)pvPortMalloc(strlen(s) + 1);
+    stpcpy(res, s);
+    return res;
+}
+static FIL* copy_FIL(FIL* f) {
+    FIL* res = (FIL*)pvPortMalloc(sizeof(FIL));
+    memcpy(res, f, sizeof(FIL));
+    return res;
+}
+cmd_ctx_t* clone_ctx() {
+    cmd_ctx_t* res = (cmd_ctx_t*)pvPortMalloc(sizeof(cmd_ctx_t));
+    cmd_ctx_t* src = get_cmd_ctx();
+    memcpy(res, src, sizeof(cmd_ctx_t));
+    if (src->argc && src->argv) {
+        res->argv = (char**)pvPortMalloc(sizeof(char*) * src->argc);
+        for(int i = 0; i < src->argc; ++i) {
+            res->argv[i] = copy_str(src->argv[i]);
+        }
+    }
+    if (src->orig_cmd) {
+        res->orig_cmd = copy_str(src->orig_cmd);
+    }
+    if (src->std_in) res->std_in = copy_FIL(src->std_in);
+    if (src->std_out) res->std_out = copy_FIL(src->std_out);
+    if (src->std_err) res->std_err = copy_FIL(src->std_err);
+    if (src->curr_dir) {
+        res->curr_dir = copy_str(src->curr_dir);
+    }
+    if (src->vars_num && src->vars) {
+        res->vars = (vars_t*)pvPortMalloc( sizeof(vars_t) * src->vars_num );
+        for (size_t i = 0; i < src->vars_num; ++i) {
+            if (src->vars[i].value) {
+                res->vars[i].value = copy_str(src->vars[i].value);
+            }
+            res->vars[i].key = src->vars[i].key; // const
+        }
+        vPortFree(src->vars);
+    }
+    res->pipe = 0; // TODO: copy pipe?
+    return res;
+}
+void cleanup_ctx(cmd_ctx_t* src) {
+    if (src->argc && src->argv) {
+        for(int i = 0; i < src->argc; ++i) {
+            vPortFree(src->argv[i]);
+        }
+        vPortFree(src->argv);
+        src->argv = 0;
+    }
+    if (src->orig_cmd) {
+        vPortFree(src->orig_cmd);
+        src->orig_cmd = 0;
+    }
+    if (src->std_in) { f_close(src->std_in); vPortFree(src->std_in); src->std_in = 0; }
+    if (src->std_out) { f_close(src->std_out); vPortFree(src->std_out); src->std_out = 0; }
+    if (src->std_err) { f_close(src->std_err); vPortFree(src->std_err); src->std_err = 0; }
+    src->detached = false;
+    src->ret_code = 0;
+    src->pipe = 0;
+}
+void remove_ctx(cmd_ctx_t* src) {
+    if (src->argc && src->argv) {
+        for(int i = 0; i < src->argc; ++i) {
+            vPortFree(src->argv[i]);
+        }
+        vPortFree(src->argv);
+    }
+    if (src->orig_cmd) {
+        vPortFree(src->orig_cmd);
+    }
+    if (src->std_in) vPortFree(src->std_in);
+    if (src->std_out) vPortFree(src->std_out);
+    if (src->std_err) vPortFree(src->std_err);
+    if (src->curr_dir) {
+        vPortFree(src->curr_dir);
+    }
+    for (size_t i = 0; i < src->vars_num; ++i) {
+        if (src->vars[i].value) {
+            vPortFree(src->vars[i].value);
+        }
+        vPortFree(src->vars);
+    }
+    vPortFree(src);
+    src->pipe = 0; // TODO: remove pipe?
+}
+cmd_ctx_t* get_cmd_startup_ctx() {
     return &ctx;
 }
-cmd_startup_ctx_t * get_cmd_startup_ctx() {
-    return &ctx;
+cmd_ctx_t* get_cmd_ctx() {
+    const TaskHandle_t th = xTaskGetCurrentTaskHandle();
+    return (cmd_ctx_t*) pvTaskGetThreadLocalStoragePointer(th, 0);
 }
-FIL * get_stdout() {
-    return ctx.pstdout;
+FIL* get_stdout() {
+    return ctx.std_out;
 }
-FIL * get_stderr() {
-    return ctx.pstderr;
+FIL* get_stderr() {
+    return ctx.std_err;
 }
 char* get_curr_dir() {
     return ctx.curr_dir;
@@ -54,51 +131,86 @@ char* concat2(const char* s1, size_t s, const char* s2) {
     strcpy(res + s + 1, s2);
     return res;
 }
-inline static char* copy_str(const char* s) {
-    char* res = (char*)pvPortMalloc(strlen(s) + 1);
-    stpcpy(res, s);
+
+void set_ctx_var(cmd_ctx_t* ctx, const char* key, const char* val) {
+    size_t sz = strlen(val) + 1;
+    for (size_t i = 0; i < ctx->vars_num; ++i) {
+        if (0 == strcmp(key, ctx->vars[i].key)) {
+            if( ctx->vars[i].value ) {
+                vPortFree(ctx->vars[i].value);
+            }
+            ctx->vars[i].value = copy_str(val);
+            return;
+        }
+    }
+    // not found
+    if (ctx->vars == NULL) {
+        // initial state
+        ctx->vars = (vars_t*)pvPortMalloc(sizeof(vars_t));
+    } else {
+        vars_t* old = ctx->vars;
+        ctx->vars = (vars_t*)pvPortMalloc( sizeof(vars_t) * (ctx->vars_num + 1) );
+        memcpy(ctx->vars, old, sizeof(vars_t) * ctx->vars_num);
+        vPortFree(old);
+    }
+    ctx->vars[ctx->vars_num].key = key; // const to be not reallocated
+    ctx->vars[ctx->vars_num].value = copy_str(val);
+    ctx->vars_num++;
+}
+
+char* get_ctx_var(cmd_ctx_t* ctx, const char* key) {
+    for (size_t i = 0; i < ctx->vars_num; ++i) {
+        if (0 == strcmp(key, ctx->vars[i].key)) {
+            return ctx->vars[i].value;
+        }
+    }
+    return NULL;
+}
+
+static char* create_and_test(char* dir, char* cmd, FILINFO* pfileinfo) {
+    char* res;
+    if (dir) {
+        res = concat(dir, cmd);
+        if (f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR)) goto r1;
+        vPortFree(res);
+        res = 0;
+    }
+r1:
     return res;
-} 
-char* exists(cmd_startup_ctx_t* ctx) {
+}
+
+char* exists(cmd_ctx_t* ctx) {
+    if (ctx->argc == 0) {
+        return 0;
+    }
     char* res = 0;
-    char * cmd = ctx->cmd_t;
+    char * cmd = ctx->argv[0];
     FILINFO* pfileinfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
     bool r = f_stat(cmd, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
     if (r) {
         res = copy_str(cmd);
         goto r1;
     }
-
-    char* dir = ctx->base;
-    res = concat(dir, cmd);
-    //goutf("base: %s\n", res);
-    r = f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
-    if (r) goto r1;
-    vPortFree(res);
-    res = 0;
-
-    dir = ctx->curr_dir;
-    res = concat(dir, cmd);
-    //goutf("curr: %s\n", res);
-    r = f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
-    if (r) goto r1;
-    vPortFree(res);
-    res = 0;
-
-    dir = ctx->path;
-    size_t sz = strlen(dir);
-    char* e = dir;
-    while(e++ <= dir + sz) {
-        if (*e == ';' || *e == ':' || *e == ',' || *e == 0) {
-            res = concat2(dir, e - dir, cmd);
-            //goutf("path %s\n", res);
-            r = f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
-            if (r) goto r1;
-            vPortFree(res);
-            res = 0;
-            if(!*e) goto r1;
-            dir = e;
-            sz = strlen(dir);
+    res = create_and_test( get_ctx_var(ctx, "BASE"), cmd, pfileinfo);
+    if (res) goto r1;
+    res = create_and_test( ctx->curr_dir, cmd, pfileinfo);
+    if (res) goto r1;
+    const char* path = get_ctx_var(ctx, "PATH");
+    if (path) {
+        size_t sz = strlen(path);
+        char* e = path;
+        while(e++ <= path + sz) {
+            if (*e == ';' || *e == ':' || *e == ',' || *e == 0) {
+                res = concat2(path, e - path, cmd);
+                //goutf("path %s\n", res);
+                r = f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
+                if (r) goto r1;
+                vPortFree(res);
+                res = 0;
+                if(!*e) goto r1;
+                path = e;
+                sz = strlen(path);
+            }
         }
     }
 r1:

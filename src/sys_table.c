@@ -191,6 +191,11 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     swap_pages, // 133
     swap_pages_base, // 134
     swap_page_size, // 135
+    //
+    xTaskGetCurrentTaskHandle, // 136
+    copy_str, // 137
+    get_cmd_ctx, // 138
+    cleanup_ctx, // 139
     // TODO:
     0
 };

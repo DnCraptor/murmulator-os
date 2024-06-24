@@ -1,24 +1,26 @@
 #include "m-os-api.h"
 
-inline static void cmd_backspace(cmd_startup_ctx_t* ctx) {
-    size_t cmd_pos = strlen(ctx->cmd);
+static char* cmd = 0;
+
+inline static void cmd_backspace() {
+    size_t cmd_pos = strlen(cmd);
     if (cmd_pos == 0) {
         // TODO: blimp
         return;
     }
-    ctx->cmd[--cmd_pos] = 0;
+    cmd[--cmd_pos] = 0;
     gbackspace();
 }
 
-inline static void type_char(cmd_startup_ctx_t* ctx, char c) {
-    size_t cmd_pos = strlen(ctx->cmd);
+inline static void type_char(char c) {
+    size_t cmd_pos = strlen(cmd);
     if (cmd_pos >= 512) {
         // TODO: blimp
         return;
     }
     putc(c);
-    ctx->cmd[cmd_pos++] = c;
-    ctx->cmd[cmd_pos] = 0;
+    cmd[cmd_pos++] = c;
+    cmd[cmd_pos] = 0;
 }
 
 inline static char tolower_token(char t) {
@@ -38,15 +40,15 @@ inline static char tolower_token(char t) {
     return t;
 }
 
-inline static int tokenize_cmd(cmd_startup_ctx_t* ctx) {
-    if (ctx->cmd[0] == 0) {
-        ctx->cmd_t[0] = 0;
+inline static int tokenize_cmd(cmd_ctx_t* ctx) {
+    if (cmd[0] == 0) {
         return 0;
     }
+    ctx->orig_cmd = copy_str(cmd);
     bool inSpace = true;
     int inTokenN = 0;
-    char* t1 = ctx->cmd;
-    char* t2 = ctx->cmd_t;
+    char* t1 = ctx->orig_cmd;
+    char* t2 = cmd;
     while(*t1) {
         char c = tolower_token(*t1++);
         if (inSpace) {
@@ -63,7 +65,7 @@ inline static int tokenize_cmd(cmd_startup_ctx_t* ctx) {
     return inTokenN;
 }
 
-inline static void cd(cmd_startup_ctx_t* ctx, char *d) {
+inline static void cd(cmd_ctx_t* ctx, char *d) {
     FILINFO fileinfo;
     if (strcmp(d, "\\") == 0 || strcmp(d, "/") == 0) {
         strcpy(ctx->curr_dir, d);
@@ -74,70 +76,79 @@ inline static void cd(cmd_startup_ctx_t* ctx, char *d) {
     }
 }
 
-inline static void cmd_push(cmd_startup_ctx_t* ctx, char c) {
-    size_t cmd_pos = strlen(ctx->cmd);
+inline static void cmd_push(char c) {
+    size_t cmd_pos = strlen(cmd);
     if (cmd_pos >= 512) {
         // TODO: blimp
     }
-    ctx->cmd[cmd_pos++] = c;
-    ctx->cmd[cmd_pos] = 0;
+    cmd[cmd_pos++] = c;
+    cmd[cmd_pos] = 0;
     putc(c);
 }
 
-inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
+inline static bool cmd_enter(cmd_ctx_t* ctx) {
     UINT br;
     putc('\n');
-    size_t cmd_pos = strlen(ctx->cmd);
+    size_t cmd_pos = strlen(cmd);
     if (!cmd_pos) {
         goto r;
     }
     int tokens = tokenize_cmd(ctx);
-    ctx->tokens = tokens;
-    if (strcmp("exit", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
-        ctx->cmd[0] = 0;
-        ctx->cmd_t[0] = 0;
-        ctx->tokens = 0;
+    if (strcmp("exit", cmd) == 0) { // do not extern, due to internal cmd state
+        cmd[0] = 0;
+        free(ctx->orig_cmd);
+        ctx->orig_cmd = 0;
         return true;
-    } else if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
+    } else if (strcmp("cd", cmd) == 0) { // do not extern, due to internal cmd state
         if (tokens == 1) {
-            fgoutf(ctx->pstderr, "Unable to change directoy to nothing\n");
+            fgoutf(ctx->std_err, "Unable to change directoy to nothing\n");
         } else {
-            cd(ctx, (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t));
+            cd(ctx, (char*)ctx->orig_cmd + (next_token(cmd) - cmd));
         }
         goto r;
     } else {
+        ctx->argc = tokens;
+        ctx->argv = malloc(sizeof(char*) * tokens);
+        char* t = cmd;
+        for (uint32_t i = 0; i < tokens; ++i) {
+            ctx->argv[i] = copy_str(t);
+            t = next_token(t);
+        }
         return true;
     }
 r:
-    goutf("%s#", ctx->curr_dir);
-    ctx->cmd[0] = 0;
-    ctx->cmd_t[0] = 0;
+    goutf("[%s]#", ctx->curr_dir);
+    cmd[0] = 0;
+    free(ctx->orig_cmd);
+    ctx->orig_cmd = 0;
     return false;
 }
 
 int main(void) {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
+    cmd_ctx_t* ctx = get_cmd_ctx();
     char* curr_dir = ctx->curr_dir;
-    ctx->cmd[0] = 0;
-    ctx->cmd_t[0] = 0;
-    ctx->tokens = 0;
-    goutf("%s#", curr_dir);
+    cleanup_ctx(ctx);
+    cmd = malloc(512);
+    cmd[0] = 0;
+    goutf("[%s]#", curr_dir);
     while(1) {
         char c = getc();
         if (c) {
-            if (c == 8) cmd_backspace(ctx);
+            if (c == 8) cmd_backspace();
             else if (c == 17) {}
             else if (c == 18) {}
             else if (c == '\t') {}
             else if (c == '\n') {
-                if ( cmd_enter(ctx) )
+                if ( cmd_enter(ctx) ) {
+                    free(cmd);
                     return 0;
-            } else cmd_push(ctx, c);
+                }
+            } else cmd_push(c);
         }
     }
     __unreachable();
 }
 
 int __required_m_api_verion(void) {
-    return 2;
+    return M_API_VERSION;
 }
