@@ -28,21 +28,23 @@ inline static int history_steps(cmd_ctx_t* ctx) {
     size_t j = 0;
     int idx = 0;
     UINT br;
-    f_open(pfh, cmd_history_file, FA_READ); 
-    while(f_read(pfh, ctx->cmd_t, 512, &br) == FR_OK && br) {
+    f_open(pfh, cmd_history_file, FA_READ);
+    char* b = malloc(512);
+    while(f_read(pfh, b, 512, &br) == FR_OK && br) {
         for(size_t i = 0; i < br; ++i) {
-            char t = ctx->cmd_t[i];
+            char t = b[i];
             if(t == '\n') { // next line
-                ctx->cmd[j] = 0;
+                cmd[j] = 0;
                 j = 0;
                 if(cmd_history_idx == idx)
                     break;
                 idx++;
             } else {
-                ctx->cmd[j++] = t;
+                cmd[j++] = t;
             }
         }
     }
+    free(b);
     f_close(pfh);
     return idx;
 }
@@ -59,8 +61,8 @@ inline static void type_char(char c) {
 }
 
 inline static void cmd_tab(cmd_ctx_t* ctx) {
-    char * p = ctx->cmd;
-    char * p2 = ctx->cmd;
+    char * p = cmd;
+    char * p2 = cmd;
     while (*p) {
         if (*p++ == ' ') {
             p2 = p;
@@ -73,34 +75,39 @@ inline static void cmd_tab(cmd_ctx_t* ctx) {
             p2 = p3;
         }
     }
+    char* b = malloc(512);
     if (p != p2) {
-        strncpy(ctx->cmd_t, p, p2 - p);
-        ctx->cmd_t[p2 - p] = 0;
+        strncpy(b, p, p2 - p);
+        b[p2 - p] = 0;
     }
-    DIR dir;
-    FILINFO fileInfo;
-    //goutf("\nDIR: %s\n", p != p2 ? cmd_t : curr_dir);
-    if (FR_OK != f_opendir(&dir, p != p2 ? ctx->cmd_t : ctx->curr_dir)) {
+    DIR* pdir = (DIR*)malloc(sizeof(DIR));
+    FILINFO* pfileInfo = malloc(sizeof(FILINFO));
+    //goutf("\nDIR: %s\n", p != p2 ? b : curr_dir);
+    if (FR_OK != f_opendir(pdir, p != p2 ? b : ctx->curr_dir)) {
+        free(b);
         return;
     }
     int total_files = 0;
-    while (f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
-        p3 = next_on(p2, fileInfo.fname);
-        if (p3 != fileInfo.fname) {
-            strcpy(ctx->cmd_t, p3);
+    while (f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
+        p3 = next_on(p2, pfileInfo->fname);
+        if (p3 != pfileInfo->fname) {
+            strcpy(b, p3);
             total_files++;
         }
-        //goutf("p3: %s; p2: %s; fn: %s; cmd_t: %s; fls: %d\n", p3, p2, fileInfo.fname, ctx->cmd_t, total_files);
+        //goutf("p3: %s; p2: %s; fn: %s; cmd_t: %s; fls: %d\n", p3, p2, fileInfo.fname, b, total_files);
     }
     if (total_files == 1) {
-        p3 = ctx->cmd_t;
+        p3 = b;
         while (*p3) {
-            type_char(ctx, *p3++);
+            type_char(*p3++);
         }
     } else {
         // TODO: blimp
     }
-    f_closedir(&dir);
+    free(b);
+    f_closedir(pdir);
+    free(pfileInfo);
+    free(pdir);
 }
 
 inline static void cmd_up(cmd_ctx_t* ctx) {
@@ -214,17 +221,17 @@ r:
     free(pfileinfo);
 }
 
-inline static void cmd_push(cmd_startup_ctx_t* ctx, char c) {
-    size_t cmd_pos = strlen(ctx->cmd);
+inline static void cmd_push(char c) {
+    size_t cmd_pos = strlen(cmd);
     if (cmd_pos >= 512) {
         // TODO: blimp
     }
-    ctx->cmd[cmd_pos++] = c;
-    ctx->cmd[cmd_pos] = 0;
+    cmd[cmd_pos++] = c;
+    cmd[cmd_pos] = 0;
     putc(c);
 }
 
-inline static bool cmd_enter(cmd_startup_ctx_t* ctx) {
+inline static bool cmd_enter(cmd_ctx_t* ctx) {
     UINT br;
     putc('\n');
     size_t cmd_pos = strlen(ctx->cmd);
@@ -332,7 +339,7 @@ int main(void) {
                     free(cmd);
                     return 0;
                 }
-            } else cmd_push(ctx, c);
+            } else cmd_push(c);
         }
     }
     __unreachable();

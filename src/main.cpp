@@ -322,7 +322,7 @@ static void init() {
     draw_text(tmp, 0, 0, 13, 1);
     draw_text(tmp, 0, 29, 13, 1);
     graphics_set_con_pos(0, 1);
-    graphics_set_con_color(7, 0);
+    graphics_set_con_color(7, 0); // TODO: config
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
@@ -333,6 +333,7 @@ static void init() {
         while (true);
     }
     load_config_sys();
+    draw_text(tmp, 0, 0, 13, 1);
 
     init_psram();
 }
