@@ -234,79 +234,72 @@ inline static void cmd_push(char c) {
 inline static bool cmd_enter(cmd_ctx_t* ctx) {
     UINT br;
     putc('\n');
-    size_t cmd_pos = strlen(ctx->cmd);
+    size_t cmd_pos = strlen(cmd);
     if (cmd_pos > 0) { // history
         f_open(pfh, cmd_history_file, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
-        f_write(pfh, ctx->cmd, cmd_pos, &br);
+        f_write(pfh, cmd, cmd_pos, &br);
         f_write(pfh, "\n", 1, &br);
         f_close(pfh);
     } else {
-        goto r;
+        goto r2;
     }
-    //goutf("cmd: %s\n", ctx->cmd);
+    //goutf("cmd: %s\n", cmd);
     int tokens = tokenize_cmd(ctx);
-    //goutf("cmd_t: %s; tokens: %d\n", ctx->cmd_t, tokens);
-    ctx->tokens = tokens;
-    if (redirect2) {
+    if (tokens == 0) {
+        goto r1;
+    } else if (redirect2) { // TODO: err, pipes
         if (bAppend) {
-            FILINFO fileinfo;
-            if (f_stat(redirect2, &fileinfo) != FR_OK) {
+            FILINFO* pfileinfo = malloc(sizeof(FILINFO));
+            if (f_stat(redirect2, pfileinfo) != FR_OK) {
                 goutf("Unable to find file for append: '%s'\n", redirect2);
+                free(pfileinfo);
                 goto t;
             } else {
-                if (f_open(ctx->pstdout, redirect2, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND) != FR_OK) {
-                    f_lseek(ctx->pstdout, fileinfo.fsize);
+                ctx->std_out = malloc(sizeof(FIL));
+                if (f_open(ctx->std_out, redirect2, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND) != FR_OK) {
+                    f_lseek(ctx->std_out, pfileinfo->fsize);
                     goutf("Unable to open file for append: '%s'\n", redirect2);
                 }
             }
+            free(pfileinfo);
         } else {
 t:
-            if (f_open(ctx->pstdout, redirect2, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
+            ctx->std_out = malloc(sizeof(FIL));
+            if (f_open(ctx->std_out, redirect2, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
                 goutf("Unable to open file to redirect: '%s'\n", redirect2);
             }
         }
-    }
-    if (strcmp("exit", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
-        ctx->cmd[0] = 0;
-        ctx->cmd_t[0] = 0;
-        ctx->tokens = 0;
+    } else if (strcmp("exit", cmd) == 0) { // do not extern, due to internal cmd state
+        cleanup_ctx(ctx);
+        ctx->stage = EXECUTED;
         return true;
-    }
-    if (strcmp("cd", ctx->cmd_t) == 0) { // do not extern, due to internal cmd state
+    } else if (strcmp("cd", cmd) == 0) { // do not extern, due to internal cmd state
         if (tokens == 1) {
-            fgoutf(ctx->pstderr, "Unable to change directoy to nothing\n");
+            fgoutf(ctx->std_err, "Unable to change directoy to nothing\n");
+        } else if (tokens > 2) {
+            fgoutf(ctx->std_err, "Unable to change directoy to more than one target\n");
         } else {
-            cd(ctx, (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t));
+            cd(ctx, (char*)ctx->orig_cmd + (next_token(cmd) - cmd));
         }
+        goto r1;
     } else {
-        return true;
-        /*
-        char* t = exists(ctx);
-        if (t) {
-            int len = strlen(t);
-            //goutf("'%s' (%d)\n", t, len);
-            if (len > 3 && strcmp(t + len - 4, ".uf2") == 0 && load_firmware(t)) {
-                run_app(t);
-            } else if(is_new_app(t)) {
-                ctx->ret_code = run_new_app(t);
-            } else {
-                goutf("Unable to execute command: '%s'\n", t);
-            }
-            vPortFree(t);
-        } else {
-            goutf("Illegal command: '%s'\n", ctx->cmd);
+        ctx->argc = tokens;
+        ctx->argv = (char**)malloc(sizeof(char*) * tokens);
+        char* t = cmd;
+        for (uint32_t i = 0; i < tokens; ++i) {
+            ctx->argv[i] = copy_str(t);
+            t = next_token(t);
         }
-        */
+        ctx->stage = PREPARED;
+        return true;
     }
-//    if (redirect2) {
-//        f_close(ctx->pstdout);
-//        redirect2 = NULL;
-//    }
-r:
-    goutf("%s>", ctx->curr_dir);
-    ctx->cmd[0] = 0;
-    ctx->cmd_t[0] = 0;
+r1:
+    cleanup_ctx(ctx);
+r2:
+    goutf("[%s]$", ctx->curr_dir);
+    cmd[0] = 0;
     return false;
+
 }
 
 const char* hist = ".cmd_history"; // TODO: configure it
@@ -318,10 +311,12 @@ int main(void) {
     cmd[0] = 0;
     goutf("[%s]$", ctx->curr_dir);
     cmd_history_idx = -2;
-    char* tmp = get_ctx_var("TEMP");
+    char* tmp = get_ctx_var(ctx, "TEMP");
+    goutf("tmp: '%s'\n", tmp);
     if(!tmp) tmp = "";
     size_t cdl = strlen(tmp);
     cmd_history_file = concat(tmp, hist);
+    goutf("history_file: '%s'\n", cmd_history_file);
     pfh = (FIL*)malloc(sizeof(FIL)); 
     bAppend = false;
     redirect2 = NULL;
