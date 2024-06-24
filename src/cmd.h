@@ -7,13 +7,26 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include "ff.h"
-#include "app.h"
 
 size_t get_heap_total();
 
 char* get_curr_dir(); // old system
 FIL * get_stdout(); // old system
 FIL * get_stderr(); // old system
+
+
+typedef struct {
+    char* del_addr;
+    char* prg_addr;
+    uint16_t sec_num;
+} sect_entry_t;
+
+typedef int (*bootb_ptr_t)( void );
+
+typedef struct {
+    bootb_ptr_t bootb[4];
+    sect_entry_t* sect_entries;
+} bootb_ctx_t;
 
 typedef struct {
     const char* key;

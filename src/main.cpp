@@ -201,7 +201,7 @@ extern "C" void vAppDetachedTask(void *pv) {
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
     cmd_ctx_t* ctx = clone_ctx();
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
-    exec(ctx->pboot_ctx);
+    exec(ctx);
     remove_ctx(ctx);
     vTaskDelete( NULL );
 }
@@ -223,12 +223,12 @@ extern "C" void vCmdTask(void *pv) {
             ctx->argv[0] = copy_str(comspec);
             ctx->orig_cmd = copy_str(comspec);
         }
-        goutf("[%s]Lookup for: %s\n", ctx->curr_dir, ctx->orig_cmd);
+        //goutf("[%s]Lookup for: %s\n", ctx->curr_dir, ctx->orig_cmd);
         char* t = exists(ctx);
         if (t) {
             ctx->stage = FOUND;
             size_t len = strlen(t);
-            goutf("[%s]Command found: %s)\n", ctx->curr_dir, t);
+            //goutf("[%s]Command found: %s)\n", ctx->curr_dir, t);
             if (len > 3 && strcmp(t + len - 4, ".uf2") == 0) {
                 if(load_firmware(t)) {
                     ctx->stage = LOAD;
@@ -237,25 +237,25 @@ extern "C" void vCmdTask(void *pv) {
                 }
             } else if(is_new_app(t)) {
                 ctx->stage = VALID;
-                goutf("[%s]Command has appropriate format\n", ctx->curr_dir);
+                //goutf("[%s]Command has appropriate format\n", ctx->curr_dir);
                 ctx->pboot_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
                 ctx->ret_code = load_app(t, ctx->pboot_ctx);
-                goutf("[%s]LOAD RET_CODE: %d\n", ctx->curr_dir, ctx->ret_code);
+                //goutf("[%s]LOAD RET_CODE: %d\n", ctx->curr_dir, ctx->ret_code);
                 if (ctx->ret_code == 0) {
                     ctx->stage = LOAD;
                     if (ctx->detached) {
                         ctx->ret_code = 0;
                         xTaskCreate(vAppDetachedTask, ctx->argv[0], 1024/*x4=4096k*/, NULL, configMAX_PRIORITIES - 1, NULL);
                     } else {
-                        ctx->ret_code = exec(ctx->pboot_ctx);
+                        exec(ctx);
                         // ctx->stage; // to be changed in exec to PREPAREAD or to EXCUTED
-                        goutf("[%s]EXEC RET_CODE: %d; tokens: %d (%p)\n", ctx->curr_dir, ctx->ret_code, ctx->argc, ctx->argv);
-                    /*    if (ctx->argc && ctx->argv) {
+                        /*goutf("EXEC RET_CODE: %d; tokens: %d [%p]:\n", ctx->ret_code, ctx->argc, ctx->argv);
+                        if (ctx->argc && ctx->argv) {
                             for (int i = 0; i < ctx->argc; ++i) {
-                                goutf(" [%d] '%s'\n", i, ctx->argv[i]);
+                                goutf(" argv[%d]='%s'\n", i, ctx->argv[i]);
                             }
-                        }
-                        vTaskDelay(5000);*/
+                        }*/
+                        //vTaskDelay(5000);
                     }
                 }
                 if (!ctx->detached) {

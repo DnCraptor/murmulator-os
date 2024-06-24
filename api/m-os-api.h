@@ -432,9 +432,9 @@ inline static int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
     typedef int (*fn_ptr_t)(char * fn, bootb_ctx_t* bootb_ctx);
     return ((fn_ptr_t)_sys_table_ptrs[125])(fn, bootb_ctx);
 }
-inline static int exec(bootb_ctx_t * b) {
-    typedef int (*fn_ptr_t)(bootb_ctx_t*);
-    return ((fn_ptr_t)_sys_table_ptrs[126])(b);
+inline static void exec(cmd_ctx_t* ctx) {
+    typedef void (*fn_ptr_t)(cmd_ctx_t* ctx);
+    ((fn_ptr_t)_sys_table_ptrs[126])(ctx);
 }
 
 inline static char* exists(cmd_ctx_t* ctx) {

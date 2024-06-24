@@ -6,7 +6,6 @@
 #include "task.h"
 #include "ff.h"
 #include "graphics.h"
-#include "cmd.h"
 #include "keyboard.h"
 
 #define M_OS_API_TABLE_BASE ((size_t*)0x10001000ul)
@@ -389,6 +388,7 @@ void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
 }
 
 int run_new_app(char * fn) {
+    /*
     bootb_ctx_t* bootb_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
     bootb_ctx->sect_entries = 0;
     bootb_ctx->bootb[0] = 0; bootb_ctx->bootb[1] = 0; bootb_ctx->bootb[2] = 0; bootb_ctx->bootb[3] = 0;
@@ -398,7 +398,10 @@ int run_new_app(char * fn) {
     }
     cleanup_bootb_ctx(bootb_ctx);
     vPortFree(bootb_ctx);
-    return ret_code;
+    return ret_code;*/
+    // todo:
+    gouta("tba\n");
+    return 1;
 }
 
 static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
@@ -513,6 +516,22 @@ e1:
     return prg_addr;
 }
 
+static uint32_t load_sec2mem_wrapper(load_sec_ctx* pctx, uint32_t req_idx) {
+    if (req_idx != 0xFFFFFFFF) {
+        UINT rb;
+        elf32_sym sym;
+        if (f_lseek(pctx->f2, pctx->symtab_off + req_idx * sizeof(elf32_sym)) != FR_OK ||
+            f_read(pctx->f2, &sym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)
+        ) {
+            goutf("Unable to read .symtab section #%d\n", req_idx);
+            goto e3;
+        }
+        return load_sec2mem(pctx, sym.st_shndx) + 1;
+    }
+e3:
+    return 0;
+}
+
 int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
     memset(bootb_ctx, 0, sizeof(bootb_ctx_t)); // ensure context is empty
     FIL* f = (FIL*)pvPortMalloc(sizeof(FIL));
@@ -564,6 +583,7 @@ int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
     }
     f_lseek(f, symtab_off);
     elf32_sym sym;
+ //   sizeof(elf32_sym);
     uint32_t _init_idx = 0xFFFFFFFF;
     uint32_t _fini_idx = 0xFFFFFFFF;
     uint32_t main_idx = 0xFFFFFFFF;
@@ -580,62 +600,28 @@ int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
     pctx->pstrtab = strtab;
     pctx->psections_list = bootb_ctx->sect_entries;
     pctx->max_sections_in_list = max_sects;
-    for (uint32_t i = 0; i < symtab_len / sizeof(sym); ++i) {
-        if (f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
+    for (uint32_t i = 0; i < symtab_len / sizeof(elf32_sym); ++i) {
+        if (f_read(f, &sym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)) {
             goutf("Unable to read .symtab section #%d\n", i);
             break;
         }
         if (sym.st_info == STR_TAB_GLOBAL_FUNC) {
-            if (0 == strcmp("_init", strtab + sym.st_name)) {
+            char* gfn = strtab + sym.st_name;
+            if (0 == strcmp("_init", gfn)) {
                 _init_idx = i;
-            }
-            if (0 == strcmp("__required_m_api_verion", strtab + sym.st_name)) {
+            } else if (0 == strcmp("__required_m_api_verion", gfn)) {
                 req_idx = i;
-            }
-            else if (0 == strcmp("_fini", strtab + sym.st_name)) {
+            } else if (0 == strcmp("_fini", gfn)) {
                 _fini_idx = i;
-            }
-            else if (0 == strcmp("main", strtab + sym.st_name)) {
+            } else if (0 == strcmp("main", gfn)) {
                 main_idx = i;
             }
         }
     }
-    if (req_idx != 0xFFFFFFFF) {
-        if (f_lseek(f, symtab_off + req_idx * sizeof(sym)) != FR_OK ||
-            f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)
-        ) {
-            goutf("Unable to read .symtab section for __required_m_api_version #%d\n", req_idx);
-            goto e3;
-        }
-        bootb_ctx->bootb[0] = load_sec2mem(pctx, sym.st_shndx) + 1;
-    }
-    if (_init_idx != 0xFFFFFFFF) {
-        if (f_lseek(f, symtab_off + _init_idx * sizeof(sym)) != FR_OK ||
-            f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)
-        ) {
-            goutf("Unable to read .symtab section for _init #%d\n", _init_idx);
-            goto e3;
-        }
-        bootb_ctx->bootb[1] = load_sec2mem(pctx, sym.st_shndx) + 1;
-    }
-    if (main_idx != 0xFFFFFFFF) {
-        if (f_lseek(f, symtab_off + main_idx * sizeof(sym)) != FR_OK ||
-            f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)
-        ) {
-            goutf("Unable to read .symtab section for main #%d\n", main_idx);
-            goto e3;
-        }
-        bootb_ctx->bootb[2] = load_sec2mem(pctx, sym.st_shndx) + 1;
-    }
-    if (_fini_idx != 0xFFFFFFFF) {
-        if (f_lseek(f, symtab_off + _fini_idx * sizeof(sym)) != FR_OK ||
-            f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)
-        ) {
-            goutf("Unable to read .symtab section for _fini #%d\n", _fini_idx);
-            goto e3;
-        }
-        bootb_ctx->bootb[3] = load_sec2mem(pctx, sym.st_shndx) + 1;
-    }
+    bootb_ctx->bootb[0] = load_sec2mem_wrapper(pctx, req_idx);
+    bootb_ctx->bootb[1] = load_sec2mem_wrapper(pctx, _init_idx);
+    bootb_ctx->bootb[2] = load_sec2mem_wrapper(pctx, main_idx);
+    bootb_ctx->bootb[3] = load_sec2mem_wrapper(pctx, _fini_idx);
     /*
     if (bootb_ctx->sect_entries) {
         for (uint16_t i = 0; bootb_ctx->sect_entries[i].del_addr != 0; ++i) {
@@ -662,23 +648,31 @@ e1:
     }
 }
 
-int exec(bootb_ctx_t* bootb_ctx) {
+void exec(cmd_ctx_t* ctx) {
+    bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
+    //char* cmd = copy_str(ctx->orig_cmd);
+    //goutf("{%s}EXEC [%p][%p][%p][%p]\n", cmd, bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3]);
     int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 0;
     if (rav > M_API_VERSION) {
-        goutf("Required M-API version %d is grater than provided M-API version %d\n", rav, M_API_VERSION);
-        return -2;
+        goutf("Required by appilaction '%s' M-API version %d is grater than provided: %d\n",  ctx->argv[0], rav, M_API_VERSION);
+        ctx->ret_code = -2;
+        //vPortFree(cmd);
+        return;
     }
     if (rav < 4) { // unsupported earliest versions
-        goutf("Application uses M-API version %d, that less than minimal required version %d\n", rav, M_API_VERSION);
-        return -3;
+        goutf("Application '%s' uses M-API version %d, that less than minimal required version %d\n", ctx->argv[0], rav, M_API_VERSION);
+        ctx->ret_code = -3;
+        //vPortFree(cmd);
+        return;
     }
     if (bootb_ctx->bootb[1]) {
         bootb_ctx->bootb[1](); // tood: ensure stack
     }
     int res = bootb_ctx->bootb[2] ? bootb_ctx->bootb[2]() : -3;
-    //goutf("EXEC RET_CODE: %d -> _finit: %p\n", res, bootb_ctx->bootb[3]);
+    //goutf("{%s}EXEC RET_CODE: %d -> _finit: %p\n", cmd, res, bootb_ctx->bootb[3]);
     if (bootb_ctx->bootb[3]) {
         bootb_ctx->bootb[3]();
     }
-    return res;
+    ctx->ret_code = res;
+    //vPortFree(cmd);
 }

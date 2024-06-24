@@ -64,7 +64,7 @@ inline static int tokenize_cmd(cmd_ctx_t* ctx) {
         *t2++ = c;
     }
     *t2 = 0;
-    goutf("cmd: %s\n", cmd);
+    //goutf("cmd: %s\n", cmd);
     return inTokenN;
 }
 
@@ -99,8 +99,11 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
         goto r2;
     }
     int tokens = tokenize_cmd(ctx);
-    if (strcmp("exit", cmd) == 0) { // do not extern, due to internal cmd state
+    if (tokens == 0) {
+        goto r1;
+    } else if (strcmp("exit", cmd) == 0) { // do not extern, due to internal cmd state
         cleanup_ctx(ctx);
+        ctx->stage = EXECUTED;
         return true;
     } else if (strcmp("cd", cmd) == 0) { // do not extern, due to internal cmd state
         if (tokens == 1) {
@@ -113,7 +116,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
         goto r1;
     } else {
         ctx->argc = tokens;
-        ctx->argv = malloc(sizeof(char*) * tokens);
+        ctx->argv = (char**)malloc(sizeof(char*) * tokens);
         char* t = cmd;
         for (uint32_t i = 0; i < tokens; ++i) {
             ctx->argv[i] = copy_str(t);

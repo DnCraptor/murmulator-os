@@ -79,6 +79,8 @@ void remove_ctx(cmd_ctx_t* src) {
         for(int i = 0; i < src->argc; ++i) {
             vPortFree(src->argv[i]);
         }
+    }
+    if (src->argv) {
         vPortFree(src->argv);
     }
     if (src->orig_cmd) {
