@@ -20,6 +20,16 @@ typedef struct {
     char* value;
 } vars_t;
 
+typedef enum {
+    INITIAL,
+    PREPARED,
+    FOUND,
+    VALID,
+    LOAD,
+    EXECUTED,
+    INVALIDATED
+} cmd_exec_stage_t;
+
 typedef struct cmd_ctx {
     uint32_t argc;
     char** argv;
@@ -38,6 +48,8 @@ typedef struct cmd_ctx {
     size_t vars_num;
 
     struct cmd_ctx* pipe;
+
+    cmd_exec_stage_t stage;
 } cmd_ctx_t;
 
 cmd_ctx_t* get_cmd_startup_ctx(); // system

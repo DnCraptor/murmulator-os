@@ -45,35 +45,39 @@ inline static int tokenize_cmd(cmd_ctx_t* ctx) {
         return 0;
     }
     ctx->orig_cmd = copy_str(cmd);
+    //goutf("orig_cmd: '%s' [%p]; cmd: '%s' [%p]\n", ctx->orig_cmd, ctx->orig_cmd, cmd, cmd);
     bool inSpace = true;
     int inTokenN = 0;
     char* t1 = ctx->orig_cmd;
     char* t2 = cmd;
     while(*t1) {
         char c = tolower_token(*t1++);
+        //goutf("%02X -> %c %02X; t1: '%s' [%p], t2: '%s' [%p]\n", c, *t2, *t2, t1, t1, t2, t2);
         if (inSpace) {
-            //if (!c) {} // still in space
             if(c) { // token started
                 inSpace = 0;
                 inTokenN++; // new token
             }
-        } else if(!c) { inSpace = true; } // not in space, after the token
-        //else {} // still in token
+        } else if(!c) { // not in space, after the token
+            inSpace = true;
+        }
         *t2++ = c;
     }
     *t2 = 0;
+    goutf("cmd: %s\n", cmd);
     return inTokenN;
 }
 
 inline static void cd(cmd_ctx_t* ctx, char *d) {
-    FILINFO fileinfo;
+    FILINFO* pfileinfo = (FILINFO*)malloc(sizeof(FILINFO));
     if (strcmp(d, "\\") == 0 || strcmp(d, "/") == 0) {
         strcpy(ctx->curr_dir, d);
-    } else if (f_stat(d, &fileinfo) != FR_OK || !(fileinfo.fattrib & AM_DIR)) {
+    } else if (f_stat(d, pfileinfo) != FR_OK || !(pfileinfo->fattrib & AM_DIR)) {
         goutf("Unable to find directory: '%s'\n", d);
     } else {
         strcpy(ctx->curr_dir, d);
     }
+    free(pfileinfo);
 }
 
 inline static void cmd_push(char c) {
@@ -90,22 +94,23 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     UINT br;
     putc('\n');
     size_t cmd_pos = strlen(cmd);
+    //goutf("cmd_pos: %d\n", cmd_pos);
     if (!cmd_pos) {
-        goto r;
+        goto r2;
     }
     int tokens = tokenize_cmd(ctx);
     if (strcmp("exit", cmd) == 0) { // do not extern, due to internal cmd state
-        cmd[0] = 0;
-        free(ctx->orig_cmd);
-        ctx->orig_cmd = 0;
+        cleanup_ctx(ctx);
         return true;
     } else if (strcmp("cd", cmd) == 0) { // do not extern, due to internal cmd state
         if (tokens == 1) {
             fgoutf(ctx->std_err, "Unable to change directoy to nothing\n");
+        } else if (tokens > 2) {
+            fgoutf(ctx->std_err, "Unable to change directoy to more than one target\n");
         } else {
             cd(ctx, (char*)ctx->orig_cmd + (next_token(cmd) - cmd));
         }
-        goto r;
+        goto r1;
     } else {
         ctx->argc = tokens;
         ctx->argv = malloc(sizeof(char*) * tokens);
@@ -114,23 +119,23 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
             ctx->argv[i] = copy_str(t);
             t = next_token(t);
         }
+        ctx->stage = PREPARED;
         return true;
     }
-r:
+r1:
+    cleanup_ctx(ctx);
+r2:
     goutf("[%s]#", ctx->curr_dir);
     cmd[0] = 0;
-    free(ctx->orig_cmd);
-    ctx->orig_cmd = 0;
     return false;
 }
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
-    char* curr_dir = ctx->curr_dir;
     cleanup_ctx(ctx);
     cmd = malloc(512);
     cmd[0] = 0;
-    goutf("[%s]#", curr_dir);
+    goutf("[%s]#", ctx->curr_dir);
     while(1) {
         char c = getc();
         if (c) {
@@ -141,6 +146,7 @@ int main(void) {
             else if (c == '\n') {
                 if ( cmd_enter(ctx) ) {
                     free(cmd);
+                    //goutf("[%s]EXIT to exec, stage: %d\n", ctx->curr_dir, ctx->stage);
                     return 0;
                 }
             } else cmd_push(c);

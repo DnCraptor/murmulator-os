@@ -514,6 +514,7 @@ e1:
 }
 
 int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
+    memset(bootb_ctx, 0, sizeof(bootb_ctx_t)); // ensure context is empty
     FIL* f = (FIL*)pvPortMalloc(sizeof(FIL));
     if (f_open(f, fn, FA_READ) != FR_OK) {
         vPortFree(f);
@@ -675,6 +676,7 @@ int exec(bootb_ctx_t* bootb_ctx) {
         bootb_ctx->bootb[1](); // tood: ensure stack
     }
     int res = bootb_ctx->bootb[2] ? bootb_ctx->bootb[2]() : -3;
+    //goutf("EXEC RET_CODE: %d -> _finit: %p\n", res, bootb_ctx->bootb[3]);
     if (bootb_ctx->bootb[3]) {
         bootb_ctx->bootb[3]();
     }

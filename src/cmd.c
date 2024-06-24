@@ -49,6 +49,8 @@ cmd_ctx_t* clone_ctx() {
         vPortFree(src->vars);
     }
     res->pipe = 0; // TODO: copy pipe?
+    res->stage = src->stage;
+    res->ret_code = src->ret_code;
     return res;
 }
 void cleanup_ctx(cmd_ctx_t* src) {
@@ -57,8 +59,9 @@ void cleanup_ctx(cmd_ctx_t* src) {
             vPortFree(src->argv[i]);
         }
         vPortFree(src->argv);
-        src->argv = 0;
     }
+    src->argv = 0;
+    src->argc = 0;
     if (src->orig_cmd) {
         vPortFree(src->orig_cmd);
         src->orig_cmd = 0;
@@ -69,6 +72,7 @@ void cleanup_ctx(cmd_ctx_t* src) {
     src->detached = false;
     src->ret_code = 0;
     src->pipe = 0;
+    src->stage = INITIAL;
 }
 void remove_ctx(cmd_ctx_t* src) {
     if (src->argc && src->argv) {
@@ -92,8 +96,8 @@ void remove_ctx(cmd_ctx_t* src) {
         }
         vPortFree(src->vars);
     }
-    vPortFree(src);
     src->pipe = 0; // TODO: remove pipe?
+    vPortFree(src);
 }
 cmd_ctx_t* get_cmd_startup_ctx() {
     return &ctx;

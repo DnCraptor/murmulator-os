@@ -131,6 +131,7 @@ static void load_config_sys() {
     if(f_open(&f, "/config.sys", FA_READ) != FR_OK) {
         if(f_open(&f, "/mos/config.sys", FA_READ) != FR_OK) {
             f_mkdir("MOS"); f_mkdir("tmp");
+            ctx->curr_dir = copy_str("MOS");
             return;
         }
     }
@@ -191,10 +192,12 @@ static void load_config_sys() {
         init_vram(t2);
         vPortFree(t2);
     }
+    ctx->curr_dir = copy_str(b_base ? get_ctx_var(ctx, "BASE") : "MOS");
     vPortFree(buff);
 }
 
 extern "C" void vAppDetachedTask(void *pv) {
+    gouta("vAppDetachedTask\n");
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
     cmd_ctx_t* ctx = clone_ctx();
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
@@ -214,35 +217,45 @@ extern "C" void vCmdTask(void *pv) {
 
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     while(1) {
-        bool inCmd = false; // not in command processor mode
         if (!ctx->argc && !ctx->argv) {
             ctx->argc = 1;
             ctx->argv = (char**)pvPortMalloc(sizeof(char*));
             ctx->argv[0] = copy_str(comspec);
             ctx->orig_cmd = copy_str(comspec);
-            inCmd = true;
         }
-        //goutf("Lookup for: %s (mode: %d)\n", ctx->cmd_t, inCmd);
+        goutf("[%s]Lookup for: %s\n", ctx->curr_dir, ctx->orig_cmd);
         char* t = exists(ctx);
         if (t) {
+            ctx->stage = FOUND;
             size_t len = strlen(t);
-            //goutf("Command found: %s (mode: %d)\n", t, inCmd);
+            goutf("[%s]Command found: %s)\n", ctx->curr_dir, t);
             if (len > 3 && strcmp(t + len - 4, ".uf2") == 0) {
                 if(load_firmware(t)) {
+                    ctx->stage = LOAD;
                     run_app(t);
+                    ctx->stage = EXECUTED;
                 }
             } else if(is_new_app(t)) {
-                //gouta("Command has appropriate format\n");
+                ctx->stage = VALID;
+                goutf("[%s]Command has appropriate format\n", ctx->curr_dir);
                 ctx->pboot_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
                 ctx->ret_code = load_app(t, ctx->pboot_ctx);
-                //goutf("LOAD RET_CODE: %d\n", ctx->ret_code);
+                goutf("[%s]LOAD RET_CODE: %d\n", ctx->curr_dir, ctx->ret_code);
                 if (ctx->ret_code == 0) {
+                    ctx->stage = LOAD;
                     if (ctx->detached) {
                         ctx->ret_code = 0;
                         xTaskCreate(vAppDetachedTask, ctx->argv[0], 1024/*x4=4096k*/, NULL, configMAX_PRIORITIES - 1, NULL);
                     } else {
                         ctx->ret_code = exec(ctx->pboot_ctx);
-                        //goutf("EXEC RET_CODE: %d; cmd: '%s' cmd_t: '%s' tokens: %d\n", ctx->ret_code, ctx->cmd, ctx->cmd_t, ctx->tokens);
+                        // ctx->stage; // to be changed in exec to PREPAREAD or to EXCUTED
+                        goutf("[%s]EXEC RET_CODE: %d; tokens: %d (%p)\n", ctx->curr_dir, ctx->ret_code, ctx->argc, ctx->argv);
+                    /*    if (ctx->argc && ctx->argv) {
+                            for (int i = 0; i < ctx->argc; ++i) {
+                                goutf(" [%d] '%s'\n", i, ctx->argv[i]);
+                            }
+                        }
+                        vTaskDelay(5000);*/
                     }
                 }
                 if (!ctx->detached) {
@@ -252,18 +265,16 @@ extern "C" void vCmdTask(void *pv) {
                 }
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
+                ctx->stage = INVALIDATED;
             }
             vPortFree(t);
         } else {
             goutf("Illegal command: '%s'\n", ctx->orig_cmd);
+            ctx->stage = INVALIDATED;
         }
-    //    if (!inCmd) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
-    //        ctx->cmd[0] = 0;
-    //        ctx->cmd_t[0] = 0;
-    //        ctx->tokens = 0;
-    //        f_close(ctx->pstdout);
-    //        f_close(ctx->pstderr);
-    //    }
+        if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
+            cleanup_ctx(ctx);
+        }
     }
     vTaskDelete( NULL );
 }
