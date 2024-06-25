@@ -1,30 +1,33 @@
 #include "m-os-api.h"
 
-static FILINFO* fileInfo;
-static int rmdir(const char* d) {
+DIR* dir;
+FILINFO* fileInfo;
+
+static int rmdir(cmd_ctx_t* ctx, const char* d) {
     goutf("rmdir: %s\n", d);
-    DIR* dir = (DIR*)pvPortMalloc(sizeof(DIR));
     if (FR_OK != f_opendir(dir, d)) {
-        vPortFree(dir);
-        fgoutf(get_cmd_ctx()->std_err, "Failed to open directory: '%s'\n", d);
+        fgoutf(ctx->std_err, "Failed to open directory: '%s'\n", d);
         return 0;
     }
     size_t total_files = 0;
     while (f_readdir(dir, fileInfo) == FR_OK && fileInfo->fname[0] != '\0') {
         char* t = concat(d, fileInfo->fname);
         if(fileInfo->fattrib & AM_DIR) {
-            vTaskDelay(1000);
-            total_files += rmdir(t);
+            f_closedir(dir);
+            total_files += rmdir(ctx, t);
+            if (FR_OK != f_opendir(dir, d)) {
+                fgoutf(ctx->std_err, "Failed to open directory: '%s'\n", d);
+                return total_files;
+            }
         }
         if (f_unlink(t) == FR_OK)
             total_files++;
         else {
-            fgoutf(get_cmd_ctx()->std_err, "Failed to remove file: '%s'\n", t);
+            fgoutf(ctx->std_err, "Failed to remove file: '%s'\n", t);
         }
         vPortFree(t);
     }
     f_closedir(dir);
-    vPortFree(dir);
     if (f_unlink(d) == FR_OK) {
         total_files++;
     }
@@ -37,9 +40,11 @@ int main(void) {
         fgoutf(ctx->std_err, "Unable to remove directoy with no name\n");
         return 1;
     }
-    FILINFO* fileInfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
-    int files = rmdir(ctx->argv[1]);
-    vPortFree(fileInfo);
+    DIR* dir = (DIR*)malloc(sizeof(DIR));
+    FILINFO* fileInfo = (FILINFO*)malloc(sizeof(FILINFO));
+    int files = rmdir(ctx, ctx->argv[1]);
+    free(fileInfo);
+    free(dir);
     goutf("    Total: %d files removed\n", files);
     return 0;
 }
