@@ -4,7 +4,7 @@ static int rmdir(const char* d) {
     DIR* dir = (DIR*)pvPortMalloc(sizeof(DIR));
     if (FR_OK != f_opendir(dir, d)) {
         vPortFree(dir);
-        fgoutf(get_cmd_startup_ctx()->pstderr, "Failed to open directory: '%s'\n", d);
+        fgoutf(get_cmd_ctx()->std_err, "Failed to open directory: '%s'\n", d);
         return 0;
     }
     size_t total_files = 0;
@@ -17,7 +17,7 @@ static int rmdir(const char* d) {
         if (f_unlink(t) == FR_OK)
             total_files++;
         else {
-            fgoutf(get_cmd_startup_ctx()->pstderr, "Failed to remove file: '%s'\n", t);
+            fgoutf(get_cmd_ctx()->std_err, "Failed to remove file: '%s'\n", t);
         }
         vPortFree(t);
     }
@@ -31,17 +31,16 @@ static int rmdir(const char* d) {
 }
 
 int main(void) {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
-    if (ctx->tokens == 1) {
-        fgoutf(ctx->pstderr, "Unable to remove directoy with no name\n");
+    cmd_ctx_t* ctx = get_cmd_ctx();
+    if (ctx->argc == 1) {
+        fgoutf(ctx->std_err, "Unable to remove directoy with no name\n");
         return 1;
     }
-    char * d = (char*)ctx->cmd + (next_token(ctx->cmd_t) - ctx->cmd_t);
-    int files = rmdir(d);
+    int files = rmdir(ctx->argv[1]);
     goutf("    Total: %d files removed\n", files);
     return 0;
 }
 
 int __required_m_api_verion(void) {
-    return 2;
+    return M_API_VERSION;
 }
