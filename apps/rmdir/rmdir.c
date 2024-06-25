@@ -40,8 +40,8 @@ int main(void) {
         fgoutf(ctx->std_err, "Unable to remove directoy with no name\n");
         return 1;
     }
-    DIR* dir = (DIR*)malloc(sizeof(DIR));
-    FILINFO* fileInfo = (FILINFO*)malloc(sizeof(FILINFO));
+    DIR* dir = (DIR*)calloc(sizeof(DIR));
+    FILINFO* fileInfo = (FILINFO*)calloc(sizeof(FILINFO));
     int files = rmdir(ctx, ctx->argv[1]);
     free(fileInfo);
     free(dir);

@@ -480,6 +480,16 @@ inline static void* malloc(size_t xWantedSize) {
     typedef void* (*pvPortMalloc_ptr_t)( size_t xWantedSize );
     return ((pvPortMalloc_ptr_t)_sys_table_ptrs[32])(xWantedSize);
 }
+inline static void* memset(void* p, int v, size_t sz) {
+    typedef void* (*fn)(void *, int, size_t);
+    return ((fn)_sys_table_ptrs[142])(p, v, sz);
+}
+inline static void* calloc(size_t xWantedSize) {
+    typedef char* (*pvPortMalloc_ptr_t)( size_t xWantedSize );
+    char* t = ((pvPortMalloc_ptr_t)_sys_table_ptrs[32])(xWantedSize); // allign?
+    memset(t, 0, xWantedSize);
+    return t;
+}
 inline static void free(void * pv) {
     typedef void (*vPortFree_ptr_t)( void * pv );
     ((vPortFree_ptr_t)_sys_table_ptrs[33])(pv);
