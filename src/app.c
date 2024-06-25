@@ -464,7 +464,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             goto e1;
                         }
                         uint32_t* rel_addr = (uint32_t*)(prg_addr + rel.rel_offset /*10*/); /*f7ff fffe 	bl	0*/
-                        // DO NOT resolve it for any case, it may be 16-bit alligned, and will hand to load 32-bit
+                        // DO NOT resolve it for any case, it may be 16-bit alligned, and will hang to load 32-bit
                         //uint32_t P = *rel_addr; /*f7ff fffe 	bl	0*/
                         uint32_t S = c->psym->st_value;
                         char * sec_addr = prg_addr;

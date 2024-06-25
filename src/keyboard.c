@@ -139,6 +139,11 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         __c = 18;
         return true;
     }
+    if (ps2scancode == 0xE09C) {
+        if (cp866_handler) cp866_handler('\n', ps2scancode);
+        __c = '\n';
+        return true;
+    }
     switch ((uint8_t)input & 0xFF) {
         case 0x81: // ESC
             if (cp866_handler) cp866_handler(0x1B /*ESC*/, ps2scancode);

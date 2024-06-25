@@ -1,6 +1,8 @@
 #include "m-os-api.h"
 
+static FILINFO* fileInfo;
 static int rmdir(const char* d) {
+    goutf("rmdir: %s\n", d);
     DIR* dir = (DIR*)pvPortMalloc(sizeof(DIR));
     if (FR_OK != f_opendir(dir, d)) {
         vPortFree(dir);
@@ -8,10 +10,10 @@ static int rmdir(const char* d) {
         return 0;
     }
     size_t total_files = 0;
-    FILINFO* fileInfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
     while (f_readdir(dir, fileInfo) == FR_OK && fileInfo->fname[0] != '\0') {
         char* t = concat(d, fileInfo->fname);
         if(fileInfo->fattrib & AM_DIR) {
+            vTaskDelay(1000);
             total_files += rmdir(t);
         }
         if (f_unlink(t) == FR_OK)
@@ -21,7 +23,6 @@ static int rmdir(const char* d) {
         }
         vPortFree(t);
     }
-    vPortFree(fileInfo);
     f_closedir(dir);
     vPortFree(dir);
     if (f_unlink(d) == FR_OK) {
@@ -36,7 +37,9 @@ int main(void) {
         fgoutf(ctx->std_err, "Unable to remove directoy with no name\n");
         return 1;
     }
+    FILINFO* fileInfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
     int files = rmdir(ctx->argv[1]);
+    vPortFree(fileInfo);
     goutf("    Total: %d files removed\n", files);
     return 0;
 }
