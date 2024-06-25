@@ -1,12 +1,11 @@
 #include "m-os-api.h"
 
 int main() {
-    cmd_startup_ctx_t* ctx = get_cmd_startup_ctx();
-    if (ctx->tokens == 1) {
+    cmd_ctx_t* ctx = get_cmd_ctx();
+    if (ctx->argc == 1) {
         overclocking();
-    } else if (ctx->tokens == 2) {
-        char* nt = next_token(ctx->cmd_t);
-        int cpu = atoi(nt);
+    } else if (ctx->argc == 2) {
+        int cpu = atoi(ctx->argv[1]);
         if (!cpu) {
             goto usage;
         }
@@ -14,16 +13,13 @@ int main() {
             set_overclocking(cpu * 1000);
             overclocking();
         } else {
-            fgoutf(get_stderr(), "Unable to change CPU freq. to %s\n", nt);
+            fgoutf(get_stderr(), "Unable to change CPU freq. to %s\n", ctx->argv[1]);
             goto usage;
         }
-    } else if (ctx->tokens == 4) {
-        char* nt = next_token(ctx->cmd_t);
-        uint32_t vco = atoi(nt);
-        nt = next_token(nt);
-        uint32_t div1 = atoi(nt);
-        nt = next_token(nt);
-        uint32_t div2 = atoi(nt);
+    } else if (ctx->argc == 4) {
+        uint32_t vco = atoi(ctx->argv[1]);
+        uint32_t div1 = atoi(ctx->argv[2]);
+        uint32_t div2 = atoi(ctx->argv[3]);
         fgoutf(get_stdout(), "Attempt to set VCO: %dMHz; DIV1: %d; DIV2: %d\n", vco, div1, div2);
         set_sys_clock_pll(vco, div1, div2);
     } else {
@@ -39,5 +35,5 @@ usage:
 }
 
 int __required_m_api_verion() {
-    return 2;
+    return M_API_VERSION;
 }

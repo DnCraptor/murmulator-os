@@ -312,11 +312,11 @@ int main(void) {
     goutf("[%s]$", ctx->curr_dir);
     cmd_history_idx = -2;
     char* tmp = get_ctx_var(ctx, "TEMP");
-    goutf("tmp: '%s'\n", tmp);
+    //goutf("tmp: '%s'\n", tmp);
     if(!tmp) tmp = "";
     size_t cdl = strlen(tmp);
     cmd_history_file = concat(tmp, hist);
-    goutf("history_file: '%s'\n", cmd_history_file);
+    //goutf("history_file: '%s'\n", cmd_history_file);
     pfh = (FIL*)malloc(sizeof(FIL)); 
     bAppend = false;
     redirect2 = NULL;
