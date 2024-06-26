@@ -66,6 +66,7 @@ inline static int vsnprintf(char *__restrict buff, size_t lim, const char *__res
 
 typedef void (*goutf_ptr_t)(const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 1, 2)));
 #define goutf(...) ((goutf_ptr_t)_sys_table_ptrs[41])(__VA_ARGS__)
+#define printf(...) ((goutf_ptr_t)_sys_table_ptrs[41])(__VA_ARGS__)
 
 /* typedef va_list only when required */
 #if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE
@@ -501,6 +502,10 @@ inline static char* get_ctx_var(cmd_ctx_t* src, const char* k) {
 inline static cmd_ctx_t* set_ctx_var(cmd_ctx_t* src, const char* k, char* v) {
     typedef void (*fn_ptr_t)(cmd_ctx_t*, const char*, char*);
     ((fn_ptr_t)_sys_table_ptrs[141])(src, k, v);
+}
+inline static  cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
+    typedef cmd_ctx_t* (*fn_ptr_t)(cmd_ctx_t*);
+    return ((fn_ptr_t)_sys_table_ptrs[143])(src);
 }
 
 #ifdef __cplusplus

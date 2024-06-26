@@ -40,16 +40,16 @@ inline static char tolower_token(char t) {
     return t;
 }
 
-inline static int tokenize_cmd(cmd_ctx_t* ctx) {
-    if (cmd[0] == 0) {
+inline static int tokenize_cmd(char* cmdt, cmd_ctx_t* ctx) {
+    if (cmdt[0] == 0) {
         return 0;
     }
-    ctx->orig_cmd = copy_str(cmd);
-    //goutf("orig_cmd: '%s' [%p]; cmd: '%s' [%p]\n", ctx->orig_cmd, ctx->orig_cmd, cmd, cmd);
+    ctx->orig_cmd = copy_str(cmdt);
+    //goutf("orig_cmd: '%s' [%p]; cmd: '%s' [%p]\n", ctx->orig_cmd, ctx->orig_cmd, cmdt, cmdt);
     bool inSpace = true;
     int inTokenN = 0;
     char* t1 = ctx->orig_cmd;
-    char* t2 = cmd;
+    char* t2 = cmdt;
     while(*t1) {
         char c = tolower_token(*t1++);
         //goutf("%02X -> %c %02X; t1: '%s' [%p], t2: '%s' [%p]\n", c, *t2, *t2, t1, t1, t2, t2);
@@ -111,6 +111,40 @@ inline static void cmd_write_history(cmd_ctx_t* ctx) {
     free(cmd_history_file);
 }
 
+inline static bool prepare_ctx(char* cmdt, cmd_ctx_t* ctx) {
+    int tokens = tokenize_cmd(cmdt, ctx);
+    if (tokens == 0) {
+        return false;
+    }
+
+    if (strcmp("exit", cmdt) == 0) { // do not extern, due to internal cmd state
+        cleanup_ctx(ctx);
+        ctx->stage = EXECUTED;
+        return true;
+    }
+    
+    if (strcmp("cd", cmdt) == 0) { // do not extern, due to internal cmd state
+        if (tokens == 1) {
+            fgoutf(ctx->std_err, "Unable to change directoy to nothing\n");
+        } else if (tokens > 2) {
+            fgoutf(ctx->std_err, "Unable to change directoy to more than one target\n");
+        } else {
+            cd(ctx, (char*)ctx->orig_cmd + (next_token(cmdt) - cmdt));
+        }
+        return false;
+    }
+
+    ctx->argc = tokens;
+    ctx->argv = (char**)malloc(sizeof(char*) * tokens);
+    char* t = cmdt;
+    for (uint32_t i = 0; i < tokens; ++i) {
+        ctx->argv[i] = copy_str(t);
+        t = next_token(t);
+    }
+    ctx->stage = PREPARED;
+    return true;
+}
+
 inline static bool cmd_enter(cmd_ctx_t* ctx) {
     putc('\n');
     size_t cmd_pos = strlen(cmd);
@@ -119,31 +153,34 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     } else {
         goto r2;
     }
-    int tokens = tokenize_cmd(ctx);
-    if (tokens == 0) {
-        goto r1;
-    } else if (strcmp("exit", cmd) == 0) { // do not extern, due to internal cmd state
-        cleanup_ctx(ctx);
-        ctx->stage = EXECUTED;
-        return true;
-    } else if (strcmp("cd", cmd) == 0) { // do not extern, due to internal cmd state
-        if (tokens == 1) {
-            fgoutf(ctx->std_err, "Unable to change directoy to nothing\n");
-        } else if (tokens > 2) {
-            fgoutf(ctx->std_err, "Unable to change directoy to more than one target\n");
-        } else {
-            cd(ctx, (char*)ctx->orig_cmd + (next_token(cmd) - cmd));
+
+    char* tc = cmd;
+    char* ts = cmd;
+    bool exit = false;
+    while(1) {
+        if (!*tc) {
+            //printf("'%s' by end zero\n", ts);
+            exit = prepare_ctx(ts, ctx);
+            break;
+        } else if (*tc == '|') {
+            //printf("'%s' by pipe\n", ts);
+            *tc = 0;
+            exit = prepare_ctx(ts, ctx);
+            ctx->detached = true;
+            ctx = clone_ctx(ctx);
+            ctx->pipe = ctx;
+            ctx->detached = false;
+            ts = tc + 1;
+        } else if (*tc == '&') {
+            //printf("'%s' detached\n", ts);
+            *tc = 0;
+            exit = prepare_ctx(ts, ctx);
+            ctx->detached = true;
+            break;
         }
-        goto r1;
-    } else {
-        ctx->argc = tokens;
-        ctx->argv = (char**)malloc(sizeof(char*) * tokens);
-        char* t = cmd;
-        for (uint32_t i = 0; i < tokens; ++i) {
-            ctx->argv[i] = copy_str(t);
-            t = next_token(t);
-        }
-        ctx->stage = PREPARED;
+        tc++;
+    }
+    if (exit) { // prepared ctx
         return true;
     }
 r1:

@@ -19,9 +19,8 @@ static FIL* copy_FIL(FIL* f) {
     memcpy(res, f, sizeof(FIL));
     return res;
 }
-cmd_ctx_t* clone_ctx() {
+cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     cmd_ctx_t* res = (cmd_ctx_t*)pvPortMalloc(sizeof(cmd_ctx_t));
-    cmd_ctx_t* src = get_cmd_ctx();
     memcpy(res, src, sizeof(cmd_ctx_t));
     if (src->argc && src->argv) {
         res->argv = (char**)pvPortMalloc(sizeof(char*) * src->argc);

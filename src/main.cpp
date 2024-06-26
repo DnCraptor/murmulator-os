@@ -198,8 +198,9 @@ static void load_config_sys() {
 
 extern "C" void vAppDetachedTask(void *pv) {
     gouta("vAppDetachedTask\n");
+    cmd_ctx_t* orig_ctx = (cmd_ctx_t*)pv;
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
-    cmd_ctx_t* ctx = clone_ctx();
+    cmd_ctx_t* ctx = clone_ctx(orig_ctx);
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     exec(ctx);
     remove_ctx(ctx);
@@ -245,7 +246,7 @@ extern "C" void vCmdTask(void *pv) {
                     ctx->stage = LOAD;
                     if (ctx->detached) {
                         ctx->ret_code = 0;
-                        xTaskCreate(vAppDetachedTask, ctx->argv[0], 1024/*x4=4096k*/, NULL, configMAX_PRIORITIES - 1, NULL);
+                        xTaskCreate(vAppDetachedTask, ctx->argv[0], 1024/*x4=4096k*/, ctx, configMAX_PRIORITIES - 1, NULL);
                     } else {
                         exec(ctx);
                         // ctx->stage; // to be changed in exec to PREPAREAD or to EXCUTED

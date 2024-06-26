@@ -198,7 +198,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     cleanup_ctx, // 139
     get_ctx_var, // 140
     set_ctx_var, // 141
-    memset, // 142    
+    memset, // 142
+    clone_ctx, // 143
     // TODO:
     0
 };

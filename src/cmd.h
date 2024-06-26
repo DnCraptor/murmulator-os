@@ -67,7 +67,7 @@ typedef struct cmd_ctx {
 
 cmd_ctx_t* get_cmd_startup_ctx(); // system
 cmd_ctx_t* get_cmd_ctx();
-cmd_ctx_t* clone_ctx();
+cmd_ctx_t* clone_ctx(cmd_ctx_t* src);
 void remove_ctx(cmd_ctx_t*);
 void set_ctx_var(cmd_ctx_t*, const char* key, const char* val);
 char* get_ctx_var(cmd_ctx_t*, const char* key);
