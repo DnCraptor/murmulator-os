@@ -234,6 +234,7 @@ void resolve_thm_pc22(uint16_t *addr, uint32_t sym_val) {
     // Обновление инструкции
     *addr++ = 0xF000 | (S << 10) | imm10;
     *addr = (0b11010 << 11) | (J1 << 13) | (J2 << 11) | imm11;
+    //goutf("%04X %04X -> %04X %04X [%p]\n" , instr0, instr, *(addr-1), *addr, addr - 1);
 }
 
 static const char* st_predef(const char* v) {
@@ -407,7 +408,7 @@ int run_new_app(char * fn) {
 static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
     uint8_t* prg_addr = sec_prg_addr(c, sec_num);
     if (prg_addr != 0) {
-        //goutf("Section #%d already in mem @ %p\n", sec_num, prg_addr);
+        // goutf("Section #%d already in mem @ %p\n", sec_num, prg_addr);
         return prg_addr;
     }
     UINT rb;
@@ -423,7 +424,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         if (f_lseek(c->f2, psh->sh_offset) == FR_OK &&
             f_read(c->f2, prg_addr, psh->sh_size, &rb) == FR_OK && rb == psh->sh_size
         ) {
-             // goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, prg_addr);
+            // goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, prg_addr);
             add_sec(c, del_addr, prg_addr, sec_num);
             // links and relocations
             if (f_lseek(c->f2, c->pehdr->sh_offset) != FR_OK) {
@@ -432,7 +433,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                 goto e1;
             }
             while (f_read(c->f2, psh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)) {
-                // goutf("Section info: %d type: %d\n", sh.sh_info, sh.sh_type);
+                // goutf("Section info: %d type: %d\n", psh->sh_info, psh->sh_type);
                 if (psh->sh_type == REL_SEC && psh->sh_info == sec_num) {
                     uint32_t r2 = f_tell(c->f2);
                     elf32_rel rel;
@@ -526,7 +527,9 @@ static uint32_t load_sec2mem_wrapper(load_sec_ctx* pctx, uint32_t req_idx) {
             goutf("Unable to read .symtab section #%d\n", req_idx);
             goto e3;
         }
-        return load_sec2mem(pctx, sym.st_shndx) + 1;
+        uint8_t* t = load_sec2mem(pctx, sym.st_shndx);
+        if (!t) return 0;
+        return (uint32_t)(t + 1);
     }
 e3:
     return 0;

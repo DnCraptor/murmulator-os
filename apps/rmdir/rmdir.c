@@ -1,7 +1,7 @@
 #include "m-os-api.h"
 
-DIR* dir;
-FILINFO* fileInfo;
+static DIR* dir;
+static FILINFO* fileInfo;
 
 static int rmdir(cmd_ctx_t* ctx, const char* d) {
     goutf("rmdir: %s\n", d);
@@ -19,11 +19,10 @@ static int rmdir(cmd_ctx_t* ctx, const char* d) {
                 fgoutf(ctx->std_err, "Failed to open directory: '%s'\n", d);
                 return total_files;
             }
-        }
-        if (f_unlink(t) == FR_OK)
+        } else if (f_unlink(t) == FR_OK) {
             total_files++;
-        else {
-            fgoutf(ctx->std_err, "Failed to remove file: '%s'\n", t);
+        } else {
+            fgoutf(ctx->std_err, "Failed to remove file/dir: '%s'\n", t);
         }
         vPortFree(t);
     }
@@ -40,8 +39,8 @@ int main(void) {
         fgoutf(ctx->std_err, "Unable to remove directoy with no name\n");
         return 1;
     }
-    DIR* dir = (DIR*)calloc(sizeof(DIR));
-    FILINFO* fileInfo = (FILINFO*)calloc(sizeof(FILINFO));
+    dir = (DIR*)malloc(sizeof(DIR));
+    fileInfo = (FILINFO*)malloc(sizeof(FILINFO));
     int files = rmdir(ctx, ctx->argv[1]);
     free(fileInfo);
     free(dir);
