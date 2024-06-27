@@ -69,24 +69,6 @@ inline static int tokenize_cmd(cmd_ctx_t* ctx) {
     return inTokenN;
 }
 
-inline static void cd(cmd_ctx_t* ctx, char *d) {
-    FILINFO* pfileinfo = (FILINFO*)malloc(sizeof(FILINFO));
-    if (strcmp(d, "\\") == 0 || strcmp(d, "/") == 0) {
-        goto a;
-    } else if (f_stat(d, pfileinfo) != FR_OK || !(pfileinfo->fattrib & AM_DIR)) {
-        goutf("Unable to find directory: '%s'\n", d);
-        goto r;
-    }
-a:
-    {
-        char* bk = ctx->curr_dir;
-        ctx->curr_dir = copy_str(d);
-        free(bk);
-    }
-r:
-    free(pfileinfo);
-}
-
 inline static void cmd_push(char c) {
     size_t cmd_pos = strlen(cmd);
     if (cmd_pos >= 512) {
@@ -112,15 +94,6 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
         cleanup_ctx(ctx);
         ctx->stage = EXECUTED;
         return true;
-    } else if (strcmp("cd", cmd) == 0) { // do not extern, due to internal cmd state
-        if (tokens == 1) {
-            fgoutf(ctx->std_err, "Unable to change directoy to nothing\n");
-        } else if (tokens > 2) {
-            fgoutf(ctx->std_err, "Unable to change directoy to more than one target\n");
-        } else {
-            cd(ctx, (char*)ctx->orig_cmd + (next_token(cmd) - cmd));
-        }
-        goto r1;
     } else {
         ctx->argc = tokens;
         ctx->argv = (char**)malloc(sizeof(char*) * tokens);

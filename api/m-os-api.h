@@ -121,6 +121,7 @@ inline static FIL* get_stderr() {
 
 typedef void (*fgoutf_ptr_t)(FIL*, const char *__restrict str, ...) _ATTRIBUTE ((__format__ (__printf__, 2, 3)));
 #define fgoutf(...) ((fgoutf_ptr_t)_sys_table_ptrs[70])(__VA_ARGS__)
+#define fprintf(...) ((fgoutf_ptr_t)_sys_table_ptrs[70])(__VA_ARGS__)
 
 typedef uint32_t (*u32v_ptr_t)();
 inline static uint32_t psram_size() {
