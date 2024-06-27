@@ -23,7 +23,8 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     cmd_ctx_t* res = (cmd_ctx_t*)pvPortMalloc(sizeof(cmd_ctx_t));
     memcpy(res, src, sizeof(cmd_ctx_t));
     if (src->argc && src->argv) {
-        res->argv = (char**)pvPortMalloc(sizeof(char*) * src->argc);
+        res->argc = src->argc;
+        res->argv = (char**)pvPortMalloc(sizeof(char*) * res->argc);
         for(int i = 0; i < src->argc; ++i) {
             res->argv[i] = copy_str(src->argv[i]);
         }
@@ -31,9 +32,19 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     if (src->orig_cmd) {
         res->orig_cmd = copy_str(src->orig_cmd);
     }
-//    if (src->std_in) res->std_in = copy_FIL(src->std_in);
-//    if (src->std_out) res->std_out = copy_FIL(src->std_out);
-//    if (src->std_err) res->std_err = copy_FIL(src->std_err);
+    // change owner
+    if (src->std_in) {
+        res->std_in = src->std_in;
+        src->std_in = 0;
+    }
+    if (src->std_out) {
+        res->std_out = src->std_out;
+        src->std_out = 0;
+    }
+    if (src->std_err) {
+        res->std_err = src->std_err;
+        src->std_err = 0;
+    }
     if (src->curr_dir) {
         res->curr_dir = copy_str(src->curr_dir);
     }
@@ -66,9 +77,24 @@ void cleanup_ctx(cmd_ctx_t* src) {
         vPortFree(src->orig_cmd);
         src->orig_cmd = 0;
     }
-    if (src->std_in) { f_close(src->std_in); vPortFree(src->std_in); src->std_in = 0; }
-    if (src->std_out) { f_close(src->std_out); vPortFree(src->std_out); src->std_out = 0; }
-    if (src->std_err) { f_close(src->std_err); vPortFree(src->std_err); src->std_err = 0; }
+    if (src->std_in) {
+        f_close(src->std_in);
+        vPortFree(src->std_in);
+        src->std_in = 0;
+    }
+    if (src->std_out) {
+        if (src->std_err == src->std_out) {
+            src->std_err = 0;
+        }
+        f_close(src->std_out);
+        vPortFree(src->std_out);
+        src->std_out = 0;
+    }
+    if (src->std_err) {
+        f_close(src->std_err);
+        vPortFree(src->std_err);
+        src->std_err = 0;
+    }
     src->detached = false;
     src->ret_code = 0;
     src->pipe = 0;
