@@ -200,6 +200,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     set_ctx_var, // 141
     memset, // 142
     clone_ctx, // 143
+    //
+    xPortGetFreeHeapSize, // 144
     // TODO:
     0
 };

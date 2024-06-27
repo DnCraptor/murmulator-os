@@ -66,7 +66,7 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
 }
 void cleanup_ctx(cmd_ctx_t* src) {
     // goutf("src->argc: %d\n", src->argc);
-    if (src->argc && src->argv) {
+    if (src->argv) {
         for(int i = 0; i < src->argc; ++i) {
             vPortFree(src->argv[i]);
         }
@@ -103,31 +103,33 @@ void cleanup_ctx(cmd_ctx_t* src) {
     // gouta("cleanup_ctx <<\n");
 }
 void remove_ctx(cmd_ctx_t* src) {
-    if (src->argc && src->argv) {
+    if (src->argv) {
         for(int i = 0; i < src->argc; ++i) {
             vPortFree(src->argv[i]);
         }
-    }
-    if (src->argv) {
         vPortFree(src->argv);
     }
     if (src->orig_cmd) {
         vPortFree(src->orig_cmd);
     }
-    if (src->std_in) vPortFree(src->std_in);
-    if (src->std_out) vPortFree(src->std_out);
-    if (src->std_err) vPortFree(src->std_err); // the same?
+    if (src->std_in) { f_close(src->std_in); vPortFree(src->std_in); }
+    if (src->std_out && src->std_out != src->std_err) { f_close(src->std_out); vPortFree(src->std_out); }
+    if (src->std_err) { f_close(src->std_err); vPortFree(src->std_err); }
     if (src->curr_dir) {
         vPortFree(src->curr_dir);
     }
-    for (size_t i = 0; i < src->vars_num; ++i) {
-        if (src->vars[i].value) {
-            vPortFree(src->vars[i].value);
+    if (src->vars) {
+        for (size_t i = 0; i < src->vars_num; ++i) {
+            if (src->vars[i].value) {
+                vPortFree(src->vars[i].value);
+            }
         }
         vPortFree(src->vars);
     }
-    cleanup_bootb_ctx(src->pboot_ctx);
-    vPortFree(src->pboot_ctx);
+    if (src->pboot_ctx) {
+        cleanup_bootb_ctx(src->pboot_ctx);
+        vPortFree(src->pboot_ctx);
+    }
     // src->pipe = 0; // each pipe should remove it by self
     vPortFree(src);
 }
