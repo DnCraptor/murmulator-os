@@ -57,7 +57,6 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
             }
             res->vars[i].key = src->vars[i].key; // const
         }
-        vPortFree(src->vars);
     }
     res->pipe = 0; // do not copy pipe
     res->stage = src->stage;
