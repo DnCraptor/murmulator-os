@@ -15,10 +15,10 @@ extern "C" {
 bool load_firmware(char* pathname);
 void run_app(char * name);
 
-bool is_new_app(char * name);
-int run_new_app(char * name);
+bool is_new_app(cmd_ctx_t* ctx);
+bool run_new_app(cmd_ctx_t* ctx);
 
-int load_app(char* name, bootb_ctx_t* bootb_ctx);
+bool load_app(cmd_ctx_t* ctx);
 void exec(cmd_ctx_t* ctx);
 void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx);
 bool restore_tbl(char* fn);

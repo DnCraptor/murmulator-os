@@ -31,9 +31,9 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     if (src->orig_cmd) {
         res->orig_cmd = copy_str(src->orig_cmd);
     }
-    if (src->std_in) res->std_in = copy_FIL(src->std_in);
-    if (src->std_out) res->std_out = copy_FIL(src->std_out);
-    if (src->std_err) res->std_err = copy_FIL(src->std_err);
+//    if (src->std_in) res->std_in = copy_FIL(src->std_in);
+//    if (src->std_out) res->std_out = copy_FIL(src->std_out);
+//    if (src->std_err) res->std_err = copy_FIL(src->std_err);
     if (src->curr_dir) {
         res->curr_dir = copy_str(src->curr_dir);
     }
@@ -47,7 +47,7 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
         }
         vPortFree(src->vars);
     }
-    res->pipe = 0; // TODO: copy pipe?
+    res->pipe = 0; // do not copy pipe
     res->stage = src->stage;
     res->ret_code = src->ret_code;
     return res;
@@ -87,7 +87,7 @@ void remove_ctx(cmd_ctx_t* src) {
     }
     if (src->std_in) vPortFree(src->std_in);
     if (src->std_out) vPortFree(src->std_out);
-    if (src->std_err) vPortFree(src->std_err);
+    if (src->std_err) vPortFree(src->std_err); // the same?
     if (src->curr_dir) {
         vPortFree(src->curr_dir);
     }
@@ -97,7 +97,9 @@ void remove_ctx(cmd_ctx_t* src) {
         }
         vPortFree(src->vars);
     }
-    src->pipe = 0; // TODO: remove pipe?
+    cleanup_bootb_ctx(src->pboot_ctx);
+    vPortFree(src->pboot_ctx);
+    // src->pipe = 0; // each pipe should remove it by self
     vPortFree(src);
 }
 cmd_ctx_t* get_cmd_startup_ctx() {
@@ -184,22 +186,31 @@ r1:
     return res;
 }
 
-char* exists(cmd_ctx_t* ctx) {
+bool exists(cmd_ctx_t* ctx) {
+    //goutf("ctx->argc: %d\n", ctx->argc);
     if (ctx->argc == 0) {
         return 0;
     }
     char* res = 0;
     char * cmd = ctx->argv[0];
+    //goutf("cmd: %s\n", cmd);
     FILINFO* pfileinfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
     bool r = f_stat(cmd, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
     if (r) {
         res = copy_str(cmd);
+        //goutf("res %s\n", res);
         goto r1;
     }
     res = create_and_test( get_ctx_var(ctx, "BASE"), cmd, pfileinfo);
-    if (res) goto r1;
+    if (res) {
+        //goutf("B: %s\n", res);
+        goto r1;
+    }
     res = create_and_test( ctx->curr_dir, cmd, pfileinfo);
-    if (res) goto r1;
+    if (res) {
+        //goutf("C: %s\n", res);
+        goto r1;
+    }
     const char* path = get_ctx_var(ctx, "PATH");
     if (path) {
         size_t sz = strlen(path);
@@ -220,5 +231,18 @@ char* exists(cmd_ctx_t* ctx) {
     }
 r1:
     vPortFree(pfileinfo);
-    return res;
+    if (res) {
+        // goutf("Found: %s\n", res);
+        if(ctx->orig_cmd) vPortFree(ctx->orig_cmd);
+        ctx->orig_cmd = copy_str(res);
+        ctx->stage = FOUND;
+    }
+    cmd_ctx_t* rc = ctx->pipe;
+    while (rc) {
+        if(!exists(rc)) {
+            return false;
+        }
+        rc = ctx->pipe;    
+    }
+    return res != 0;
 }

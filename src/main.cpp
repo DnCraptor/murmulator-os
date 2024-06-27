@@ -196,17 +196,6 @@ static void load_config_sys() {
     vPortFree(buff);
 }
 
-extern "C" void vAppDetachedTask(void *pv) {
-    gouta("vAppDetachedTask\n");
-    cmd_ctx_t* orig_ctx = (cmd_ctx_t*)pv;
-    const TaskHandle_t th = xTaskGetCurrentTaskHandle();
-    cmd_ctx_t* ctx = clone_ctx(orig_ctx);
-    vTaskSetThreadLocalStoragePointer(th, 0, ctx);
-    exec(ctx);
-    remove_ctx(ctx);
-    vTaskDelete( NULL );
-}
-
 extern "C" void vCmdTask(void *pv) {
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
     cmd_ctx_t* ctx = get_cmd_startup_ctx();
@@ -224,45 +213,29 @@ extern "C" void vCmdTask(void *pv) {
             ctx->argv[0] = copy_str(comspec);
             ctx->orig_cmd = copy_str(comspec);
         }
-        //goutf("[%s]Lookup for: %s\n", ctx->curr_dir, ctx->orig_cmd);
-        char* t = exists(ctx);
-        if (t) {
-            ctx->stage = FOUND;
-            size_t len = strlen(t);
-            //goutf("[%s]Command found: %s)\n", ctx->curr_dir, t);
-            if (len > 3 && strcmp(t + len - 4, ".uf2") == 0) {
-                if(load_firmware(t)) {
+        // goutf("[%s]Lookup for: %s\n", ctx->curr_dir, ctx->orig_cmd);
+        bool b_exists = exists(ctx);
+        if (b_exists) {
+            size_t len = strlen(ctx->orig_cmd); // TODO: more than one?
+            // goutf("[%s]Command found: %s)\n", ctx->curr_dir, t);
+            if (len > 3 && strcmp(ctx->orig_cmd + len - 4, ".uf2") == 0) {
+                if(load_firmware(ctx->orig_cmd)) {
                     ctx->stage = LOAD;
-                    run_app(t);
+                    run_app(ctx->orig_cmd);
                     ctx->stage = EXECUTED;
                 }
-            } else if(is_new_app(t)) {
-                ctx->stage = VALID;
-                //goutf("[%s]Command has appropriate format\n", ctx->curr_dir);
-                ctx->pboot_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
-                ctx->ret_code = load_app(t, ctx->pboot_ctx);
-                //goutf("[%s]LOAD RET_CODE: %d\n", ctx->curr_dir, ctx->ret_code);
-                if (ctx->ret_code == 0) {
-                    ctx->stage = LOAD;
-                    if (ctx->detached) {
-                        ctx->ret_code = 0;
-                        xTaskCreate(vAppDetachedTask, ctx->argv[0], 1024/*x4=4096k*/, ctx, configMAX_PRIORITIES - 1, NULL);
-                    } else {
-                        exec(ctx);
+            } else if(is_new_app(ctx)) {
+                // goutf("[%s]Command has appropriate format\n", ctx->curr_dir);
+                if (load_app(ctx)) {
+                    exec(ctx);
                         // ctx->stage; // to be changed in exec to PREPAREAD or to EXCUTED
-                        /*goutf("EXEC RET_CODE: %d; tokens: %d [%p]:\n", ctx->ret_code, ctx->argc, ctx->argv);
-                        if (ctx->argc && ctx->argv) {
+                        // goutf("EXEC RET_CODE: %d; tokens: %d [%p]:\n", ctx->ret_code, ctx->argc, ctx->argv);
+                        /*if (ctx->argc && ctx->argv) {
                             for (int i = 0; i < ctx->argc; ++i) {
                                 goutf(" argv[%d]='%s'\n", i, ctx->argv[i]);
                             }
                         }*/
                         //vTaskDelay(5000);
-                    }
-                }
-                if (!ctx->detached) {
-                    cleanup_bootb_ctx(ctx->pboot_ctx);
-                    vPortFree(ctx->pboot_ctx);
-                    ctx->pboot_ctx = 0;
                 }
             } else {
                 goutf("Unable to execute command: '%s'\n", t);
@@ -272,9 +245,6 @@ extern "C" void vCmdTask(void *pv) {
         } else {
             goutf("Illegal command: '%s'\n", ctx->orig_cmd);
             ctx->stage = INVALIDATED;
-        }
-        if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
-            cleanup_ctx(ctx);
         }
     }
     vTaskDelete( NULL );

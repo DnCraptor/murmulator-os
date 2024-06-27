@@ -157,25 +157,26 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     char* tc = cmd;
     char* ts = cmd;
     bool exit = false;
+    cmd_ctx_t* ctxi = ctx;
     while(1) {
         if (!*tc) {
             //printf("'%s' by end zero\n", ts);
-            exit = prepare_ctx(ts, ctx);
+            exit = prepare_ctx(ts, ctxi);
             break;
         } else if (*tc == '|') {
             //printf("'%s' by pipe\n", ts);
             *tc = 0;
-            exit = prepare_ctx(ts, ctx);
-            ctx->detached = true;
-            ctx = clone_ctx(ctx);
-            ctx->pipe = ctx;
-            ctx->detached = false;
+            exit = prepare_ctx(ts, ctxi);
+            ctxi->detached = true;
+            ctxi = clone_ctx(ctxi);
+            ctxi->pipe = ctxi;
+            ctxi->detached = false;
             ts = tc + 1;
         } else if (*tc == '&') {
             //printf("'%s' detached\n", ts);
             *tc = 0;
-            exit = prepare_ctx(ts, ctx);
-            ctx->detached = true;
+            exit = prepare_ctx(ts, ctxi);
+            ctxi->detached = true;
             break;
         }
         tc++;

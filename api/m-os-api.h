@@ -407,13 +407,13 @@ inline static void run_app(char * name) {
     ((fn_ptr_t)_sys_table_ptrs[66])(name);
 }
 
-inline static bool is_new_app(char * name) {
-    typedef bool (*fn_ptr_t)(char*);
-    return ((fn_ptr_t)_sys_table_ptrs[120])(name);
+inline static bool is_new_app(cmd_ctx_t* c) {
+    typedef bool (*fn_ptr_t)(cmd_ctx_t* c);
+    return ((fn_ptr_t)_sys_table_ptrs[120])(c);
 }
-inline static int run_new_app(char * name) {
-    typedef int (*fn_ptr_t)(char*);
-    return ((fn_ptr_t)_sys_table_ptrs[121])(name);
+inline static bool run_new_app(cmd_ctx_t* c) {
+    typedef bool (*fn_ptr_t)(cmd_ctx_t* c);
+    return ((fn_ptr_t)_sys_table_ptrs[121])(c);
 }
 
 inline static char getc(void) {
@@ -429,17 +429,17 @@ inline static void cleanup_bootb_ctx(bootb_ctx_t* b) {
     typedef void (*fn_ptr_t)(bootb_ctx_t*);
     ((fn_ptr_t)_sys_table_ptrs[124])(b);
 }
-inline static int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
-    typedef int (*fn_ptr_t)(char * fn, bootb_ctx_t* bootb_ctx);
-    return ((fn_ptr_t)_sys_table_ptrs[125])(fn, bootb_ctx);
+inline static bool load_app(cmd_ctx_t* ctx) {
+    typedef bool (*fn_ptr_t)(cmd_ctx_t* ctx);
+    return ((fn_ptr_t)_sys_table_ptrs[125])(ctx);
 }
 inline static void exec(cmd_ctx_t* ctx) {
     typedef void (*fn_ptr_t)(cmd_ctx_t* ctx);
     ((fn_ptr_t)_sys_table_ptrs[126])(ctx);
 }
 
-inline static char* exists(cmd_ctx_t* ctx) {
-    typedef char* (*fn_ptr_t)(cmd_ctx_t*);
+inline static bool exists(cmd_ctx_t* ctx) {
+    typedef bool (*fn_ptr_t)(cmd_ctx_t*);
     return ((fn_ptr_t)_sys_table_ptrs[128])(ctx);
 }
 inline static char* concat(const char* s1, const char* s2) {

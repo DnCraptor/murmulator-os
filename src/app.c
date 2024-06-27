@@ -332,11 +332,11 @@ static const char* st_spec_sec(uint16_t st) {
 
 static const char* s = "Unexpected ELF file";
 
-bool is_new_app(char * fn) {
+bool is_new_app(cmd_ctx_t* ctx) {
     FIL* f = (FIL*)pvPortMalloc(sizeof(FIL));
-    if (f_open(f, fn, FA_READ) != FR_OK) {
+    if (f_open(f, ctx->orig_cmd, FA_READ) != FR_OK) {
         vPortFree(f);
-        goutf("Unable to open file: '%s'\n", fn);
+        goutf("Unable to open file: '%s'\n", ctx->orig_cmd);
         return false;
     }
     struct elf32_header ehdr;
@@ -344,34 +344,40 @@ bool is_new_app(char * fn) {
     if (f_read(f, &ehdr, sizeof(ehdr), &rb) != FR_OK) {
         f_close(f);
         vPortFree(f);
-        goutf("Unable to read an ELF file header: '%s'\n", fn);
+        goutf("Unable to read an ELF file header: '%s'\n", ctx->orig_cmd);
         return false;
     }
     f_close(f);
     vPortFree(f);
     if (ehdr.common.magic != ELF_MAGIC) {
-        goutf("It is not an ELF file: '%s'\n", fn);
+        goutf("It is not an ELF file: '%s'\n", ctx->orig_cmd);
         return false;
     }
     if (ehdr.common.version != 1 || ehdr.common.version2 != 1) {
-        goutf("%s '%s' version: %d:%d\n", s, fn, ehdr.common.version, ehdr.common.version2);
+        goutf("%s '%s' version: %d:%d\n", s, ctx->orig_cmd, ehdr.common.version, ehdr.common.version2);
         return false;
     }
     if (ehdr.common.arch_class != 1 || ehdr.common.endianness != 1) {
-        goutf("%s '%s' class: %d; endian: %d\n", s, fn, ehdr.common.arch_class, ehdr.common.endianness);
+        goutf("%s '%s' class: %d; endian: %d\n", s, ctx->orig_cmd, ehdr.common.arch_class, ehdr.common.endianness);
         return false;
     }
     if (ehdr.common.machine != EM_ARM) {
-        goutf("%s '%s' machine type: %d; expected: %d\n", s, fn, ehdr.common.machine, EM_ARM);
+        goutf("%s '%s' machine type: %d; expected: %d\n", s, ctx->orig_cmd, ehdr.common.machine, EM_ARM);
         return false;
     }
     if (ehdr.common.abi != 0) {
-        goutf("%s '%s' ABI type: %d; expected: %d\n", s, fn, ehdr.common.abi, 0);
+        goutf("%s '%s' ABI type: %d; expected: %d\n", s, ctx->orig_cmd, ehdr.common.abi, 0);
         return false;
     }
     if (ehdr.flags & EF_ARM_ABI_FLOAT_HARD) {
-        goutf("%s '%s' EF_ARM_ABI_FLOAT_HARD: %04Xh\n", s, fn, ehdr.flags);
+        goutf("%s '%s' EF_ARM_ABI_FLOAT_HARD: %04Xh\n", s, ctx->orig_cmd, ehdr.flags);
         return false;
+    }
+    ctx->stage = VALID;
+    cmd_ctx_t* rc = ctx->pipe;
+    while (rc) {
+        if (!is_new_app(rc)) return false;
+        rc = ctx->pipe;    
     }
     return true;
 }
@@ -388,21 +394,10 @@ void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
     }
 }
 
-int run_new_app(char * fn) {
-    /*
-    bootb_ctx_t* bootb_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
-    bootb_ctx->sect_entries = 0;
-    bootb_ctx->bootb[0] = 0; bootb_ctx->bootb[1] = 0; bootb_ctx->bootb[2] = 0; bootb_ctx->bootb[3] = 0;
-    int ret_code = load_app(fn, bootb_ctx);
-    if (ret_code == 0) {
-        ret_code = exec(bootb_ctx);
-    }
-    cleanup_bootb_ctx(bootb_ctx);
-    vPortFree(bootb_ctx);
-    return ret_code;*/
+bool run_new_app(cmd_ctx_t* ctx) {
     // todo:
     gouta("tba\n");
-    return 1;
+    return false;
 }
 
 static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
@@ -535,13 +530,17 @@ e3:
     return 0;
 }
 
-int load_app(char * fn, bootb_ctx_t* bootb_ctx) {
+bool load_app(cmd_ctx_t* ctx) {
+    char * fn = ctx->orig_cmd;
+    ctx->pboot_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
+    bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
     memset(bootb_ctx, 0, sizeof(bootb_ctx_t)); // ensure context is empty
     FIL* f = (FIL*)pvPortMalloc(sizeof(FIL));
     if (f_open(f, fn, FA_READ) != FR_OK) {
         vPortFree(f);
         goutf("Unable to open file: '%s'\n", fn);
-        return -1;
+        ctx->ret_code = -1;
+        return false;
     }
     elf32_header* pehdr = (elf32_header*)pvPortMalloc(sizeof(elf32_header));
     UINT rb;
@@ -647,11 +646,19 @@ e1:
     vPortFree(pctx);
     if (bootb_ctx->bootb[2] == 0) {
         goutf("'main' global function is not found in the '%s' elf-file\n", fn);
-        return -1;
+        ctx->ret_code = -1;
+        return false;
     }
+    ctx->stage = LOAD;
+    cmd_ctx_t* rc = ctx->pipe;
+    while (rc) {
+        if (!load_app(rc)) return false;
+        rc = ctx->pipe;
+    }
+    return true;
 }
 
-void exec(cmd_ctx_t* ctx) {
+static void exec_sync(cmd_ctx_t* ctx) {
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
     //char* cmd = copy_str(ctx->orig_cmd);
     //goutf("{%s}EXEC [%p][%p][%p][%p]\n", cmd, bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3]);
@@ -678,4 +685,32 @@ void exec(cmd_ctx_t* ctx) {
     }
     ctx->ret_code = res;
     //vPortFree(cmd);
+}
+
+static void vAppDetachedTask(void *pv) {
+    gouta("vAppDetachedTask\n");
+    cmd_ctx_t* orig_ctx = (cmd_ctx_t*)pv;
+    const TaskHandle_t th = xTaskGetCurrentTaskHandle();
+    cmd_ctx_t* ctx = clone_ctx(orig_ctx);
+    vTaskSetThreadLocalStoragePointer(th, 0, ctx);
+    exec_sync(ctx);
+    remove_ctx(ctx);
+    vTaskDelete( NULL );
+}
+
+void exec(cmd_ctx_t* ctx) {
+    do {
+        if (ctx->detached) {
+            xTaskCreate(vAppDetachedTask, ctx->argv[0], 1024/*x4=4096k*/, ctx, configMAX_PRIORITIES - 1, NULL);
+        } else {
+            exec_sync(ctx);
+            cleanup_bootb_ctx(ctx->pboot_ctx);
+            vPortFree(ctx->pboot_ctx);
+            ctx->pboot_ctx = 0;
+            if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
+                cleanup_ctx(ctx);
+            }
+        }
+        ctx = ctx->pipe;
+    } while(ctx);
 }
