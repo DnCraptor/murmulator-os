@@ -44,6 +44,7 @@ inline static int tokenize_cmd(cmd_ctx_t* ctx) {
     if (cmd[0] == 0) {
         return 0;
     }
+    if (ctx->orig_cmd) free(ctx->orig_cmd);
     ctx->orig_cmd = copy_str(cmd);
     //goutf("orig_cmd: '%s' [%p]; cmd: '%s' [%p]\n", ctx->orig_cmd, ctx->orig_cmd, cmd, cmd);
     bool inSpace = true;

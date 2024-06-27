@@ -196,14 +196,17 @@ static void load_config_sys() {
     vPortFree(buff);
 }
 
-extern "C" void vCmdTask(void *pv) {
-    const TaskHandle_t th = xTaskGetCurrentTaskHandle();
-    cmd_ctx_t* ctx = get_cmd_startup_ctx();
-
+static inline void try_to_restore_api_tbl(cmd_ctx_t* ctx) {
     char* t = get_ctx_var(ctx, "TEMP");
     t = concat(t ? t : "", OS_TABLE_BACKUP_FN);
     restore_tbl(t); // TODO: error handling
     vPortFree(t);
+}
+
+extern "C" void vCmdTask(void *pv) {
+    const TaskHandle_t th = xTaskGetCurrentTaskHandle();
+    cmd_ctx_t* ctx = get_cmd_startup_ctx();
+    try_to_restore_api_tbl(ctx);
 
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     while(1) {
@@ -211,17 +214,18 @@ extern "C" void vCmdTask(void *pv) {
             ctx->argc = 1;
             ctx->argv = (char**)pvPortMalloc(sizeof(char*));
             ctx->argv[0] = copy_str(comspec);
+            if(ctx->orig_cmd) vPortFree(ctx->orig_cmd);
             ctx->orig_cmd = copy_str(comspec);
         }
         // goutf("[%s]Lookup for: %s\n", ctx->curr_dir, ctx->orig_cmd);
         bool b_exists = exists(ctx);
         if (b_exists) {
-            size_t len = strlen(ctx->orig_cmd); // TODO: more than one?
+            size_t len = strlen(ctx->argv[0]); // TODO: more than one?
             // goutf("[%s]Command found: %s)\n", ctx->curr_dir, t);
-            if (len > 3 && strcmp(ctx->orig_cmd + len - 4, ".uf2") == 0) {
-                if(load_firmware(ctx->orig_cmd)) {
+            if (len > 3 && strcmp(ctx->argv[0] + len - 4, ".uf2") == 0) {
+                if(load_firmware(ctx->argv[0])) { // TODO: by ctx
                     ctx->stage = LOAD;
-                    run_app(ctx->orig_cmd);
+                    run_app(ctx->argv[0]);
                     ctx->stage = EXECUTED;
                 }
             } else if(is_new_app(ctx)) {
@@ -238,14 +242,26 @@ extern "C" void vCmdTask(void *pv) {
                         //vTaskDelay(5000);
                 }
             } else {
-                goutf("Unable to execute command: '%s'\n", t);
+                goutf("Unable to execute command: '%s'\n", ctx->orig_cmd);
                 ctx->stage = INVALIDATED;
+                goto e;
             }
-            vPortFree(t);
         } else {
             goutf("Illegal command: '%s'\n", ctx->orig_cmd);
             ctx->stage = INVALIDATED;
+            goto e;
         }
+        continue;
+e:
+        if (ctx->pboot_ctx) {
+            cleanup_bootb_ctx(ctx->pboot_ctx);
+            vPortFree(ctx->pboot_ctx);
+            ctx->pboot_ctx = 0;
+        }
+        if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
+            cleanup_ctx(ctx);
+        }
+
     }
     vTaskDelete( NULL );
 }

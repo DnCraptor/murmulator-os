@@ -333,6 +333,10 @@ static const char* st_spec_sec(uint16_t st) {
 static const char* s = "Unexpected ELF file";
 
 bool is_new_app(cmd_ctx_t* ctx) {
+    if (!ctx->orig_cmd) {
+        gouta("Unable to open file: NULL\n");
+        return false;
+    }
     FIL* f = (FIL*)pvPortMalloc(sizeof(FIL));
     if (f_open(f, ctx->orig_cmd, FA_READ) != FR_OK) {
         vPortFree(f);
@@ -531,6 +535,10 @@ e3:
 }
 
 bool load_app(cmd_ctx_t* ctx) {
+    if (!ctx->orig_cmd) {
+        gouta("Unable to load file: NULL\n");
+        return false;
+    }
     char * fn = ctx->orig_cmd;
     ctx->pboot_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
@@ -688,8 +696,8 @@ static void exec_sync(cmd_ctx_t* ctx) {
 }
 
 static void vAppDetachedTask(void *pv) {
-    gouta("vAppDetachedTask\n");
     cmd_ctx_t* orig_ctx = (cmd_ctx_t*)pv;
+    goutf("vAppDetachedTask: %s\n", orig_ctx->orig_cmd);
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
     cmd_ctx_t* ctx = clone_ctx(orig_ctx);
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
@@ -700,6 +708,7 @@ static void vAppDetachedTask(void *pv) {
 
 void exec(cmd_ctx_t* ctx) {
     do {
+        //goutf("orig_cmd: %s\n", ctx->orig_cmd);
         if (ctx->detached) {
             xTaskCreate(vAppDetachedTask, ctx->argv[0], 1024/*x4=4096k*/, ctx, configMAX_PRIORITIES - 1, NULL);
         } else {

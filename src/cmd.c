@@ -53,6 +53,7 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     return res;
 }
 void cleanup_ctx(cmd_ctx_t* src) {
+    // goutf("src->argc: %d\n", src->argc);
     if (src->argc && src->argv) {
         for(int i = 0; i < src->argc; ++i) {
             vPortFree(src->argv[i]);
@@ -72,6 +73,7 @@ void cleanup_ctx(cmd_ctx_t* src) {
     src->ret_code = 0;
     src->pipe = 0;
     src->stage = INITIAL;
+    // gouta("cleanup_ctx <<\n");
 }
 void remove_ctx(cmd_ctx_t* src) {
     if (src->argc && src->argv) {
