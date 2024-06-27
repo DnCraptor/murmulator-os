@@ -50,6 +50,7 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     }
     if (src->vars_num && src->vars) {
         res->vars = (vars_t*)pvPortMalloc( sizeof(vars_t) * src->vars_num );
+        res->vars_num = src->vars_num;
         for (size_t i = 0; i < src->vars_num; ++i) {
             if (src->vars[i].value) {
                 res->vars[i].value = copy_str(src->vars[i].value);
