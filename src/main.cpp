@@ -218,7 +218,9 @@ extern "C" void vCmdTask(void *pv) {
             ctx->orig_cmd = copy_str(comspec);
         }
         // goutf("[%s]Lookup for: %s\n", ctx->curr_dir, ctx->orig_cmd);
+        // goutf("be [%p]\n", xPortGetFreeHeapSize());
         bool b_exists = exists(ctx);
+        // goutf("ae [%p]\n", xPortGetFreeHeapSize());
         if (b_exists) {
             size_t len = strlen(ctx->argv[0]); // TODO: more than one?
             // goutf("[%s]Command found: %s)\n", ctx->curr_dir, t);

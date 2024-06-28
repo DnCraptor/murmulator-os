@@ -264,7 +264,7 @@ r1:
     if (res) {
         // goutf("Found: %s\n", res);
         if(ctx->orig_cmd) vPortFree(ctx->orig_cmd);
-        ctx->orig_cmd = copy_str(res);
+        ctx->orig_cmd = res;
         ctx->stage = FOUND;
     }
     cmd_ctx_t* rc = ctx->pipe;
@@ -272,7 +272,7 @@ r1:
         if(!exists(rc)) {
             return false;
         }
-        rc = ctx->pipe;    
+        rc = ctx->pipe;
     }
     return res != 0;
 }

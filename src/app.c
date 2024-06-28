@@ -540,6 +540,10 @@ bool load_app(cmd_ctx_t* ctx) {
         return false;
     }
     char * fn = ctx->orig_cmd;
+    if (ctx->pboot_ctx) {
+        cleanup_bootb_ctx(ctx->pboot_ctx);
+        vPortFree(ctx->pboot_ctx);
+    }
     ctx->pboot_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
     memset(bootb_ctx, 0, sizeof(bootb_ctx_t)); // ensure context is empty
