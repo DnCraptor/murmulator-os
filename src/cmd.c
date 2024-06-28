@@ -177,6 +177,7 @@ void set_ctx_var(cmd_ctx_t* ctx, const char* key, const char* val) {
                 vPortFree(ctx->vars[i].value);
             }
             ctx->vars[i].value = copy_str(val);
+            //goutf("%d/%d %s=%s\n", i+1, ctx->vars_num, key, ctx->vars[i].value);
             return;
         }
     }
@@ -193,6 +194,7 @@ void set_ctx_var(cmd_ctx_t* ctx, const char* key, const char* val) {
     ctx->vars[ctx->vars_num].key = key; // const to be not reallocated
     ctx->vars[ctx->vars_num].value = copy_str(val);
     ctx->vars_num++;
+    //goutf("%d/%d %s=%s\n", ctx->vars_num, ctx->vars_num, key, ctx->vars[ctx->vars_num - 1].value);
 }
 
 char* get_ctx_var(cmd_ctx_t* ctx, const char* key) {

@@ -79,6 +79,10 @@ swap - provide some swap info<br/>
 sram - reference speed of swap base SRAM<br/>
 cpu - show current CPU freq. and dividers<br/>
 cpu NNN - change freq. to NNN MHz (it may hang on such action)<br/>
+mem - show current memory state
+set - show or set environment variables
+export - put variable into system context
+
 [cmd] &gt; file - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format<br/>
 [TAB] - autocomplete<br/>
@@ -88,3 +92,11 @@ cpu NNN - change freq. to NNN MHz (it may hang on such action)<br/>
 [CTRL]+[TAB]+[+] - increase CPU freq.</br>
 [CTRL]+[TAB]+[-] - decrease CPU freq.</br>
 [ALT]+[0-9]+[0-9]+[0-9] - manual enter some character by its decimal code (CP-866 codepage)<br/>
+
+#M-OS system variables
+BASE - base directory with commands implementations
+SWAP - swap settings
+COMSPEC - a path to command interpretator
+PATH - list of directories to lookup for applications
+GMODE - set initial graphics mode
+TEMP - specify a folder with temporary files

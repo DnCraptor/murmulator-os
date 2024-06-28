@@ -23,20 +23,20 @@ inline static void type_char(char c) {
     cmd[cmd_pos] = 0;
 }
 
-inline static char tolower_token(char t) {
+inline static char replace_spaces0(char t) {
     if (t == ' ') {
         return 0;
     }
-    if (t >= 'A' && t <= 'Z') {
-        return t + ('a' - 'A');
-    }
-    if (t >= 0x80 && t <= 0x8F /* А-П */) {
-        return t + (0xA0 - 0x80);
-    }
-    if (t >= 0x90 && t <= 0x9F /* Р-Я */) {
-        return t + (0xE0 - 0x90);
-    }
-    if (t >= 0xF0 && t <= 0xF6) return t + 1; // Ё...
+//    if (t >= 'A' && t <= 'Z') {
+//        return t + ('a' - 'A');
+//    }
+//    if (t >= 0x80 && t <= 0x8F /* А-П */) {
+//        return t + (0xA0 - 0x80);
+//    }
+//    if (t >= 0x90 && t <= 0x9F /* Р-Я */) {
+//        return t + (0xE0 - 0x90);
+//    }
+//    if (t >= 0xF0 && t <= 0xF6) return t + 1; // Ё...
     return t;
 }
 
@@ -52,7 +52,7 @@ inline static int tokenize_cmd(cmd_ctx_t* ctx) {
     char* t1 = ctx->orig_cmd;
     char* t2 = cmd;
     while(*t1) {
-        char c = tolower_token(*t1++);
+        char c = replace_spaces0(*t1++);
         //goutf("%02X -> %c %02X; t1: '%s' [%p], t2: '%s' [%p]\n", c, *t2, *t2, t1, t1, t2, t2);
         if (inSpace) {
             if(c) { // token started
@@ -90,21 +90,16 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     int tokens = tokenize_cmd(ctx);
     if (tokens == 0) {
         goto r1;
-    } else if (strcmp("exit", cmd) == 0) { // do not extern, due to internal cmd state
-        cleanup_ctx(ctx);
-        ctx->stage = EXECUTED;
-        return true;
-    } else {
-        ctx->argc = tokens;
-        ctx->argv = (char**)malloc(sizeof(char*) * tokens);
-        char* t = cmd;
-        for (uint32_t i = 0; i < tokens; ++i) {
-            ctx->argv[i] = copy_str(t);
-            t = next_token(t);
-        }
-        ctx->stage = PREPARED;
-        return true;
     }
+    ctx->argc = tokens;
+    ctx->argv = (char**)malloc(sizeof(char*) * tokens);
+    char* t = cmd;
+    for (uint32_t i = 0; i < tokens; ++i) {
+        ctx->argv[i] = copy_str(t);
+        t = next_token(t);
+    }
+    ctx->stage = PREPARED;
+    return true;
 r1:
     cleanup_ctx(ctx);
 r2:

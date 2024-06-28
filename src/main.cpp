@@ -121,68 +121,89 @@ inline static void unlink_firmware() {
     f_unlink(FIRMWARE_MARKER_FN);
 }
 
-static char* comspec = "/mos/cmd";
-
 static void load_config_sys() {
     cmd_ctx_t* ctx = get_cmd_startup_ctx();
     set_ctx_var(ctx, "BASE", "MOS");
     set_ctx_var(ctx, "TEMP", "tmp");
-    FIL f;
-    if(f_open(&f, "/config.sys", FA_READ) != FR_OK) {
-        if(f_open(&f, "/mos/config.sys", FA_READ) != FR_OK) {
-            f_mkdir("MOS"); f_mkdir("tmp");
-            ctx->curr_dir = copy_str("MOS");
-            return;
-        }
-    }
-    char* buff = (char*)pvPortMalloc(512); // todo: filesize
-    UINT br;
-    if (f_read(&f, buff, 512, &br) != FR_OK) {
-        goutf("Failed to read config.sys\n");
-    }
-    f_close(&f);
-    tokenizeCfg(buff, br);
-    char *t = buff;
+    set_ctx_var(ctx, "COMSPEC", "/mos/cmd");
+
     bool b_swap = false;
     bool b_base = false;
     bool b_temp = false;
-    while (t - buff < br) {
-        if (strcmp(t, "PATH") == 0) {
-            t = next_token(t);
-            set_ctx_var(ctx, "PATH", t);
-        } else if (strcmp(t, "TEMP") == 0) {
-            t = next_token(t);
-            set_ctx_var(ctx, "TEMP", t);
-            f_mkdir(t);
-            b_temp = true;
-        } else if (strcmp(t, "COMSPEC") == 0) {
-            t = next_token(t);
-            comspec = (char*)pvPortMalloc(strlen(t) + 1);
-            strcpy(comspec, t);
-        } else if (strcmp(t, "SWAP") == 0) {
-            t = next_token(t);
-            init_vram(t);
-            b_swap = true;
-        } else if (strcmp(t, "GMODE") == 0) {
-            t = next_token(t);
-            graphics_mode_t mode = (graphics_mode_t)atoi(t);
-            if (mode == TEXTMODE_DEFAULT || mode == TEXTMODE_53x30 || mode == TEXTMODE_160x100) {
-                graphics_set_mode(mode);
-            } else {
-                goutf("Unsupported GMODE: %d\n", mode);
-            }
-        } else if (strcmp(t, "BASE") == 0) {
-            t = next_token(t);
-            set_ctx_var(ctx, "BASE", t);
-            f_mkdir(t);
-            b_base = true;
+    char* buff = 0;
+    FIL* pf = 0;
+    
+    FILINFO* pfileinfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
+    size_t file_size = 0;
+    char * cfn = "/config.sys";
+    if (f_stat(cfn, pfileinfo) != FR_OK || (pfileinfo->fattrib & AM_DIR)) {
+        cfn = "/mos/config.sys";
+        if (f_stat(cfn, pfileinfo) != FR_OK || (pfileinfo->fattrib & AM_DIR)) {
+            goto e;
         } else {
-            char* k = copy_str(t);
-            t = next_token(t);
-            set_ctx_var(ctx, k, t);
+            file_size = (size_t)pfileinfo->fsize & 0xFFFFFFFF;
         }
-        t = next_token(t);
+    } else {
+        file_size = (size_t)pfileinfo->fsize & 0xFFFFFFFF;
     }
+
+    pf = (FIL*)pvPortMalloc(sizeof(FIL));
+    if(f_open(pf, cfn, FA_READ) != FR_OK) {
+        goto e;
+    }
+
+    buff = (char*)pvPortMalloc(file_size + 1);
+    memset(buff, 0, file_size + 1);
+    UINT br;
+    if (f_read(pf, buff, file_size, &br) != FR_OK) {
+        goutf("Failed to read config.sys\n");
+        f_close(pf);
+    } else {
+        f_close(pf);
+        tokenizeCfg(buff, br);
+        char *t = buff;
+        while (t - buff < br) {
+            // goutf("%s\n", t);
+            if (strcmp(t, "PATH") == 0) {
+                t = next_token(t);
+                set_ctx_var(ctx, "PATH", t);
+            } else if (strcmp(t, "TEMP") == 0) {
+                t = next_token(t);
+                set_ctx_var(ctx, "TEMP", t);
+                f_mkdir(t);
+                b_temp = true;
+            } else if (strcmp(t, "COMSPEC") == 0) {
+                t = next_token(t);
+                set_ctx_var(ctx, "COMSPEC", t);
+            } else if (strcmp(t, "SWAP") == 0) {
+                t = next_token(t);
+                init_vram(t);
+                b_swap = true;
+            } else if (strcmp(t, "GMODE") == 0) {
+                t = next_token(t);
+                graphics_mode_t mode = (graphics_mode_t)atoi(t);
+                if (mode == TEXTMODE_DEFAULT || mode == TEXTMODE_53x30 || mode == TEXTMODE_160x100) {
+                    graphics_set_mode(mode);
+                } else {
+                    goutf("Unsupported GMODE: %d\n", mode);
+                }
+            } else if (strcmp(t, "BASE") == 0) {
+                t = next_token(t);
+                set_ctx_var(ctx, "BASE", t);
+                f_mkdir(t);
+                b_base = true;
+            } else {
+                char* k = copy_str(t);
+                t = next_token(t);
+                set_ctx_var(ctx, k, t);
+            }
+            t = next_token(t);
+        }
+    }
+    vPortFree(pfileinfo);
+    if (pf) vPortFree(pf);
+    if (buff) vPortFree(buff);
+e:
     if (!b_temp) f_mkdir("tmp");
     if (!b_base) f_mkdir("MOS");
     if (!b_swap) {
@@ -193,7 +214,6 @@ static void load_config_sys() {
         vPortFree(t2);
     }
     ctx->curr_dir = copy_str(b_base ? get_ctx_var(ctx, "BASE") : "MOS");
-    vPortFree(buff);
 }
 
 static inline void try_to_restore_api_tbl(cmd_ctx_t* ctx) {
@@ -213,6 +233,7 @@ extern "C" void vCmdTask(void *pv) {
         if (!ctx->argc && !ctx->argv) {
             ctx->argc = 1;
             ctx->argv = (char**)pvPortMalloc(sizeof(char*));
+            char* comspec = get_ctx_var(ctx, "COMSPEC");
             ctx->argv[0] = copy_str(comspec);
             if(ctx->orig_cmd) vPortFree(ctx->orig_cmd);
             ctx->orig_cmd = copy_str(comspec);
