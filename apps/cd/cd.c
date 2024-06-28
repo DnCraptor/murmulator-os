@@ -21,8 +21,7 @@ int main() {
         return 1;
     }
 a:
-    if(ctx->curr_dir) free(ctx->curr_dir);
-    ctx->curr_dir = copy_str(d);
+    set_ctx_var(ctx, "CD", d);
     free(pfileinfo);
     return 0;
 }

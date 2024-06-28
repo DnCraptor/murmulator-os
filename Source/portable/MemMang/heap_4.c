@@ -169,7 +169,9 @@ PRIVILEGED_DATA static size_t xNumberOfSuccessfulAllocations = ( size_t ) 0U;
 PRIVILEGED_DATA static size_t xNumberOfSuccessfulFrees = ( size_t ) 0U;
 
 /*-----------------------------------------------------------*/
-
+#if DEBUG_HEAP_SIZE
+static char * allocated[DEBUG_HEAP_SIZE] = {0};
+#endif
 void * pvPortMalloc( size_t xWantedSize )
 {
     BlockLink_t * pxBlock;
@@ -341,12 +343,32 @@ void * pvPortMalloc( size_t xWantedSize )
     #endif /* if ( configUSE_MALLOC_FAILED_HOOK == 1 ) */
 
     configASSERT( ( ( ( size_t ) pvReturn ) & ( size_t ) portBYTE_ALIGNMENT_MASK ) == 0 );
+#if DEBUG_HEAP_SIZE
+    char** pa = allocated;
+    while(*pa) {
+        pa++;
+    }
+    *pa = pvReturn;
+#endif
     return pvReturn;
 }
 /*-----------------------------------------------------------*/
 
 void vPortFree( void * pv )
 {
+#if DEBUG_HEAP_SIZE
+    int i = 0;
+    for(; i < DEBUG_HEAP_SIZE; ++i) {
+        if(pv == allocated[i]) {
+            allocated[i] = 0;
+            break;
+        }
+    }
+    if (i == DEBUG_HEAP_SIZE) {
+        goutf("double free: [%p]\n", pv);
+    }
+#endif
+
     uint8_t * puc = ( uint8_t * ) pv;
     BlockLink_t * pxLink;
 

@@ -1,4 +1,5 @@
 COMSPEC=/mos/cmd
+CD=MOS
 BASE=MOS
 PATH=MOS
 TEMP=tmp

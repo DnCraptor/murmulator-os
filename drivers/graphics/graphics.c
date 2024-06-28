@@ -124,16 +124,18 @@ void gouta(char* buf) {
 
 void goutf(const char *__restrict str, ...) {
     va_list ap;
-    char* buf = (char*)pvPortMalloc(512);
+    char buf[512];
+   // char* buf = (char*)pvPortMalloc(512);
     va_start(ap, str);
     vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
     va_end(ap);
     gouta(buf);
-    vPortFree(buf);
+   // vPortFree(buf);
 }
 
 void fgoutf(FIL *f, const char *__restrict str, ...) {
-    char* buf = (char*)pvPortMalloc(512);
+    char buf[512];
+//    char* buf = (char*)pvPortMalloc(512);
     va_list ap;
     va_start(ap, str);
     vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
@@ -144,5 +146,5 @@ void fgoutf(FIL *f, const char *__restrict str, ...) {
         UINT bw;
         f_write(f, buf, strlen(buf), &bw); // TODO: error handling
     }
-    vPortFree(buf);
+//    vPortFree(buf);
 }

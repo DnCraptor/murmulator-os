@@ -121,6 +121,7 @@ inline static void unlink_firmware() {
     f_unlink(FIRMWARE_MARKER_FN);
 }
 
+static const char CD[] = "CD"; // current directory 
 static const char BASE[] = "BASE"; 
 static const char MOS[] = "MOS"; 
 static const char TEMP[] = "TEMP"; 
@@ -132,6 +133,7 @@ static const char ccmd[] = "/mos/cmd";
 
 static void load_config_sys() {
     cmd_ctx_t* ctx = get_cmd_startup_ctx();
+    set_ctx_var(ctx, CD, MOS);
     set_ctx_var(ctx, BASE, MOS);
     set_ctx_var(ctx, TEMP, ctmp);
     set_ctx_var(ctx, COMSPEC, ccmd);
@@ -201,6 +203,10 @@ static void load_config_sys() {
                 set_ctx_var(ctx, BASE, t);
                 f_mkdir(t);
                 b_base = true;
+            } else if (strcmp(t, CD) == 0) {
+                t = next_token(t);
+                set_ctx_var(ctx, CD, t);
+                f_mkdir(t);
             } else {
                 char* k = copy_str(t);
                 t = next_token(t);
@@ -222,7 +228,6 @@ e:
         init_vram(t2);
         vPortFree(t2);
     }
-    ctx->curr_dir = copy_str(b_base ? get_ctx_var(ctx, BASE) : MOS);
 }
 
 static inline void try_to_restore_api_tbl(cmd_ctx_t* ctx) {

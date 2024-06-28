@@ -45,9 +45,6 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
         res->std_err = src->std_err;
         src->std_err = 0;
     }
-    if (src->curr_dir) {
-        res->curr_dir = copy_str(src->curr_dir);
-    }
     if (src->vars_num && src->vars) {
         res->vars = (vars_t*)pvPortMalloc( sizeof(vars_t) * src->vars_num );
         res->vars_num = src->vars_num;
@@ -58,7 +55,8 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
             res->vars[i].key = src->vars[i].key; // const
         }
     }
-    res->pipe = 0; // do not copy pipe
+    res->prev = 0; // do not copy pipe
+    res->next = 0; // do not copy pipe
     res->stage = src->stage;
     res->ret_code = src->ret_code;
     return res;
@@ -97,7 +95,8 @@ void cleanup_ctx(cmd_ctx_t* src) {
     }
     src->detached = false;
     src->ret_code = 0;
-    src->pipe = 0;
+    src->prev = 0;
+    src->next = 0;
     src->stage = INITIAL;
     // gouta("cleanup_ctx <<\n");
 }
@@ -114,9 +113,6 @@ void remove_ctx(cmd_ctx_t* src) {
     if (src->std_in) { f_close(src->std_in); vPortFree(src->std_in); }
     if (src->std_out && src->std_out != src->std_err) { f_close(src->std_out); vPortFree(src->std_out); }
     if (src->std_err) { f_close(src->std_err); vPortFree(src->std_err); }
-    if (src->curr_dir) {
-        vPortFree(src->curr_dir);
-    }
     if (src->vars) {
         for (size_t i = 0; i < src->vars_num; ++i) {
             if (src->vars[i].value) {
@@ -146,7 +142,7 @@ FIL* get_stderr() {
 }
 char* get_curr_dir() {
     cmd_ctx_t* pctx = get_cmd_ctx();
-    return pctx ? pctx->curr_dir : ctx.curr_dir;
+    return get_ctx_var(pctx ? pctx : &ctx, "CD");
 }
 char* next_token(char* t) {
     char *t1 = t + strlen(t);
@@ -237,7 +233,7 @@ bool exists(cmd_ctx_t* ctx) {
         //goutf("B: %s\n", res);
         goto r1;
     }
-    res = create_and_test( ctx->curr_dir, cmd, pfileinfo);
+    res = create_and_test( get_ctx_var(ctx, "CD"), cmd, pfileinfo);
     if (res) {
         //goutf("C: %s\n", res);
         goto r1;
@@ -268,12 +264,12 @@ r1:
         ctx->orig_cmd = res;
         ctx->stage = FOUND;
     }
-    cmd_ctx_t* rc = ctx->pipe;
+    cmd_ctx_t* rc = ctx->next;
     while (rc) {
         if(!exists(rc)) {
             return false;
         }
-        rc = ctx->pipe;
+        rc = ctx->next;
     }
     return res != 0;
 }

@@ -2,7 +2,7 @@
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
-    char* d = ctx->argc == 1 ? ctx->curr_dir : ctx->argv[1];
+    char* d = ctx->argc == 1 ? get_ctx_var(ctx, "CD") : ctx->argv[1];
     DIR* pdir = (DIR*)pvPortMalloc(sizeof(DIR));
     if (FR_OK != f_opendir(pdir, d)) {
         vPortFree(pdir);

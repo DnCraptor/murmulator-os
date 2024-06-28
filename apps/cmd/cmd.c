@@ -136,7 +136,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
             exit = prepare_ctx(ts, ctxi);
             ctxi->detached = true;
             ctxi = clone_ctx(ctxi);
-            ctxi->pipe = ctxi;
+            ctxi->next = ctxi; // TODO: prev
             ctxi->detached = false;
             ts = tc + 1;
         } else if (*tc == '&') {
@@ -154,7 +154,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
 r1:
     cleanup_ctx(ctx);
 r2:
-    goutf("[%s]$", ctx->curr_dir);
+    goutf("[%s]$", get_ctx_var(ctx, "CD"));
     cmd[0] = 0;
     return false;
 }
@@ -191,7 +191,7 @@ inline static void cmd_tab(cmd_ctx_t* ctx) {
     DIR* pdir = (DIR*)malloc(sizeof(DIR));
     FILINFO* pfileInfo = malloc(sizeof(FILINFO));
     //goutf("\nDIR: %s\n", p != p2 ? b : curr_dir);
-    if (FR_OK != f_opendir(pdir, p != p2 ? b : ctx->curr_dir)) {
+    if (FR_OK != f_opendir(pdir, p != p2 ? b : get_ctx_var(ctx, "CD"))) {
         free(b);
         return;
     }
@@ -281,7 +281,7 @@ int main(void) {
     cleanup_ctx(ctx);
     cmd = malloc(512);
     cmd[0] = 0;
-    goutf("[%s]$", ctx->curr_dir);
+    goutf("[%s]$", get_ctx_var(ctx, "CD"));
     while(1) {
         char c = getc();
         if (c) {

@@ -54,13 +54,13 @@ typedef struct cmd_ctx {
     int ret_code;
     bool detached;
 
-    char* curr_dir;
+    struct cmd_ctx* prev;
     bootb_ctx_t* pboot_ctx;
 
     vars_t* vars;
     size_t vars_num;
 
-    struct cmd_ctx* pipe;
+    struct cmd_ctx* next;
 
     cmd_exec_stage_t stage;
 } cmd_ctx_t;

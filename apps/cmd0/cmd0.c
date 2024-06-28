@@ -103,7 +103,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
 r1:
     cleanup_ctx(ctx);
 r2:
-    goutf("[%s]#", ctx->curr_dir);
+    goutf("[%s]#", get_ctx_var(ctx, "CD"));
     cmd[0] = 0;
     return false;
 }
@@ -113,7 +113,7 @@ int main(void) {
     cleanup_ctx(ctx);
     cmd = malloc(512);
     cmd[0] = 0;
-    goutf("[%s]#", ctx->curr_dir);
+    goutf("[%s]#", get_ctx_var(ctx, "CD"));
     while(1) {
         char c = getc();
         if (c) {

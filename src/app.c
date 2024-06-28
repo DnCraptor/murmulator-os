@@ -378,10 +378,10 @@ bool is_new_app(cmd_ctx_t* ctx) {
         return false;
     }
     ctx->stage = VALID;
-    cmd_ctx_t* rc = ctx->pipe;
+    cmd_ctx_t* rc = ctx->next;
     while (rc) {
         if (!is_new_app(rc)) return false;
-        rc = ctx->pipe;    
+        rc = ctx->next;    
     }
     return true;
 }
@@ -663,10 +663,10 @@ e1:
         return false;
     }
     ctx->stage = LOAD;
-    cmd_ctx_t* rc = ctx->pipe;
+    cmd_ctx_t* rc = ctx->next;
     while (rc) {
         if (!load_app(rc)) return false;
-        rc = ctx->pipe;
+        rc = ctx->next;
     }
     return true;
 }
@@ -712,7 +712,7 @@ static void vAppDetachedTask(void *pv) {
 
 void exec(cmd_ctx_t* ctx) {
     do {
-        cmd_ctx_t* pipe_ctx = ctx->pipe;
+        cmd_ctx_t* pipe_ctx = ctx->next;
         //goutf("orig_cmd: %s\n", ctx->orig_cmd);
         if (ctx->detached) {
             cmd_ctx_t* ctxi = clone_ctx(ctx);
