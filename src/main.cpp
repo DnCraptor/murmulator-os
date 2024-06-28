@@ -121,11 +121,20 @@ inline static void unlink_firmware() {
     f_unlink(FIRMWARE_MARKER_FN);
 }
 
+static const char BASE[] = "BASE"; 
+static const char MOS[] = "MOS"; 
+static const char TEMP[] = "TEMP"; 
+static const char PATH[] = "PATH"; 
+static const char SWAP[] = "SWAP"; 
+static const char COMSPEC[] = "COMSPEC"; 
+static const char ctmp[] = "/tmp"; 
+static const char ccmd[] = "/mos/cmd"; 
+
 static void load_config_sys() {
     cmd_ctx_t* ctx = get_cmd_startup_ctx();
-    set_ctx_var(ctx, "BASE", "MOS");
-    set_ctx_var(ctx, "TEMP", "tmp");
-    set_ctx_var(ctx, "COMSPEC", "/mos/cmd");
+    set_ctx_var(ctx, BASE, MOS);
+    set_ctx_var(ctx, TEMP, ctmp);
+    set_ctx_var(ctx, COMSPEC, ccmd);
 
     bool b_swap = false;
     bool b_base = false;
@@ -164,18 +173,18 @@ static void load_config_sys() {
         char *t = buff;
         while (t - buff < br) {
             // goutf("%s\n", t);
-            if (strcmp(t, "PATH") == 0) {
+            if (strcmp(t, PATH) == 0) {
                 t = next_token(t);
-                set_ctx_var(ctx, "PATH", t);
-            } else if (strcmp(t, "TEMP") == 0) {
+                set_ctx_var(ctx, PATH, t);
+            } else if (strcmp(t, TEMP) == 0) {
                 t = next_token(t);
-                set_ctx_var(ctx, "TEMP", t);
+                set_ctx_var(ctx, TEMP, t);
                 f_mkdir(t);
                 b_temp = true;
-            } else if (strcmp(t, "COMSPEC") == 0) {
+            } else if (strcmp(t, COMSPEC) == 0) {
                 t = next_token(t);
-                set_ctx_var(ctx, "COMSPEC", t);
-            } else if (strcmp(t, "SWAP") == 0) {
+                set_ctx_var(ctx, COMSPEC, t);
+            } else if (strcmp(t, SWAP) == 0) {
                 t = next_token(t);
                 init_vram(t);
                 b_swap = true;
@@ -187,9 +196,9 @@ static void load_config_sys() {
                 } else {
                     goutf("Unsupported GMODE: %d\n", mode);
                 }
-            } else if (strcmp(t, "BASE") == 0) {
+            } else if (strcmp(t, BASE) == 0) {
                 t = next_token(t);
-                set_ctx_var(ctx, "BASE", t);
+                set_ctx_var(ctx, BASE, t);
                 f_mkdir(t);
                 b_base = true;
             } else {
@@ -204,8 +213,8 @@ static void load_config_sys() {
     if (pf) vPortFree(pf);
     if (buff) vPortFree(buff);
 e:
-    if (!b_temp) f_mkdir("tmp");
-    if (!b_base) f_mkdir("MOS");
+    if (!b_temp) f_mkdir(ctmp);
+    if (!b_base) f_mkdir(MOS);
     if (!b_swap) {
         char* t1 = "/tmp/pagefile.sys 1M 64K 4K";
         char* t2 = (char*)pvPortMalloc(strlen(t1) + 1);
@@ -213,11 +222,11 @@ e:
         init_vram(t2);
         vPortFree(t2);
     }
-    ctx->curr_dir = copy_str(b_base ? get_ctx_var(ctx, "BASE") : "MOS");
+    ctx->curr_dir = copy_str(b_base ? get_ctx_var(ctx, BASE) : MOS);
 }
 
 static inline void try_to_restore_api_tbl(cmd_ctx_t* ctx) {
-    char* t = get_ctx_var(ctx, "TEMP");
+    char* t = get_ctx_var(ctx, TEMP);
     t = concat(t ? t : "", OS_TABLE_BACKUP_FN);
     restore_tbl(t); // TODO: error handling
     vPortFree(t);
@@ -233,7 +242,7 @@ extern "C" void vCmdTask(void *pv) {
         if (!ctx->argc && !ctx->argv) {
             ctx->argc = 1;
             ctx->argv = (char**)pvPortMalloc(sizeof(char*));
-            char* comspec = get_ctx_var(ctx, "COMSPEC");
+            char* comspec = get_ctx_var(ctx, COMSPEC);
             ctx->argv[0] = copy_str(comspec);
             if(ctx->orig_cmd) vPortFree(ctx->orig_cmd);
             ctx->orig_cmd = copy_str(comspec);
