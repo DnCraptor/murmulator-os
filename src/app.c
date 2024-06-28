@@ -31,10 +31,10 @@ inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expe
     UINT bytes_read = 0;
     uint32_t data_sector_index = 0;
     for(; data_sector_index < FLASH_SECTOR_SIZE; data_sector_index += 256) {
-        fgoutf(get_stdout(), "Read block: %ph; ", f_tell(f));
+        //fgoutf(get_stdout(), "Read block: %ph; ", f_tell(f));
         f_read(f, puf2, sizeof(UF2_Block_t), &bytes_read);
         *psz += bytes_read;
-        fgoutf(get_stdout(), "(%d bytes) ", bytes_read);
+        //fgoutf(get_stdout(), "(%d bytes) ", bytes_read);
         if (!bytes_read) {
             break;
         }
@@ -42,10 +42,10 @@ inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expe
             f_lseek(f, f_tell(f) - sizeof(UF2_Block_t)); // we will reread this block, it doesnt belong to this continues block
             expected_flash_target_offset = puf2->targetAddr - XIP_BASE;
             *psz -= bytes_read;
-            fgoutf(get_stdout(), "Flash target offset: %ph\n", expected_flash_target_offset);
+            //fgoutf(get_stdout(), "Flash target offset: %ph\n", expected_flash_target_offset);
             break;
         }
-        fgoutf(get_stdout(), "Flash target offset: %ph\n", expected_flash_target_offset);
+        //fgoutf(get_stdout(), "Flash target offset: %ph\n", expected_flash_target_offset);
         memcpy(buffer + data_sector_index, puf2->data, 256);
         expected_flash_target_offset += 256;
     }
@@ -129,16 +129,16 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         }
         if (sz == 0) { // replace target
             flash_target_offset = next_flash_target_offset; 
-            fgoutf(get_stdout(), "Replace targe offset: %ph\n", flash_target_offset);
+            //fgoutf(get_stdout(), "Replace targe offset: %ph\n", flash_target_offset);
             continue;
         }
         //подмена загрузчика boot2 прошивки на записанный ранее
         if (flash_target_offset == 0) {
             boot_replaced = true;
             memcpy(buffer, (uint8_t *)XIP_BASE, 256);
-            fgoutf(get_stdout(), "Replace loader @ offset 0\n");
+            //fgoutf(get_stdout(), "Replace loader @ offset 0\n");
         }
-        fgoutf(get_stdout(), "Erase and write to flash, offset: %ph\n", flash_target_offset);
+        //fgoutf(get_stdout(), "Erase and write to flash, offset: %ph\n", flash_target_offset);
         flash_block(buffer, flash_target_offset);
         flash_target_offset = next_flash_target_offset;
     }
@@ -386,7 +386,9 @@ bool is_new_app(cmd_ctx_t* ctx) {
     return true;
 }
 
-void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
+void cleanup_bootb_ctx(cmd_ctx_t* ctx) {
+    bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
+    if (!bootb_ctx) return;
     if (bootb_ctx->sect_entries) {
         for (uint16_t i = 0; bootb_ctx->sect_entries[i].del_addr != 0; ++i) {
             // goutf("#%d: [%p]\n", i, bootb_ctx->sect_entries[i]);
@@ -396,6 +398,8 @@ void cleanup_bootb_ctx(bootb_ctx_t* bootb_ctx) {
         vPortFree(bootb_ctx->sect_entries);
         bootb_ctx->sect_entries = 0;
     }
+    vPortFree(bootb_ctx);
+    ctx->pboot_ctx = 0;
 }
 
 bool run_new_app(cmd_ctx_t* ctx) {
@@ -540,10 +544,7 @@ bool load_app(cmd_ctx_t* ctx) {
         return false;
     }
     char * fn = ctx->orig_cmd;
-    if (ctx->pboot_ctx) {
-        cleanup_bootb_ctx(ctx->pboot_ctx);
-        vPortFree(ctx->pboot_ctx);
-    }
+    cleanup_bootb_ctx(ctx);
     ctx->pboot_ctx = (bootb_ctx_t*)pvPortMalloc(sizeof(bootb_ctx_t));
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
     memset(bootb_ctx, 0, sizeof(bootb_ctx_t)); // ensure context is empty
@@ -719,11 +720,7 @@ void exec(cmd_ctx_t* ctx) {
             cleanup_ctx(ctx);
         } else {
             exec_sync(ctx);
-            if (ctx->pboot_ctx) {
-                cleanup_bootb_ctx(ctx->pboot_ctx);
-                vPortFree(ctx->pboot_ctx);
-                ctx->pboot_ctx = 0;
-            }
+            cleanup_bootb_ctx(ctx);
             if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
                 cleanup_ctx(ctx);
             }

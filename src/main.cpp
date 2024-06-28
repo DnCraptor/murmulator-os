@@ -243,13 +243,17 @@ extern "C" void vCmdTask(void *pv) {
         bool b_exists = exists(ctx);
         // goutf("ae [%p]\n", xPortGetFreeHeapSize());
         if (b_exists) {
-            size_t len = strlen(ctx->argv[0]); // TODO: more than one?
+            size_t len = strlen(ctx->orig_cmd); // TODO: more than one?
             // goutf("[%s]Command found: %s)\n", ctx->curr_dir, t);
-            if (len > 3 && strcmp(ctx->argv[0] + len - 4, ".uf2") == 0) {
-                if(load_firmware(ctx->argv[0])) { // TODO: by ctx
+            if (len > 3 && strcmp(ctx->orig_cmd + len - 4, ".uf2") == 0) {
+                if(load_firmware(ctx->orig_cmd)) { // TODO: by ctx
                     ctx->stage = LOAD;
                     run_app(ctx->argv[0]);
                     ctx->stage = EXECUTED;
+                } else {
+                    goutf("Unable to execute command: '%s' (failed to load it)\n", ctx->orig_cmd);
+                    ctx->stage = INVALIDATED;
+                    goto e;
                 }
             } else if(is_new_app(ctx)) {
                 // goutf("[%s]Command has appropriate format\n", ctx->curr_dir);
@@ -263,9 +267,13 @@ extern "C" void vCmdTask(void *pv) {
                             }
                         }*/
                         //vTaskDelay(5000);
+                } else {
+                    goutf("Unable to execute command: '%s' (failed to load it)\n", ctx->orig_cmd);
+                    ctx->stage = INVALIDATED;
+                    goto e;
                 }
             } else {
-                goutf("Unable to execute command: '%s'\n", ctx->orig_cmd);
+                goutf("Unable to execute command: '%s' (unknown format)\n", ctx->orig_cmd);
                 ctx->stage = INVALIDATED;
                 goto e;
             }
@@ -276,11 +284,6 @@ extern "C" void vCmdTask(void *pv) {
         }
         continue;
 e:
-        if (ctx->pboot_ctx) {
-            cleanup_bootb_ctx(ctx->pboot_ctx);
-            vPortFree(ctx->pboot_ctx);
-            ctx->pboot_ctx = 0;
-        }
         if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
             cleanup_ctx(ctx);
         }

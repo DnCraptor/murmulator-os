@@ -426,9 +426,9 @@ inline static void putc(char c) {
     ((fn_ptr_t)_sys_table_ptrs[123])(c);
 }
 
-inline static void cleanup_bootb_ctx(bootb_ctx_t* b) {
-    typedef void (*fn_ptr_t)(bootb_ctx_t*);
-    ((fn_ptr_t)_sys_table_ptrs[124])(b);
+inline static void cleanup_bootb_ctx(cmd_ctx_t* ctx) {
+    typedef void (*fn_ptr_t)(cmd_ctx_t* ctx);
+    ((fn_ptr_t)_sys_table_ptrs[124])(ctx);
 }
 inline static bool load_app(cmd_ctx_t* ctx) {
     typedef bool (*fn_ptr_t)(cmd_ctx_t* ctx);

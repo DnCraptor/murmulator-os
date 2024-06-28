@@ -125,10 +125,7 @@ void remove_ctx(cmd_ctx_t* src) {
         }
         vPortFree(src->vars);
     }
-    if (src->pboot_ctx) {
-        cleanup_bootb_ctx(src->pboot_ctx);
-        vPortFree(src->pboot_ctx);
-    }
+    cleanup_bootb_ctx(src);
     // src->pipe = 0; // each pipe should remove it by self
     vPortFree(src);
 }
@@ -140,13 +137,16 @@ cmd_ctx_t* get_cmd_ctx() {
     return (cmd_ctx_t*) pvTaskGetThreadLocalStoragePointer(th, 0);
 }
 FIL* get_stdout() {
-    return ctx.std_out;
+    cmd_ctx_t* pctx = get_cmd_ctx();
+    return pctx ? pctx->std_out : ctx.std_out;
 }
 FIL* get_stderr() {
-    return ctx.std_err;
+    cmd_ctx_t* pctx = get_cmd_ctx();
+    return pctx ? pctx->std_err : ctx.std_err;
 }
 char* get_curr_dir() {
-    return ctx.curr_dir;
+    cmd_ctx_t* pctx = get_cmd_ctx();
+    return pctx ? pctx->curr_dir : ctx.curr_dir;
 }
 char* next_token(char* t) {
     char *t1 = t + strlen(t);
