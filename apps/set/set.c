@@ -29,7 +29,7 @@ int main() {
     char* k = malloc(len + 1);
     strncpy(k, ctx->argv[1], len);
     k[len] = 0;
-    bool remove_key = 0 != get_ctx_var(ctx, k);
+    bool remove_key = !!get_ctx_var(ctx, k);
     set_ctx_var(ctx, k, eq + 1);
     if (remove_key) { // do not remove key, for case it is new record in vars
         free(k);

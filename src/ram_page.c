@@ -225,12 +225,13 @@ inline static uint8_t get_shift(char* s) {
     return 0;
 }
 
-uint32_t init_vram(char* cfg) { // "/mos/pagefile.sys 8M 128K 4K"
-    tokenize(cfg);
-    size_t sz = strlen(cfg);
+uint32_t init_vram(char* cfg_in) { // "/mos/pagefile.sys 8M 128K 4K"
+    size_t sz = strlen(cfg_in);
     if (!sz) {
         return 0;
     }
+    char* cfg = copy_str(cfg_in);
+    tokenize(cfg);
     path = (char*)pvPortMalloc(sz + 1);
     strcpy(path, cfg);
     char* vszs = next_token(cfg);
@@ -283,17 +284,23 @@ uint32_t init_vram(char* cfg) { // "/mos/pagefile.sys 8M 128K 4K"
         result = f_lseek(&file, _swap_size);
         if (result != FR_OK) {
             goutf("Unable to init %s\n", path);
-            return 0;
+            _swap_size = 0;
+            goto e;
         }
     } else {
         goutf("Unable to create %s\n", path);
-        return 0;
+            _swap_size = 0;
+            goto e;
     }
     f_close(&file);
     result = f_open(&file, path, FA_READ | FA_WRITE);
     if (result != FR_OK) {
         goutf("Unable to open %s\n", path);
+        _swap_size = 0;
     }
+e:
+    vPortFree(path);
+    vPortFree(cfg);
     return _swap_size;
 }
 
