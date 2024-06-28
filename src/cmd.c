@@ -11,7 +11,7 @@ size_t get_heap_total() {
 }
 char* copy_str(const char* s) {
     char* res = (char*)pvPortMalloc(strlen(s) + 1);
-    stpcpy(res, s);
+    strcpy(res, s);
     return res;
 }
 static FIL* copy_FIL(FIL* f) {

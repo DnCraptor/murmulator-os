@@ -182,6 +182,7 @@ void * pvPortMalloc( size_t xWantedSize )
 
     if( xWantedSize > 0 )
     {
+      //  if (xWantedSize < 4) xWantedSize = 4; // TODO: align?
         /* The wanted size must be increased so it can contain a BlockLink_t
          * structure in addition to the requested amount of bytes. */
         if( heapADD_WILL_OVERFLOW( xWantedSize, xHeapStructSize ) == 0 )
