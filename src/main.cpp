@@ -274,6 +274,7 @@ extern "C" void vCmdTask(void *pv) {
                 if (load_app(ctx)) {
                     // goutf("Load passed for: %s\n", ctx->orig_cmd);
                     exec(ctx);
+                   // while(!__getc());
                     // goutf("Exec passed for: %s\n", ctx->orig_cmd);
                 } else {
                     goutf("Unable to execute command: '%s' (failed to load it)\n", ctx->orig_cmd);

@@ -22,6 +22,8 @@
 #include <string.h>
 #include "ff.h"			/* Declarations of FatFs API */
 #include "diskio.h"		/* Declarations of device I/O functions */
+#include "FreeRTOS.h"
+#include "task.h"
 
 
 /*--------------------------------------------------------------------------
@@ -3646,8 +3648,7 @@ FRESULT f_mount (
 /*-----------------------------------------------------------------------*/
 /* Open or Create a File                                                 */
 /*-----------------------------------------------------------------------*/
-
-FRESULT f_open (
+inline static FRESULT __always_inline(_f_open) (
 	FIL* fp,			/* Pointer to the blank file object */
 	const TCHAR* path,	/* Pointer to the file name */
 	BYTE mode			/* Access mode and open mode flags */
@@ -3837,6 +3838,17 @@ FRESULT f_open (
 	LEAVE_FF(fs, res);
 }
 
+FRESULT f_open (
+	FIL* fp,			/* Pointer to the blank file object */
+	const TCHAR* path,	/* Pointer to the file name */
+	BYTE mode			/* Access mode and open mode flags */
+)
+{
+    taskENTER_CRITICAL();
+	FRESULT res = _f_open(fp, path, mode);
+	taskEXIT_CRITICAL();
+	return res;
+}
 
 
 
@@ -3859,7 +3871,7 @@ FRESULT f_read (
 	UINT rcnt, cc, csect;
 	BYTE *rbuff = (BYTE*)buff;
 
-
+	taskENTER_CRITICAL();
 	*br = 0;	/* Clear read byte counter */
 	res = validate(&fp->obj, &fs);				/* Check validity of the file object */
 	if (res != FR_OK || (res = (FRESULT)fp->err) != FR_OK) LEAVE_FF(fs, res);	/* Check validity */
@@ -3932,7 +3944,7 @@ FRESULT f_read (
 		memcpy(rbuff, fp->buf + fp->fptr % SS(fs), rcnt);	/* Extract partial sector */
 #endif
 	}
-
+	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, FR_OK);
 }
 
@@ -3957,7 +3969,7 @@ FRESULT f_write (
 	LBA_t sect;
 	UINT wcnt, cc, csect;
 	const BYTE *wbuff = (const BYTE*)buff;
-
+	taskENTER_CRITICAL();
 
 	*bw = 0;	/* Clear write byte counter */
 	res = validate(&fp->obj, &fs);			/* Check validity of the file object */
@@ -4054,7 +4066,7 @@ FRESULT f_write (
 	}
 
 	fp->flag |= FA_MODIFIED;				/* Set file change flag */
-
+	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, FR_OK);
 }
 
@@ -4065,7 +4077,7 @@ FRESULT f_write (
 /* Synchronize the File                                                  */
 /*-----------------------------------------------------------------------*/
 
-FRESULT f_sync (
+inline static FRESULT __always_inline (_f_sync) (
 	FIL* fp		/* Open file to be synced */
 )
 {
@@ -4137,6 +4149,15 @@ FRESULT f_sync (
 	LEAVE_FF(fs, res);
 }
 
+FRESULT f_sync (
+	FIL* fp		/* Open file to be synced */
+) {
+	taskENTER_CRITICAL();
+	FRESULT res = _f_sync(fp);
+	taskEXIT_CRITICAL();
+	return res;
+}
+
 #endif /* !FF_FS_READONLY */
 
 
@@ -4152,7 +4173,7 @@ FRESULT f_close (
 {
 	FRESULT res;
 	FATFS *fs;
-
+	taskENTER_CRITICAL();
 #if !FF_FS_READONLY
 	res = f_sync(fp);					/* Flush cached data */
 	if (res == FR_OK)
@@ -4171,9 +4192,9 @@ FRESULT f_close (
 #endif
 		}
 	}
+	taskEXIT_CRITICAL();
 	return res;
 }
-
 
 
 
@@ -4376,7 +4397,7 @@ FRESULT f_lseek (
 	DWORD *tbl;
 	LBA_t dsc;
 #endif
-
+	taskENTER_CRITICAL();
 	res = validate(&fp->obj, &fs);		/* Check validity of the file object */
 	if (res == FR_OK) res = (FRESULT)fp->err;
 #if FF_FS_EXFAT && !FF_FS_READONLY
@@ -4384,7 +4405,10 @@ FRESULT f_lseek (
 		res = fill_last_frag(&fp->obj, fp->clust, 0xFFFFFFFF);	/* Fill last fragment on the FAT if needed */
 	}
 #endif
-	if (res != FR_OK) LEAVE_FF(fs, res);
+	if (res != FR_OK) {
+		taskEXIT_CRITICAL();
+		LEAVE_FF(fs, res);
+	}
 
 #if FF_USE_FASTSEEK
 	if (fp->cltbl) {	/* Fast seek */
@@ -4514,7 +4538,7 @@ FRESULT f_lseek (
 			fp->sect = nsect;
 		}
 	}
-
+	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, res);
 }
 
@@ -4534,9 +4558,9 @@ FRESULT f_opendir (
 	FATFS *fs;
 	DEF_NAMBUF
 
-
 	if (!dp) return FR_INVALID_OBJECT;
 
+	taskENTER_CRITICAL();
 	/* Get logical drive */
 	res = mount_volume(&path, &fs, 0);
 	if (res == FR_OK) {
@@ -4580,7 +4604,7 @@ FRESULT f_opendir (
 		if (res == FR_NO_FILE) res = FR_NO_PATH;
 	}
 	if (res != FR_OK) dp->obj.fs = 0;		/* Invalidate the directory object if function faild */
-
+	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, res);
 }
 
@@ -4598,6 +4622,7 @@ FRESULT f_closedir (
 	FRESULT res;
 	FATFS *fs;
 
+    taskENTER_CRITICAL();
 
 	res = validate(&dp->obj, &fs);	/* Check validity of the file object */
 	if (res == FR_OK) {
@@ -4611,6 +4636,7 @@ FRESULT f_closedir (
 		unlock_fs(fs, FR_OK);		/* Unlock volume */
 #endif
 	}
+	taskEXIT_CRITICAL();
 	return res;
 }
 
@@ -4629,7 +4655,7 @@ FRESULT f_readdir (
 	FRESULT res;
 	FATFS *fs;
 	DEF_NAMBUF
-
+	taskENTER_CRITICAL();
 
 	res = validate(&dp->obj, &fs);	/* Check validity of the directory object */
 	if (res == FR_OK) {
@@ -4647,6 +4673,8 @@ FRESULT f_readdir (
 			FREE_NAMBUF();
 		}
 	}
+	taskEXIT_CRITICAL();
+
 	LEAVE_FF(fs, res);
 }
 
@@ -4717,7 +4745,7 @@ FRESULT f_stat (
 	FRESULT res;
 	DIR dj;
 	DEF_NAMBUF
-
+    taskENTER_CRITICAL();
 
 	/* Get logical drive */
 	res = mount_volume(&path, &dj.obj.fs, 0);
@@ -4733,7 +4761,7 @@ FRESULT f_stat (
 		}
 		FREE_NAMBUF();
 	}
-
+	taskEXIT_CRITICAL();
 	LEAVE_FF(dj.obj.fs, res);
 }
 
@@ -4836,14 +4864,13 @@ FRESULT f_getfree (
 /* Truncate File                                                         */
 /*-----------------------------------------------------------------------*/
 
-FRESULT f_truncate (
+inline static FRESULT __always_inline( _f_truncate ) (
 	FIL* fp		/* Pointer to the file object */
 )
 {
 	FRESULT res;
 	FATFS *fs;
 	DWORD ncl;
-
 
 	res = validate(&fp->obj, &fs);	/* Check validity of the file object */
 	if (res != FR_OK || (res = (FRESULT)fp->err) != FR_OK) LEAVE_FF(fs, res);
@@ -4879,6 +4906,14 @@ FRESULT f_truncate (
 	LEAVE_FF(fs, res);
 }
 
+FRESULT f_truncate (
+	FIL* fp		/* Pointer to the file object */
+) {
+	taskENTER_CRITICAL();
+	FRESULT res = _f_truncate(fp);
+	taskEXIT_CRITICAL();
+	return res;
+}
 
 
 

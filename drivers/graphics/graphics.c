@@ -1,16 +1,21 @@
 #include "graphics.h"
 #include <string.h>
+#include "FreeRTOS.h"
+#include "task.h"
 
 void draw_text(const char string[TEXTMODE_COLS + 1], uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor) {
+    taskENTER_CRITICAL();
     uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * y + 2 * x;
     for (int xi = TEXTMODE_COLS * 2; xi--;) {
         if (!*string) break;
         *t_buf++ = *string++;
         *t_buf++ = bgcolor << 4 | color & 0xF;
     }
+    taskEXIT_CRITICAL();
 }
 
 void draw_window(const char title[TEXTMODE_COLS + 1], uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+    taskENTER_CRITICAL();
     char line[width + 1];
     memset(line, 0, sizeof line);
     width--;
@@ -37,6 +42,7 @@ void draw_window(const char title[TEXTMODE_COLS + 1], uint32_t x, uint32_t y, ui
 
     snprintf(line, width - 1, " %s ", title);
     draw_text(line, x + (width - strlen(line)) / 2, y, 14, 3);
+    taskEXIT_CRITICAL();
 }
 
 
@@ -59,6 +65,7 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
 #include <stdarg.h>
 
 char* _rollup(char* t_buf) {
+    taskENTER_CRITICAL();
     if (pos_y >= TEXTMODE_ROWS - 1) {
         memcpy(text_buffer, text_buffer + TEXTMODE_COLS * 2, TEXTMODE_COLS * (TEXTMODE_ROWS - 2) * 2);
         t_buf = text_buffer + TEXTMODE_COLS * (TEXTMODE_ROWS - 2) * 2;
@@ -68,10 +75,12 @@ char* _rollup(char* t_buf) {
         }
         pos_y = TEXTMODE_ROWS - 2;
     }
+    taskEXIT_CRITICAL();
     return text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
 }
 
 void gbackspace() {
+    taskENTER_CRITICAL();
     uint8_t* t_buf;
     //do {
         pos_x--;
@@ -86,6 +95,7 @@ void gbackspace() {
     //} while(*t_buf == ' ');
     *t_buf++ = ' ';
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+    taskEXIT_CRITICAL();
 }
 
 void __putc(char c) {
@@ -94,6 +104,7 @@ void __putc(char c) {
 }
 
 void gouta(char* buf) {
+    taskENTER_CRITICAL();
     uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
     char c;
     while (c = *buf++) {
@@ -120,6 +131,7 @@ void gouta(char* buf) {
     //char tmp[32];
     //snprintf(tmp, 32, "x:%02d y:%02d ", pos_x, pos_y);
     //draw_text(tmp, 0, 0, 7, 0);
+    taskEXIT_CRITICAL();
 }
 
 void goutf(const char *__restrict str, ...) {
