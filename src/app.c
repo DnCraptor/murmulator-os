@@ -673,31 +673,27 @@ e1:
 
 static void exec_sync(cmd_ctx_t* ctx) {
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
-    //char* cmd = copy_str(ctx->orig_cmd);
-    //goutf("{%s}EXEC [%p][%p][%p][%p]\n", cmd, bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3]);
     int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 0;
     if (rav > M_API_VERSION) {
         goutf("Required by appilaction '%s' M-API version %d is grater than provided: %d\n",  ctx->argv[0], rav, M_API_VERSION);
         ctx->ret_code = -2;
-        //vPortFree(cmd);
         return;
     }
     if (rav < 4) { // unsupported earliest versions
         goutf("Application '%s' uses M-API version %d, that less than minimal required version %d\n", ctx->argv[0], rav, M_API_VERSION);
         ctx->ret_code = -3;
-        //vPortFree(cmd);
         return;
     }
     if (bootb_ctx->bootb[1]) {
         bootb_ctx->bootb[1](); // tood: ensure stack
     }
     int res = bootb_ctx->bootb[2] ? bootb_ctx->bootb[2]() : -3;
-    //goutf("{%s}EXEC RET_CODE: %d -> _finit: %p\n", cmd, res, bootb_ctx->bootb[3]);
+    // goutf("EXEC RET_CODE: %d -> _finit: %p\n", res, bootb_ctx->bootb[3]);
     if (bootb_ctx->bootb[3]) {
         bootb_ctx->bootb[3]();
+        // gouta("_finit done\n");
     }
     ctx->ret_code = res;
-    //vPortFree(cmd);
 }
 
 static void vAppDetachedTask(void *pv) {
@@ -713,7 +709,7 @@ static void vAppDetachedTask(void *pv) {
 void exec(cmd_ctx_t* ctx) {
     do {
         cmd_ctx_t* pipe_ctx = ctx->next;
-        //goutf("orig_cmd: %s\n", ctx->orig_cmd);
+        // goutf("orig_cmd: %s\n", ctx->orig_cmd);
         if (ctx->detached) {
             cmd_ctx_t* ctxi = clone_ctx(ctx);
             xTaskCreate(vAppDetachedTask, ctxi->argv[0], 1024/*x4=4096k*/, ctxi, configMAX_PRIORITIES - 1, NULL);

@@ -14,11 +14,6 @@ char* copy_str(const char* s) {
     strcpy(res, s);
     return res;
 }
-static FIL* copy_FIL(FIL* f) {
-    FIL* res = (FIL*)pvPortMalloc(sizeof(FIL));
-    memcpy(res, f, sizeof(FIL));
-    return res;
-}
 cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     cmd_ctx_t* res = (cmd_ctx_t*)pvPortMalloc(sizeof(cmd_ctx_t));
     memcpy(res, src, sizeof(cmd_ctx_t));

@@ -20,9 +20,9 @@ int main() {
         fgoutf(ctx->std_err, "Unable to find directory: '%s'\n", d);
         return 1;
     }
+    free(pfileinfo);
 a:
     set_ctx_var(ctx, "CD", d);
-    free(pfileinfo);
     return 0;
 }
 

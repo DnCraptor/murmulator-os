@@ -367,6 +367,7 @@ void vPortFree( void * pv )
     }
     if (i == DEBUG_HEAP_SIZE) {
         goutf("double free: [%p]\n", pv);
+        return;
     }
 #endif
 

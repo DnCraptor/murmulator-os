@@ -252,13 +252,13 @@ extern "C" void vCmdTask(void *pv) {
             if(ctx->orig_cmd) vPortFree(ctx->orig_cmd);
             ctx->orig_cmd = copy_str(comspec);
         }
-        // goutf("[%s]Lookup for: %s\n", ctx->curr_dir, ctx->orig_cmd);
+        // goutf("Lookup for: %s\n", ctx->orig_cmd);
         // goutf("be [%p]\n", xPortGetFreeHeapSize());
         bool b_exists = exists(ctx);
         // goutf("ae [%p]\n", xPortGetFreeHeapSize());
         if (b_exists) {
             size_t len = strlen(ctx->orig_cmd); // TODO: more than one?
-            // goutf("[%s]Command found: %s)\n", ctx->curr_dir, t);
+            // goutf("Command found: %s\n", ctx->orig_cmd);
             if (len > 3 && strcmp(ctx->orig_cmd + len - 4, ".uf2") == 0) {
                 if(load_firmware(ctx->orig_cmd)) { // TODO: by ctx
                     ctx->stage = LOAD;
@@ -270,17 +270,10 @@ extern "C" void vCmdTask(void *pv) {
                     goto e;
                 }
             } else if(is_new_app(ctx)) {
-                // goutf("[%s]Command has appropriate format\n", ctx->curr_dir);
+                // gouta("Command has appropriate format\n");
                 if (load_app(ctx)) {
+                    // goutf("Load passed for: %s\n", ctx->orig_cmd);
                     exec(ctx);
-                        // ctx->stage; // to be changed in exec to PREPAREAD or to EXCUTED
-                        // goutf("EXEC RET_CODE: %d; tokens: %d [%p]:\n", ctx->ret_code, ctx->argc, ctx->argv);
-                        /*if (ctx->argc && ctx->argv) {
-                            for (int i = 0; i < ctx->argc; ++i) {
-                                goutf(" argv[%d]='%s'\n", i, ctx->argv[i]);
-                            }
-                        }*/
-                        //vTaskDelay(5000);
                 } else {
                     goutf("Unable to execute command: '%s' (failed to load it)\n", ctx->orig_cmd);
                     ctx->stage = INVALIDATED;
