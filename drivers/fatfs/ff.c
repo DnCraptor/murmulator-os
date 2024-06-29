@@ -4232,7 +4232,7 @@ FRESULT f_chdir (
 	FATFS *fs;
 	DEF_NAMBUF
 
-
+	taskENTER_CRITICAL();
 	/* Get logical drive */
 	res = mount_volume(&path, &fs, 0);
 	if (res == FR_OK) {
@@ -4276,7 +4276,7 @@ FRESULT f_chdir (
 		}
 #endif
 	}
-
+	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, res);
 }
 
@@ -4933,7 +4933,7 @@ FRESULT f_unlink (
 	FFOBJID obj;
 #endif
 	DEF_NAMBUF
-
+	taskENTER_CRITICAL();
 
 	/* Get logical drive */
 	res = mount_volume(&path, &fs, FA_WRITE);
@@ -5004,7 +5004,7 @@ FRESULT f_unlink (
 		}
 		FREE_NAMBUF();
 	}
-
+	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, res);
 }
 
@@ -5026,7 +5026,7 @@ FRESULT f_mkdir (
 	DWORD dcl, pcl, tm;
 	DEF_NAMBUF
 
-
+	taskENTER_CRITICAL();
 	res = mount_volume(&path, &fs, FA_WRITE);	/* Get logical drive */
 	if (res == FR_OK) {
 		dj.obj.fs = fs;
@@ -5088,7 +5088,7 @@ FRESULT f_mkdir (
 		}
 		FREE_NAMBUF();
 	}
-
+	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, res);
 }
 
@@ -5111,7 +5111,7 @@ FRESULT f_rename (
 	LBA_t sect;
 	DEF_NAMBUF
 
-
+	taskENTER_CRITICAL();
 	get_ldnumber(&path_new);						/* Snip the drive number of new name off */
 	res = mount_volume(&path_old, &fs, FA_WRITE);	/* Get logical drive of the old object */
 	if (res == FR_OK) {
@@ -5193,7 +5193,7 @@ FRESULT f_rename (
 		}
 		FREE_NAMBUF();
 	}
-
+	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, res);
 }
 
