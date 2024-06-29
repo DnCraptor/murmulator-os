@@ -203,6 +203,9 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     remove_ctx, // 144
     //
     xPortGetFreeHeapSize, // 145
+    //
+    get_text_buffer_width, // 146
+    get_text_buffer_height, // 147
     // TODO:
     0
 };

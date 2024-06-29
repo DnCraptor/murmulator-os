@@ -67,6 +67,8 @@ void gouta(char* buf);
 void gbackspace();
 void graphics_set_con_pos(int x, int y);
 void graphics_set_con_color(uint8_t color, uint8_t bgcolor);
+uint32_t get_text_buffer_width();
+uint32_t get_text_buffer_height();
 
 void clrScr(uint8_t color);
 

@@ -70,6 +70,13 @@ static uint16_t* txt_palette_fast = NULL;
 
 enum graphics_mode_t graphics_mode;
 
+uint32_t get_text_buffer_width() {
+    return text_buffer_width;
+}
+uint32_t get_text_buffer_height() {
+    return text_buffer_height;
+}
+
 void __time_critical_func(dma_handler_VGA)() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
     static uint32_t frame_number = 0;

@@ -513,6 +513,15 @@ inline static void remove_ctx(cmd_ctx_t* src) {
     ((fn_ptr_t)_sys_table_ptrs[144])(src);
 }
 
+inline static uint32_t get_text_buffer_width() {
+    typedef uint32_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[146])();
+}
+inline static uint32_t get_text_buffer_height() {
+    typedef uint32_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[147])();
+}
+
 #ifdef __cplusplus
 }
 #endif
