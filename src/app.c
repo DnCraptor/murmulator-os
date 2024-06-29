@@ -670,6 +670,7 @@ e1:
 }
 
 static void exec_sync(cmd_ctx_t* ctx) {
+    /*
          goutf("orig_cmd: [%p] %s, pipe: [%p] ", ctx, ctx->orig_cmd, ctx->next);
          if (ctx->argc) {
             goutf("%d argc [", ctx->argc);
@@ -680,6 +681,10 @@ static void exec_sync(cmd_ctx_t* ctx) {
          } else {
             goutf("0 argc\n");
          }
+    */
+    const TaskHandle_t th = xTaskGetCurrentTaskHandle();
+    vTaskSetThreadLocalStoragePointer(th, 0, ctx);
+
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
     int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 0;
     if (rav > M_API_VERSION) {
@@ -706,7 +711,7 @@ static void exec_sync(cmd_ctx_t* ctx) {
 
 static void vAppDetachedTask(void *pv) {
     cmd_ctx_t* ctx = (cmd_ctx_t*)pv;
-    goutf("vAppDetachedTask: %s [%p]\n", ctx->orig_cmd, ctx);
+    // goutf("vAppDetachedTask: %s [%p]\n", ctx->orig_cmd, ctx);
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     exec_sync(ctx);

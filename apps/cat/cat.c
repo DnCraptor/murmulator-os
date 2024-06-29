@@ -3,7 +3,7 @@
 int main() {
     cmd_ctx_t* ctx = get_cmd_ctx();
     if (ctx->argc == 0) {
-        fgoutf(ctx->std_err, "ATTTENTION! BROKEN EXECUTION CONTEXT!\n");
+        fgoutf(ctx->std_err, "ATTTENTION! BROKEN EXECUTION CONTEXT [%p]!\n", ctx);
         return -1;
     }
     if (ctx->argc == 1) {

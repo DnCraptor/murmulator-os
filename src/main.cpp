@@ -291,12 +291,14 @@ extern "C" void vCmdTask(void *pv) {
             ctx->stage = INVALIDATED;
             goto e;
         }
+        // repair system context
+        ctx = get_cmd_startup_ctx();
+        vTaskSetThreadLocalStoragePointer(th, 0, ctx);
         continue;
 e:
         if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
             cleanup_ctx(ctx);
         }
-
     }
     vTaskDelete( NULL );
 }
