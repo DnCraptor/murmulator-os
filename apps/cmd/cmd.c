@@ -42,6 +42,7 @@ inline static char replace_spaces0(char t) {
 }
 
 inline static int tokenize_cmd(char* cmdt, cmd_ctx_t* ctx) {
+    while (!cmdt[0 && cmdt[0] == ' ']) ++cmdt; // ignore trailing spaces
     if (cmdt[0] == 0) {
         return 0;
     }
@@ -104,12 +105,30 @@ inline static bool prepare_ctx(char* cmdt, cmd_ctx_t* ctx) {
     ctx->argc = tokens;
     ctx->argv = (char**)malloc(sizeof(char*) * tokens);
     char* t = cmdt;
+    while (!t[0 && t[0] == ' ']) ++t; // ignore trailing spaces
     for (uint32_t i = 0; i < tokens; ++i) {
         ctx->argv[i] = copy_str(t);
         t = next_token(t);
     }
     ctx->stage = PREPARED;
     return true;
+}
+
+inline static cmd_ctx_t* new_ctx(cmd_ctx_t* src) {
+    cmd_ctx_t* res = (cmd_ctx_t*)pvPortMalloc(sizeof(cmd_ctx_t));
+    memset(res, 0, sizeof(cmd_ctx_t));
+    if (src->vars_num && src->vars) {
+        res->vars = (vars_t*)pvPortMalloc( sizeof(vars_t) * src->vars_num );
+        res->vars_num = src->vars_num;
+        for (size_t i = 0; i < src->vars_num; ++i) {
+            if (src->vars[i].value) {
+                res->vars[i].value = copy_str(src->vars[i].value);
+            }
+            res->vars[i].key = src->vars[i].key; // const
+        }
+    }
+    res->stage = src->stage;
+    return res;
 }
 
 inline static bool cmd_enter(cmd_ctx_t* ctx) {
@@ -133,11 +152,14 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
         } else if (*tc == '|') {
             //printf("'%s' by pipe\n", ts);
             *tc = 0;
-            exit = prepare_ctx(ts, ctxi);
-            ctxi->detached = true;
-            ctxi = clone_ctx(ctxi);
-            ctxi->next = ctxi; // TODO: prev
-            ctxi->detached = false;
+            cmd_ctx_t* curr = ctxi;
+            cmd_ctx_t* next = new_ctx(ctxi);
+            exit = prepare_ctx(ts, curr);
+            curr->detached = true;
+            next->prev = curr;
+            curr->next = next;
+            next->detached = false;
+            ctxi = next;
             ts = tc + 1;
         } else if (*tc == '&') {
             //printf("'%s' detached\n", ts);
@@ -151,8 +173,14 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     if (exit) { // prepared ctx
         return true;
     }
-r1:
-    cleanup_ctx(ctx);
+    ctxi = ctx->next;
+    ctx->next = 0;
+    while(ctxi) { // remove pipe chain
+        cmd_ctx_t* next = ctxi->next;
+        remove_ctx(ctxi);
+        ctxi = next;
+    }
+    cleanup_ctx(ctx); // base ctx to be there
 r2:
     goutf("[%s]$", get_ctx_var(ctx, "CD"));
     cmd[0] = 0;

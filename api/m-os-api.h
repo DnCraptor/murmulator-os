@@ -504,9 +504,13 @@ inline static cmd_ctx_t* set_ctx_var(cmd_ctx_t* src, const char* k, char* v) {
     typedef void (*fn_ptr_t)(cmd_ctx_t*, const char*, char*);
     ((fn_ptr_t)_sys_table_ptrs[141])(src, k, v);
 }
-inline static  cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
+inline static cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     typedef cmd_ctx_t* (*fn_ptr_t)(cmd_ctx_t*);
     return ((fn_ptr_t)_sys_table_ptrs[143])(src);
+}
+inline static void remove_ctx(cmd_ctx_t* src) {
+    typedef void (*fn_ptr_t)(cmd_ctx_t*);
+    ((fn_ptr_t)_sys_table_ptrs[144])(src);
 }
 
 #ifdef __cplusplus

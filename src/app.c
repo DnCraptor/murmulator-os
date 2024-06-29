@@ -378,10 +378,8 @@ bool is_new_app(cmd_ctx_t* ctx) {
         return false;
     }
     ctx->stage = VALID;
-    cmd_ctx_t* rc = ctx->next;
-    while (rc) {
-        if (!is_new_app(rc)) return false;
-        rc = ctx->next;    
+    if (ctx->next) {
+        if (!is_new_app(ctx->next)) return false;
     }
     return true;
 }
@@ -665,15 +663,23 @@ e1:
         return false;
     }
     ctx->stage = LOAD;
-    cmd_ctx_t* rc = ctx->next;
-    while (rc) {
-        if (!load_app(rc)) return false;
-        rc = ctx->next;
+    if (ctx->next) {
+        if (!load_app(ctx->next)) return false;
     }
     return true;
 }
 
 static void exec_sync(cmd_ctx_t* ctx) {
+         goutf("orig_cmd: [%p] %s, pipe: [%p] ", ctx, ctx->orig_cmd, ctx->next);
+         if (ctx->argc) {
+            goutf("%d argc [", ctx->argc);
+            for(int i = 0; i < ctx->argc; i++) {
+                goutf("%s ", ctx->argv[i]);
+            }
+            goutf("]\n");
+         } else {
+            goutf("0 argc\n");
+         }
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
     int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 0;
     if (rav > M_API_VERSION) {
@@ -711,7 +717,6 @@ static void vAppDetachedTask(void *pv) {
 void exec(cmd_ctx_t* ctx) {
     do {
         cmd_ctx_t* pipe_ctx = ctx->next;
-        // goutf("orig_cmd: %s\n", ctx->orig_cmd);
         if (ctx->detached) {
             cmd_ctx_t* ctxi = clone_ctx(ctx);
             // goutf("Clone ctx [%p]->[%p]\n", ctx, ctxi);

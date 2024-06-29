@@ -50,10 +50,9 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
             res->vars[i].key = src->vars[i].key; // const
         }
     }
-    res->pboot_ctx = src->pboot_ctx;
-    src->pboot_ctx = 0;
-    res->prev = 0; // do not copy pipe
-    res->next = 0; // do not copy pipe
+    res->pboot_ctx = src->pboot_ctx; src->pboot_ctx = 0;
+    res->prev = src->prev; src->prev = 0;
+    res->next = src->next; src->next = 0;
     res->stage = src->stage;
     res->ret_code = src->ret_code;
     return res;
@@ -223,13 +222,12 @@ r1:
 }
 
 bool exists(cmd_ctx_t* ctx) {
-    //goutf("ctx->argc: %d\n", ctx->argc);
     if (ctx->argc == 0) {
-        return 0;
+        return false;
     }
     char* res = 0;
     char * cmd = ctx->argv[0];
-    //goutf("cmd: %s\n", cmd);
+    // goutf("[%p] cmd: %s\n", ctx, cmd);
     FILINFO* pfileinfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
     bool r = f_stat(cmd, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
     if (r) {
@@ -273,12 +271,10 @@ r1:
         ctx->orig_cmd = res;
         ctx->stage = FOUND;
     }
-    cmd_ctx_t* rc = ctx->next;
-    while (rc) {
-        if(!exists(rc)) {
+    if (ctx->next) {
+        if(!exists(ctx->next)) {
             return false;
         }
-        rc = ctx->next;
     }
     return res != 0;
 }
