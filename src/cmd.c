@@ -50,6 +50,8 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
             res->vars[i].key = src->vars[i].key; // const
         }
     }
+    res->pboot_ctx = src->pboot_ctx;
+    src->pboot_ctx = 0;
     res->prev = 0; // do not copy pipe
     res->next = 0; // do not copy pipe
     res->stage = src->stage;
@@ -57,7 +59,7 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     return res;
 }
 void cleanup_ctx(cmd_ctx_t* src) {
-    // goutf("src->argc: %d\n", src->argc);
+    // goutf("cleanup_ctx: [%p]\n", src);
     if (src->argv) {
         for(int i = 0; i < src->argc; ++i) {
             vPortFree(src->argv[i]);
@@ -96,6 +98,7 @@ void cleanup_ctx(cmd_ctx_t* src) {
     // gouta("cleanup_ctx <<\n");
 }
 void remove_ctx(cmd_ctx_t* src) {
+    // goutf("remove_ctx: [%p]\n", src);
     if (src->argv) {
         for(int i = 0; i < src->argc; ++i) {
             vPortFree(src->argv[i]);
@@ -117,8 +120,9 @@ void remove_ctx(cmd_ctx_t* src) {
         vPortFree(src->vars);
     }
     cleanup_bootb_ctx(src);
-    // src->pipe = 0; // each pipe should remove it by self
+    src->next = 0; // each pipe should remove it by self
     vPortFree(src);
+    // gouta("remove_ctx <<\n");
 }
 cmd_ctx_t* get_cmd_startup_ctx() {
     return &ctx;

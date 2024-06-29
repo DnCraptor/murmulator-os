@@ -387,6 +387,7 @@ bool is_new_app(cmd_ctx_t* ctx) {
 }
 
 void cleanup_bootb_ctx(cmd_ctx_t* ctx) {
+    // goutf("cleanup_bootb_ctx [%p]\n", ctx);
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
     if (!bootb_ctx) return;
     if (bootb_ctx->sect_entries) {
@@ -400,6 +401,7 @@ void cleanup_bootb_ctx(cmd_ctx_t* ctx) {
     }
     vPortFree(bootb_ctx);
     ctx->pboot_ctx = 0;
+    // gouta("cleanup_bootb_ctx <<\n");
 }
 
 bool run_new_app(cmd_ctx_t* ctx) {
@@ -698,7 +700,7 @@ static void exec_sync(cmd_ctx_t* ctx) {
 
 static void vAppDetachedTask(void *pv) {
     cmd_ctx_t* ctx = (cmd_ctx_t*)pv;
-    goutf("vAppDetachedTask: %s\n", ctx->orig_cmd);
+    goutf("vAppDetachedTask: %s [%p]\n", ctx->orig_cmd, ctx);
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     exec_sync(ctx);
@@ -712,6 +714,7 @@ void exec(cmd_ctx_t* ctx) {
         // goutf("orig_cmd: %s\n", ctx->orig_cmd);
         if (ctx->detached) {
             cmd_ctx_t* ctxi = clone_ctx(ctx);
+            // goutf("Clone ctx [%p]->[%p]\n", ctx, ctxi);
             xTaskCreate(vAppDetachedTask, ctxi->argv[0], 1024/*x4=4096k*/, ctxi, configMAX_PRIORITIES - 1, NULL);
             cleanup_ctx(ctx);
         } else {

@@ -169,8 +169,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         PSRAM_PIN_MISO=21
 
         #BOOT_DEBUG_ACC=1
-        DEBUG_HEAP_SIZE=512
-        
+        #DEBUG_HEAP_SIZE=512
+
         M_API_VERSION=4
         MOS_VERSION_STR="${MOS_VERSION}"
         FLASH_SIZE_STR="${FLASH_SIZE}"
