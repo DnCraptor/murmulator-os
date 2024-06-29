@@ -165,6 +165,10 @@ char* concat2(const char* s1, size_t s, const char* s2) {
 }
 
 void set_ctx_var(cmd_ctx_t* ctx, const char* key, const char* val) {
+    //if (strcmp(key, "CD") == 0) {
+    //    f_chdir(val);
+    //}
+    taskENTER_CRITICAL();
     for (size_t i = 0; i < ctx->vars_num; ++i) {
         if (0 == strcmp(key, ctx->vars[i].key)) {
             if( ctx->vars[i].value ) {
@@ -172,6 +176,7 @@ void set_ctx_var(cmd_ctx_t* ctx, const char* key, const char* val) {
             }
             ctx->vars[i].value = copy_str(val);
             // goutf("%d/%d %s=%s\n", i+1, ctx->vars_num, key, ctx->vars[i].value);
+            taskEXIT_CRITICAL();
             return;
         }
     }
@@ -189,15 +194,20 @@ void set_ctx_var(cmd_ctx_t* ctx, const char* key, const char* val) {
     ctx->vars[ctx->vars_num].value = copy_str(val);
     ctx->vars_num++;
     // goutf("%d/%d %s=%s\n", ctx->vars_num, ctx->vars_num, key, ctx->vars[ctx->vars_num - 1].value);
+    taskEXIT_CRITICAL();
 }
 
 char* get_ctx_var(cmd_ctx_t* ctx, const char* key) {
+    taskENTER_CRITICAL();
+    char* res = NULL;
     for (size_t i = 0; i < ctx->vars_num; ++i) {
         if (0 == strcmp(key, ctx->vars[i].key)) {
-            return ctx->vars[i].value;
+            res = ctx->vars[i].value;
+            break;
         }
     }
-    return NULL;
+    taskEXIT_CRITICAL();
+    return res;
 }
 
 static char* create_and_test(char* dir, char* cmd, FILINFO* pfileinfo) {
