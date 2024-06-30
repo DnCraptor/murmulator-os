@@ -92,7 +92,7 @@ bool restore_tbl(char* fn) {
             goutf("Restoring OS API functions table, because [%p]:%02X <> %02X\n", fl, *fl, *b);
             goutf("Flash [%p] -> [%p]. Press ENTER to confirm or ESC to skip it...\n", buffer, M_OS_API_TABLE_BASE);
             while(1) {
-                char c = __getc();
+                char c = __getch();
                 if(c == '\n') {
                     break;
                 }

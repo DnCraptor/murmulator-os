@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 4
+#define M_API_VERSION 5
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)
@@ -417,7 +417,7 @@ inline static bool run_new_app(cmd_ctx_t* c) {
     return ((fn_ptr_t)_sys_table_ptrs[121])(c);
 }
 
-inline static char getc(void) {
+inline static char getch(void) {
     typedef char (*fn_ptr_t)(void);
     return ((fn_ptr_t)_sys_table_ptrs[122])();
 }
@@ -520,6 +520,11 @@ inline static uint32_t get_text_buffer_width() {
 inline static uint32_t get_text_buffer_height() {
     typedef uint32_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[147])();
+}
+typedef FIL FILE;
+inline static int getc(FILE* in) { // return -1 for EOF
+    typedef int (*fn_ptr_t)(FILE* in);
+    return ((fn_ptr_t)_sys_table_ptrs[148])(in);
 }
 
 #ifdef __cplusplus

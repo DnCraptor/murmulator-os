@@ -2,10 +2,12 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "ff.h"
 
 bool handleScancode(const uint32_t ps2scancode);
 uint32_t get_last_scancode();
-char __getc(void);
+char __getch(void);
+int __getc(FIL*);
 
 typedef bool (*scancode_handler_t)(const uint32_t);
 scancode_handler_t get_scancode_handler();

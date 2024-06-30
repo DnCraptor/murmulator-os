@@ -228,6 +228,20 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
             cmd_ctx_t* curr = ctxi;
             cmd_ctx_t* next = new_ctx(ctxi);
             exit = prepare_ctx(ts, curr);
+            char* p = "/tmp/pipe1";
+            curr->std_out = malloc(sizeof(FIL));
+            if (FR_OK != f_open(curr->std_out, p, FA_CREATE_ALWAYS | FA_WRITE)) {
+                goutf("Unable to open a pipe: '%s' for write\n", p);
+                exit = false;
+                break;
+            }
+            curr->std_err = curr->std_out;
+            next->std_in = malloc(sizeof(FIL));
+            if (FR_OK != f_open(next->std_in, p, FA_READ)) {
+                goutf("Unable to open a pipe: '%s' for read\n", p);
+                exit = false;
+                break;
+            }
             curr->detached = true;
             next->prev = curr;
             curr->next = next;
@@ -405,7 +419,7 @@ int main(void) {
     cmd[0] = 0;
     goutf("[%s]$", get_ctx_var(ctx, "CD"));
     while(1) {
-        char c = getc();
+        char c = getch();
         if (c) {
             if (c == 8) cmd_backspace();
             else if (c == 17) cmd_up(ctx);

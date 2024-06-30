@@ -114,7 +114,7 @@ void set_cp866_handler(cp866_handler_t h) {
     cp866_handler = h;
 }
 
-static volatile char __c = 0;
+static volatile int __c = 0;
 bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     if (scancode_handler) {
         if (scancode_handler(ps2scancode)) {
@@ -260,7 +260,11 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             }
         }
         if (cp866_handler) cp866_handler(c, ps2scancode);
-        __c = c;
+        if (bCtrlPressed && ps2scancode == 0x2E) {
+            __c = -1; // EOF
+        } else {
+            __c = c;
+        }
     }
     return true;
 }
@@ -268,9 +272,25 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
 #include "FreeRTOS.h"
 #include "task.h"
 
-char __getc(void) {
+char __getch(void) {
     while(!__c) vTaskDelay(50); // TODO: Queue ?
-    char c = __c;
+    char c = __c & 0xFF;
     __c = 0;
     return c;
+}
+
+int __getc(FIL* f) {
+    if (f == NULL || f->obj.fs == 0) {
+        while(!__c) vTaskDelay(50); // TODO: Queue ?
+        int c = __c;
+        __c = 0;
+        return c;
+    }
+    if (f_eof(f)) return -1; // TODO: ensure
+    char res[1] = {0};
+    UINT br;
+    if (FR_OK != f_read(f, res, 1, &br)) {
+        return -1;
+    }
+    return res[0];
 }

@@ -173,7 +173,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     is_new_app, // 120
     run_new_app, // 121
     //
-    __getc, // 122
+    __getch, // 122
     __putc, // 123
     //
     cleanup_bootb_ctx, // 124
@@ -206,6 +206,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     get_text_buffer_width, // 146
     get_text_buffer_height, // 147
+    //
+    __getc, // 148
     // TODO:
     0
 };

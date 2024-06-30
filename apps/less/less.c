@@ -12,13 +12,39 @@ int main() {
     }
     uint32_t width = get_text_buffer_width();
     uint32_t height = get_text_buffer_height();
-    char c;
+    uint32_t lines = 0;
+    uint32_t cols = 0;
     while(1) {
-        c = getc(); // TODO: ctx->std_in
-        if (c == 0x1B /*ESC*/) {
-            break;
-        } else if (c == 18 /*down*/) {
-
+        int ic = getc(ctx->std_in); // TODO: ctx->std_in
+        if (ic == -1 /*EOF*/) {
+            vTaskDelay(50);
+            continue;
+        }
+        char c = ic & 0xFF;
+        if (c == '\n') {
+            lines++;
+            cols = 0;
+        } else {
+            cols++;
+        }
+        if (cols > width) {
+            cols = 1;
+            lines++;
+        }
+        if (c == '\r') {
+            continue;
+        }
+        putc(c);
+        if (height - 3 <= lines) {
+            int icc = getc(NULL);
+            if (icc == -1 /*Ctrl+C*/) break;
+            char cc = icc & 0xFF;
+            if (cc == 0x1B /*ESC*/) {
+                break;
+            } else if (cc == 18 /*down*/ || cc == ' ' || cc == '\n') {
+                lines = 0;
+                continue;
+            }
         }
     }
     return 0;
