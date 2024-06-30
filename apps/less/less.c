@@ -6,13 +6,21 @@ int main() {
         fgoutf(ctx->std_err, "ATTTENTION! BROKEN EXECUTION CONTEXT [%p]!\n", ctx);
         return -1;
     }
-    if (ctx->argc != 1) {
+    if (ctx->argc != 1 || !ctx->std_in || ctx->next) {
         fgoutf(ctx->std_err, "Pls. use '%s' for pipe end only\n", ctx->argv[0]);
         return 1;
     }
     uint32_t width = get_text_buffer_width();
     uint32_t height = get_text_buffer_height();
-    getc();
+    char c;
+    while(1) {
+        c = getc(); // TODO: ctx->std_in
+        if (c == 0x1B /*ESC*/) {
+            break;
+        } else if (c == 18 /*down*/) {
+
+        }
+    }
     return 0;
 }
 

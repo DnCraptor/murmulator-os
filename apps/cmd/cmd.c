@@ -49,20 +49,26 @@ inline static int tokenize_cmd(char* cmdt, cmd_ctx_t* ctx) {
     if (ctx->orig_cmd) free(ctx->orig_cmd);
     ctx->orig_cmd = copy_str(cmdt);
     //goutf("orig_cmd: '%s' [%p]; cmd: '%s' [%p]\n", ctx->orig_cmd, ctx->orig_cmd, cmdt, cmdt);
-    bool inSpace = true;
+    bool in_space = true;
+    bool in_qutas = false;
     int inTokenN = 0;
     char* t1 = ctx->orig_cmd;
     char* t2 = cmdt;
     while(*t1) {
+        if (*t1 == '"') in_qutas = !in_qutas;
+        if (in_qutas) {
+            *t2++ = *t1++;
+            continue; 
+        }
         char c = replace_spaces0(*t1++);
         //goutf("%02X -> %c %02X; t1: '%s' [%p], t2: '%s' [%p]\n", c, *t2, *t2, t1, t1, t2, t2);
-        if (inSpace) {
+        if (in_space) {
             if(c) { // token started
-                inSpace = 0;
+                in_space = 0;
                 inTokenN++; // new token
             }
         } else if(!c) { // not in space, after the token
-            inSpace = true;
+            in_space = true;
         }
         *t2++ = c;
     }
@@ -109,6 +115,20 @@ inline static bool prepare_ctx(char* cmdt, cmd_ctx_t* ctx) {
     for (uint32_t i = 0; i < tokens; ++i) {
         ctx->argv[i] = copy_str(t);
         t = next_token(t);
+        char *q = t;
+        bool in_quotas = false;
+        while (*q) {
+            if (*q == '"') {
+                if(in_quotas) {
+                    *q = 0;
+                    break;
+                }
+                else t = q + 1;
+                in_quotas = !in_quotas;
+            }
+            q++;
+        }
+        
     }
     ctx->stage = PREPARED;
     return true;
@@ -143,13 +163,16 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     char* tc = cmd;
     char* ts = cmd;
     bool exit = false;
+    bool in_qutas = false;
     cmd_ctx_t* ctxi = ctx;
     while(1) {
         if (!*tc) {
             //printf("'%s' by end zero\n", ts);
             exit = prepare_ctx(ts, ctxi);
             break;
-        } else if (*tc == '|') {
+        } else if (*tc == '"') {
+            in_qutas = !in_qutas;
+        } else if (!in_qutas && *tc == '|') {
             //printf("'%s' by pipe\n", ts);
             *tc = 0;
             cmd_ctx_t* curr = ctxi;
@@ -161,7 +184,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
             next->detached = false;
             ctxi = next;
             ts = tc + 1;
-        } else if (*tc == '&') {
+        } else if (!in_qutas && *tc == '&') {
             //printf("'%s' detached\n", ts);
             *tc = 0;
             exit = prepare_ctx(ts, ctxi);
