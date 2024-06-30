@@ -3856,7 +3856,7 @@ FRESULT f_open (
 /* Read File                                                             */
 /*-----------------------------------------------------------------------*/
 
-FRESULT f_read (
+inline static FRESULT __always_inline(_f_read) (
 	FIL* fp, 	/* Open file to be read */
 	void* buff,	/* Data buffer to store the read data */
 	UINT btr,	/* Number of bytes to read */
@@ -3871,11 +3871,6 @@ FRESULT f_read (
 	UINT rcnt, cc, csect;
 	BYTE *rbuff = (BYTE*)buff;
 
-	taskENTER_CRITICAL();
-	// wait for data in the pipe, or pipe closure
-	while (fp->chained && fp->chained->obj.fs && ((int)((fp)->fptr == (fp)->obj.objsize))) {
-		vTaskDelay(50);
-	}
 	*br = 0;	/* Clear read byte counter */
 	res = validate(&fp->obj, &fs);				/* Check validity of the file object */
 	if (res != FR_OK || (res = (FRESULT)fp->err) != FR_OK) LEAVE_FF(fs, res);	/* Check validity */
@@ -3948,11 +3943,27 @@ FRESULT f_read (
 		memcpy(rbuff, fp->buf + fp->fptr % SS(fs), rcnt);	/* Extract partial sector */
 #endif
 	}
-	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, FR_OK);
 }
 
-
+FRESULT f_read (
+	FIL* fp, 	/* Open file to be read */
+	void* buff,	/* Data buffer to store the read data */
+	UINT btr,	/* Number of bytes to read */
+	UINT* br	/* Number of bytes read */
+) {
+	// wait for data in the pipe, or pipe closure
+/*	while (fp->chained && fp->chained->obj.fs && ((int)((fp)->fptr == (fp)->obj.objsize))) {
+		FSIZE_t off = f_tell(fp);
+		vTaskDelay(50);
+		f_sync(fp);
+		f_lseek(fp, off);
+	}*/
+	taskENTER_CRITICAL();
+	FRESULT res = _f_read(fp, buff, btr, br);
+	taskEXIT_CRITICAL();
+	return res;
+}
 
 
 #if !FF_FS_READONLY
@@ -3960,7 +3971,7 @@ FRESULT f_read (
 /* Write File                                                            */
 /*-----------------------------------------------------------------------*/
 
-FRESULT f_write (
+inline static FRESULT __always_inline (_f_write) (
 	FIL* fp,			/* Open file to be written */
 	const void* buff,	/* Data to be written */
 	UINT btw,			/* Number of bytes to write */
@@ -3973,7 +3984,6 @@ FRESULT f_write (
 	LBA_t sect;
 	UINT wcnt, cc, csect;
 	const BYTE *wbuff = (const BYTE*)buff;
-	taskENTER_CRITICAL();
 
 	*bw = 0;	/* Clear write byte counter */
 	res = validate(&fp->obj, &fs);			/* Check validity of the file object */
@@ -4070,11 +4080,21 @@ FRESULT f_write (
 	}
 
 	fp->flag |= FA_MODIFIED;				/* Set file change flag */
-	taskEXIT_CRITICAL();
 	LEAVE_FF(fs, FR_OK);
 }
 
-
+FRESULT f_write (
+	FIL* fp,			/* Open file to be written */
+	const void* buff,	/* Data to be written */
+	UINT btw,			/* Number of bytes to write */
+	UINT* bw			/* Number of bytes written */
+)
+{
+	taskENTER_CRITICAL();
+	FRESULT res = _f_write(fp, buff, btw, bw);
+	taskEXIT_CRITICAL();
+	return res;
+}
 
 
 /*-----------------------------------------------------------------------*/

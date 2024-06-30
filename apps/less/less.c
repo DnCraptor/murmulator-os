@@ -15,7 +15,8 @@ int main() {
     uint32_t lines = 0;
     uint32_t cols = 0;
     while(1) {
-        int ic = getc(ctx->std_in); // TODO: ctx->std_in
+        int ic = getc(ctx->std_in);
+        printf("%04Xh %c\n", ic, (char)ic);
         if (ic == -1 /*EOF*/) {
             break;
         }
