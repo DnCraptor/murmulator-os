@@ -168,7 +168,7 @@ bool load_firmware(char* pathname) {
     }
     char* t = get_ctx_var(get_cmd_startup_ctx(), "TEMP");
     t = concat(t ? t : "", OS_TABLE_BACKUP_FN);
-    fgoutf(get_stdout(), "Backup OS functions table tp '%s'\n", t);
+    fgoutf(get_stdout(), "Backup OS API functions table to '%s'\n", t);
     if (FR_OK != f_open(&file, t, FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_WRITE) ) {
         fgoutf(get_stdout(), "ERROR: Unable to open backup file: '%s'!\n", t);
         vPortFree(t);

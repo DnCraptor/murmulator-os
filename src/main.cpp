@@ -262,8 +262,9 @@ extern "C" void vCmdTask(void *pv) {
             if (len > 3 && strcmp(ctx->orig_cmd + len - 4, ".uf2") == 0) {
                 if(load_firmware(ctx->orig_cmd)) { // TODO: by ctx
                     ctx->stage = LOAD;
-                    run_app(ctx->argv[0]);
+                    run_app(ctx->orig_cmd);
                     ctx->stage = EXECUTED;
+                    cleanup_ctx(ctx);
                 } else {
                     goutf("Unable to execute command: '%s' (failed to load it)\n", ctx->orig_cmd);
                     ctx->stage = INVALIDATED;
