@@ -103,6 +103,56 @@ inline static void cmd_write_history(cmd_ctx_t* ctx) {
 }
 
 inline static bool prepare_ctx(char* cmdt, cmd_ctx_t* ctx) {
+    char* t = cmdt;
+    bool in_quotas = false;
+    bool append = false;
+    char* std_out = 0;
+    while (*t) {
+        if (*t == '"') in_quotas = !in_quotas;
+        if (!in_quotas && *t == '>') {
+            *t++ = 0;
+            if (*t == '>') {
+                *t++ = 0;
+                append = true;
+                std_out = t;
+            } else {
+                std_out = t;
+            }
+            break;
+        }
+        t++;
+    }
+    if (std_out) {
+        char* b = std_out;
+        in_quotas = false;
+        bool any_legal = false;
+        while(*b) {
+            if (!in_quotas && *b == ' ') {
+                if (any_legal) {
+                    *b = 0;
+                    break;
+                }
+                std_out = b + 1;
+            } else if (*b == '"') {
+                if (in_quotas) {
+                    *b = 0;
+                    break;
+                } else {
+                    std_out = b + 1;
+                }
+                in_quotas = !in_quotas;
+            } else {
+                any_legal = true;
+            }
+            b++;
+        }
+        ctx->std_out = calloc(sizeof(FIL));
+        if (FR_OK != f_open(ctx->std_out, std_out, FA_WRITE | (append ? FA_OPEN_APPEND : FA_CREATE_ALWAYS))) {
+            printf("Unable to open file: '%s'\n", std_out);
+            return false;
+        }
+    }
+
     int tokens = tokenize_cmd(cmdt, ctx);
     if (tokens == 0) {
         return false;
@@ -110,7 +160,7 @@ inline static bool prepare_ctx(char* cmdt, cmd_ctx_t* ctx) {
 
     ctx->argc = tokens;
     ctx->argv = (char**)malloc(sizeof(char*) * tokens);
-    char* t = cmdt;
+    t = cmdt;
     while (!t[0 && t[0] == ' ']) ++t; // ignore trailing spaces
     for (uint32_t i = 0; i < tokens; ++i) {
         ctx->argv[i] = copy_str(t);
