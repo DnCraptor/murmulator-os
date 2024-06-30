@@ -210,11 +210,21 @@ r2:
     return false;
 }
 
-inline static char* next_on(char* l, char *bi) {
+inline static char* next_on(char* l, char *bi, bool in_quotas) {
     char *b = bi;
     while(*l && *b && *l == *b) {
+        if (*b == ' ' && !in_quotas) break;
         l++;
         b++;
+    }
+    if (*l == 0 && !in_quotas) {
+        char* bb = b;
+        while(*bb) {
+            if (*bb == ' ') {
+                return bi;
+            }
+            bb++;
+        }
     }
     return *l == 0 ? b : bi;
 }
@@ -222,8 +232,15 @@ inline static char* next_on(char* l, char *bi) {
 inline static void cmd_tab(cmd_ctx_t* ctx) {
     char * p = cmd;
     char * p2 = cmd;
+    bool in_quotas = false;
     while (*p) {
-        if (*p++ == ' ') {
+        char c = *p++;
+        if (c == '"') {
+            p2 = p;
+            in_quotas = true;
+            break;
+        }
+        if (c == ' ') {
             p2 = p;
         }
     }
@@ -248,10 +265,11 @@ inline static void cmd_tab(cmd_ctx_t* ctx) {
     }
     int total_files = 0;
     while (f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
-        p3 = next_on(p2, pfileInfo->fname);
+        p3 = next_on(p2, pfileInfo->fname, in_quotas);
         if (p3 != pfileInfo->fname) {
             strcpy(b, p3);
             total_files++;
+            break; // TODO: variants
         }
         //goutf("p3: %s; p2: %s; fn: %s; cmd_t: %s; fls: %d\n", p3, p2, fileInfo.fname, b, total_files);
     }
@@ -259,6 +277,9 @@ inline static void cmd_tab(cmd_ctx_t* ctx) {
         p3 = b;
         while (*p3) {
             type_char(*p3++);
+        }
+        if (in_quotas) {
+            type_char('"');
         }
     } else {
         // TODO: blimp
