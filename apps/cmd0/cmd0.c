@@ -115,7 +115,7 @@ int main(void) {
     cmd[0] = 0;
     goutf("[%s]#", get_ctx_var(ctx, "CD"));
     while(1) {
-        char c = getc();
+        char c = getch();
         if (c) {
             if (c == 8) cmd_backspace();
             else if (c == 17) {}

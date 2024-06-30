@@ -228,7 +228,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
             cmd_ctx_t* curr = ctxi;
             cmd_ctx_t* next = new_ctx(ctxi);
             exit = prepare_ctx(ts, curr);
-            char* p = "/tmp/pipe1";
+            char* p = "/tmp/pipe1"; // TODO: generate pipe name, remove file
             curr->std_out = malloc(sizeof(FIL));
             if (FR_OK != f_open(curr->std_out, p, FA_CREATE_ALWAYS | FA_WRITE)) {
                 goutf("Unable to open a pipe: '%s' for write\n", p);
@@ -242,6 +242,8 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
                 exit = false;
                 break;
             }
+            next->std_in->chained = curr->std_out;
+            curr->std_out->chained = next->std_in;
             curr->detached = true;
             next->prev = curr;
             curr->next = next;

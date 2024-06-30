@@ -208,6 +208,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     get_text_buffer_height, // 147
     //
     __getc, // 148
+    f_eof, // 149
     // TODO:
     0
 };

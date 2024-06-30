@@ -3872,6 +3872,10 @@ FRESULT f_read (
 	BYTE *rbuff = (BYTE*)buff;
 
 	taskENTER_CRITICAL();
+	// wait for data in the pipe, or pipe closure
+	while (fp->chained && fp->chained->obj.fs && ((int)((fp)->fptr == (fp)->obj.objsize))) {
+		vTaskDelay(50);
+	}
 	*br = 0;	/* Clear read byte counter */
 	res = validate(&fp->obj, &fs);				/* Check validity of the file object */
 	if (res != FR_OK || (res = (FRESULT)fp->err) != FR_OK) LEAVE_FF(fs, res);	/* Check validity */
@@ -4192,6 +4196,8 @@ FRESULT f_close (
 #endif
 		}
 	}
+	if(fp->chained) fp->chained->chained = 0;
+	fp->chained = 0;
 	taskEXIT_CRITICAL();
 	return res;
 }
@@ -7081,3 +7087,7 @@ FRESULT f_setcp (
 }
 #endif	/* FF_CODE_PAGE == 0 */
 
+bool f_eof(FIL* fp) {
+	if (fp->chained && fp->chained->obj.fs) return false;
+	return ((int)((fp)->fptr == (fp)->obj.objsize));
+}

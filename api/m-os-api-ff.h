@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define f_eof(fp) ((int)((fp)->fptr == (fp)->obj.objsize))
 #define f_error(fp) ((fp)->err)
 #define f_tell(fp) ((fp)->fptr)
 #define f_size(fp) ((fp)->obj.objsize)
@@ -131,7 +130,7 @@ typedef struct {
 #define	FA_OPEN_ALWAYS		0x10
 #define	FA_OPEN_APPEND		0x30
 
-typedef struct {
+typedef struct FIL {
 	FFOBJID	obj;			/* Object identifier (must be the 1st member to detect invalid object pointer) */
 	BYTE	flag;			/* File status flags */
 	BYTE	err;			/* Abort flag (error code) */
@@ -142,8 +141,8 @@ typedef struct {
 	BYTE*	dir_ptr;		/* Pointer to the directory entry in the win[] (not used at exFAT) */
 	DWORD*	cltbl;			/* Pointer to the cluster link map table (nulled on open, set by application) */
 	BYTE	buf[FF_MAX_SS];	/* File private data read/write window */
+    struct FIL* chained;
 } FIL;
-
 
 typedef FRESULT (*FRFcpCB_ptr_t)(FIL*, const TCHAR*, BYTE);
 inline static FRESULT f_open (

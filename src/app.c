@@ -692,8 +692,8 @@ static void exec_sync(cmd_ctx_t* ctx) {
         ctx->ret_code = -2;
         return;
     }
-    if (rav < 4) { // unsupported earliest versions
-        goutf("Application '%s' uses M-API version %d, that less than minimal required version %d\n", ctx->argv[0], rav, M_API_VERSION);
+    if (rav < 5) { // unsupported earliest versions
+        goutf("Application '%s' uses M-API version %d, that less than minimal required version %d\n", ctx->argv[0], rav, 5);
         ctx->ret_code = -3;
         return;
     }

@@ -17,8 +17,7 @@ int main() {
     while(1) {
         int ic = getc(ctx->std_in); // TODO: ctx->std_in
         if (ic == -1 /*EOF*/) {
-            vTaskDelay(50);
-            continue;
+            break;
         }
         char c = ic & 0xFF;
         if (c == '\n') {
