@@ -716,12 +716,14 @@ static void vAppDetachedTask(void *pv) {
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     exec_sync(ctx);
     remove_ctx(ctx);
+    // goutf("vAppDetachedTask: %s [%p] <<<\n", ctx->orig_cmd, ctx);
     vTaskDelete( NULL );
 }
 
 void exec(cmd_ctx_t* ctx) {
     do {
         cmd_ctx_t* pipe_ctx = ctx->next;
+        // goutf("EXEC [%p]->[%p]\n", ctx, pipe_ctx);
         if (ctx->detached) {
             cmd_ctx_t* ctxi = clone_ctx(ctx);
             // goutf("Clone ctx [%p]->[%p]\n", ctx, ctxi);
@@ -733,6 +735,7 @@ void exec(cmd_ctx_t* ctx) {
             if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
                 cleanup_ctx(ctx);
             }
+            // goutf("EXEC [%p] <<\n", ctx);
         }
         ctx = pipe_ctx;
     } while(ctx);

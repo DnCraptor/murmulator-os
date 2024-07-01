@@ -3952,15 +3952,26 @@ FRESULT f_read (
 	UINT btr,	/* Number of bytes to read */
 	UINT* br	/* Number of bytes read */
 ) {
-	// wait for data in the pipe, or pipe closure
-/*	while (fp->chained && fp->chained->obj.fs && ((int)((fp)->fptr == (fp)->obj.objsize))) {
-		FSIZE_t off = f_tell(fp);
-		vTaskDelay(50);
-		f_sync(fp);
-		f_lseek(fp, off);
-	}*/
+	FRESULT res;
 	taskENTER_CRITICAL();
-	FRESULT res = _f_read(fp, buff, btr, br);
+	if  (fp->chained) {
+    	// wait for data in the pipe, or pipe closure
+		while (fp->chained && !fp->chained->fptr) {
+	    	taskEXIT_CRITICAL();
+			vTaskDelay(50);
+    		taskENTER_CRITICAL();
+		}
+		if (fp->chained) {
+			*br = MIN(fp->chained->fptr, btr);
+			memcpy(buff, fp->chained->buf, *br);
+			fp->chained->fptr -= *br;
+			res = FR_OK;
+		} else {
+			res = FR_DENIED;
+		}
+	} else {
+	    res = _f_read(fp, buff, btr, br);
+	}
 	taskEXIT_CRITICAL();
 	return res;
 }
@@ -4090,8 +4101,28 @@ FRESULT f_write (
 	UINT* bw			/* Number of bytes written */
 )
 {
+	FRESULT res;
 	taskENTER_CRITICAL();
-	FRESULT res = _f_write(fp, buff, btw, bw);
+	if (fp->chained) {
+		while (fp->chained && fp->fptr) { // TODO: reuse 512 from chained also
+			taskEXIT_CRITICAL();
+			vTaskDelay(50);
+			taskENTER_CRITICAL();
+		}
+		if (fp->chained) {
+		    if (btw >= FF_MAX_SS) {
+				goutf("WARN: too long message (%d) was sent to a pipe! (max allowed: %d)\n", btw, FF_MAX_SS);
+			}
+			*bw = MIN(btw, FF_MAX_SS);
+			memcpy(fp->buf + fp->fptr, buff, *bw);
+			fp->fptr += *bw;
+			res = FR_OK;
+		} else {
+			res = FR_DENIED;
+		}
+	} else {
+		res = _f_write(fp, buff, btw, bw);
+	}
 	taskEXIT_CRITICAL();
 	return res;
 }
@@ -4217,7 +4248,7 @@ FRESULT f_close (
 		}
 	}
 	if(fp->chained) fp->chained->chained = 0;
-	fp->chained = 0;
+    fp->chained = 0;
 	taskEXIT_CRITICAL();
 	return res;
 }
