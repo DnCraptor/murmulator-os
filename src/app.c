@@ -716,7 +716,7 @@ static void vAppDetachedTask(void *pv) {
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     exec_sync(ctx);
     remove_ctx(ctx);
-    // goutf("vAppDetachedTask: %s [%p] <<<\n", ctx->orig_cmd, ctx);
+    // goutf("vAppDetachedTask: [%p] <<<\n", ctx);
     vTaskDelete( NULL );
 }
 

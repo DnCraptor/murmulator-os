@@ -24,7 +24,7 @@
 #include "diskio.h"		/* Declarations of device I/O functions */
 #include "FreeRTOS.h"
 #include "task.h"
-
+#include "graphics.h"
 
 /*--------------------------------------------------------------------------
 
@@ -3846,6 +3846,7 @@ FRESULT f_open (
 {
     taskENTER_CRITICAL();
 	FRESULT res = _f_open(fp, path, mode);
+	fp->chained = 0;
 	taskEXIT_CRITICAL();
 	return res;
 }
@@ -3958,12 +3959,14 @@ FRESULT f_read (
     	// wait for data in the pipe, or pipe closure
 		while (fp->chained && !fp->chained->fptr) {
 	    	taskEXIT_CRITICAL();
+			// gouta("f_read wait\n");
 			vTaskDelay(50);
     		taskENTER_CRITICAL();
 		}
 		if (fp->chained) {
 			*br = MIN(fp->chained->fptr, btr);
 			memcpy(buff, fp->chained->buf, *br);
+			// goutf("f_read passed %d\n", *br);
 			fp->chained->fptr -= *br;
 			res = FR_OK;
 		} else {
@@ -4106,6 +4109,7 @@ FRESULT f_write (
 	if (fp->chained) {
 		while (fp->chained && fp->fptr) { // TODO: reuse 512 from chained also
 			taskEXIT_CRITICAL();
+			// gouta("f_write wait\n");
 			vTaskDelay(50);
 			taskENTER_CRITICAL();
 		}
@@ -4115,6 +4119,7 @@ FRESULT f_write (
 			}
 			*bw = MIN(btw, FF_MAX_SS);
 			memcpy(fp->buf + fp->fptr, buff, *bw);
+			// goutf("f_write passed %d\n", *bw);
 			fp->fptr += *bw;
 			res = FR_OK;
 		} else {
@@ -4229,6 +4234,13 @@ FRESULT f_close (
 	FRESULT res;
 	FATFS *fs;
 	taskENTER_CRITICAL();
+    if(fp->chained) {
+		fp->chained->chained = 0;
+        fp->chained = 0;
+    	taskEXIT_CRITICAL();
+		return FR_OK;
+	}
+
 #if !FF_FS_READONLY
 	res = f_sync(fp);					/* Flush cached data */
 	if (res == FR_OK)
@@ -4247,8 +4259,6 @@ FRESULT f_close (
 #endif
 		}
 	}
-	if(fp->chained) fp->chained->chained = 0;
-    fp->chained = 0;
 	taskEXIT_CRITICAL();
 	return res;
 }
@@ -7139,6 +7149,6 @@ FRESULT f_setcp (
 #endif	/* FF_CODE_PAGE == 0 */
 
 bool f_eof(FIL* fp) {
-	if (fp->chained && fp->chained->obj.fs) return false;
+	// if (fp->chained && fp->chained->obj.fs) return false;
 	return ((int)((fp)->fptr == (fp)->obj.objsize));
 }

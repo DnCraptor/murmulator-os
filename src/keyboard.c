@@ -280,13 +280,13 @@ char __getch(void) {
 }
 
 int __getc(FIL* f) {
-    if (f == NULL || f->obj.fs == 0) {
+    if (f == NULL) {
         while(!__c) vTaskDelay(50); // TODO: Queue ?
         int c = __c;
         __c = 0;
         return c;
     }
-    if (f_eof(f)) return -1; // TODO: ensure
+//    if (f_eof(f)) return -1; // TODO: ensure
     char res[1] = {0};
     UINT br;
     if (FR_OK != f_read(f, res, 1, &br)) {
