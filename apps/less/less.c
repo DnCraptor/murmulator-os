@@ -16,6 +16,7 @@ int main() {
     uint32_t cols = 0;
     while(1) {
         int ic = getc(ctx->std_in);
+        printf("[%d]: %c\n", ic, (char)ic & 0xFF);
         if (ic == -1 /*EOF*/) {
             break;
         }

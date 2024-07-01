@@ -3956,18 +3956,19 @@ FRESULT f_read (
 	FRESULT res;
 	taskENTER_CRITICAL();
 	if  (fp->chained) {
+	goutf("f_read: %p\n", fp->chained);
     	// wait for data in the pipe, or pipe closure
 		while (fp->chained && !fp->chained->fptr) {
 	    	taskEXIT_CRITICAL();
-			// gouta("f_read wait\n");
+			 gouta("f_read wait\n");
 			vTaskDelay(50);
     		taskENTER_CRITICAL();
 		}
 		if (fp->chained) {
 			*br = MIN(fp->chained->fptr, btr);
 			memcpy(buff, fp->chained->buf, *br);
-			// goutf("f_read passed %d\n", *br);
 			fp->chained->fptr -= *br;
+			 goutf("f_read passed %d (%d)\n", *br, fp->chained->fptr);
 			res = FR_OK;
 		} else {
 			res = FR_DENIED;
@@ -4107,9 +4108,10 @@ FRESULT f_write (
 	FRESULT res;
 	taskENTER_CRITICAL();
 	if (fp->chained) {
+	goutf("f_write: %p\n", fp->chained);
 		while (fp->chained && fp->fptr) { // TODO: reuse 512 from chained also
 			taskEXIT_CRITICAL();
-			// gouta("f_write wait\n");
+			 gouta("f_write wait\n");
 			vTaskDelay(50);
 			taskENTER_CRITICAL();
 		}
@@ -4119,7 +4121,7 @@ FRESULT f_write (
 			}
 			*bw = MIN(btw, FF_MAX_SS);
 			memcpy(fp->buf + fp->fptr, buff, *bw);
-			// goutf("f_write passed %d\n", *bw);
+			 goutf("f_write passed %d\n", *bw);
 			fp->fptr += *bw;
 			res = FR_OK;
 		} else {
