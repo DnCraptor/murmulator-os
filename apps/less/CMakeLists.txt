@@ -46,6 +46,11 @@ pico_set_linker_script(${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/memmap.ld)
 pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS Applications: less")
 pico_set_program_version(${PROJECT_NAME} "test")
 
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    pico_runtime
+    pico_stdlib
+)
+
 #family_configure_device_example(${PROJECT_NAME} noos)
 # -fPIC -shared
 target_link_options(${PROJECT_NAME} PRIVATE -Xlinker --print-memory-usage)

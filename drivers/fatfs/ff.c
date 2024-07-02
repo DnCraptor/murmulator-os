@@ -3956,19 +3956,24 @@ FRESULT f_read (
 	FRESULT res;
 	taskENTER_CRITICAL();
 	if  (fp->chained) {
-	goutf("f_read: %p\n", fp->chained);
+	     goutf("f_read: %p\n", fp->chained);
     	// wait for data in the pipe, or pipe closure
-		while (fp->chained && !fp->chained->fptr) {
+		while (fp->chained && fp->chained->clust == fp->chained->sect) { // clust - start ofset ib buff, sect - end offset (pointer to empty space)
 	    	taskEXIT_CRITICAL();
 			 gouta("f_read wait\n");
 			vTaskDelay(50);
     		taskENTER_CRITICAL();
 		}
 		if (fp->chained) {
-			*br = MIN(fp->chained->fptr, btr);
-			memcpy(buff, fp->chained->buf, *br);
-			fp->chained->fptr -= *br;
-			 goutf("f_read passed %d (%d)\n", *br, fp->chained->fptr);
+			uint32_t sz = fp->chained->sect - fp->chained->clust;
+			*br = MIN(sz, btr);
+			memcpy(buff, fp->chained->buf + fp->chained->clust, *br);
+			fp->chained->clust += *br;
+			if (fp->chained->clust == fp->chained->sect) {
+				fp->chained->clust = 0;
+				fp->chained->sect = 0;
+			}
+			 goutf("f_read passed %d (%d-%d)\n", *br, fp->chained->clust, fp->chained->sect);
 			res = FR_OK;
 		} else {
 			res = FR_DENIED;
@@ -4108,8 +4113,8 @@ FRESULT f_write (
 	FRESULT res;
 	taskENTER_CRITICAL();
 	if (fp->chained) {
-	goutf("f_write: %p\n", fp->chained);
-		while (fp->chained && fp->fptr) { // TODO: reuse 512 from chained also
+	     goutf("f_write: %p\n", fp->chained);
+		while (fp->chained && fp->sect) { // TODO: reuse 512 from chained also
 			taskEXIT_CRITICAL();
 			 gouta("f_write wait\n");
 			vTaskDelay(50);
@@ -4120,9 +4125,9 @@ FRESULT f_write (
 				goutf("WARN: too long message (%d) was sent to a pipe! (max allowed: %d)\n", btw, FF_MAX_SS);
 			}
 			*bw = MIN(btw, FF_MAX_SS);
-			memcpy(fp->buf + fp->fptr, buff, *bw);
+			memcpy(fp->buf, buff, *bw);
+			fp->sect += *bw;
 			 goutf("f_write passed %d\n", *bw);
-			fp->fptr += *bw;
 			res = FR_OK;
 		} else {
 			res = FR_DENIED;
