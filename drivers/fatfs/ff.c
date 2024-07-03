@@ -22,8 +22,11 @@
 #include <string.h>
 #include "ff.h"			/* Declarations of FatFs API */
 #include "diskio.h"		/* Declarations of device I/O functions */
+
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
+
 #include "graphics.h"
 
 /*--------------------------------------------------------------------------
@@ -3947,6 +3950,28 @@ inline static FRESULT __always_inline(_f_read) (
 	LEAVE_FF(fs, FR_OK);
 }
 
+int f_getc(FIL* fp) {
+	char buff[1];
+	int res = -1;
+	if  (fp->chained && fp->clust) { // "from" in pipe
+		if(!fp->fptr || (fp->sect && 0 == uxQueueMessagesWaiting(fp->fptr))) { // already closed or chained closed and empty queue
+			return -1;
+		}
+	     goutf("f_getc: %p\n", fp->chained);
+		xQueueReceive(fp->fptr, buff, portMAX_DELAY);
+		res = buff[0];
+         goutf("f_getc passed: %d\n", res);
+	} else {
+		UINT br;
+	    taskENTER_CRITICAL();
+	    if (FR_OK == _f_read(fp, buff, 1, &br)) {
+			res = buff[0];
+		}
+      	taskEXIT_CRITICAL();
+	}
+	return res;
+}
+
 FRESULT f_read (
 	FIL* fp, 	/* Open file to be read */
 	void* buff,	/* Data buffer to store the read data */
@@ -3955,29 +3980,17 @@ FRESULT f_read (
 ) {
 	FRESULT res;
 	taskENTER_CRITICAL();
-	if  (fp->chained) {
+	if  (fp->chained && fp->clust) { // "from" in pipe
+		if(!fp->fptr || (fp->sect && 0 == uxQueueMessagesWaiting(fp->fptr))) { // already closed or chained closed and empty queue
+			return -1;
+		}
 	     goutf("f_read: %p\n", fp->chained);
-    	// wait for data in the pipe, or pipe closure
-		while (fp->chained && fp->chained->clust == fp->chained->sect) { // clust - start ofset ib buff, sect - end offset (pointer to empty space)
-	    	taskEXIT_CRITICAL();
-			 gouta("f_read wait\n");
-			vTaskDelay(50);
-    		taskENTER_CRITICAL();
+		for(int i = 0; i < btr; ++i) { // todo: uxQueueMessagesWaiting
+			xQueueReceive(fp->fptr, buff + i, portMAX_DELAY);
 		}
-		if (fp->chained) {
-			uint32_t sz = fp->chained->sect - fp->chained->clust;
-			*br = MIN(sz, btr);
-			memcpy(buff, fp->chained->buf + fp->chained->clust, *br);
-			fp->chained->clust += *br;
-			if (fp->chained->clust == fp->chained->sect) {
-				fp->chained->clust = 0;
-				fp->chained->sect = 0;
-			}
-			 goutf("f_read passed %d (%d-%d)\n", *br, fp->chained->clust, fp->chained->sect);
-			res = FR_OK;
-		} else {
-			res = FR_DENIED;
-		}
+		res = FR_OK;
+		*br = btr;
+         goutf("f_read passed: %d\n", *br);
 	} else {
 	    res = _f_read(fp, buff, btr, br);
 	}
@@ -4111,31 +4124,24 @@ FRESULT f_write (
 )
 {
 	FRESULT res;
-	taskENTER_CRITICAL();
 	if (fp->chained) {
-	     goutf("f_write: %p\n", fp->chained);
-		while (fp->chained && fp->sect) { // TODO: reuse 512 from chained also
-			taskEXIT_CRITICAL();
-			 gouta("f_write wait\n");
-			vTaskDelay(50);
-			taskENTER_CRITICAL();
+	     goutf("f_write: %p (%d)\n", fp->chained, btw);
+		if (!fp->fptr) {
+			*bw = 0;
+	         goutf("f_write: %p (%d) failed\n", fp->chained, btw);
+			return FR_DENIED;
 		}
-		if (fp->chained) {
-		    if (btw >= FF_MAX_SS) {
-				goutf("WARN: too long message (%d) was sent to a pipe! (max allowed: %d)\n", btw, FF_MAX_SS);
-			}
-			*bw = MIN(btw, FF_MAX_SS);
-			memcpy(fp->buf, buff, *bw);
-			fp->sect += *bw;
-			 goutf("f_write passed %d\n", *bw);
-			res = FR_OK;
-		} else {
-			res = FR_DENIED;
+		for (uint32_t off = 0; off < btw; ++off) {
+			xQueueSend(fp->fptr, buff + off, portMAX_DELAY);
 		}
+	     goutf("f_write: %p (%d) passed\n", fp->chained, btw);
+		*bw = btw;
+		res = FR_OK;
 	} else {
+		taskENTER_CRITICAL();
 		res = _f_write(fp, buff, btw, bw);
+		taskEXIT_CRITICAL();
 	}
-	taskEXIT_CRITICAL();
 	return res;
 }
 
@@ -4240,14 +4246,15 @@ FRESULT f_close (
 {
 	FRESULT res;
 	FATFS *fs;
-	taskENTER_CRITICAL();
     if(fp->chained) {
-		fp->chained->chained = 0;
-        fp->chained = 0;
-    	taskEXIT_CRITICAL();
+		goutf("f_close[%p]\n", fp);
+        fp->chained->sect = 1; // notify chained
+		if(fp->fptr && fp->clust) vQueueDelete(fp->fptr);
+		fp->fptr = 0;
 		return FR_OK;
 	}
 
+	taskENTER_CRITICAL();
 #if !FF_FS_READONLY
 	res = f_sync(fp);					/* Flush cached data */
 	if (res == FR_OK)
@@ -7158,4 +7165,17 @@ FRESULT f_setcp (
 bool f_eof(FIL* fp) {
 	// if (fp->chained && fp->chained->obj.fs) return false;
 	return ((int)((fp)->fptr == (fp)->obj.objsize));
+}
+
+FRESULT f_open_pipe(FIL* to, FIL* from) {
+    from->chained = to;
+    to->chained = from;
+	QueueHandle_t q = xQueueCreate(512, sizeof(char));
+	to->fptr = q;
+	to->clust = 0;
+	from->clust = 1; // remove queue only on from close
+	from->fptr = q;
+	to->sect = 0;
+	from->sect = 0;
+	return FR_OK;
 }

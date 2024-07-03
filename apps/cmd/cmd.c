@@ -231,8 +231,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
             curr->std_out = calloc(sizeof(FIL));
             curr->std_err = curr->std_out;
             next->std_in = calloc(sizeof(FIL));
-            next->std_in->chained = curr->std_out;
-            curr->std_out->chained = next->std_in;
+            f_open_pipe(curr->std_out, next->std_in);
             curr->detached = true;
             next->prev = curr;
             curr->next = next;

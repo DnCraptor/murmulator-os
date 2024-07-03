@@ -16,6 +16,7 @@ extern "C" {
 //#include "usb.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "hooks.h"
 
 #include "tests.h"
 #include "sys_table.h"
@@ -308,6 +309,14 @@ const char tmp[] = "                      ZX Murmulator (RP2040) OS v."
                     MOS_VERSION_STR
                    " Alpha                   ";
 
+extern "C" void mallocFailedHandler() {
+    gouta("WARN: vApplicationMallocFailedHook\n");
+}
+
+extern "C" void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
+    gouta("WARN: vApplicationStackOverflowHook\n");
+}
+
 static void init() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -391,6 +400,10 @@ int main() {
     info();
 
     xTaskCreate(vCmdTask, "cmd", 1024/*x4=4096k*/, NULL, configMAX_PRIORITIES - 1, NULL);
+
+    setApplicationMallocFailedHookPtr(mallocFailedHandler);
+    setApplicationStackOverflowHookPtr(overflowHook);
+
     /* Start the scheduler. */
 	vTaskStartScheduler();
     // it should never return

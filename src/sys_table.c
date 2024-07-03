@@ -209,6 +209,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     __getc, // 148
     f_eof, // 149
+    f_getc, // 150
+    f_open_pipe, // 151
     // TODO:
     0
 };

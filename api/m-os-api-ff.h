@@ -254,3 +254,13 @@ inline static FRESULT f_getfree (
     typedef FRESULT (*fn_ptr_t)(const TCHAR*, DWORD*, FATFS**);
     return ((fn_ptr_t)_sys_table_ptrs[61])(path, nclst, fatfs);
 }
+
+inline static int f_getc (FIL* fp) {
+    typedef int (*fn_ptr_t)(FIL* fp);
+    return ((fn_ptr_t)_sys_table_ptrs[150])(fp);
+}
+
+inline static FRESULT f_open_pipe(FIL* to, FIL* from) {
+    typedef FRESULT (*fn_ptr_t)(FIL*, FIL*);
+    return ((fn_ptr_t)_sys_table_ptrs[151])(to, from);
+}
