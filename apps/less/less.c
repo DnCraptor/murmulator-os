@@ -16,14 +16,14 @@ int main() {
     uint32_t cols = 0;
     while(1) {
         int ic = f_getc(ctx->std_in);
-        printf("[%d]:\n", ic);
+        // printf("[%d]:\n", ic);
         if (ic == -1 /*EOF*/) {
             break;
         }
         char c = ic & 0xFF;
         if (c == '\n') {
             lines++;
-        printf("lines: %d\n", lines);
+            // printf("lines: %d\n", lines);
             cols = 0;
         } else {
             cols++;
@@ -31,12 +31,12 @@ int main() {
         if (cols > width) {
             cols = 1;
             lines++;
-        printf("lines: %d\n", lines);
+            // printf("lines: %d\n", lines);
         }
         if (c == '\r') {
             continue;
         }
-        printf("wait c\n");
+        // printf("wait c\n");
         putc(c);
         if (height - 3 <= lines) {
             int icc = getc(NULL);

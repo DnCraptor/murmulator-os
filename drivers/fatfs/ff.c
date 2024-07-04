@@ -3951,21 +3951,21 @@ inline static FRESULT __always_inline(_f_read) (
 }
 
 int f_getc(FIL* fp) {
-	char buff[1];
+	uint8_t c;
 	int res = -1;
 	if  (fp->chained && fp->clust) { // "from" in pipe
 		if(!fp->fptr || (fp->sect && 0 == uxQueueMessagesWaiting(fp->fptr))) { // already closed or chained closed and empty queue
 			return -1;
 		}
-	     goutf("f_getc: %p\n", fp->chained);
-		xQueueReceive(fp->fptr, buff, portMAX_DELAY);
-		res = buff[0];
-         goutf("f_getc passed: %d\n", res);
+	//     goutf("f_getc: %p\n", fp->chained);
+		xQueueReceive(fp->fptr, &c, portMAX_DELAY);
+		res = c;
+    //     goutf("f_getc passed: %d\n", res);
 	} else {
 		UINT br;
 	    taskENTER_CRITICAL();
-	    if (FR_OK == _f_read(fp, buff, 1, &br)) {
-			res = buff[0];
+	    if (FR_OK == _f_read(fp, &c, 1, &br)) {
+			res = c;
 		}
       	taskEXIT_CRITICAL();
 	}
@@ -3981,16 +3981,18 @@ FRESULT f_read (
 	FRESULT res;
 	taskENTER_CRITICAL();
 	if  (fp->chained && fp->clust) { // "from" in pipe
-		if(!fp->fptr || (fp->sect && 0 == uxQueueMessagesWaiting(fp->fptr))) { // already closed or chained closed and empty queue
+	    uint32_t sz = uxQueueMessagesWaiting(fp->fptr);
+		if(!fp->fptr || (fp->sect && 0 == sz)) { // already closed or chained closed and empty queue
 			return -1;
 		}
-	     goutf("f_read: %p\n", fp->chained);
-		for(int i = 0; i < btr; ++i) { // todo: uxQueueMessagesWaiting
+		sz = MIN(sz, btr);
+	    // goutf("f_read: %p\n", fp->chained);
+		for(int i = 0; i < sz; ++i) { // todo: uxQueueMessagesWaiting
 			xQueueReceive(fp->fptr, buff + i, portMAX_DELAY);
 		}
 		res = FR_OK;
-		*br = btr;
-         goutf("f_read passed: %d\n", *br);
+		*br = sz;
+        // goutf("f_read passed: %d\n", *br);
 	} else {
 	    res = _f_read(fp, buff, btr, br);
 	}
@@ -4125,16 +4127,16 @@ FRESULT f_write (
 {
 	FRESULT res;
 	if (fp->chained) {
-	     goutf("f_write: %p (%d)\n", fp->chained, btw);
+	    // goutf("f_write: %p (%d)\n", fp->chained, btw);
 		if (!fp->fptr) {
 			*bw = 0;
-	         goutf("f_write: %p (%d) failed\n", fp->chained, btw);
+	        // goutf("f_write: %p (%d) failed\n", fp->chained, btw);
 			return FR_DENIED;
 		}
 		for (uint32_t off = 0; off < btw; ++off) {
 			xQueueSend(fp->fptr, buff + off, portMAX_DELAY);
 		}
-	     goutf("f_write: %p (%d) passed\n", fp->chained, btw);
+	    // goutf("f_write: %p (%d) passed\n", fp->chained, btw);
 		*bw = btw;
 		res = FR_OK;
 	} else {
@@ -4247,7 +4249,7 @@ FRESULT f_close (
 	FRESULT res;
 	FATFS *fs;
     if(fp->chained) {
-		goutf("f_close[%p]\n", fp);
+		// goutf("f_close[%p]\n", fp);
         fp->chained->sect = 1; // notify chained
 		if(fp->fptr && fp->clust) vQueueDelete(fp->fptr);
 		fp->fptr = 0;
