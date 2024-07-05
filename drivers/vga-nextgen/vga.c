@@ -1,3 +1,4 @@
+// TODO: external driver
 #include "graphics.h"
 #include "hardware/clocks.h"
 #include "stdbool.h"
@@ -44,23 +45,23 @@ static int dma_chan_ctrl;
 static int dma_chan;
 
 static uint8_t* graphics_buffer;
-uint8_t* text_buffer = NULL;
+uint8_t* text_buffer;
 static uint graphics_buffer_width = 0;
 static uint graphics_buffer_height = 0;
-static int graphics_buffer_shift_x = 0;
-static int graphics_buffer_shift_y = 0;
+int graphics_buffer_shift_x = 0;
+int graphics_buffer_shift_y = 0;
 
-static bool is_flash_line = false;
-static bool is_flash_frame = false;
+bool is_flash_line = false;
+bool is_flash_frame = false;
 
 //буфер 1к графической палитры
 static uint16_t palette[2][256];
 
-static uint32_t bg_color[2];
+uint32_t bg_color[2];
 static uint16_t palette16_mask = 0;
 
-static uint text_buffer_width = 0;
-static uint text_buffer_height = 0;
+uint text_buffer_width = 0;
+uint text_buffer_height = 0;
 
 static uint16_t txt_palette[16];
 
@@ -77,7 +78,11 @@ uint32_t get_text_buffer_height() {
     return text_buffer_height;
 }
 
+void __time_critical_func(dma_handler_VGA_1024)();
+
 void __time_critical_func(dma_handler_VGA)() {
+    if (graphics_mode >= BK_256x256x2)
+        return dma_handler_VGA_1024();
     dma_hw->ints0 = 1u << dma_chan_ctrl;
     static uint32_t frame_number = 0;
     static uint32_t screen_line = 0;
@@ -340,12 +345,19 @@ void __time_critical_func(dma_handler_VGA)() {
     dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
 }
 
+graphics_mode_t graphics_set_mode_1024(graphics_mode_t mode);
+
 void graphics_set_mode(enum graphics_mode_t mode) {
     switch (mode) {
         case TEXTMODE_53x30:
-            text_buffer_width = 40;
+            text_buffer_width = 40; // 53?
             text_buffer_height = 30;
             break;
+        case BK_256x256x2:
+        case BK_512x256x1:
+        case TEXTMODE_128x48:
+            graphics_set_mode_1024(mode);
+            return;
         case TEXTMODE_DEFAULT:
         case TEXTMODE_160x100:
         default:
@@ -524,8 +536,11 @@ void graphics_set_palette(const uint8_t i, const uint32_t color888) {
     palette[1][i] = (c_lo << 8 | c_hi) & 0x3f3f | palette16_mask;
 }
 
+void graphics_init_1024();
+
 void graphics_init() {
     //инициализация палитры по умолчанию
+    graphics_init_1024();
 #if 1
     const uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
     const uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };
@@ -633,7 +648,7 @@ void graphics_init() {
 
 void clrScr(const uint8_t color) {
     uint16_t* t_buf = (uint16_t *)text_buffer;
-    int size = TEXTMODE_COLS * TEXTMODE_ROWS;
+    int size = text_buffer_width * text_buffer_height;
     while (size--) *t_buf++ = color << 4 | ' ';
     graphics_set_con_pos(0, 0);
     graphics_set_con_color(7, color); // TODO:

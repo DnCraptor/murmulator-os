@@ -3,18 +3,22 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-void draw_text(const char string[TEXTMODE_COLS + 1], uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor) {
+extern uint text_buffer_width;
+extern uint text_buffer_height;
+
+void draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
     taskENTER_CRITICAL();
-    uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * y + 2 * x;
-    for (int xi = TEXTMODE_COLS * 2; xi--;) {
-        if (!*string) break;
+    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * y + 2 * x;
+    uint8_t c = (bgcolor << 4) | (color & 0xF);
+    for (int xi = x; xi < text_buffer_width * 2; ++xi) {
+        if (!(*string)) break;
         *t_buf++ = *string++;
-        *t_buf++ = bgcolor << 4 | color & 0xF;
+        *t_buf++ = c;
     }
     taskEXIT_CRITICAL();
 }
 
-void draw_window(const char title[TEXTMODE_COLS + 1], uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+void draw_window(const char* title, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
     taskENTER_CRITICAL();
     char line[width + 1];
     memset(line, 0, sizeof line);
@@ -66,17 +70,17 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
 
 char* _rollup(char* t_buf) {
     taskENTER_CRITICAL();
-    if (pos_y >= TEXTMODE_ROWS - 1) {
-        memcpy(text_buffer, text_buffer + TEXTMODE_COLS * 2, TEXTMODE_COLS * (TEXTMODE_ROWS - 2) * 2);
-        t_buf = text_buffer + TEXTMODE_COLS * (TEXTMODE_ROWS - 2) * 2;
-        for(int i = 0; i < TEXTMODE_COLS; ++i) {
+    if (pos_y >= text_buffer_height - 1) {
+        memcpy(text_buffer, text_buffer + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
+        t_buf = text_buffer + text_buffer_width * (text_buffer_height - 2) * 2;
+        for(int i = 0; i < text_buffer_width; ++i) {
             *t_buf++ = ' ';
             *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
         }
-        pos_y = TEXTMODE_ROWS - 2;
+        pos_y = text_buffer_height - 2;
     }
     taskEXIT_CRITICAL();
-    return text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+    return text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
 }
 
 void gbackspace() {
@@ -85,13 +89,13 @@ void gbackspace() {
     //do {
         pos_x--;
         if (pos_x < 0) {
-            pos_x = TEXTMODE_COLS - 2;
+            pos_x = text_buffer_width - 2;
             pos_y--;
             if (pos_y < 0) {
                 pos_y = 0;
             }
         }
-        t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+        t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
     //} while(*t_buf == ' ');
     *t_buf++ = ' ';
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
@@ -105,7 +109,7 @@ void __putc(char c) {
 
 void gouta(char* buf) {
     taskENTER_CRITICAL();
-    uint8_t* t_buf = text_buffer + TEXTMODE_COLS * 2 * pos_y + 2 * pos_x;
+    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
     char c;
     while (c = *buf++) {
         if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
@@ -116,7 +120,7 @@ void gouta(char* buf) {
             continue;
         }
         pos_x++;
-        if (pos_x >= TEXTMODE_COLS) {
+        if (pos_x >= text_buffer_width) {
             pos_x = 0;
             pos_y++;
             t_buf = _rollup(t_buf);

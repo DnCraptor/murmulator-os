@@ -38,8 +38,8 @@ extern "C" FATFS* get_mount_fs() { // only one FS is supported foe now
     return &fs;
 }
 semaphore vga_start_semaphore;
-#define DISP_WIDTH (320)
-#define DISP_HEIGHT (240)
+#define TEXTMODE_COLS (80)
+#define TEXTMODE_ROWS (30)
 
 static uint8_t* SCREEN = 0;
 
@@ -305,7 +305,7 @@ e:
     vTaskDelete( NULL );
 }
 
-const char tmp[] = "                      ZX Murmulator (RP2040) OS v."
+const char* tmp = "                      ZX Murmulator (RP2040) OS v."
                     MOS_VERSION_STR
                    " Alpha                   ";
 
