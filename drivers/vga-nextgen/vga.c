@@ -30,36 +30,33 @@ const struct pio_program pio_program_VGA = {
 };
 
 
-static uint32_t* lines_pattern[4];
-static uint32_t* lines_pattern_data = NULL;
-static int _SM_VGA = -1;
+static uint32_t* __scratch_y("vga_driver_text") lines_pattern[4];
+static uint32_t* __scratch_y("vga_driver_text") lines_pattern_data = NULL;
+static int __scratch_y("vga_driver_text") _SM_VGA = -1;
 
-static int N_lines_total = 525;
-static int N_lines_visible = 480;
-static int line_VS_begin = 490;
-static int line_VS_end = 491;
-static int shift_picture = 0;
+static int __scratch_y("vga_driver_text") N_lines_total = 525;
+static int __scratch_y("vga_driver_text") N_lines_visible = 480;
+static int __scratch_y("vga_driver_text") line_VS_begin = 490;
+static int __scratch_y("vga_driver_text") line_VS_end = 491;
+static int __scratch_y("vga_driver_text") shift_picture = 0;
+static int __scratch_y("vga_driver_text") visible_line_size = 320;
 
-static int visible_line_size = 320;
+static int __scratch_y("vga_driver_text") dma_chan_ctrl;
+static int __scratch_y("vga_driver_text") dma_chan;
 
-static int dma_chan_ctrl;
-static int dma_chan;
-
-static uint8_t* text_buffer = 0;
-static uint text_buffer_width = 0;
-static uint text_buffer_height = 0;
-static size_t text_buffer_size = 0;
+static uint8_t* __scratch_y("vga_driver_text") text_buffer = 0;
+static uint __scratch_y("vga_driver_text") text_buffer_width = 0;
+static uint __scratch_y("vga_driver_text") text_buffer_height = 0;
+static size_t __scratch_y("vga_driver_text") text_buffer_size = 0;
 
 //буфер 1к графической палитры
-static uint16_t palette[2][256];
-
-uint32_t bg_color[2];
-static uint16_t palette16_mask = 0;
-
-static uint16_t txt_palette[16];
+static uint16_t __scratch_y("vga_driver_text") palette[2][256];
+static uint32_t __scratch_y("vga_driver_text") bg_color[2];
+static uint16_t __scratch_y("vga_driver_text") palette16_mask = 0;
+static uint16_t __scratch_y("vga_driver_text") txt_palette[16];
 
 //буфер 2К текстовой палитры для быстрой работы
-static uint16_t* txt_palette_fast = NULL;
+static uint16_t* __scratch_y("vga_driver_text") txt_palette_fast = NULL;
 
 uint32_t get_vga_console_width() {
     return text_buffer_width;
@@ -106,11 +103,11 @@ void vga_cleanup(void) {
     lines_pattern_data = 0;
 }
 
-void __time_critical_func(dma_handler_VGA)() {
+void __scratch_y("vga_driver") dma_handler_VGA() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
-    static uint32_t frame_number = 0;
-    static uint32_t screen_line = 0;
-    static uint8_t* input_buffer = NULL;
+    static uint32_t __scratch_y("vga_driver_text") frame_number = 0;
+    static uint32_t __scratch_y("vga_driver_text") screen_line = 0;
+    static uint8_t* __scratch_y("vga_driver_text") input_buffer = NULL;
     screen_line++;
     if (screen_line == N_lines_total) {
         screen_line = 0;
