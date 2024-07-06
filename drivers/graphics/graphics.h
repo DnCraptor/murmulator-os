@@ -75,6 +75,7 @@ typedef struct graphics_driver {
     u8v_fn screen_bitness;
     set_offsets_fn set_offsets;
     vcu32_fn set_bgcolor;
+    u32v_fn allocated;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();

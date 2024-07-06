@@ -2,6 +2,7 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
+#include <stdarg.h>
 
 static graphics_driver_t internal_driver = {
     0, //ctx
@@ -21,6 +22,7 @@ static graphics_driver_t internal_driver = {
     get_vga_buffer_bitness,
     0, // set_offsets
     vga_set_bgcolor,
+    vga_buffer_size,
 };
 static graphics_driver_t* graphics_driver = &internal_driver;
 
@@ -124,8 +126,6 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
     con_color = color;
     con_bgcolor = bgcolor;
 }
-
-#include <stdarg.h>
 
 char* _rollup(char* t_buf) {
     taskENTER_CRITICAL();
@@ -288,4 +288,11 @@ void graphics_set_bgcolor(const uint32_t color888) {
     if(graphics_driver && graphics_driver->set_bgcolor) {
         graphics_driver->set_bgcolor(color888);
     }
+}
+
+size_t get_buffer_size() {
+    if(graphics_driver && graphics_driver->allocated) {
+        return graphics_driver->allocated();
+    }
+    return 0;
 }

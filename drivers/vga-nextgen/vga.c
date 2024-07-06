@@ -87,8 +87,7 @@ void vga_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgco
         *t_buf++ = c;
     }
 }
-
-size_t get_buffer_size() {
+size_t vga_buffer_size() {
     return text_buffer_size;
 }
 uint8_t get_vga_buffer_bitness(void) {
