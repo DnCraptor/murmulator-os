@@ -6,6 +6,7 @@ extern "C" {
 #include "stdio.h"
 #include "stdint.h"
 #include "ff.h"
+#include "app.h"
 
 #ifdef TFT
 #include "st7789.h"
@@ -49,8 +50,17 @@ uint8_t* get_buffer();
 size_t get_buffer_size();
 uint8_t get_buffer_bitness();
 void cleanup_graphics();
+void cleanup_graphics_driver();
+
+typedef void (*vv_fn)(void);
+typedef struct graphics_driver {
+    cmd_ctx_t* ctx;
+    vv_fn init;
+} graphics_driver_t;
+void install_graphics_driver(graphics_driver_t*);
 
 void clrScr(uint8_t color);
+void graphics_set_mode(int mode);
 
 extern volatile int pos_x;
 extern volatile int pos_y;

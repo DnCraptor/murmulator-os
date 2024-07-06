@@ -3,6 +3,49 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+static uint8_t* text_buffer = 0;
+static uint text_buffer_width = 0;
+static uint text_buffer_height = 0;
+static graphics_driver_t internal_driver = {
+    0, //ctx
+    vga_init,
+};
+static graphics_driver_t* graphics_driver = &internal_driver;
+
+void graphics_init() {
+    if(graphics_driver && graphics_driver->init) {
+        graphics_driver->init();
+    }
+}
+
+uint32_t get_buffer_width() {
+    return text_buffer_width;
+}
+uint32_t get_buffer_height() {
+    return text_buffer_height;
+}
+uint8_t* get_buffer() {
+    return text_buffer;
+}
+
+void graphics_set_textbuffer(uint8_t* buffer) {
+    text_buffer = buffer;
+}
+
+void graphics_set_buffer(uint8_t* buffer, const uint16_t width, const uint16_t height) {
+    text_buffer = buffer;
+    text_buffer_width = width;
+    text_buffer_height = height;
+}
+
+void clrScr(const uint8_t color) {
+    if (!text_buffer) return;
+    uint16_t* t_buf = (uint16_t *)text_buffer;
+    int size = text_buffer_width * text_buffer_height;
+    while (size--) *t_buf++ = color << 4 | ' ';
+    graphics_set_con_pos(0, 0);
+    graphics_set_con_color(7, color); // TODO:
+}
 
 void draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
     taskENTER_CRITICAL();
@@ -175,4 +218,26 @@ void fgoutf(FIL *f, const char *__restrict str, ...) {
         f_write(f, buf, strlen(buf), &bw); // TODO: error handling
     }
     vPortFree(buf);
+}
+
+void install_graphics_driver(graphics_driver_t* gd) {
+    if (graphics_driver) {
+        cleanup_graphics();
+        if (graphics_driver != &internal_driver) {
+            remove_ctx(graphics_driver->ctx);
+            vPortFree(graphics_driver);
+        }
+    }
+    graphics_driver = gd;
+    graphics_init();
+}
+
+void graphics_set_mode(int mode) {
+
+}
+
+void cleanup_graphics() {
+    cleanup_graphics_driver();
+    vPortFree(text_buffer);
+    text_buffer = 0;
 }

@@ -66,7 +66,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     pvPortMalloc, // 32
     vPortFree, // 33
     //
-    0, // graphics_set_mode, // 34
+    graphics_set_mode, // 34
     graphics_set_buffer, // 35
     graphics_set_offset, // 36
     graphics_set_palette, // 37
@@ -216,6 +216,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     get_buffer_size, // 153
     get_buffer_bitness, // 154
     cleanup_graphics, // 155
+    install_graphics_driver, // 156
     // TODO:
     0
 };

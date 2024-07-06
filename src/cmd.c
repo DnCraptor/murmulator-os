@@ -97,6 +97,7 @@ void cleanup_ctx(cmd_ctx_t* src) {
     // gouta("cleanup_ctx <<\n");
 }
 void remove_ctx(cmd_ctx_t* src) {
+    if (!src) return;
     // goutf("remove_ctx: [%p]\n", src);
     if (src->argv) {
         for(int i = 0; i < src->argc; ++i) {

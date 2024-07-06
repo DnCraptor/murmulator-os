@@ -367,6 +367,7 @@ static void info() {
           "PSRAM %d MB\n"
           "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
           "SWAP %d MB; BASE: %ph (%d KB); PAGES INDEX: %ph (%d x %d KB)\n"
+          "VRAM %d KB; video mode: %d x %d x %d bit\n"
           "\n",
           get_overclocking_khz() / 1000,
           ram32 >> 10,
@@ -375,7 +376,8 @@ static void info() {
           fs->n_fats,
           f_getfree32(fs),
           fs->csize >> 1,
-          swap_size() >> 20, swap_base(), swap_base_size() >> 10, swap_pages_base(), swap_pages(), swap_page_size() >> 10
+          swap_size() >> 20, swap_base(), swap_base_size() >> 10, swap_pages_base(), swap_pages(), swap_page_size() >> 10,
+          get_buffer_size() >> 10, get_buffer_width(), get_buffer_height(), get_buffer_bitness()
     );
 }
 
