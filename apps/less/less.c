@@ -10,8 +10,8 @@ int main() {
         fgoutf(ctx->std_err, "Pls. use '%s' for pipe end only\n", ctx->argv[0]);
         return 1;
     }
-    uint32_t width = get_buffer_width();
-    uint32_t height = get_buffer_height();
+    uint32_t width = get_console_width();
+    uint32_t height = get_console_height();
     uint32_t lines = 0;
     uint32_t cols = 0;
     while(1) {

@@ -67,12 +67,12 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     vPortFree, // 33
     //
     graphics_set_mode, // 34
-    graphics_set_buffer, // 35
+    0, // was graphics_set_buffer 35
     graphics_set_offset, // 36
-    graphics_set_palette, // 37
-    graphics_set_textbuffer, // 38
+    0, // graphics_set_palette, // 37
+    graphics_set_buffer, // 38
     graphics_set_bgcolor, // 39
-    graphics_set_flashmode, // 40
+    0, // graphics_set_flashmode, // 40
     goutf, // 41
     graphics_set_con_pos, // 42
     graphics_set_con_color, // 43
@@ -204,8 +204,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     xPortGetFreeHeapSize, // 145
     //
-    get_buffer_width, // 146
-    get_buffer_height, // 147
+    get_console_width, // 146
+    get_console_height, // 147
     //
     __getc, // 148
     f_eof, // 149
@@ -214,9 +214,13 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     get_buffer, // 152
     get_buffer_size, // 153
-    get_buffer_bitness, // 154
+    get_screen_bitness, // 154
     cleanup_graphics, // 155
     install_graphics_driver, // 156
+    get_console_bitness, // 157
+    get_screen_width, // 158
+    get_screen_height, // 159
+    get_graphics_driver, // 160
     // TODO:
     0
 };

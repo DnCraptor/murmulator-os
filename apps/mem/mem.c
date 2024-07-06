@@ -21,7 +21,7 @@ int main(void) {
     size_t vsz = get_buffer_size();
     fprintf(ctx->std_out, "VRAM in heap  : %d (%dK); video mode: %d x %d x %d bit\n",
             vsz, vsz >> 10,
-            get_buffer_width(), get_buffer_height(), get_buffer_bitness()
+            get_screen_width(), get_screen_height(), get_screen_buffer_bitness()
     );
     HeapStats_t* stat = malloc(sizeof(HeapStats_t));
     vPortGetHeapStats(stat);

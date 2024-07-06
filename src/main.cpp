@@ -377,7 +377,7 @@ static void info() {
           f_getfree32(fs),
           fs->csize >> 1,
           swap_size() >> 20, swap_base(), swap_base_size() >> 10, swap_pages_base(), swap_pages(), swap_page_size() >> 10,
-          get_buffer_size() >> 10, get_buffer_width(), get_buffer_height(), get_buffer_bitness()
+          get_buffer_size() >> 10, get_console_width(), get_console_height(), get_console_bitness()
     );
 }
 

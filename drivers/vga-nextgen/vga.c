@@ -45,10 +45,10 @@ static int visible_line_size = 320;
 static int dma_chan_ctrl;
 static int dma_chan;
 
+static uint8_t* text_buffer = 0;
+static uint text_buffer_width = 0;
+static uint text_buffer_height = 0;
 static size_t text_buffer_size = 0;
-
-bool is_flash_line = false;
-bool is_flash_frame = false;
 
 //буфер 1к графической палитры
 static uint16_t palette[2][256];
@@ -61,15 +61,47 @@ static uint16_t txt_palette[16];
 //буфер 2К текстовой палитры для быстрой работы
 static uint16_t* txt_palette_fast = NULL;
 
+uint32_t get_vga_console_width() {
+    return text_buffer_width;
+}
+uint32_t get_vga_console_height() {
+    return text_buffer_height;
+}
+uint8_t* get_vga_buffer() {
+    return text_buffer;
+}
+void set_vga_buffer(uint8_t* buffer) {
+    text_buffer = buffer;
+}
+void vga_clr_scr(const uint8_t color) {
+    if (!text_buffer) return;
+    uint16_t* t_buf = (uint16_t *)text_buffer;
+    int size = text_buffer_width * text_buffer_height;
+    while (size--) *t_buf++ = color << 4 | ' ';
+    graphics_set_con_pos(0, 0);
+    graphics_set_con_color(7, color); // TODO:
+}
+void vga_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
+    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * y + 2 * x;
+    uint8_t c = (bgcolor << 4) | (color & 0xF);
+    for (int xi = x; xi < text_buffer_width * 2; ++xi) {
+        if (!(*string)) break;
+        *t_buf++ = *string++;
+        *t_buf++ = c;
+    }
+}
+
 size_t get_buffer_size() {
     return text_buffer_size;
 }
-uint8_t get_buffer_bitness() {
+uint8_t get_vga_buffer_bitness(void) {
     return 16;
 }
-void cleanup_graphics_driver() {
+void vga_cleanup(void) {
     vPortFree(txt_palette_fast);
     vPortFree(lines_pattern_data);
+    vPortFree(text_buffer);
+    text_buffer = 0;
     txt_palette_fast = 0;
     lines_pattern_data = 0;
 }
@@ -80,9 +112,6 @@ void __time_critical_func(dma_handler_VGA)() {
     static uint32_t screen_line = 0;
     static uint8_t* input_buffer = NULL;
     screen_line++;
-
-    char* text_buffer = get_buffer();
-
     if (screen_line == N_lines_total) {
         screen_line = 0;
         frame_number++;
@@ -94,8 +123,7 @@ void __time_critical_func(dma_handler_VGA)() {
         if (screen_line == N_lines_visible | screen_line == N_lines_visible + 3) {
             uint32_t* output_buffer_32bit = lines_pattern[2 + (screen_line & 1)];
             output_buffer_32bit += shift_picture / 4;
-            uint32_t p_i = (screen_line & is_flash_line) + (frame_number & is_flash_frame) & 1;
-            uint32_t color32 = bg_color[p_i];
+            uint32_t color32 = bg_color[0];
             for (int i = visible_line_size / 2; i--;) {
                 *output_buffer_32bit++ = color32;
             }
@@ -123,7 +151,6 @@ void __time_critical_func(dma_handler_VGA)() {
     // "слой" символа
     uint32_t glyph_line = screen_line % font_height;
     //указатель откуда начать считывать символы
-    uint text_buffer_width = get_buffer_width();
     uint8_t* text_buffer_line = &text_buffer[screen_line / font_height * text_buffer_width * 2];
     for (int x = 0; x < text_buffer_width; x++) {
         //из таблицы символов получаем "срез" текущего символа
@@ -164,15 +191,7 @@ void __time_critical_func(dma_handler_VGA)() {
     dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
 }
 
-void graphics_set_offset(const int x, const int y) {
-}
-
-void graphics_set_flashmode(const bool flash_line, const bool flash_frame) {
-    is_flash_frame = flash_frame;
-    is_flash_line = flash_line;
-}
-
-void graphics_set_bgcolor(const uint32_t color888) {
+void vga_set_bgcolor(const uint32_t color888) {
     const uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
     const uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };
 
@@ -189,29 +208,14 @@ void graphics_set_bgcolor(const uint32_t color888) {
                   ((c_lo << 8 | c_hi) & 0x3f3f | palette16_mask);
 }
 
-void graphics_set_palette(const uint8_t i, const uint32_t color888) {
-    const uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
-    const uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };
-
-    const uint8_t b = (color888 & 0xff) / 42;
-
-    const uint8_t r = (color888 >> 16 & 0xff) / 42;
-    const uint8_t g = (color888 >> 8 & 0xff) / 42;
-
-    const uint8_t c_hi = conv0[r] << 4 | conv0[g] << 2 | conv0[b];
-    const uint8_t c_lo = conv1[r] << 4 | conv1[g] << 2 | conv1[b];
-
-    palette[0][i] = (c_hi << 8 | c_lo) & 0x3f3f | palette16_mask;
-    palette[1][i] = (c_lo << 8 | c_hi) & 0x3f3f | palette16_mask;
-}
-
 #define TEXTMODE_COLS (80)
 #define TEXTMODE_ROWS (30)
 
 void vga_init(void) {
     text_buffer_size = TEXTMODE_COLS * TEXTMODE_ROWS * 2;
-    char* text_buffer = (uint8_t*)pvPortMalloc(text_buffer_size);
-    graphics_set_buffer(text_buffer, TEXTMODE_COLS, TEXTMODE_ROWS);
+    text_buffer = (uint8_t*)pvPortMalloc(text_buffer_size);
+    text_buffer_width = TEXTMODE_COLS;
+    text_buffer_height = TEXTMODE_ROWS;
     graphics_set_bgcolor(0x000000);
     graphics_set_offset(0, 0);
     

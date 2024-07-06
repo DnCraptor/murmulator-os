@@ -3,12 +3,24 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-static uint8_t* text_buffer = 0;
-static uint text_buffer_width = 0;
-static uint text_buffer_height = 0;
 static graphics_driver_t internal_driver = {
     0, //ctx
     vga_init,
+    vga_cleanup,
+    0, // set_mode
+    0, // is_text
+    get_vga_console_width,
+    get_vga_console_height,
+    get_vga_console_width,
+    get_vga_console_height,
+    get_vga_buffer,
+    set_vga_buffer,
+    vga_clr_scr,
+    vga_draw_text,
+    get_vga_buffer_bitness,
+    get_vga_buffer_bitness,
+    0, // set_offsets
+    vga_set_bgcolor,
 };
 static graphics_driver_t* graphics_driver = &internal_driver;
 
@@ -18,81 +30,84 @@ void graphics_init() {
     }
 }
 
-uint32_t get_buffer_width() {
-    return text_buffer_width;
+bool is_buffer_text(void) {
+    if(graphics_driver && graphics_driver->is_text) {
+        return graphics_driver->is_text();
+    }
+    return true;
 }
-uint32_t get_buffer_height() {
-    return text_buffer_height;
+
+uint32_t get_console_width() {
+    if(graphics_driver && graphics_driver->console_width) {
+        return graphics_driver->console_width();
+    }
+    return 0;
+}
+uint32_t get_console_height() {
+    if(graphics_driver && graphics_driver->console_height) {
+        return graphics_driver->console_height();
+    }
+    return 0;
+}
+uint32_t get_screen_width() {
+    if(graphics_driver && graphics_driver->screen_width) {
+        return graphics_driver->screen_width();
+    }
+    return 0;
+}
+uint32_t get_screen_height() {
+    if(graphics_driver && graphics_driver->screen_height) {
+        return graphics_driver->screen_height();
+    }
+    return 0;
 }
 uint8_t* get_buffer() {
-    return text_buffer;
+    if(graphics_driver && graphics_driver->buffer) {
+        return graphics_driver->buffer();
+    }
+    return 0;
 }
-
-void graphics_set_textbuffer(uint8_t* buffer) {
-    text_buffer = buffer;
-}
-
-void graphics_set_buffer(uint8_t* buffer, const uint16_t width, const uint16_t height) {
-    text_buffer = buffer;
-    text_buffer_width = width;
-    text_buffer_height = height;
+void graphics_set_buffer(uint8_t* buffer) {
+    if(graphics_driver && graphics_driver->set_buffer) {
+        graphics_driver->set_buffer(buffer);
+    }
 }
 
 void clrScr(const uint8_t color) {
-    if (!text_buffer) return;
-    uint16_t* t_buf = (uint16_t *)text_buffer;
-    int size = text_buffer_width * text_buffer_height;
-    while (size--) *t_buf++ = color << 4 | ' ';
-    graphics_set_con_pos(0, 0);
-    graphics_set_con_color(7, color); // TODO:
+    if(graphics_driver && graphics_driver->cls) {
+        graphics_driver->cls(color);
+    }
 }
 
 void draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
     taskENTER_CRITICAL();
-    char* text_buffer = get_buffer();
-    uint text_buffer_width = get_buffer_width();
-    uint text_buffer_height = get_buffer_height();
-    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * y + 2 * x;
-    uint8_t c = (bgcolor << 4) | (color & 0xF);
-    for (int xi = x; xi < text_buffer_width * 2; ++xi) {
-        if (!(*string)) break;
-        *t_buf++ = *string++;
-        *t_buf++ = c;
+    if(graphics_driver && graphics_driver->draw_text) {
+        graphics_driver->draw_text(string, x, y, color, bgcolor);
     }
     taskEXIT_CRITICAL();
 }
 
 void draw_window(const char* title, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
-    taskENTER_CRITICAL();
     char line[width + 1];
     memset(line, 0, sizeof line);
     width--;
     height--;
     // Рисуем рамки
-
     memset(line, 0xCD, width); // ═══
-
-
     line[0] = 0xC9; // ╔
     line[width] = 0xBB; // ╗
     draw_text(line, x, y, 11, 1);
-
     line[0] = 0xC8; // ╚
     line[width] = 0xBC; //  ╝
     draw_text(line, x, height + y, 11, 1);
-
     memset(line, ' ', width);
     line[0] = line[width] = 0xBA;
-
     for (int i = 1; i < height; i++) {
         draw_text(line, x, y + i, 11, 1);
     }
-
     snprintf(line, width - 1, " %s ", title);
     draw_text(line, x + (width - strlen(line)) / 2, y, 14, 3);
-    taskEXIT_CRITICAL();
 }
-
 
 volatile int pos_x = 0;
 volatile int pos_y = 0;
@@ -115,8 +130,9 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
 char* _rollup(char* t_buf) {
     taskENTER_CRITICAL();
     char* text_buffer = get_buffer();
-    uint text_buffer_width = get_buffer_width();
-    uint text_buffer_height = get_buffer_height();
+    uint text_buffer_width = get_console_width();
+    uint text_buffer_height = get_console_height();
+    // TODO: bitness
     if (pos_y >= text_buffer_height - 1) {
         memcpy(text_buffer, text_buffer + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
         t_buf = text_buffer + text_buffer_width * (text_buffer_height - 2) * 2;
@@ -133,7 +149,7 @@ char* _rollup(char* t_buf) {
 void gbackspace() {
     taskENTER_CRITICAL();
     char* text_buffer = get_buffer();
-    uint text_buffer_width = get_buffer_width();
+    uint text_buffer_width = get_console_width();
     uint8_t* t_buf;
     //do {
         pos_x--;
@@ -144,7 +160,7 @@ void gbackspace() {
                 pos_y = 0;
             }
         }
-        t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+        t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x; // todo: bitness
     //} while(*t_buf == ' ');
     *t_buf++ = ' ';
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
@@ -159,7 +175,7 @@ void __putc(char c) {
 void gouta(char* buf) {
     taskENTER_CRITICAL();
     char* text_buffer = get_buffer();
-    uint text_buffer_width = get_buffer_width();
+    uint text_buffer_width = get_console_width();
     uint8_t* t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
     char c;
     while (c = *buf++) {
@@ -220,6 +236,10 @@ void fgoutf(FIL *f, const char *__restrict str, ...) {
     vPortFree(buf);
 }
 
+graphics_driver_t* get_graphics_driver() {
+    return graphics_driver;
+}
+
 void install_graphics_driver(graphics_driver_t* gd) {
     if (graphics_driver) {
         cleanup_graphics();
@@ -233,11 +253,39 @@ void install_graphics_driver(graphics_driver_t* gd) {
 }
 
 void graphics_set_mode(int mode) {
-
+    if(graphics_driver && graphics_driver->set_mode) {
+        graphics_driver->set_mode(mode);
+    }
 }
 
-void cleanup_graphics() {
-    cleanup_graphics_driver();
-    vPortFree(text_buffer);
-    text_buffer = 0;
+void cleanup_graphics(void) {
+    if(graphics_driver && graphics_driver->cleanup) {
+        graphics_driver->cleanup();
+    }
+}
+
+uint8_t get_console_bitness() {
+    if(graphics_driver && graphics_driver->console_bitness) {
+        return graphics_driver->console_bitness();
+    }
+    return 0;
+}
+
+uint8_t get_screen_bitness() {
+    if(graphics_driver && graphics_driver->screen_bitness) {
+        return graphics_driver->screen_bitness();
+    }
+    return 0;
+}
+
+void graphics_set_offset(const int x, const int y) {
+    if(graphics_driver && graphics_driver->set_offsets) {
+        graphics_driver->set_offsets(x, y);
+    }
+}
+
+void graphics_set_bgcolor(const uint32_t color888) {
+    if(graphics_driver && graphics_driver->set_bgcolor) {
+        graphics_driver->set_bgcolor(color888);
+    }
 }
