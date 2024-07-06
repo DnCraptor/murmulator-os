@@ -5,7 +5,7 @@ int main(void) {
     uint32_t flash32 = get_cpu_flash_size();
     uint32_t ram32 = get_cpu_ram_size();
     uint32_t sz = psram_size();
-    fgoutf(ctx->std_out,
+    fprintf(ctx->std_out,
             "SRAM size : %d (%dK) bytes\n"
             "FLASH size: %d (%dK) bytes\n"
             "PSRAM size: %d (%dK) bytes\n",
@@ -13,15 +13,20 @@ int main(void) {
             flash32, flash32 >> 10,
             sz, sz >> 10);
     sz = swap_size();
-    fgoutf(ctx->std_out,
+    fprintf(ctx->std_out,
             "SWAP size : %d (%dK) bytes\n", sz, sz >> 10);
     sz = swap_base_size();
-    fgoutf(ctx->std_out,
+    fprintf(ctx->std_out,
             "SWAP SRAM size: %d (%dK) bytes\n", sz, sz >> 10);
+    size_t vsz = get_buffer_size();
+    fprintf(ctx->std_out, "VRAM in heap  : %d (%dK); video mode: %d x %d x %d bit\n",
+            vsz, vsz >> 10,
+            get_buffer_width(), get_buffer_height(), get_buffer_bitness()
+    );
     HeapStats_t* stat = malloc(sizeof(HeapStats_t));
     vPortGetHeapStats(stat);
     size_t heap = get_heap_total();
-    fgoutf(ctx->std_out,
+    fprintf(ctx->std_out,
             "Heap memory: %d (%dK)\n"
             " available bytes total: %d (%dK)\n"
             "         largets block: %d (%dK)\n",
@@ -29,7 +34,7 @@ int main(void) {
             stat->xAvailableHeapSpaceInBytes, stat->xAvailableHeapSpaceInBytes >> 10,
             stat->xSizeOfLargestFreeBlockInBytes, stat->xSizeOfLargestFreeBlockInBytes >> 10
     );
-    fgoutf(ctx->std_out,
+    fprintf(ctx->std_out,
             "        smallest block: %d (%dK)\n"
             "           free blocks: %d\n"
             "    min free remaining: %d (%dK)\n"

@@ -20,9 +20,6 @@ extern "C" {
 #include "tv.h"
 #endif
 
-// Буффер текстового режима
-extern uint8_t* text_buffer;
-
 void graphics_init();
 
 void graphics_set_buffer(uint8_t* buffer, uint16_t width, uint16_t height);
@@ -46,8 +43,12 @@ void gouta(char* buf);
 void gbackspace();
 void graphics_set_con_pos(int x, int y);
 void graphics_set_con_color(uint8_t color, uint8_t bgcolor);
-uint32_t get_text_buffer_width();
-uint32_t get_text_buffer_height();
+uint32_t get_buffer_width();
+uint32_t get_buffer_height();
+uint8_t* get_buffer();
+size_t get_buffer_size();
+uint8_t get_buffer_bitness();
+void cleanup_graphics();
 
 void clrScr(uint8_t color);
 

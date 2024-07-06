@@ -513,11 +513,11 @@ inline static void remove_ctx(cmd_ctx_t* src) {
     ((fn_ptr_t)_sys_table_ptrs[144])(src);
 }
 
-inline static uint32_t get_text_buffer_width() {
+inline static uint32_t get_buffer_width() {
     typedef uint32_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[146])();
 }
-inline static uint32_t get_text_buffer_height() {
+inline static uint32_t get_buffer_height() {
     typedef uint32_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[147])();
 }
@@ -525,6 +525,19 @@ typedef FIL FILE;
 inline static int getc(FILE* in) { // return -1 for EOF
     typedef int (*fn_ptr_t)(FILE* in);
     return ((fn_ptr_t)_sys_table_ptrs[148])(in);
+}
+
+inline static uint8_t* get_buffer() {
+    typedef uint8_t* (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[152])();
+}
+inline static size_t get_buffer_size() {
+    typedef size_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[153])();
+}
+inline static uint8_t get_buffer_bitness() {
+    typedef uint8_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[154])();
 }
 
 #ifdef __cplusplus

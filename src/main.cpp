@@ -38,21 +38,10 @@ extern "C" FATFS* get_mount_fs() { // only one FS is supported foe now
     return &fs;
 }
 semaphore vga_start_semaphore;
-#define TEXTMODE_COLS (80)
-#define TEXTMODE_ROWS (30)
-
-static uint8_t* SCREEN = 0;
 
 void __time_critical_func(render_core)() {
     multicore_lockout_victim_init();
     graphics_init();
-
-    const auto buffer = (uint8_t *)SCREEN;
-    graphics_set_buffer(buffer, TEXTMODE_COLS, TEXTMODE_ROWS);
-    graphics_set_textbuffer(buffer);
-    graphics_set_bgcolor(0x000000);
-    graphics_set_offset(0, 0);
-   // graphics_set_mode();
     clrScr(1);
 
     sem_acquire_blocking(&vga_start_semaphore);
@@ -328,7 +317,6 @@ static void init() {
     nespad_read();
     sleep_ms(50);
 
-    SCREEN = (uint8_t*)pvPortMalloc(80 * 30 * 2);
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);

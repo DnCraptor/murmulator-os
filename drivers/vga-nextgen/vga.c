@@ -34,7 +34,6 @@ static uint32_t* lines_pattern[4];
 static uint32_t* lines_pattern_data = NULL;
 static int _SM_VGA = -1;
 
-
 static int N_lines_total = 525;
 static int N_lines_visible = 480;
 static int line_VS_begin = 490;
@@ -43,16 +42,11 @@ static int shift_picture = 0;
 
 static int visible_line_size = 320;
 
-
 static int dma_chan_ctrl;
 static int dma_chan;
 
-static uint8_t* graphics_buffer;
-uint8_t* text_buffer;
-static uint graphics_buffer_width = 0;
-static uint graphics_buffer_height = 0;
-int graphics_buffer_shift_x = 0;
-int graphics_buffer_shift_y = 0;
+static uint8_t* text_buffer = 0;
+static size_t text_buffer_size = 0;
 
 bool is_flash_line = false;
 bool is_flash_frame = false;
@@ -63,19 +57,36 @@ static uint16_t palette[2][256];
 uint32_t bg_color[2];
 static uint16_t palette16_mask = 0;
 
-uint text_buffer_width = 0;
-uint text_buffer_height = 0;
+static uint text_buffer_width = 0;
+static uint text_buffer_height = 0;
 
 static uint16_t txt_palette[16];
 
 //буфер 2К текстовой палитры для быстрой работы
 static uint16_t* txt_palette_fast = NULL;
 
-uint32_t get_text_buffer_width() {
+uint32_t get_buffer_width() {
     return text_buffer_width;
 }
-uint32_t get_text_buffer_height() {
+uint32_t get_buffer_height() {
     return text_buffer_height;
+}
+uint8_t* get_buffer() {
+    return text_buffer;
+}
+size_t get_buffer_size() {
+    return text_buffer_size;
+}
+uint8_t get_buffer_bitness() {
+    return 16;
+}
+void cleanup_graphics() {
+    vPortFree(text_buffer);
+    vPortFree(txt_palette_fast);
+    vPortFree(lines_pattern_data);
+    text_buffer = 0;
+    txt_palette_fast = 0;
+    lines_pattern_data = 0;
 }
 
 void __time_critical_func(dma_handler_VGA)() {
@@ -88,7 +99,7 @@ void __time_critical_func(dma_handler_VGA)() {
     if (screen_line == N_lines_total) {
         screen_line = 0;
         frame_number++;
-        input_buffer = graphics_buffer;
+        input_buffer = text_buffer;
     }
 
     if (screen_line >= N_lines_visible) {
@@ -167,15 +178,12 @@ void __time_critical_func(dma_handler_VGA)() {
 }
 
 void graphics_set_buffer(uint8_t* buffer, const uint16_t width, const uint16_t height) {
-    graphics_buffer = buffer;
-    graphics_buffer_width = width;
-    graphics_buffer_height = height;
+    text_buffer = buffer;
+    text_buffer_width = width;
+    text_buffer_height = height;
 }
 
-
 void graphics_set_offset(const int x, const int y) {
-    graphics_buffer_shift_x = x;
-    graphics_buffer_shift_y = y;
 }
 
 void graphics_set_flashmode(const bool flash_line, const bool flash_frame) {
@@ -220,7 +228,16 @@ void graphics_set_palette(const uint8_t i, const uint32_t color888) {
     palette[1][i] = (c_lo << 8 | c_hi) & 0x3f3f | palette16_mask;
 }
 
+#define TEXTMODE_COLS (80)
+#define TEXTMODE_ROWS (30)
+
 void graphics_init() {
+    text_buffer_size = TEXTMODE_COLS * TEXTMODE_ROWS * 2;
+    text_buffer = (uint8_t*)pvPortMalloc(text_buffer_size);
+    graphics_set_buffer(text_buffer, TEXTMODE_COLS, TEXTMODE_ROWS);
+    graphics_set_bgcolor(0x000000);
+    graphics_set_offset(0, 0);
+    
     //инициализация палитры по умолчанию
 #if 1
     const uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
@@ -355,7 +372,8 @@ void graphics_init() {
         PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
         dma_channel_set_trans_count(dma_chan, line_size / 4, false);
 
-        lines_pattern_data = (uint32_t *)pvPortCalloc(line_size * 4 / 4, sizeof(uint32_t));
+        text_buffer_size += line_size * sizeof(uint32_t);
+        lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
 
         for (int i = 0; i < 4; i++) {
             lines_pattern[i] = &lines_pattern_data[i * (line_size / 4)];
@@ -397,6 +415,7 @@ void graphics_init() {
             }
 
             if (!txt_palette_fast) {
+                text_buffer_size += 256 * 4 * sizeof(uint16_t);
                 txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
                 for (int i = 0; i < 256; i++) {
                     const uint8_t c1 = txt_palette[i & 0xf];

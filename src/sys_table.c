@@ -204,13 +204,18 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     xPortGetFreeHeapSize, // 145
     //
-    get_text_buffer_width, // 146
-    get_text_buffer_height, // 147
+    get_buffer_width, // 146
+    get_buffer_height, // 147
     //
     __getc, // 148
     f_eof, // 149
     f_getc, // 150
     f_open_pipe, // 151
+    //
+    get_buffer, // 152
+    get_buffer_size, // 153
+    get_buffer_bitness, // 154
+    cleanup_graphics, // 155
     // TODO:
     0
 };

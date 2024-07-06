@@ -3,11 +3,12 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-extern uint text_buffer_width;
-extern uint text_buffer_height;
 
 void draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
     taskENTER_CRITICAL();
+    char* text_buffer = get_buffer();
+    uint text_buffer_width = get_buffer_width();
+    uint text_buffer_height = get_buffer_height();
     uint8_t* t_buf = text_buffer + text_buffer_width * 2 * y + 2 * x;
     uint8_t c = (bgcolor << 4) | (color & 0xF);
     for (int xi = x; xi < text_buffer_width * 2; ++xi) {
@@ -70,6 +71,9 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
 
 char* _rollup(char* t_buf) {
     taskENTER_CRITICAL();
+    char* text_buffer = get_buffer();
+    uint text_buffer_width = get_buffer_width();
+    uint text_buffer_height = get_buffer_height();
     if (pos_y >= text_buffer_height - 1) {
         memcpy(text_buffer, text_buffer + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
         t_buf = text_buffer + text_buffer_width * (text_buffer_height - 2) * 2;
@@ -85,6 +89,8 @@ char* _rollup(char* t_buf) {
 
 void gbackspace() {
     taskENTER_CRITICAL();
+    char* text_buffer = get_buffer();
+    uint text_buffer_width = get_buffer_width();
     uint8_t* t_buf;
     //do {
         pos_x--;
@@ -109,6 +115,8 @@ void __putc(char c) {
 
 void gouta(char* buf) {
     taskENTER_CRITICAL();
+    char* text_buffer = get_buffer();
+    uint text_buffer_width = get_buffer_width();
     uint8_t* t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
     char c;
     while (c = *buf++) {
