@@ -20,36 +20,10 @@ extern "C" {
 #include "tv.h"
 #endif
 
-typedef enum graphics_mode_t {
-    TEXTMODE_DEFAULT,
-    GRAPHICSMODE_DEFAULT,
-
-    TEXTMODE_53x30,
-    TEXTMODE_160x100,
-
-    CGA_160x200x16,
-    CGA_320x200x4,
-    CGA_640x200x2,
-
-    TGA_320x200x16,
-    EGA_320x200x16x4,
-    VGA_320x240x256,
-    VGA_320x200x256x4,
-
-// 1024*768
-    BK_256x256x2,
-    BK_512x256x1,
-    TEXTMODE_128x48,
-
-    // planar VGA
-} graphics_mode_t;
-
 // Буффер текстового режима
 extern uint8_t* text_buffer;
 
 void graphics_init();
-
-void graphics_set_mode(enum graphics_mode_t mode);
 
 void graphics_set_buffer(uint8_t* buffer, uint16_t width, uint16_t height);
 

@@ -3,7 +3,7 @@ add_library(vga-nextgen INTERFACE)
 target_sources(vga-nextgen INTERFACE
         ${CMAKE_CURRENT_LIST_DIR}/fnt8x16.c
         ${CMAKE_CURRENT_LIST_DIR}/vga.c
-        ${CMAKE_CURRENT_LIST_DIR}/vga1024.c
+#        ${CMAKE_CURRENT_LIST_DIR}/vga1024.c
 )
 
 target_link_libraries(vga-nextgen INTERFACE hardware_pio hardware_dma)

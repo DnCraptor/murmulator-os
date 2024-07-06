@@ -52,7 +52,7 @@ void __time_critical_func(render_core)() {
     graphics_set_textbuffer(buffer);
     graphics_set_bgcolor(0x000000);
     graphics_set_offset(0, 0);
-    graphics_set_mode(TEXTMODE_DEFAULT);
+   // graphics_set_mode();
     clrScr(1);
 
     sem_acquire_blocking(&vga_start_semaphore);
@@ -193,12 +193,8 @@ static void load_config_sys() {
                 b_swap = true;
             } else if (strcmp(t, "GMODE") == 0) {
                 t = next_token(t);
-                graphics_mode_t mode = (graphics_mode_t)atoi(t);
-                if (mode == TEXTMODE_DEFAULT || mode == TEXTMODE_53x30 || mode == TEXTMODE_160x100) {
-                    graphics_set_mode(mode);
-                } else {
-                    goutf("Unsupported GMODE: %d\n", mode);
-                }
+                int mode = atoi(t);
+               
             } else if (strcmp(t, BASE) == 0) {
                 t = next_token(t);
                 set_ctx_var(ctx, BASE, t);
