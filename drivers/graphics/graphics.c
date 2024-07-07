@@ -200,6 +200,7 @@ void gouta(char* buf) {
         if (c == '\n') {
             pos_x = 0;
             pos_y++;
+            graphics_set_con_pos(pos_x, pos_y);
             t_buf = _rollup(t_buf);
             continue;
         }
@@ -207,6 +208,7 @@ void gouta(char* buf) {
         if (pos_x >= text_buffer_width) {
             pos_x = 0;
             pos_y++;
+            graphics_set_con_pos(pos_x, pos_y);
             t_buf = _rollup(t_buf);
             *t_buf++ = c;
             *t_buf++ = con_bgcolor << 4 | con_color & 0xF;

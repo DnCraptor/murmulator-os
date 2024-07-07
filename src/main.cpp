@@ -376,7 +376,6 @@ static void init() {
         while (true);
     }
     load_config_sys();
-    draw_text(tmp, 0, 0, 13, 1);
 
     init_psram();
 }
