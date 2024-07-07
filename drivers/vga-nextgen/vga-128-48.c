@@ -30,31 +30,33 @@ const struct pio_program pio_program_VGA = {
     .origin = -1,
 };
 
-int pallete_mask = 3; // 11 - 2 bits
+int __scratch_y("vga_driver_text") pallete_mask = 3; // 11 - 2 bits
 
-static uint32_t* lines_pattern[4]; // TODO: unify
-static uint32_t* lines_pattern_data = NULL;
-static int _SM_VGA = -1;
+static uint32_t* __scratch_y("vga_driver_text") lines_pattern[4]; // TODO: unify
+static uint32_t* __scratch_y("vga_driver_text") lines_pattern_data = NULL;
+static int __scratch_y("vga_driver_text") _SM_VGA = -1;
 
+#define TMPL_LINE8 0b11000000
+// XGA Signal 1024 x 768 @ 60 Hz timing
+#define HS_SHIFT (1024 + 24) // Front porch + Visible area
+#define HS_SIZE 160 // Back porch
+#define line_size 1344
+#define shift_picture (line_size - HS_SHIFT)
+#define palette16_mask 0xC0C0
+#define visible_line_size (1024 / 2)
+#define N_lines_visible 768
+#define line_VS_begin (768 + 3) // + Front porch
+#define line_VS_end (768 + 3 + 6) // ++ Sync pulse 2?
+#define N_lines_total 806 // Whole frame
 
-static int N_lines_total = 525;
-static int N_lines_visible = 480;
-static int line_VS_begin = 490;
-static int line_VS_end = 491;
-static int shift_picture = 0;
+static int __scratch_y("vga_driver_text") begin_line_index = 0;
+static int __scratch_y("vga_driver_text") dma_chan_ctrl;
+static int __scratch_y("vga_driver_text") dma_chan;
 
-static int begin_line_index = 0;
-static int visible_line_size = 320;
+static uint8_t* __scratch_y("vga_driver_text") text_buffer;
 
-
-static int dma_chan_ctrl;
-static int dma_chan;
-
-static uint8_t* text_buffer;
-static uint graphics_buffer_width = 0;
-
-static bool is_flash_line = true;
-static bool is_flash_frame = true;
+static bool __scratch_y("vga_driver_text") is_flash_line = true;
+static bool __scratch_y("vga_driver_text") is_flash_frame = true;
 
 //буфер 1к графической палитры
 static uint16_t __scratch_y("vga_driver_text") palette[16*4];
@@ -69,9 +71,6 @@ static volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 
 static uint8_t __scratch_y("vga_driver_text") con_color = 7;
 static uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
-
-static uint16_t __scratch_y("vga_driver_text") palette16_mask = 0;
-
 static uint16_t __scratch_y("vga_driver_text") txt_palette[16];
 
 //буфер 2К текстовой палитры для быстрой работы
@@ -373,12 +372,6 @@ void vga_init(void) {
     uint8_t TMPL_VHS8 = 0;
     uint8_t TMPL_VS8 = 0;
     uint8_t TMPL_HS8 = 0;
-    uint8_t TMPL_LINE8 = 0;
-
-    int line_size;
-    double fdiv = 100;
-    int HS_SIZE = 4;
-    int HS_SHIFT = 100;
     vga_init_palette();
 
     //корректировка  палитры по маске бит синхры
@@ -454,20 +447,7 @@ void vga_init(void) {
         false // Don't start yet
     );
 
-            TMPL_LINE8 = 0b11000000;
-            // XGA Signal 1024 x 768 @ 60 Hz timing
-            HS_SHIFT = 1024 + 24; // Front porch + Visible area
-            HS_SIZE = 160; // Back porch
-            line_size = 1344;
-            shift_picture = line_size - HS_SHIFT;
-            palette16_mask = 0xc0c0;
-            visible_line_size = 1024 / 2;
-            N_lines_visible = 768;
-            line_VS_begin = 768 + 3; // + Front porch
-            line_VS_end = 768 + 3 + 6; // ++ Sync pulse 2?
-            N_lines_total = 806; // Whole frame
-            fdiv = clock_get_hz(clk_sys) / (65000000.0); // 65.0 MHz
-
+    double fdiv = clock_get_hz(clk_sys) / (65000000.0); // 65.0 MHz
     //инициализация шаблонов строк и синхросигнала
     if (!(lines_pattern_data)) //выделение памяти, если не выделено
     {
@@ -475,7 +455,7 @@ void vga_init(void) {
         PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
         dma_channel_set_trans_count(dma_chan, line_size / 4, false);
 
-        lines_pattern_data = (uint32_t *)calloc(line_size * 4 / 4, sizeof(uint32_t));;
+        lines_pattern_data = (uint32_t *)pvPortCalloc(line_size * 4 / 4, sizeof(uint32_t));;
 
         for (int i = 0; i < 4; i++) {
             lines_pattern[i] = &lines_pattern_data[i * (line_size / 4)];
