@@ -65,13 +65,13 @@ static uint __scratch_y("vga_driver_text") text_buffer_height = 0;
 static size_t __scratch_y("vga_driver_text") text_buffer_size = 0;
 
 static uint32_t __scratch_y("vga_driver_text") bg_color[2];
+static volatile __scratch_y("vga_driver_text") int pos_x = 0;
+static volatile __scratch_y("vga_driver_text") int pos_y = 0;
+static volatile __scratch_y("vga_driver_text") bool cursor_blink_state = true;
+
 static uint16_t palette16_mask = 0;
 
-extern uint8_t* text_buffer;
 static uint8_t* text_buf_color;
-
-extern uint text_buffer_width;
-extern uint text_buffer_height;
 
 static uint16_t __scratch_y("vga_driver_text") txt_palette[16];
 
@@ -90,6 +90,16 @@ uint8_t* get_vga_buffer() {
 }
 void set_vga_buffer(uint8_t* buffer) {
     text_buffer = buffer;
+}
+int vga_con_x(void) {
+    return pos_x;
+}
+int vga_con_y(void) {
+    return pos_y;
+}
+void vga_set_con_pos(int x, int y) {
+    pos_x = x;
+    pos_y = y;
 }
 void vga_clr_scr(const uint8_t color) {
     if (!text_buffer) return;
@@ -168,28 +178,38 @@ void __scratch_y("vga_driver") dma_handler_VGA() {
 
     uint32_t* * output_buffer = &lines_pattern[2 + (screen_line & 1)];
     uint div_factor = 2;
-            uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
-            output_buffer_16bit += shift_picture / 2;
-            const uint font_weight = 8;
-            const uint font_height = 16;
-            // "слой" символа
-            uint32_t glyph_line = screen_line % font_height;
-            //указатель откуда начать считывать символы
-            uint8_t* text_buffer_line = &text_buffer[screen_line / font_height * text_buffer_width * 2];
-            for (int x = 0; x < text_buffer_width; x++) {
-                //из таблицы символов получаем "срез" текущего символа
-                uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
-                //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
-                uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-                glyph_pixels >>= 2;
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-                glyph_pixels >>= 2;
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-                glyph_pixels >>= 2;
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-            }
-            dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
+    uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
+    output_buffer_16bit += shift_picture / 2;
+    const uint font_weight = 8;
+    const uint font_height = 16;
+    // "слой" символа
+    uint32_t glyph_line = screen_line % font_height;
+    //указатель откуда начать считывать символы
+    uint8_t* text_buffer_line = &text_buffer[screen_line / font_height * text_buffer_width * 2];
+    for (int x = 0; x < text_buffer_width; x++) {
+        //из таблицы символов получаем "срез" текущего символа
+        uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
+        //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
+        uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
+        if (cursor_blink_state && (screen_line >> 4) == pos_y && x == pos_x && glyph_line >= 13) { // TODO: cur height
+            color = &txt_palette_fast[0];
+            uint16_t c = color[7]; // TODO: setup cursor color
+            *output_buffer_16bit++ = c;
+            *output_buffer_16bit++ = c;
+            *output_buffer_16bit++ = c;
+            *output_buffer_16bit++ = c;
+        }
+        else {
+            *output_buffer_16bit++ = color[glyph_pixels & 3];
+            glyph_pixels >>= 2;
+            *output_buffer_16bit++ = color[glyph_pixels & 3];
+            glyph_pixels >>= 2;
+            *output_buffer_16bit++ = color[glyph_pixels & 3];
+            glyph_pixels >>= 2;
+            *output_buffer_16bit++ = color[glyph_pixels & 3];
+        }
+    }
+    dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
 }
 
 

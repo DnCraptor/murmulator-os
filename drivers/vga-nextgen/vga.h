@@ -20,3 +20,6 @@ void vga_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgco
 uint8_t get_vga_buffer_bitness(void);
 void vga_set_bgcolor(const uint32_t color888);
 size_t vga_buffer_size();
+void vga_set_con_pos(int x, int y);
+int vga_con_x(void);
+int vga_con_y(void);

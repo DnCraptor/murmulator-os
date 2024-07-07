@@ -45,9 +45,12 @@ size_t get_buffer_size();
 uint8_t get_screen_bitness();
 void cleanup_graphics();
 bool is_buffer_text();
+int graphics_con_x(void);
+int graphics_con_y(void);
 
 typedef void (*vv_fn)(void);
 typedef void (*vi_fn)(int);
+typedef int (*iv_fn)(void);
 typedef bool (*bv_fn)(void);
 typedef uint32_t (*u32v_fn)(void);
 typedef uint8_t* (*pu8v_fn)(void);
@@ -55,7 +58,7 @@ typedef uint8_t (*u8v_fn)(void);
 typedef void (*vpu8_fn)(uint8_t*);
 typedef void (*vu8_fn)(uint8_t);
 typedef void (*dt_fn)(const char* string, int x, int y, uint8_t color, uint8_t bgcolor);
-typedef void (*set_offsets_fn)(const int x, const int y);
+typedef void (*vii_fn)(const int x, const int y);
 typedef void (*vcu32_fn)(const uint32_t color888);
 typedef struct graphics_driver {
     cmd_ctx_t* ctx;
@@ -73,19 +76,17 @@ typedef struct graphics_driver {
     dt_fn draw_text;
     u8v_fn console_bitness;
     u8v_fn screen_bitness;
-    set_offsets_fn set_offsets;
+    vii_fn set_offsets;
     vcu32_fn set_bgcolor;
     u32v_fn allocated;
+    vii_fn set_con_pos;
+    iv_fn pos_x;
+    iv_fn pos_y;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();
 void clrScr(uint8_t color);
 void graphics_set_mode(int mode);
-
-extern volatile int pos_x;
-extern volatile int pos_y;
-extern volatile bool cursor_blink_state;
-
 
 #ifdef __cplusplus
 }

@@ -69,6 +69,9 @@ static uint16_t __scratch_y("vga_driver_text") txt_palette[16];
 
 //буфер 2К текстовой палитры для быстрой работы
 static uint16_t* __scratch_y("vga_driver_text") txt_palette_fast = NULL;
+static volatile __scratch_y("vga_driver_text") int pos_x = 0;
+static volatile __scratch_y("vga_driver_text") int pos_y = 0;
+static volatile __scratch_y("vga_driver_text") bool cursor_blink_state = true;
 
 uint32_t get_vga_console_width() {
     return text_buffer_width;
@@ -81,6 +84,16 @@ uint8_t* get_vga_buffer() {
 }
 void set_vga_buffer(uint8_t* buffer) {
     text_buffer = buffer;
+}
+int vga_con_x(void) {
+    return pos_x;
+}
+int vga_con_y(void) {
+    return pos_y;
+}
+void vga_set_con_pos(int x, int y) {
+    pos_x = x;
+    pos_y = y;
 }
 void vga_clr_scr(const uint8_t color) {
     if (!text_buffer) return;
