@@ -38,7 +38,8 @@ static graphics_driver_t internal_driver = {
     vga_con_x,
     vga_con_y,
     vga_set_con_color,
-    vga_print
+    vga_print,
+    vga_backspace
 };
 static graphics_driver_t* graphics_driver = &internal_driver;
 
@@ -128,28 +129,6 @@ void draw_window(const char* title, uint32_t x, uint32_t y, uint32_t width, uint
     }
     snprintf(line, width - 1, " %s ", title);
     draw_text(line, x + (width - strlen(line)) / 2, y, 14, 3);
-}
-
-void gbackspace() {
-    taskENTER_CRITICAL();
-    char* text_buffer = get_buffer();
-    uint text_buffer_width = get_console_width();
-    int pos_x = graphics_con_x();
-    int pos_y = graphics_con_y();
-    uint8_t* t_buf;
-    pos_x--;
-    if (pos_x < 0) {
-        pos_x = text_buffer_width - 2;
-        pos_y--;
-        if (pos_y < 0) {
-            pos_y = 0;
-        }
-    }
-    t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x; // todo: bitness
-    graphics_set_con_pos(pos_x, pos_y);
-    *t_buf++ = ' ';
-    *t_buf++ = 0; // TODO: con_bgcolor << 4 | con_color & 0xF;
-    taskEXIT_CRITICAL();
 }
 
 void __putc(char c) {
@@ -283,6 +262,14 @@ void gouta(char* buf) {
     taskENTER_CRITICAL();
     if(graphics_driver && graphics_driver->print) {
         graphics_driver->print(buf);
+    }
+    taskEXIT_CRITICAL();
+}
+
+void gbackspace() {
+    taskENTER_CRITICAL();
+    if(graphics_driver && graphics_driver->backspace) {
+        graphics_driver->backspace();
     }
     taskEXIT_CRITICAL();
 }

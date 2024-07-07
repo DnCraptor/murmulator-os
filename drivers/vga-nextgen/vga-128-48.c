@@ -52,11 +52,9 @@ static int dma_chan;
 
 static uint8_t* text_buffer;
 static uint graphics_buffer_width = 0;
-extern int graphics_buffer_shift_x;
-extern int graphics_buffer_shift_y;
 
-bool is_flash_line = false;
-bool is_flash_frame = false;
+static bool is_flash_line = true;
+static bool is_flash_frame = true;
 
 //буфер 1к графической палитры
 static uint16_t __scratch_y("vga_driver_text") palette[16*4];
@@ -65,19 +63,25 @@ static uint __scratch_y("vga_driver_text") text_buffer_height = 0;
 static size_t __scratch_y("vga_driver_text") text_buffer_size = 0;
 
 static uint32_t __scratch_y("vga_driver_text") bg_color[2];
-static volatile __scratch_y("vga_driver_text") int pos_x = 0;
-static volatile __scratch_y("vga_driver_text") int pos_y = 0;
-static volatile __scratch_y("vga_driver_text") bool cursor_blink_state = true;
+static volatile int __scratch_y("vga_driver_text") pos_x = 0;
+static volatile int __scratch_y("vga_driver_text") pos_y = 0;
+static volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 
-static uint16_t palette16_mask = 0;
+static uint8_t __scratch_y("vga_driver_text") con_color = 7;
+static uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
 
-static uint8_t* text_buf_color;
+static uint16_t __scratch_y("vga_driver_text") palette16_mask = 0;
 
 static uint16_t __scratch_y("vga_driver_text") txt_palette[16];
 
 //буфер 2К текстовой палитры для быстрой работы
-static uint16_t* txt_palette_fast = NULL;
+static uint16_t* __scratch_y("vga_driver_text") txt_palette_fast = NULL;
 //static uint16_t txt_palette_fast[256*4];
+
+void vga_set_con_color(uint8_t color, uint8_t bgcolor) {
+    con_color = color;
+    con_bgcolor = bgcolor;
+}
 
 uint32_t get_vga_console_width() {
     return text_buffer_width;
@@ -508,20 +512,20 @@ void vga_init(void) {
 
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask(1u << dma_chan);
-            for (int i = 0; i < 16; i++) {
-                txt_palette[i] = (txt_palette[i] & 0x3f) | (palette16_mask >> 8);
-            }
-            if (!(txt_palette_fast)) {
-                txt_palette_fast = (uint16_t *)calloc(256 * 4, sizeof(uint16_t));
-                for (int i = 0; i < 256; i++) {
-                    uint8_t c1 = txt_palette[i & 0xf];
-                    uint8_t c0 = txt_palette[i >> 4];
-                    txt_palette_fast[i * 4 + 0] = (c0) | (c0 << 8);
-                    txt_palette_fast[i * 4 + 1] = (c1) | (c0 << 8);
-                    txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
-                    txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
-                }
-            }
+    for (int i = 0; i < 16; i++) {
+        txt_palette[i] = (txt_palette[i] & 0x3f) | (palette16_mask >> 8);
+    }
+    if (!(txt_palette_fast)) {
+        txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
+        for (int i = 0; i < 256; i++) {
+            uint8_t c1 = txt_palette[i & 0xf];
+            uint8_t c0 = txt_palette[i >> 4];
+            txt_palette_fast[i * 4 + 0] = (c0) | (c0 << 8);
+            txt_palette_fast[i * 4 + 1] = (c1) | (c0 << 8);
+            txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
+            txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
+        }
+    }
 
 };
 /* TODO:
@@ -649,4 +653,19 @@ void vga_print(char* buf) {
             *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
         }
     }
+}
+
+void vga_backspace(void) {
+    uint8_t* t_buf;
+    pos_x--;
+    if (pos_x < 0) {
+        pos_x = text_buffer_width - 2;
+        pos_y--;
+        if (pos_y < 0) {
+            pos_y = 0;
+        }
+    }
+    t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    *t_buf++ = ' ';
+    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }

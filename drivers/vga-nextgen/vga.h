@@ -25,3 +25,4 @@ int vga_con_x(void);
 int vga_con_y(void);
 void vga_set_con_color(uint8_t color, uint8_t bgcolor);
 void vga_print(char* buf);
+void vga_backspace(void);

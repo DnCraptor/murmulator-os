@@ -85,6 +85,7 @@ typedef struct graphics_driver {
     iv_fn pos_y;
     vu8u8_fn set_con_color;
     vpu8_fn print;
+    vv_fn backspace;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();

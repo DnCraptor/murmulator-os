@@ -491,3 +491,18 @@ void vga_print(char* buf) {
         }
     }
 }
+
+void vga_backspace(void) {
+    uint8_t* t_buf;
+    pos_x--;
+    if (pos_x < 0) {
+        pos_x = text_buffer_width - 2;
+        pos_y--;
+        if (pos_y < 0) {
+            pos_y = 0;
+        }
+    }
+    t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    *t_buf++ = ' ';
+    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+}

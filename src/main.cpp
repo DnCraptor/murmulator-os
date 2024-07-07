@@ -47,6 +47,7 @@ void __time_critical_func(render_core)() {
     // install_graphics_driver(gd);
 
     sem_acquire_blocking(&vga_start_semaphore);
+    /*
     // 60 FPS loop
 #define frame_tick (16666)
     uint64_t tick = time_us_64();
@@ -72,6 +73,7 @@ void __time_critical_func(render_core)() {
     }
 
     __unreachable();
+    */
 }
 
 inline static void tokenizeCfg(char* s, size_t sz) {
