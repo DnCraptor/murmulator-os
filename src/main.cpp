@@ -292,9 +292,7 @@ e:
     vTaskDelete( NULL );
 }
 
-const char* tmp = "                      ZX Murmulator (RP2040) OS v."
-                    MOS_VERSION_STR
-                   " Alpha                   ";
+const char* tmp = "ZX Murmulator (RP2040) OS v." MOS_VERSION_STR " Alpha";
 
 extern "C" void mallocFailedHandler() {
     gouta("WARN: vApplicationMallocFailedHook\n");
@@ -350,8 +348,22 @@ static void init() {
         check_firmware();
     }
 
-    draw_text(tmp, 0, 0, 13, 1);
-    draw_text(tmp, 0, 29, 13, 1);
+    uint32_t w = get_console_width();
+    uint32_t y = get_console_height() - 1;
+    uint32_t sz = strlen(tmp);
+    uint32_t sps = (w - sz) / 2;
+
+    for(uint32_t x = 0; x < sps; ++x) {
+        draw_text(" ", x, 0, 13, 1);
+        draw_text(" ", x, y, 13, 1);
+    }
+    draw_text(tmp, sps, 0, 13, 1);
+    draw_text(tmp, sps, y, 13, 1);
+    for(uint32_t x = sps + sz; x < w; ++x) {
+        draw_text(" ", x, 0, 13, 1);
+        draw_text(" ", x, y, 13, 1);
+    }
+
     graphics_set_con_pos(0, 1);
     graphics_set_con_color(7, 0); // TODO: config
     gpio_put(PICO_DEFAULT_LED_PIN, false);
