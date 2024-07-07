@@ -4,6 +4,17 @@
 #include "task.h"
 #include <stdarg.h>
 
+#ifndef logMsg
+   
+#ifdef DEBUG_VGA
+extern char vga_dbg_msg[1024];
+#define DBG_PRINT(...) { sprintf(vga_dbg_msg + strlen(vga_dbg_msg), __VA_ARGS__); }
+#else
+#define DBG_PRINT(...)
+#endif
+
+#endif
+
 static graphics_driver_t internal_driver = {
     0, //ctx
     vga_init,
@@ -27,9 +38,12 @@ static graphics_driver_t internal_driver = {
 static graphics_driver_t* graphics_driver = &internal_driver;
 
 void graphics_init() {
+    DBG_PRINT("graphics_init %ph\n", graphics_driver);
     if(graphics_driver && graphics_driver->init) {
+       DBG_PRINT("graphics_init->init %ph\n", graphics_driver->init);
         graphics_driver->init();
     }
+    DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
 }
 
 bool is_buffer_text(void) {
@@ -237,11 +251,14 @@ void fgoutf(FIL *f, const char *__restrict str, ...) {
 }
 
 graphics_driver_t* get_graphics_driver() {
+    DBG_PRINT("get_graphics_driver %ph\n", graphics_driver);
     return graphics_driver;
 }
 
 void install_graphics_driver(graphics_driver_t* gd) {
+    DBG_PRINT("install_graphics_driver %ph\n", gd);
     if (graphics_driver) {
+        DBG_PRINT("install_graphics_driver to cleanup %ph\n", graphics_driver);
         cleanup_graphics();
         if (graphics_driver != &internal_driver) {
             remove_ctx(graphics_driver->ctx);
@@ -249,7 +266,9 @@ void install_graphics_driver(graphics_driver_t* gd) {
         }
     }
     graphics_driver = gd;
+    DBG_PRINT("install_graphics_driver to init %ph\n", gd);
     graphics_init();
+    DBG_PRINT("install_graphics_driver exit\n");
 }
 
 void graphics_set_mode(int mode) {

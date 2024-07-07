@@ -42,11 +42,9 @@ semaphore vga_start_semaphore;
 void __time_critical_func(render_core)() {
     multicore_lockout_victim_init();
     graphics_init();
-    clrScr(1);
 
- //   graphics_driver_t* gd = get_graphics_driver();
- //   install_graphics_driver(gd);
- //   clrScr(1);
+    graphics_driver_t* gd = get_graphics_driver();
+    install_graphics_driver(gd);
 
     sem_acquire_blocking(&vga_start_semaphore);
     // 60 FPS loop
@@ -306,6 +304,10 @@ extern "C" void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
     gouta("WARN: vApplicationStackOverflowHook\n");
 }
 
+#ifdef DEBUG_VGA
+extern "C" char vga_dbg_msg[1024];
+#endif
+
 static void init() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -321,14 +323,21 @@ static void init() {
     nespad_read();
     sleep_ms(50);
 
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    bool mount_res = (FR_OK == f_mount(&fs, "SD", 1));
+
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);
     sleep_ms(30);
-
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    bool mount_res = (FR_OK == f_mount(&fs, "SD", 1));
-
+    clrScr(1);
+#ifdef DEBUG_VGA
+    FIL f;
+    f_open(&f, "mos-vga.log", FA_OPEN_APPEND | FA_WRITE);
+    UINT wr;
+    f_write(&f, vga_dbg_msg, strlen(vga_dbg_msg), &wr);
+    f_close(&f);
+#endif
     // F12 Boot to USB FIRMWARE UPDATE mode
     if (nespad_state & DPAD_START || get_last_scancode() == 0x58 /*F12*/) {
         unlink_firmware();

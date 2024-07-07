@@ -17,6 +17,18 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#ifndef logMsg
+   
+#ifdef DEBUG_VGA
+char __scratch_y("vga_driver_text") vga_dbg_msg[1024] = { 0 };
+#define DBG_PRINT(...) { sprintf(vga_dbg_msg + strlen(vga_dbg_msg), __VA_ARGS__); }
+#else
+#define DBG_PRINT(...)
+#endif
+
+#endif
+
+
 uint16_t pio_program_VGA_instructions[] = {
     //     .wrap_target
     0x6008, //  0: out    pins, 8
@@ -94,11 +106,20 @@ uint8_t get_vga_buffer_bitness(void) {
     return 16;
 }
 void vga_cleanup(void) {
+    DBG_PRINT("vga_cleanup enter\n");
     if ( _SM_VGA < 0 ) return;
-    irq_set_enabled(VGA_DMA_IRQ, false);
+    
     dma_channel_set_irq0_enabled(dma_chan_ctrl, false);
+    
+    irq_set_enabled(VGA_DMA_IRQ, false);
+    irq_remove_handler(VGA_DMA_IRQ, irq_get_exclusive_handler(VGA_DMA_IRQ));
+
+    //остановка всех каналов DMA
+    dma_hw->abort = (1 << dma_chan_ctrl) | (1 << dma_chan);
+    while (dma_hw->abort) tight_loop_contents();
     dma_channel_unclaim(dma_chan);
     dma_channel_unclaim(dma_chan_ctrl);
+
     for (int i = 0; i < 8; i++) {
         gpio_deinit(VGA_BASE_PIN + i);
     };
@@ -113,6 +134,7 @@ void vga_cleanup(void) {
     text_buffer = 0;
     txt_palette_fast = 0;
     lines_pattern_data = 0;
+    DBG_PRINT("vga_cleanup exit\n");
 }
 
 void __scratch_y("vga_driver") dma_handler_VGA() {
@@ -221,12 +243,14 @@ void vga_set_bgcolor(const uint32_t color888) {
 #define TEXTMODE_ROWS (30)
 
 void vga_init(void) {
+    DBG_PRINT("vga_init enter\n");
     text_buffer_size = TEXTMODE_COLS * TEXTMODE_ROWS * 2;
     text_buffer = (uint8_t*)pvPortMalloc(text_buffer_size);
+    DBG_PRINT("vga_init buffer: %ph\n", text_buffer);
     text_buffer_width = TEXTMODE_COLS;
     text_buffer_height = TEXTMODE_ROWS;
-    graphics_set_bgcolor(0x000000);
-    graphics_set_offset(0, 0);
+    vga_set_bgcolor(0x000000);
+    DBG_PRINT("vga_init bgcolor: 0\n");
     
     //инициализация палитры по умолчанию
 #if 1
@@ -405,4 +429,5 @@ void vga_init(void) {
             txt_palette_fast[i * 4 + 3] = c1 | c1 << 8;
         }
     }
+    DBG_PRINT("vga_init exit\n");
 }
