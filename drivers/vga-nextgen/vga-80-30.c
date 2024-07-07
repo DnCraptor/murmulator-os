@@ -69,9 +69,17 @@ static uint16_t __scratch_y("vga_driver_text") txt_palette[16];
 
 //буфер 2К текстовой палитры для быстрой работы
 static uint16_t* __scratch_y("vga_driver_text") txt_palette_fast = NULL;
-static volatile __scratch_y("vga_driver_text") int pos_x = 0;
-static volatile __scratch_y("vga_driver_text") int pos_y = 0;
-static volatile __scratch_y("vga_driver_text") bool cursor_blink_state = true;
+static volatile int __scratch_y("vga_driver_text") pos_x = 0;
+static volatile int __scratch_y("vga_driver_text") pos_y = 0;
+static volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
+
+static uint8_t __scratch_y("vga_driver_text") con_color = 7;
+static uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
+
+void vga_set_con_color(uint8_t color, uint8_t bgcolor) {
+    con_color = color;
+    con_bgcolor = bgcolor;
+}
 
 uint32_t get_vga_console_width() {
     return text_buffer_width;
@@ -443,4 +451,43 @@ void vga_init(void) {
         }
     }
     DBG_PRINT("vga_init exit\n");
+}
+
+static char* _rollup(char* t_buf) {
+    if (pos_y >= text_buffer_height - 1) {
+        memcpy(text_buffer, text_buffer + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
+        t_buf = text_buffer + text_buffer_width * (text_buffer_height - 2) * 2;
+        for(int i = 0; i < text_buffer_width; ++i) {
+            *t_buf++ = ' ';
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+        pos_y = text_buffer_height - 2;
+    }
+    return text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+}
+
+void vga_print(char* buf) {
+    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    char c;
+    while (c = *buf++) {
+        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
+        if (c == '\n') {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            continue;
+        }
+        pos_x++;
+        if (pos_x >= text_buffer_width) {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+            pos_x++;
+        } else {
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+    }
 }

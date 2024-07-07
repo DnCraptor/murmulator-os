@@ -57,9 +57,10 @@ typedef uint8_t* (*pu8v_fn)(void);
 typedef uint8_t (*u8v_fn)(void);
 typedef void (*vpu8_fn)(uint8_t*);
 typedef void (*vu8_fn)(uint8_t);
-typedef void (*dt_fn)(const char* string, int x, int y, uint8_t color, uint8_t bgcolor);
-typedef void (*vii_fn)(const int x, const int y);
-typedef void (*vcu32_fn)(const uint32_t color888);
+typedef void (*dt_fn)(const char*, int, int, uint8_t, uint8_t);
+typedef void (*vii_fn)(const int, const int);
+typedef void (*vu8u8_fn)(uint8_t, uint8_t);
+typedef void (*vcu32_fn)(const uint32_t);
 typedef struct graphics_driver {
     cmd_ctx_t* ctx;
     vv_fn init;
@@ -82,6 +83,8 @@ typedef struct graphics_driver {
     vii_fn set_con_pos;
     iv_fn pos_x;
     iv_fn pos_y;
+    vu8u8_fn set_con_color;
+    vpu8_fn print;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();

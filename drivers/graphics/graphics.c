@@ -36,7 +36,9 @@ static graphics_driver_t internal_driver = {
     vga_buffer_size,
     vga_set_con_pos,
     vga_con_x,
-    vga_con_y
+    vga_con_y,
+    vga_set_con_color,
+    vga_print
 };
 static graphics_driver_t* graphics_driver = &internal_driver;
 
@@ -128,101 +130,31 @@ void draw_window(const char* title, uint32_t x, uint32_t y, uint32_t width, uint
     draw_text(line, x + (width - strlen(line)) / 2, y, 14, 3);
 }
 
-static uint8_t con_color = 7;
-static uint8_t con_bgcolor = 0;
-
-void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
-    con_color = color;
-    con_bgcolor = bgcolor;
-}
-
-char* _rollup(char* t_buf) {
-    //taskENTER_CRITICAL();
-    char* text_buffer = get_buffer();
-    uint text_buffer_width = get_console_width();
-    uint text_buffer_height = get_console_height();
-    int pos_x = graphics_con_x();
-    int pos_y = graphics_con_y();
-    // TODO: bitness
-    if (pos_y >= text_buffer_height - 1) {
-        memcpy(text_buffer, text_buffer + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
-        t_buf = text_buffer + text_buffer_width * (text_buffer_height - 2) * 2;
-        for(int i = 0; i < text_buffer_width; ++i) {
-            *t_buf++ = ' ';
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-        }
-        pos_y = text_buffer_height - 2;
-    }
-    graphics_set_con_pos(pos_x, pos_y);
-    //taskEXIT_CRITICAL();
-    return text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
-}
-
 void gbackspace() {
-    // taskENTER_CRITICAL();
+    taskENTER_CRITICAL();
     char* text_buffer = get_buffer();
     uint text_buffer_width = get_console_width();
     int pos_x = graphics_con_x();
     int pos_y = graphics_con_y();
     uint8_t* t_buf;
-    //do {
-        pos_x--;
-        if (pos_x < 0) {
-            pos_x = text_buffer_width - 2;
-            pos_y--;
-            if (pos_y < 0) {
-                pos_y = 0;
-            }
+    pos_x--;
+    if (pos_x < 0) {
+        pos_x = text_buffer_width - 2;
+        pos_y--;
+        if (pos_y < 0) {
+            pos_y = 0;
         }
-        t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x; // todo: bitness
-    //} while(*t_buf == ' ');
-    *t_buf++ = ' ';
-    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+    }
+    t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x; // todo: bitness
     graphics_set_con_pos(pos_x, pos_y);
-    // taskEXIT_CRITICAL();
+    *t_buf++ = ' ';
+    *t_buf++ = 0; // TODO: con_bgcolor << 4 | con_color & 0xF;
+    taskEXIT_CRITICAL();
 }
 
 void __putc(char c) {
     char t[2] = { c, 0 };
     gouta(t);
-}
-
-void gouta(char* buf) {
-    // taskENTER_CRITICAL();
-    char* text_buffer = get_buffer();
-    uint text_buffer_width = get_console_width();
-    int pos_x = graphics_con_x();
-    int pos_y = graphics_con_y();
-    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
-    char c;
-    while (c = *buf++) {
-        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
-        if (c == '\n') {
-            pos_x = 0;
-            pos_y++;
-            graphics_set_con_pos(pos_x, pos_y);
-            t_buf = _rollup(t_buf);
-            continue;
-        }
-        pos_x++;
-        if (pos_x >= text_buffer_width) {
-            pos_x = 0;
-            pos_y++;
-            graphics_set_con_pos(pos_x, pos_y);
-            t_buf = _rollup(t_buf);
-            *t_buf++ = c;
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-            pos_x++;
-        } else {
-            *t_buf++ = c;
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-        }
-    }
-    //char tmp[32];
-    //snprintf(tmp, 32, "x:%02d y:%02d ", pos_x, pos_y);
-    //draw_text(tmp, 0, 0, 7, 0);
-    graphics_set_con_pos(pos_x, pos_y);
-    //taskEXIT_CRITICAL();
 }
 
 void goutf(const char *__restrict str, ...) {
@@ -339,4 +271,18 @@ int graphics_con_y(void) {
         return graphics_driver->pos_y();
     }
     return 0;
+}
+
+void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
+    if(graphics_driver && graphics_driver->set_con_color) {
+        graphics_driver->set_con_color(color, bgcolor);
+    }
+}
+
+void gouta(char* buf) {
+    taskENTER_CRITICAL();
+    if(graphics_driver && graphics_driver->print) {
+        graphics_driver->print(buf);
+    }
+    taskEXIT_CRITICAL();
 }

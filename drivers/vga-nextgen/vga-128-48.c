@@ -611,3 +611,42 @@ bool restore_video_ram() {
 bool save_video_ram() {}
 bool restore_video_ram() {}
 #endif
+
+static char* _rollup(char* t_buf) {
+    if (pos_y >= text_buffer_height - 1) {
+        memcpy(text_buffer, text_buffer + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
+        t_buf = text_buffer + text_buffer_width * (text_buffer_height - 2) * 2;
+        for(int i = 0; i < text_buffer_width; ++i) {
+            *t_buf++ = ' ';
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+        pos_y = text_buffer_height - 2;
+    }
+    return text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+}
+
+void vga_print(char* buf) {
+    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    char c;
+    while (c = *buf++) {
+        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
+        if (c == '\n') {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            continue;
+        }
+        pos_x++;
+        if (pos_x >= text_buffer_width) {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+            pos_x++;
+        } else {
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+    }
+}
