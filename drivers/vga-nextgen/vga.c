@@ -94,6 +94,19 @@ uint8_t get_vga_buffer_bitness(void) {
     return 16;
 }
 void vga_cleanup(void) {
+    if ( _SM_VGA < 0 ) return;
+    irq_set_enabled(VGA_DMA_IRQ, false);
+    dma_channel_set_irq0_enabled(dma_chan_ctrl, false);
+    dma_channel_unclaim(dma_chan);
+    dma_channel_unclaim(dma_chan_ctrl);
+    for (int i = 0; i < 8; i++) {
+        gpio_deinit(VGA_BASE_PIN + i);
+    };
+    pio_sm_set_enabled(PIO_VGA, _SM_VGA, false);
+    pio_sm_unclaim(PIO_VGA, _SM_VGA);
+    _SM_VGA = -1;
+    pio_clear_instruction_memory(PIO_VGA);
+
     vPortFree(txt_palette_fast);
     vPortFree(lines_pattern_data);
     vPortFree(text_buffer);
@@ -264,7 +277,6 @@ void vga_init(void) {
     sm_config_set_out_shift(&c, true, true, 32);
     sm_config_set_out_pins(&c, VGA_BASE_PIN, 8);
     pio_sm_init(PIO_VGA, sm, offset, &c);
-
     pio_sm_set_enabled(PIO_VGA, sm, true);
 
     //инициализация DMA

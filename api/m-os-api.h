@@ -539,6 +539,50 @@ inline static uint8_t get_console_bitness() {
     typedef uint8_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[154])();
 }
+inline static void cleanup_graphics() {
+    typedef void (*fn_ptr_t)();
+    ((fn_ptr_t)_sys_table_ptrs[155])();
+}
+
+typedef void (*vv_fn)(void);
+typedef void (*vi_fn)(int);
+typedef bool (*bv_fn)(void);
+typedef uint32_t (*u32v_fn)(void);
+typedef uint8_t* (*pu8v_fn)(void);
+typedef uint8_t (*u8v_fn)(void);
+typedef void (*vpu8_fn)(uint8_t*);
+typedef void (*vu8_fn)(uint8_t);
+typedef void (*dt_fn)(const char* string, int x, int y, uint8_t color, uint8_t bgcolor);
+typedef void (*set_offsets_fn)(const int x, const int y);
+typedef void (*vcu32_fn)(const uint32_t color888);
+typedef struct graphics_driver {
+    cmd_ctx_t* ctx;
+    vv_fn init;
+    vv_fn cleanup;
+    vi_fn set_mode;
+    bv_fn is_text;
+    u32v_fn console_width;
+    u32v_fn console_height;
+    u32v_fn screen_width;
+    u32v_fn screen_height;
+    pu8v_fn buffer;
+    vpu8_fn set_buffer;
+    vu8_fn cls;
+    dt_fn draw_text;
+    u8v_fn console_bitness;
+    u8v_fn screen_bitness;
+    set_offsets_fn set_offsets;
+    vcu32_fn set_bgcolor;
+    u32v_fn allocated;
+} graphics_driver_t;
+inline static void install_graphics_driver(graphics_driver_t* gd) {
+    typedef void (*fn_ptr_t)(graphics_driver_t* gd);
+    ((fn_ptr_t)_sys_table_ptrs[156])(gd);
+}
+inline static graphics_driver_t* get_graphics_driver() {
+    typedef graphics_driver_t* (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[160])();
+}
 
 #ifdef __cplusplus
 }

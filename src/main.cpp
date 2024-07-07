@@ -44,6 +44,10 @@ void __time_critical_func(render_core)() {
     graphics_init();
     clrScr(1);
 
+ //   graphics_driver_t* gd = get_graphics_driver();
+ //   install_graphics_driver(gd);
+ //   clrScr(1);
+
     sem_acquire_blocking(&vga_start_semaphore);
     // 60 FPS loop
 #define frame_tick (16666)
@@ -366,7 +370,7 @@ static void info() {
           "FLASH %d MB\n"
           "PSRAM %d MB\n"
           "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
-          "SWAP %d MB; BASE: %ph (%d KB); PAGES INDEX: %ph (%d x %d KB)\n"
+          "SWAP %d MB; RAM: %d KB; pages index: %d x %d KB\n"
           "VRAM %d KB; video mode: %d x %d x %d bit\n"
           "\n",
           get_overclocking_khz() / 1000,
@@ -376,7 +380,7 @@ static void info() {
           fs->n_fats,
           f_getfree32(fs),
           fs->csize >> 1,
-          swap_size() >> 20, swap_base(), swap_base_size() >> 10, swap_pages_base(), swap_pages(), swap_page_size() >> 10,
+          swap_size() >> 20, swap_base_size() >> 10, swap_pages(), swap_page_size() >> 10,
           get_buffer_size() >> 10, get_console_width(), get_console_height(), get_console_bitness()
     );
 }
