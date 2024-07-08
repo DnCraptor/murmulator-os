@@ -215,7 +215,6 @@ void __scratch_y("vga_driver") dma_handler_VGA() {
     dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
 }
 
-
 void vga_set_bgcolor(const uint32_t color888) {
     const uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
     const uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };

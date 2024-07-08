@@ -19,7 +19,7 @@ static graphics_driver_t internal_driver = {
     0, //ctx
     vga_init,
     vga_cleanup,
-    0, // set_mode
+    vga_set_mode, // set_mode
     0, // is_text
     get_vga_console_width,
     get_vga_console_height,

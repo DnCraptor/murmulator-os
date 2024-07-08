@@ -1,5 +1,7 @@
 #pragma once
-#include "stdbool.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
 
 #define PIO_VGA (pio0)
 #ifndef VGA_BASE_PIN
@@ -26,3 +28,4 @@ int vga_con_y(void);
 void vga_set_con_color(uint8_t color, uint8_t bgcolor);
 void vga_print(char* buf);
 void vga_backspace(void);
+void vga_set_mode(int mode);
