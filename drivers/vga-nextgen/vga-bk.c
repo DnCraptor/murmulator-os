@@ -62,7 +62,7 @@ static int visible_line_size = 320;
 static int dma_chan_ctrl;
 static int dma_chan;
 
-static uint8_t* graphics_buffer;
+static uint8_t* graphics_buffer = 0;
 static uint graphics_buffer_width = 0;
 static int graphics_buffer_shift_x = 0;
 static int graphics_buffer_shift_y = 0;
@@ -78,6 +78,8 @@ static uint16_t palette16_mask = 0;
 static uint8_t* text_buf_color;
 static uint text_buffer_width = 0;
 static uint text_buffer_height = 0;
+static uint8_t bitness = 16;
+static int line_size = 0;
 
 static uint16_t __scratch_y("vga_driver") txt_palette[16];
 
@@ -87,7 +89,6 @@ static volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 
 static uint8_t __scratch_y("vga_driver_text") con_color = 7;
 static uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
-static size_t __scratch_y("vga_driver_text") text_buffer_size = 0;
 
 //буфер 2К текстовой палитры для быстрой работы
 static uint16_t* txt_palette_fast = NULL;
@@ -149,10 +150,11 @@ void vga_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgco
     }
 }
 size_t vga_buffer_size() {
-    return text_buffer_size;
+    return text_buffer_height * text_buffer_width * 2
+            + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
 }
 uint8_t get_vga_buffer_bitness(void) {
-    return 16;
+    return bitness;
 }
 void vga_cleanup(void) {
     // TODO:
@@ -411,32 +413,49 @@ bool vga_set_mode(int mode) {
         case TEXTMODE_80x30:
             text_buffer_width = 80;
             text_buffer_height = 30;
+            bitness = 16;
             break;
         case TEXTMODE_128x48:
             text_buffer_width = MAX_WIDTH;
             text_buffer_height = MAX_HEIGHT;
+            bitness = 16;
             break;
         case BK_256x256x2:
+            text_buffer_width = 256;
+            text_buffer_height = 256;
+            bitness = 2;
             break;
         case BK_512x256x1:
+            text_buffer_width = 512;
+            text_buffer_height = 256;
+            bitness = 1;
             break;
         default:
             return false;
     }
-    if (_SM_VGA < 0) return graphics_mode; // если  VGA не инициализирована -
-
+    if (_SM_VGA < 0) return false; // если  VGA не инициализирована -
+    if (graphics_buffer) {
+        vPortFree(graphics_buffer);
+    }
+    switch (mode) {
+        case TEXTMODE_80x30:
+        case TEXTMODE_128x48:
+            graphics_buffer = pvPortCalloc(text_buffer_width * text_buffer_height, 2);
+            break;
+        case BK_256x256x2:
+        case BK_512x256x1:
+            graphics_buffer = pvPortCalloc((text_buffer_width << 3) * text_buffer_height, 1);
+            break;
+        default:
+            return false;
+    }
     graphics_mode = mode;
 
-    // Если мы уже проиницилизированы - выходим
-    if ((txt_palette_fast) && (lines_pattern_data)) {
-        return true;
-    };
     uint8_t TMPL_VHS8 = 0;
     uint8_t TMPL_VS8 = 0;
     uint8_t TMPL_HS8 = 0;
     uint8_t TMPL_LINE8 = 0;
 
-    int line_size;
     double fdiv = 100;
     int HS_SIZE = 4;
     int HS_SHIFT = 100;
@@ -444,22 +463,6 @@ bool vga_set_mode(int mode) {
     switch (graphics_mode) {
         case TEXTMODE_80x30:
         case TEXTMODE_128x48:
-            //текстовая палитра
-            for (int i = 0; i < 16; i++) {
-                txt_palette[i] = (txt_palette[i] & 0x3f) | (palette16_mask >> 8);
-            }
-            if (!(txt_palette_fast)) {
-                text_buffer_size += 256 * 4 * sizeof(uint16_t);
-                txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
-                for (int i = 0; i < 256; i++) {
-                    uint8_t c1 = txt_palette[i & 0xf];
-                    uint8_t c0 = txt_palette[i >> 4];
-                    txt_palette_fast[i * 4 + 0] = (c0) | (c0 << 8);
-                    txt_palette_fast[i * 4 + 1] = (c1) | (c0 << 8);
-                    txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
-                    txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
-                }
-            }
         case BK_256x256x2:
         case BK_512x256x1:
             TMPL_LINE8 = 0b11000000;
@@ -468,7 +471,6 @@ bool vga_set_mode(int mode) {
             HS_SIZE = 160; // Back porch
             line_size = 1344;
             shift_picture = line_size - HS_SHIFT;
-            palette16_mask = 0xc0c0;
             visible_line_size = 1024 / 2;
             N_lines_visible = 768;
             line_VS_begin = 768 + 3; // + Front porch
@@ -480,44 +482,31 @@ bool vga_set_mode(int mode) {
             return true;
     }
 
-    //корректировка  палитры по маске бит синхры
-    bg_color[0] = (bg_color[0] & 0x3f3f3f3f) | palette16_mask | (palette16_mask << 16);
-    bg_color[1] = (bg_color[1] & 0x3f3f3f3f) | palette16_mask | (palette16_mask << 16);
-    for (int i = 0; i < 16*4; i++) {
-        palette[i] = (palette[i] & 0x3f3f) | palette16_mask;
+    if (lines_pattern_data) {
+        vPortFree(lines_pattern_data);
     }
-
     //инициализация шаблонов строк и синхросигнала
-    if (!(lines_pattern_data)) //выделение памяти, если не выделено
     {
         uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
         PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
-        dma_channel_set_trans_count(dma_chan, line_size / 4, false);
-        text_buffer_size += line_size * 4;
-        lines_pattern_data = (uint32_t *)pvPortCalloc(line_size * 4 / 4, sizeof(uint32_t));;
-
+        dma_channel_set_trans_count(dma_chan, line_size >> 2, false);
+        lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
         for (int i = 0; i < 4; i++) {
-            lines_pattern[i] = &lines_pattern_data[i * (line_size / 4)];
+            lines_pattern[i] = &lines_pattern_data[i * (line_size >> 2)];
         }
-        // memset(lines_pattern_data,N_TMPLS*1200,0);
         TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
         TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
         TMPL_HS8 = TMPL_LINE8 ^ 0b01000000;
-
         uint8_t* base_ptr = (uint8_t *)lines_pattern[0];
         //пустая строка
         memset(base_ptr, TMPL_LINE8, line_size);
-        //memset(base_ptr+HS_SHIFT,TMPL_HS8,HS_SIZE);
         //выровненная синхра вначале
         memset(base_ptr, TMPL_HS8, HS_SIZE);
-
         // кадровая синхра
         base_ptr = (uint8_t *)lines_pattern[1];
         memset(base_ptr, TMPL_VS8, line_size);
-        //memset(base_ptr+HS_SHIFT,TMPL_VHS8,HS_SIZE);
         //выровненная синхра вначале
         memset(base_ptr, TMPL_VHS8, HS_SIZE);
-
         //заготовки для строк с изображением
         base_ptr = (uint8_t *)lines_pattern[2];
         memcpy(base_ptr, lines_pattern[0], line_size);
@@ -574,16 +563,7 @@ void set_start_debug_line(int _start_debug_line) {
     start_debug_line = _start_debug_line;
 }
 
-void vga_init() {
-    if (graphics_buffer && (txt_palette_fast) && (lines_pattern_data)) {
-        return;
-    };
-    text_buffer_size = MAX_WIDTH * MAX_HEIGHT * 2;
-    graphics_buffer = (uint8_t*)pvPortMalloc(text_buffer_size);
-    graphics_buffer_width = text_buffer_width = MAX_WIDTH;
-    text_buffer_height = MAX_HEIGHT;
-    vga_set_bgcolor(0x000000);
-
+static void init_palette() {
     //инициализация палитры по умолчанию
     for (int i = 0; i < 16; ++i)
     { // black for 256*256*4
@@ -703,48 +683,65 @@ void vga_init() {
         uint8_t c = (r << 4) | (g << 2) | b;
         txt_palette[i] = (c & 0x3f) | 0xc0;
     }
+    if (!(txt_palette_fast)) {
+        txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
+        for (int i = 0; i < 256; i++) {
+            uint8_t c1 = txt_palette[i & 0xf];
+            uint8_t c0 = txt_palette[i >> 4];
+            txt_palette_fast[i * 4 + 0] = (c0) | (c0 << 8);
+            txt_palette_fast[i * 4 + 1] = (c1) | (c0 << 8);
+            txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
+            txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
+        }
+    }
+    palette16_mask = 0xc0c0;
+    //корректировка  палитры по маске бит синхры
+    bg_color[0] = (bg_color[0] & 0x3f3f3f3f) | palette16_mask | (palette16_mask << 16);
+    bg_color[1] = (bg_color[1] & 0x3f3f3f3f) | palette16_mask | (palette16_mask << 16);
+    for (int i = 0; i < 16*4; i++) {
+        palette[i] = (palette[i] & 0x3f3f) | palette16_mask;
+    }
+}
+
+void vga_init() {
+    if (graphics_buffer && (txt_palette_fast) && (lines_pattern_data)) {
+        return;
+    };
+    graphics_buffer = (uint8_t*)pvPortCalloc(MAX_WIDTH * MAX_HEIGHT, 2);
+    graphics_buffer_width = text_buffer_width = MAX_WIDTH;
+    text_buffer_height = MAX_HEIGHT;
+    vga_set_bgcolor(0x000000);
+    init_palette();
     //инициализация PIO
     //загрузка программы в один из PIO
     uint offset = pio_add_program(PIO_VGA, &pio_program_VGA);
     _SM_VGA = pio_claim_unused_sm(PIO_VGA, true);
     uint sm = _SM_VGA;
-
     for (int i = 0; i < 8; i++) {
         gpio_init(beginVGA_PIN + i);
         gpio_set_dir(beginVGA_PIN + i, GPIO_OUT);
         pio_gpio_init(PIO_VGA, beginVGA_PIN + i);
     }; //резервируем под выход PIO
-
-    //pio_sm_config c = pio_vga_program_get_default_config(offset);
-
     pio_sm_set_consecutive_pindirs(PIO_VGA, sm, beginVGA_PIN, 8, true); //конфигурация пинов на выход
-
     pio_sm_config c = pio_get_default_sm_config();
     sm_config_set_wrap(&c, offset + 0, offset + (pio_program_VGA.length - 1));
-
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX); //увеличение буфера TX за счёт RX до 8-ми
     sm_config_set_out_shift(&c, true, true, 32);
     sm_config_set_out_pins(&c, beginVGA_PIN, 8);
     pio_sm_init(PIO_VGA, sm, offset, &c);
-
     pio_sm_set_enabled(PIO_VGA, sm, true);
-
     //инициализация DMA
     dma_chan_ctrl = dma_claim_unused_channel(true);
     dma_chan = dma_claim_unused_channel(true);
     //основной ДМА канал для данных
     dma_channel_config c0 = dma_channel_get_default_config(dma_chan);
     channel_config_set_transfer_data_size(&c0, DMA_SIZE_32);
-
     channel_config_set_read_increment(&c0, true);
     channel_config_set_write_increment(&c0, false);
-
     uint dreq = DREQ_PIO1_TX0 + sm;
     if (PIO_VGA == pio0) dreq = DREQ_PIO0_TX0 + sm;
-
     channel_config_set_dreq(&c0, dreq);
     channel_config_set_chain_to(&c0, dma_chan_ctrl); // chain to other channel
-
     dma_channel_configure(
         dma_chan,
         &c0,
@@ -756,12 +753,9 @@ void vga_init() {
     //канал DMA для контроля основного канала
     dma_channel_config c1 = dma_channel_get_default_config(dma_chan_ctrl);
     channel_config_set_transfer_data_size(&c1, DMA_SIZE_32);
-
     channel_config_set_read_increment(&c1, false);
     channel_config_set_write_increment(&c1, false);
     channel_config_set_chain_to(&c1, dma_chan); // chain to other channel
-    //channel_config_set_dreq(&c1, DREQ_PIO0_TX0);
-
     dma_channel_configure(
         dma_chan_ctrl,
         &c1,
@@ -770,67 +764,13 @@ void vga_init() {
         1, //
         false // Don't start yet
     );
-    //dma_channel_set_read_addr(dma_chan, &DMA_BUF_ADDR[0], false);
-
     vga_set_mode(BK_256x256x2);
-
     irq_set_exclusive_handler(VGA_DMA_IRQ, dma_handler_VGA);
-
     dma_channel_set_irq0_enabled(dma_chan_ctrl, true);
-
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask((1u << dma_chan));
-
     vga_set_mode(TEXTMODE_128x48);
 };
-
-#ifdef SAVE_VIDEO_RAM_ON_MANAGER
-#include "emulator.h"
-static FATFS fs;
-static FIL file;
-static int video_ram_level = 0;
-
-bool save_video_ram() {
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char path[16];
-    sprintf(path, "\\BK\\video%d.ram", video_ram_level);
-    FRESULT result = f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS);
-    if (result != FR_OK) {
-        return false;
-    }
-    UINT bw;
-    result = f_write(&file, TEXT_VIDEO_RAM, sizeof(TEXT_VIDEO_RAM), &bw);
-    if (result != FR_OK) {
-        return false;
-    }
-    f_close(&file);
-    video_ram_level++;
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-    return true;
-}
-bool restore_video_ram() {
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    video_ram_level--;
-    char path[16];
-    sprintf(path, "\\BK\\video%d.ram", video_ram_level);
-    FRESULT result = f_open(&file, path, FA_READ);
-    if (result == FR_OK) {
-      UINT bw;
-      result = f_read(&file, TEXT_VIDEO_RAM, sizeof(TEXT_VIDEO_RAM), &bw);
-      if (result != FR_OK) {
-        return false;
-      }
-    }
-    f_close(&file);
-    f_unlink(path);
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-    return true;
-}
-#else
-bool save_video_ram() {}
-bool restore_video_ram() {}
-#endif
-
 
 static char* _rollup(char* t_buf) {
     if (pos_y >= text_buffer_height - 1) {

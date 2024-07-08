@@ -187,7 +187,7 @@ static void load_config_sys() {
             } else if (strcmp(t, "GMODE") == 0) {
                 t = next_token(t);
                 int mode = atoi(t);
-               
+                graphics_set_mode(mode);
             } else if (strcmp(t, BASE) == 0) {
                 t = next_token(t);
                 set_ctx_var(ctx, BASE, t);
