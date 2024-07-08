@@ -75,10 +75,7 @@ static uint16_t __scratch_y("vga_driver") palette[16*4];
 
 static uint32_t bg_color[2];
 static uint16_t palette16_mask = 0;
-
-static uint8_t* text_buffer;
 static uint8_t* text_buf_color;
-
 static uint text_buffer_width = 0;
 static uint text_buffer_height = 0;
 
@@ -127,10 +124,10 @@ uint32_t get_vga_console_height() {
     return text_buffer_height;
 }
 uint8_t* get_vga_buffer() {
-    return text_buffer;
+    return graphics_buffer;
 }
 void set_vga_buffer(uint8_t* buffer) {
-    text_buffer = buffer;
+    graphics_buffer = buffer;
 }
 int vga_con_x(void) {
     return pos_x;
@@ -143,7 +140,7 @@ void vga_set_con_pos(int x, int y) {
     pos_y = y;
 }
 void vga_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * y + 2 * x;
+    uint8_t* t_buf = graphics_buffer + text_buffer_width * 2 * y + 2 * x;
     uint8_t c = (bgcolor << 4) | (color & 0xF);
     for (int xi = x; xi < text_buffer_width * 2; ++xi) {
         if (!(*string)) break;
@@ -229,44 +226,79 @@ inline static void dma_handler_VGA_impl() {
             // "слой" символа
             uint32_t glyph_line = screen_line % font_height;
             //указатель откуда начать считывать символы
-            uint8_t* text_buffer_line = &text_buffer[screen_line / font_height * text_buffer_width * 2];
+            uint8_t* text_buffer_line = &graphics_buffer[screen_line / font_height * text_buffer_width * 2];
             for (int x = 0; x < text_buffer_width; x++) {
                 //из таблицы символов получаем "срез" текущего символа
                 uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
                 //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                 uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-                glyph_pixels >>= 2;
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-                glyph_pixels >>= 2;
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-                glyph_pixels >>= 2;
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
+                if (cursor_blink_state && (screen_line >> 4) == pos_y && x == pos_x && glyph_line >= 13) { // TODO: cur height
+                    color = &txt_palette_fast[0];
+                    uint16_t c = color[7]; // TODO: setup cursor color
+                    *output_buffer_16bit++ = c;
+                    *output_buffer_16bit++ = c;
+                    *output_buffer_16bit++ = c;
+                    *output_buffer_16bit++ = c;
+                } else {
+                    *output_buffer_16bit++ = color[glyph_pixels & 3];
+                    glyph_pixels >>= 2;
+                    *output_buffer_16bit++ = color[glyph_pixels & 3];
+                    glyph_pixels >>= 2;
+                    *output_buffer_16bit++ = color[glyph_pixels & 3];
+                    glyph_pixels >>= 2;
+                    *output_buffer_16bit++ = color[glyph_pixels & 3];
+                }
             }
             dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
             return;
         }
         case TEXTMODE_: {
-            uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
+            register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture / 2;
             const uint font_weight = 8;
             const uint font_height = 16;
             // "слой" символа
-            uint32_t glyph_line = screen_line % font_height;
+            register uint32_t glyph_line = screen_line % font_height;
             //указатель откуда начать считывать символы
-            uint8_t* text_buffer_line = &text_buffer[screen_line / font_height * text_buffer_width * 2];
-            for (int x = 0; x < text_buffer_width; x++) {
-                //из таблицы символов получаем "срез" текущего символа
-                uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
-                //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
-                uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-                glyph_pixels >>= 2;
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-                glyph_pixels >>= 2;
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
-                glyph_pixels >>= 2;
-                *output_buffer_16bit++ = color[glyph_pixels & 3];
+            register uint8_t* text_buffer_line = &graphics_buffer[screen_line / font_height * text_buffer_width * 2];
+            register int xc = pos_x;
+            if (cursor_blink_state && (screen_line >> 4) == pos_y && glyph_line >= 13) {
+                register uint16_t* color = &txt_palette_fast[0];
+                uint16_t c = color[7]; // TODO: setup cursor color
+                for (register uint32_t x = 0; x < text_buffer_width; x++) {
+                    //из таблицы символов получаем "срез" текущего символа
+                    uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
+                    //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
+                    color = &txt_palette_fast[4 * (*text_buffer_line++)];
+                    if (x == xc) { // TODO: cur height
+                        *output_buffer_16bit++ = c;
+                        *output_buffer_16bit++ = c;
+                        *output_buffer_16bit++ = c;
+                        *output_buffer_16bit++ = c;
+                    } else {
+                        *output_buffer_16bit++ = color[glyph_pixels & 3];
+                        glyph_pixels >>= 2;
+                        *output_buffer_16bit++ = color[glyph_pixels & 3];
+                        glyph_pixels >>= 2;
+                        *output_buffer_16bit++ = color[glyph_pixels & 3];
+                        glyph_pixels >>= 2;
+                        *output_buffer_16bit++ = color[glyph_pixels & 3];
+                    }
+                }
+            } else {
+              for (register uint32_t x = 0; x < text_buffer_width; x++) {
+                    //из таблицы символов получаем "срез" текущего символа
+                    uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
+                    //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
+                    uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
+                    *output_buffer_16bit++ = color[glyph_pixels & 3];
+                    glyph_pixels >>= 2;
+                    *output_buffer_16bit++ = color[glyph_pixels & 3];
+                    glyph_pixels >>= 2;
+                    *output_buffer_16bit++ = color[glyph_pixels & 3];
+                    glyph_pixels >>= 2;
+                    *output_buffer_16bit++ = color[glyph_pixels & 3];
+                }
             }
             dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
             return;
@@ -525,7 +557,7 @@ static int current_line = 25;
 static int start_debug_line = 25;
 
 void vga_clr_scr(uint8_t color) {
-    uint8_t* t_buf = text_buffer;
+    uint8_t* t_buf = graphics_buffer;
     for (int yi = start_debug_line; yi < text_buffer_height; yi++)
         for (int xi = 0; xi < text_buffer_width * 2; xi++) {
             *t_buf++ = ' ';
@@ -541,12 +573,12 @@ void set_start_debug_line(int _start_debug_line) {
 }
 
 void vga_init() {
-    if (text_buffer && (txt_palette_fast) && (lines_pattern_data)) {
+    if (graphics_buffer && (txt_palette_fast) && (lines_pattern_data)) {
         return;
     };
     text_buffer_size = MAX_WIDTH * MAX_HEIGHT * 2;
-    text_buffer = (uint8_t*)pvPortMalloc(text_buffer_size);
-    text_buffer_width = MAX_WIDTH;
+    graphics_buffer = (uint8_t*)pvPortMalloc(text_buffer_size);
+    graphics_buffer_width = text_buffer_width = MAX_WIDTH;
     text_buffer_height = MAX_HEIGHT;
     vga_set_bgcolor(0x000000);
 
@@ -800,19 +832,19 @@ bool restore_video_ram() {}
 
 static char* _rollup(char* t_buf) {
     if (pos_y >= text_buffer_height - 1) {
-        memcpy(text_buffer, text_buffer + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
-        t_buf = text_buffer + text_buffer_width * (text_buffer_height - 2) * 2;
+        memcpy(graphics_buffer, graphics_buffer + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
+        t_buf = graphics_buffer + text_buffer_width * (text_buffer_height - 2) * 2;
         for(int i = 0; i < text_buffer_width; ++i) {
             *t_buf++ = ' ';
             *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
         }
         pos_y = text_buffer_height - 2;
     }
-    return text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    return graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
 }
 
 void vga_print(char* buf) {
-    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    uint8_t* t_buf = graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
     char c;
     while (c = *buf++) {
         if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
@@ -847,7 +879,7 @@ void vga_backspace(void) {
             pos_y = 0;
         }
     }
-    t_buf = text_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    t_buf = graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
     *t_buf++ = ' ';
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }

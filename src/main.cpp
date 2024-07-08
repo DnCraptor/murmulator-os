@@ -329,7 +329,7 @@ static void init() {
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);
     sleep_ms(30);
-    clrScr(1);
+    clrScr(0);
 #ifdef DEBUG_VGA
     FIL f;
     f_open(&f, "mos-vga.log", FA_OPEN_APPEND | FA_WRITE);
