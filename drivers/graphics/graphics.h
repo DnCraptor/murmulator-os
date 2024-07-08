@@ -49,7 +49,7 @@ int graphics_con_x(void);
 int graphics_con_y(void);
 
 typedef void (*vv_fn)(void);
-typedef void (*vi_fn)(int);
+typedef bool (*bi_fn)(int);
 typedef int (*iv_fn)(void);
 typedef bool (*bv_fn)(void);
 typedef uint32_t (*u32v_fn)(void);
@@ -65,7 +65,7 @@ typedef struct graphics_driver {
     cmd_ctx_t* ctx;
     vv_fn init;
     vv_fn cleanup;
-    vi_fn set_mode;
+    bi_fn set_mode;
     bv_fn is_text;
     u32v_fn console_width;
     u32v_fn console_height;
@@ -90,7 +90,7 @@ typedef struct graphics_driver {
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();
 void clrScr(uint8_t color);
-void graphics_set_mode(int mode);
+bool graphics_set_mode(int mode);
 
 #ifdef __cplusplus
 }

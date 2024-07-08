@@ -188,10 +188,11 @@ void install_graphics_driver(graphics_driver_t* gd) {
     DBG_PRINT("install_graphics_driver exit\n");
 }
 
-void graphics_set_mode(int mode) {
+bool graphics_set_mode(int mode) {
     if(graphics_driver && graphics_driver->set_mode) {
-        graphics_driver->set_mode(mode);
+        return graphics_driver->set_mode(mode);
     }
+    return false;
 }
 
 void cleanup_graphics(void) {

@@ -24,7 +24,7 @@
 
 enum graphics_mode_t {
     TEXTMODE_80x30,
-    TEXTMODE_,
+    TEXTMODE_128x48,
     BK_256x256x2,
     BK_512x256x1,
 };
@@ -252,7 +252,7 @@ inline static void dma_handler_VGA_impl() {
             dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
             return;
         }
-        case TEXTMODE_: {
+        case TEXTMODE_128x48: {
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture / 2;
             const uint font_weight = 8;
@@ -406,28 +406,30 @@ void __not_in_flash_func(dma_handler_VGA)() {
 #define MAX_HEIGHT 48
 #define BYTES_PER_CHAR 2
 
-void vga_set_mode(int mode) {
+bool vga_set_mode(int mode) {
     switch (mode) {
-        case BK_256x256x2:
-            break;
-        case BK_512x256x1:
-            break;
         case TEXTMODE_80x30:
             text_buffer_width = 80;
             text_buffer_height = 30;
             break;
-        default:
+        case TEXTMODE_128x48:
             text_buffer_width = MAX_WIDTH;
             text_buffer_height = MAX_HEIGHT;
+            break;
+        case BK_256x256x2:
+            break;
+        case BK_512x256x1:
+            break;
+        default:
+            return false;
     }
     if (_SM_VGA < 0) return graphics_mode; // если  VGA не инициализирована -
 
-    enum graphics_mode_t res = graphics_mode;
     graphics_mode = mode;
 
     // Если мы уже проиницилизированы - выходим
     if ((txt_palette_fast) && (lines_pattern_data)) {
-        return res;
+        return true;
     };
     uint8_t TMPL_VHS8 = 0;
     uint8_t TMPL_VS8 = 0;
@@ -441,7 +443,7 @@ void vga_set_mode(int mode) {
 
     switch (graphics_mode) {
         case TEXTMODE_80x30:
-        case TEXTMODE_:
+        case TEXTMODE_128x48:
             //текстовая палитра
             for (int i = 0; i < 16; i++) {
                 txt_palette[i] = (txt_palette[i] & 0x3f) | (palette16_mask >> 8);
@@ -475,7 +477,7 @@ void vga_set_mode(int mode) {
             fdiv = clock_get_hz(clk_sys) / (65000000.0); // 65.0 MHz
             break;
         default:
-            return res;
+            return true;
     }
 
     //корректировка  палитры по маске бит синхры
@@ -522,7 +524,7 @@ void vga_set_mode(int mode) {
         base_ptr = (uint8_t *)lines_pattern[3];
         memcpy(base_ptr, lines_pattern[0], line_size);
     }
-    return res;
+    return true;
 };
 
 void graphics_set_page(uint8_t* buffer, uint8_t pallette_idx) {
@@ -779,7 +781,7 @@ void vga_init() {
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask((1u << dma_chan));
 
-    vga_set_mode(TEXTMODE_);
+    vga_set_mode(TEXTMODE_128x48);
 };
 
 #ifdef SAVE_VIDEO_RAM_ON_MANAGER

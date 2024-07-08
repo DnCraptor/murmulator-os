@@ -2,8 +2,14 @@
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
-    graphics_driver_t* gd = get_graphics_driver();
-    install_graphics_driver(gd);
+    if (ctx->argc != 2) {
+        fprintf(ctx->std_err, "Usage: mode #\n where # - integer number\n");
+        return 1;
+    }
+    if (!graphics_set_mode(atoi(ctx->argv[1]))) {
+        fprintf(ctx->std_err, "Unsupported mode #\n");
+        return -1;
+    }
     return 0;
 }
 

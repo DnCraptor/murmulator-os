@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 6
+#define M_API_VERSION 7
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)
@@ -97,8 +97,12 @@ static void goutf(const char *__restrict str, ...) {
     vPortFree(buf);
 }
 */
-typedef void (*cls_ptr_t)( uint8_t color );
+inline static bool graphics_set_mode(int color) {
+    typedef bool (*ptr_t)( int color );
+    return ((ptr_t)_sys_table_ptrs[34])(color);
+}
 inline static void clrScr(uint8_t color) {
+    typedef void (*cls_ptr_t)( uint8_t color );
     ((cls_ptr_t)_sys_table_ptrs[44])(color);
 }
 
