@@ -15,7 +15,8 @@ int main(void) {
         fprintf(ctx->std_err, "Unsupported mode #%d\n", mode);
         return -1;
     }
-    clrScr(0);
+ //   vTaskDelay(100);
+ //   clrScr(0);
     return 0;
 }
 
