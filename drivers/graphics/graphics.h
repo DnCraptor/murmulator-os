@@ -47,8 +47,10 @@ void cleanup_graphics();
 bool is_buffer_text();
 int graphics_con_x(void);
 int graphics_con_y(void);
+void graphics_lock_buffer(bool);
 
 typedef void (*vv_fn)(void);
+typedef void (*vb_fn)(bool);
 typedef bool (*bi_fn)(int);
 typedef int (*iv_fn)(void);
 typedef bool (*bv_fn)(void);
@@ -86,6 +88,7 @@ typedef struct graphics_driver {
     vu8u8_fn set_con_color;
     vpu8_fn print;
     vv_fn backspace;
+    vb_fn lock_buffer;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();

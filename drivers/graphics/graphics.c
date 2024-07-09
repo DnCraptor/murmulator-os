@@ -39,7 +39,8 @@ static graphics_driver_t internal_driver = {
     vga_con_y,
     vga_set_con_color,
     vga_print,
-    vga_backspace
+    vga_backspace,
+    vga_lock_buffer
 };
 static graphics_driver_t* graphics_driver = &internal_driver;
 
@@ -224,6 +225,11 @@ void graphics_set_offset(const int x, const int y) {
 void graphics_set_bgcolor(const uint32_t color888) {
     if(graphics_driver && graphics_driver->set_bgcolor) {
         graphics_driver->set_bgcolor(color888);
+    }
+}
+void graphics_lock_buffer(bool b) {
+    if(graphics_driver && graphics_driver->lock_buffer) {
+        graphics_driver->lock_buffer(b);
     }
 }
 

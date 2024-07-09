@@ -67,7 +67,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     vPortFree, // 33
     //
     graphics_set_mode, // 34
-    0, // was graphics_set_buffer 35
+    graphics_lock_buffer, // was graphics_set_buffer 35
     graphics_set_offset, // 36
     0, // graphics_set_palette, // 37
     graphics_set_buffer, // 38

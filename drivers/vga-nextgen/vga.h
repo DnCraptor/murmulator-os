@@ -29,3 +29,4 @@ void vga_set_con_color(uint8_t color, uint8_t bgcolor);
 void vga_print(char* buf);
 void vga_backspace(void);
 bool vga_set_mode(int mode);
+void vga_lock_buffer(bool);
