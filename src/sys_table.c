@@ -221,6 +221,9 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     get_screen_width, // 158
     get_screen_height, // 159
     get_graphics_driver, // 160
+    is_buffer_text, // 161
+    graphics_get_mode, // 162
+    graphics_is_mode_text, // 163
     // TODO:
     0
 };

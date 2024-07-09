@@ -89,11 +89,15 @@ typedef struct graphics_driver {
     vpu8_fn print;
     vv_fn backspace;
     vb_fn lock_buffer;
+    iv_fn get_mode;
+    bi_fn is_mode_text;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();
 void clrScr(uint8_t color);
 bool graphics_set_mode(int mode);
+int graphics_get_mode(void);
+bool graphics_is_mode_text(int mode);
 
 #ifdef __cplusplus
 }

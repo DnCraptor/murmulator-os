@@ -6,10 +6,16 @@ int main(void) {
         fprintf(ctx->std_err, "Usage: mode #\n where # - integer number\n");
         return 1;
     }
-    if (!graphics_set_mode(atoi(ctx->argv[1]))) {
-        fprintf(ctx->std_err, "Unsupported mode #\n");
+    int mode = atoi(ctx->argv[1]);
+    if (!graphics_is_mode_text(mode)) {
+        fprintf(ctx->std_err, "mode #%d is not ready for text output\n", mode);
+        return -2;
+    }
+    if (!graphics_set_mode(mode)) {
+        fprintf(ctx->std_err, "Unsupported mode #%d\n", mode);
         return -1;
     }
+    clrScr(0);
     return 0;
 }
 

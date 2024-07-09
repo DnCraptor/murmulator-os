@@ -20,7 +20,7 @@ static graphics_driver_t internal_driver = {
     vga_init,
     vga_cleanup,
     vga_set_mode, // set_mode
-    0, // is_text
+    vga_is_text_mode, // is_text
     get_vga_console_width,
     get_vga_console_height,
     get_vga_console_width,
@@ -40,7 +40,9 @@ static graphics_driver_t internal_driver = {
     vga_set_con_color,
     vga_print,
     vga_backspace,
-    vga_lock_buffer
+    vga_lock_buffer,
+    vga_get_mode,
+    vga_is_mode_text
 };
 static graphics_driver_t* graphics_driver = &internal_driver;
 
@@ -53,7 +55,7 @@ void graphics_init() {
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
 }
 
-bool is_buffer_text(void) {
+bool is_buffer_text(void) { // TODO: separate calls by supported or not
     if(graphics_driver && graphics_driver->is_text) {
         return graphics_driver->is_text();
     }
@@ -194,6 +196,19 @@ bool graphics_set_mode(int mode) {
         return graphics_driver->set_mode(mode);
     }
     return false;
+}
+bool graphics_is_mode_text(int mode) {
+    if(graphics_driver && graphics_driver->is_mode_text) {
+        return graphics_driver->is_mode_text(mode);
+    }
+    return false;
+}
+
+int graphics_get_mode(void) {
+    if(graphics_driver && graphics_driver->get_mode) {
+        return graphics_driver->get_mode();
+    }
+    return 0;
 }
 
 void cleanup_graphics(void) {

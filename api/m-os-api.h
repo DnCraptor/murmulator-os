@@ -587,6 +587,18 @@ inline static graphics_driver_t* get_graphics_driver() {
     typedef graphics_driver_t* (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[160])();
 }
+inline static bool is_buffer_text(void) {
+    typedef bool (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[161])();
+}
+inline static int graphics_get_mode(void) {
+    typedef int (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[162])();
+}
+inline static bool graphics_is_mode_text(int mode) {
+    typedef int (*fn_ptr_t)(bool);
+    return ((fn_ptr_t)_sys_table_ptrs[163])(mode);
+}
 
 #ifdef __cplusplus
 }

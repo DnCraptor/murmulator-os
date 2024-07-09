@@ -95,7 +95,7 @@ static bool lock_buffer = false;
 static uint16_t* txt_palette_fast = NULL;
 //static uint16_t txt_palette_fast[256*4];
 
-enum graphics_mode_t graphics_mode;
+static volatile enum graphics_mode_t graphics_mode;
 
 // TODO: separate header for sound mixer
 
@@ -420,6 +420,26 @@ void __not_in_flash_func(dma_handler_VGA)() {
 #define MAX_WIDTH 128
 #define MAX_HEIGHT 48
 #define BYTES_PER_CHAR 2
+
+bool vga_is_mode_text(int mode) {
+    switch (mode) {
+        case TEXTMODE_80x30:
+        case TEXTMODE_128x48:
+            return true;
+        case BK_256x256x2:
+        case BK_512x256x1:
+        default:
+            return false;
+    }
+}
+
+bool vga_is_text_mode() {
+    return vga_is_mode_text(graphics_mode);
+}
+
+int vga_get_mode(void) {
+    return graphics_mode;
+}
 
 bool vga_set_mode(int mode) {
     switch (mode) {
