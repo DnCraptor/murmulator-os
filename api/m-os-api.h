@@ -596,7 +596,7 @@ inline static int graphics_get_mode(void) {
     return ((fn_ptr_t)_sys_table_ptrs[162])();
 }
 inline static bool graphics_is_mode_text(int mode) {
-    typedef int (*fn_ptr_t)(bool);
+    typedef bool (*fn_ptr_t)(int);
     return ((fn_ptr_t)_sys_table_ptrs[163])(mode);
 }
 

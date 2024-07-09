@@ -422,12 +422,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
 #define BYTES_PER_CHAR 2
 
 bool vga_is_mode_text(int mode) {
-    switch (mode) {
-        case TEXTMODE_80x30:
-        case TEXTMODE_128x48:
-            return true;
-    }
-    return false;
+    return mode <= TEXTMODE_128x48;
 }
 
 bool vga_is_text_mode() {
@@ -440,6 +435,7 @@ int vga_get_mode(void) {
 
 bool vga_set_mode(int mode) {
     if (_SM_VGA < 0) return false; // если  VGA не инициализирована -
+    if (graphics_mode == mode) return true;
     if (graphics_buffer) {
         vPortFree(graphics_buffer);
         graphics_buffer = 0;
@@ -469,6 +465,8 @@ bool vga_set_mode(int mode) {
             return false;
     }
     graphics_mode = mode;
+    pos_x = 0;
+    pos_y = 0;
 
     uint8_t TMPL_VHS8 = 0;
     uint8_t TMPL_VS8 = 0;
