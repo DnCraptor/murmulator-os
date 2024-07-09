@@ -43,6 +43,11 @@ const struct pio_program pio_program_VGA = {
     .origin = -1,
 };
 
+typedef struct {
+    uint8_t* graphics_buffer;
+} vga_context_t;
+
+static vga_context_t* vga_context = NULL;
 
 static uint32_t* lines_pattern[4];
 static uint32_t* lines_pattern_data = NULL;
@@ -61,7 +66,6 @@ static volatile int visible_line_size = 320;
 static int dma_chan_ctrl;
 static int dma_chan;
 
-static volatile uint8_t* graphics_buffer = 0;
 static volatile uint graphics_buffer_width = 0;
 static volatile int graphics_buffer_shift_x = 0;
 static volatile int graphics_buffer_shift_y = 0;
@@ -127,10 +131,12 @@ uint32_t get_vga_console_height() {
     return text_buffer_height;
 }
 uint8_t* get_vga_buffer() {
-    return graphics_buffer;
+    if (!vga_context) return NULL;
+    return vga_context->graphics_buffer;
 }
 void set_vga_buffer(uint8_t* buffer) {
-    graphics_buffer = buffer;
+    if (!vga_context) return;
+    vga_context->graphics_buffer = buffer;
 }
 int vga_con_x(void) {
     return pos_x;
@@ -143,8 +149,8 @@ void vga_set_con_pos(int x, int y) {
     pos_y = y;
 }
 void vga_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    if (!graphics_buffer) return;
-    uint8_t* t_buf = graphics_buffer + text_buffer_width * 2 * y + 2 * x;
+    if (!vga_context || !vga_context->graphics_buffer) return;
+    uint8_t* t_buf = vga_context->graphics_buffer + text_buffer_width * 2 * y + 2 * x;
     uint8_t c = (bgcolor << 4) | (color & 0xF);
     for (int xi = x; xi < text_buffer_width * 2; ++xi) {
         if (!(*string)) break;
@@ -189,7 +195,7 @@ inline static void dma_handler_VGA_impl() {
     if (screen_line == N_lines_total) {
         screen_line = 0;
         frame_number++;
-        input_buffer = graphics_buffer;
+        input_buffer = vga_context ? vga_context->graphics_buffer : NULL;
     }
 
     if (screen_line >= N_lines_visible) {
@@ -241,7 +247,7 @@ inline static void dma_handler_VGA_impl() {
             // "слой" символа
             uint32_t glyph_line = screen_line % font_height;
             //указатель откуда начать считывать символы
-            uint8_t* text_buffer_line = &graphics_buffer[screen_line / font_height * text_buffer_width * 2];
+            uint8_t* text_buffer_line = &input_buffer[screen_line / font_height * text_buffer_width * 2];
             for (int x = 0; x < text_buffer_width; x++) {
                 //из таблицы символов получаем "срез" текущего символа
                 uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
@@ -275,7 +281,7 @@ inline static void dma_handler_VGA_impl() {
             // "слой" символа
             register uint32_t glyph_line = screen_line % font_height;
             //указатель откуда начать считывать символы
-            register uint8_t* text_buffer_line = &graphics_buffer[screen_line / font_height * text_buffer_width * 2];
+            register uint8_t* text_buffer_line = &input_buffer[screen_line / font_height * text_buffer_width * 2];
             register int xc = pos_x;
             if (cursor_blink_state && (screen_line >> 4) == pos_y && glyph_line >= 13) {
                 register uint16_t* color = &txt_palette_fast[0];
@@ -357,7 +363,7 @@ inline static void dma_handler_VGA_impl() {
         graphics_buffer_shift_x &= 0xfffffff2; //2bit buf
     }
     //для div_factor 2
-    uint max_width = graphics_buffer_width;
+    uint max_width = text_buffer_width;
     if (graphics_buffer_shift_x < 0) {
         if (BK_512x256x1 == graphics_mode) {
             input_buffer_8bit -= graphics_buffer_shift_x / 8; //1bit buf
@@ -436,10 +442,7 @@ int vga_get_mode(void) {
 bool vga_set_mode(int mode) {
     if (_SM_VGA < 0) return false; // если  VGA не инициализирована -
     if (graphics_mode == mode) return true;
-    if (graphics_buffer) {
-        vPortFree(graphics_buffer);
-        graphics_buffer = 0;
-    }
+    vga_context_t* context = pvPortCalloc(1, sizeof(vga_context_t));
     switch (mode) {
         case TEXTMODE_80x30:
             text_buffer_width = 80;
@@ -571,22 +574,29 @@ bool vga_set_mode(int mode) {
     input_buffer = NULL;
     prev_output_buffer = 0;
 
+    vga_context_t* cleanup = vga_context;
     switch (mode) {
         case TEXTMODE_80x30:
         case TEXTMODE_128x48:
-            graphics_buffer = pvPortCalloc(text_buffer_width * text_buffer_height, 2);
+            context->graphics_buffer = pvPortCalloc(text_buffer_width * text_buffer_height, 2);
             break;
         case BK_256x256x2:
         case BK_512x256x1:
-            graphics_buffer = pvPortCalloc(512 >> 3, 256);
+            context->graphics_buffer = pvPortCalloc(512 >> 3, 256);
             break;
+    }
+    vga_context = context;
+    if (cleanup->graphics_buffer) {
+        vPortFree(cleanup->graphics_buffer);
+        vPortFree(cleanup);
     }
     return true;
 };
 
 void graphics_set_page(uint8_t* buffer, uint8_t pallette_idx) {
+    if (!vga_context) return;
   //  g_conf.v_buff_offset = buffer - RAM;
-    graphics_buffer = buffer;
+    vga_context->graphics_buffer = buffer;
     g_conf.graphics_pallette_idx = pallette_idx;
 };
 
@@ -613,8 +623,8 @@ void vga_set_flashmode(bool flash_line, bool flash_frame) {
 };
 
 void vga_clr_scr(uint8_t color) {
-    if (!graphics_buffer) return;
-    uint8_t* t_buf = graphics_buffer;
+    if (!vga_context || !vga_context->graphics_buffer) return;
+    uint8_t* t_buf = vga_context->graphics_buffer;
     for (int yi = 0; yi < text_buffer_height; yi++)
         for (int xi = 0; xi < text_buffer_width * 2; xi++) {
             *t_buf++ = ' ';
@@ -765,11 +775,12 @@ static void init_palette() {
 }
 
 void vga_init() {
-    if (graphics_buffer && (txt_palette_fast) && (lines_pattern_data)) {
+    if (vga_context) {
         return;
     };
-    graphics_buffer = (uint8_t*)pvPortCalloc(MAX_WIDTH * MAX_HEIGHT, 2);
-    graphics_buffer_width = text_buffer_width = MAX_WIDTH;
+    vga_context = pvPortCalloc(1, sizeof(vga_context_t));
+    vga_context->graphics_buffer = pvPortCalloc(MAX_WIDTH * MAX_HEIGHT, 2);
+    text_buffer_width = MAX_WIDTH;
     text_buffer_height = MAX_HEIGHT;
     vga_set_bgcolor(0x000000);
     init_palette();
@@ -834,21 +845,22 @@ void vga_init() {
 };
 
 static char* _rollup(char* t_buf) {
+    char* b = vga_context->graphics_buffer;
     if (pos_y >= text_buffer_height - 1) {
-        memcpy(graphics_buffer, graphics_buffer + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
-        t_buf = graphics_buffer + text_buffer_width * (text_buffer_height - 2) * 2;
+        memcpy(b, b + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
+        t_buf = b + text_buffer_width * (text_buffer_height - 2) * 2;
         for(int i = 0; i < text_buffer_width; ++i) {
             *t_buf++ = ' ';
             *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
         }
         pos_y = text_buffer_height - 2;
     }
-    return graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    return b + text_buffer_width * 2 * pos_y + 2 * pos_x;
 }
 
 void vga_print(char* buf) {
-    if (!graphics_buffer) return;
-    uint8_t* t_buf = graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    if (!vga_context || !vga_context->graphics_buffer) return;
+    uint8_t* t_buf = vga_context->graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
     char c;
     while (c = *buf++) {
         if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
@@ -874,6 +886,7 @@ void vga_print(char* buf) {
 }
 
 void vga_backspace(void) {
+    if (!vga_context || !vga_context->graphics_buffer) return;
     uint8_t* t_buf;
     pos_x--;
     if (pos_x < 0) {
@@ -883,7 +896,7 @@ void vga_backspace(void) {
             pos_y = 0;
         }
     }
-    t_buf = graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    t_buf = vga_context->graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
     *t_buf++ = ' ';
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }
