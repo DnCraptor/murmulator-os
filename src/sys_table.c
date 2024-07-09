@@ -224,6 +224,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     is_buffer_text, // 161
     graphics_get_mode, // 162
     graphics_is_mode_text, // 163
+    set_dma_handler_impl, // 164
     // TODO:
     0
 };

@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 7
+#define M_API_VERSION 8
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)
@@ -598,6 +598,12 @@ inline static int graphics_get_mode(void) {
 inline static bool graphics_is_mode_text(int mode) {
     typedef bool (*fn_ptr_t)(int);
     return ((fn_ptr_t)_sys_table_ptrs[163])(mode);
+}
+
+typedef void (*dma_handler_impl_fn)(void);
+inline static void set_dma_handler_impl(dma_handler_impl_fn impl) {
+    typedef void (*fn_ptr_t)(dma_handler_impl_fn);
+    return ((fn_ptr_t)_sys_table_ptrs[164])(impl);
 }
 
 #ifdef __cplusplus

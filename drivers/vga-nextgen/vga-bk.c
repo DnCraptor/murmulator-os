@@ -188,7 +188,7 @@ static volatile uint32_t screen_line = 0;
 static volatile uint8_t* input_buffer = NULL;
 static volatile uint32_t* * prev_output_buffer = 0;
 
-inline static void dma_handler_VGA_impl() {
+static void dma_handler_VGA_impl() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
     screen_line++;
 
@@ -418,9 +418,15 @@ inline static void dma_handler_VGA_impl() {
     dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
 }
 
+static dma_handler_impl_fn pdma_handler_VGA_impl = dma_handler_VGA_impl;
+
+void set_vga_dma_handler_impl(dma_handler_impl_fn impl) {
+    pdma_handler_VGA_impl = impl;
+}
+
 // to start sound later
 void __not_in_flash_func(dma_handler_VGA)() {
-    dma_handler_VGA_impl();
+    pdma_handler_VGA_impl();
 }
 
 #define MAX_WIDTH 128

@@ -123,15 +123,19 @@ static const char PATH[] = "PATH";
 static const char SWAP[] = "SWAP"; 
 static const char COMSPEC[] = "COMSPEC"; 
 static const char ctmp[] = "/tmp"; 
-static const char ccmd[] = "/mos/cmd"; 
+static const char ccmd[] = "/mos/cmd";
 
-static void load_config_sys() {
+static cmd_ctx_t* set_default_vars() {
     cmd_ctx_t* ctx = get_cmd_startup_ctx();
     set_ctx_var(ctx, CD, MOS);
     set_ctx_var(ctx, BASE, MOS);
     set_ctx_var(ctx, TEMP, ctmp);
     set_ctx_var(ctx, COMSPEC, ccmd);
+    return ctx;
+}
 
+static void load_config_sys() {
+    cmd_ctx_t* ctx = set_default_vars();
     bool b_swap = false;
     bool b_base = false;
     bool b_temp = false;
@@ -144,7 +148,8 @@ static void load_config_sys() {
     if (f_stat(cfn, pfileinfo) != FR_OK || (pfileinfo->fattrib & AM_DIR)) {
         cfn = "/mos/config.sys";
         if (f_stat(cfn, pfileinfo) != FR_OK || (pfileinfo->fattrib & AM_DIR)) {
-            goto e;
+            vPortFree(pfileinfo);
+            return;
         } else {
             file_size = (size_t)pfileinfo->fsize & 0xFFFFFFFF;
         }
@@ -154,8 +159,11 @@ static void load_config_sys() {
 
     pf = (FIL*)pvPortMalloc(sizeof(FIL));
     if(f_open(pf, cfn, FA_READ) != FR_OK) {
-        goto e;
+        vPortFree(pfileinfo);
+        vPortFree(pf);
+        return;
     }
+    vPortFree(pfileinfo);
 
     buff = (char*)pvPortMalloc(file_size + 1);
     memset(buff, 0, file_size + 1);
@@ -188,6 +196,16 @@ static void load_config_sys() {
                 t = next_token(t);
                 int mode = atoi(t);
                 graphics_set_mode(mode);
+            } else if (strcmp(t, "DRIVER") == 0) {
+                t = next_token(t);
+                // TODO:
+            } else if (strcmp(t, "CPU") == 0) {
+                t = next_token(t);
+                int cpu = atoi(t);
+                if (cpu > 123 && cpu < 450) {
+                    set_overclocking(cpu * 1000);
+               //     overclocking();
+                }
             } else if (strcmp(t, BASE) == 0) {
                 t = next_token(t);
                 set_ctx_var(ctx, BASE, t);
@@ -205,10 +223,8 @@ static void load_config_sys() {
             t = next_token(t);
         }
     }
-    vPortFree(pfileinfo);
     if (pf) vPortFree(pf);
     if (buff) vPortFree(buff);
-e:
     if (!b_temp) f_mkdir(ctmp);
     if (!b_base) f_mkdir(MOS);
     if (!b_swap) {

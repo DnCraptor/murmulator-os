@@ -33,3 +33,5 @@ bool vga_set_mode(int mode);
 void vga_lock_buffer(bool);
 bool vga_is_text_mode();
 bool vga_is_mode_text(int mode);
+typedef void (*dma_handler_impl_fn)(void);
+void set_vga_dma_handler_impl(dma_handler_impl_fn impl);

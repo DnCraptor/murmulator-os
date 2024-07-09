@@ -42,7 +42,8 @@ static graphics_driver_t internal_driver = {
     vga_backspace,
     vga_lock_buffer,
     vga_get_mode,
-    vga_is_mode_text
+    vga_is_mode_text,
+    set_vga_dma_handler_impl
 };
 static graphics_driver_t* graphics_driver = &internal_driver;
 
@@ -53,6 +54,12 @@ void graphics_init() {
         graphics_driver->init();
     }
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
+}
+
+void set_dma_handler_impl(dma_handler_impl_fn impl) {
+    if(graphics_driver && graphics_driver->set_dma_handler) {
+        graphics_driver->set_dma_handler(impl);
+    }
 }
 
 bool is_buffer_text(void) { // TODO: separate calls by supported or not

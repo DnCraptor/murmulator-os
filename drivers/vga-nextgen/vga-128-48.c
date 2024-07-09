@@ -648,3 +648,23 @@ void vga_backspace(void) {
     *t_buf++ = ' ';
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }
+
+int vga_get_mode(void) {
+    return 0;
+}
+
+bool vga_set_mode(int mode) {
+    return mode == 0;
+}
+
+void vga_lock_buffer(bool b) {
+    // TODO:
+}
+
+bool vga_is_text_mode() {
+    return true;
+}
+
+bool vga_is_mode_text(int mode) {
+    return true;
+}
