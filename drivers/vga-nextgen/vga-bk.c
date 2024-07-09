@@ -444,7 +444,7 @@ bool vga_set_mode(int mode) {
             break;
         case BK_256x256x2:
         case BK_512x256x1:
-            graphics_buffer = pvPortCalloc((text_buffer_width << 3) * text_buffer_height, 1);
+            graphics_buffer = pvPortCalloc(512 >> 3, 256);
             break;
         default:
             return false;
