@@ -3847,10 +3847,10 @@ FRESULT f_open (
 	BYTE mode			/* Access mode and open mode flags */
 )
 {
-    taskENTER_CRITICAL();
+    vTaskSuspendAll();;
 	FRESULT res = _f_open(fp, path, mode);
 	fp->chained = 0;
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	return res;
 }
 
@@ -3963,11 +3963,11 @@ int f_getc(FIL* fp) {
     //     goutf("f_getc passed: %d\n", res);
 	} else {
 		UINT br;
-	    taskENTER_CRITICAL();
+	    vTaskSuspendAll();;
 	    if (FR_OK == _f_read(fp, &c, 1, &br)) {
 			res = c;
 		}
-      	taskEXIT_CRITICAL();
+      	xTaskResumeAll();;
 	}
 	return res;
 }
@@ -3979,7 +3979,7 @@ FRESULT f_read (
 	UINT* br	/* Number of bytes read */
 ) {
 	FRESULT res;
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 	if  (fp->chained && fp->clust) { // "from" in pipe
 	    uint32_t sz = uxQueueMessagesWaiting(fp->fptr);
 		if(!fp->fptr || (fp->sect && 0 == sz)) { // already closed or chained closed and empty queue
@@ -3996,7 +3996,7 @@ FRESULT f_read (
 	} else {
 	    res = _f_read(fp, buff, btr, br);
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	return res;
 }
 
@@ -4140,9 +4140,9 @@ FRESULT f_write (
 		*bw = btw;
 		res = FR_OK;
 	} else {
-		taskENTER_CRITICAL();
+		vTaskSuspendAll();;
 		res = _f_write(fp, buff, btw, bw);
-		taskEXIT_CRITICAL();
+		xTaskResumeAll();;
 	}
 	return res;
 }
@@ -4227,9 +4227,9 @@ inline static FRESULT __always_inline (_f_sync) (
 FRESULT f_sync (
 	FIL* fp		/* Open file to be synced */
 ) {
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 	FRESULT res = _f_sync(fp);
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	return res;
 }
 
@@ -4256,7 +4256,7 @@ FRESULT f_close (
 		return FR_OK;
 	}
 
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 #if !FF_FS_READONLY
 	res = f_sync(fp);					/* Flush cached data */
 	if (res == FR_OK)
@@ -4275,7 +4275,7 @@ FRESULT f_close (
 #endif
 		}
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	return res;
 }
 
@@ -4315,7 +4315,7 @@ FRESULT f_chdir (
 	FATFS *fs;
 	DEF_NAMBUF
 
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 	/* Get logical drive */
 	res = mount_volume(&path, &fs, 0);
 	if (res == FR_OK) {
@@ -4359,7 +4359,7 @@ FRESULT f_chdir (
 		}
 #endif
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	LEAVE_FF(fs, res);
 }
 
@@ -4480,7 +4480,7 @@ FRESULT f_lseek (
 	DWORD *tbl;
 	LBA_t dsc;
 #endif
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 	res = validate(&fp->obj, &fs);		/* Check validity of the file object */
 	if (res == FR_OK) res = (FRESULT)fp->err;
 #if FF_FS_EXFAT && !FF_FS_READONLY
@@ -4489,7 +4489,7 @@ FRESULT f_lseek (
 	}
 #endif
 	if (res != FR_OK) {
-		taskEXIT_CRITICAL();
+		xTaskResumeAll();;
 		LEAVE_FF(fs, res);
 	}
 
@@ -4621,7 +4621,7 @@ FRESULT f_lseek (
 			fp->sect = nsect;
 		}
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	LEAVE_FF(fs, res);
 }
 
@@ -4643,7 +4643,7 @@ FRESULT f_opendir (
 
 	if (!dp) return FR_INVALID_OBJECT;
 
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 	/* Get logical drive */
 	res = mount_volume(&path, &fs, 0);
 	if (res == FR_OK) {
@@ -4687,7 +4687,7 @@ FRESULT f_opendir (
 		if (res == FR_NO_FILE) res = FR_NO_PATH;
 	}
 	if (res != FR_OK) dp->obj.fs = 0;		/* Invalidate the directory object if function faild */
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	LEAVE_FF(fs, res);
 }
 
@@ -4705,7 +4705,7 @@ FRESULT f_closedir (
 	FRESULT res;
 	FATFS *fs;
 
-    taskENTER_CRITICAL();
+    vTaskSuspendAll();;
 
 	res = validate(&dp->obj, &fs);	/* Check validity of the file object */
 	if (res == FR_OK) {
@@ -4719,7 +4719,7 @@ FRESULT f_closedir (
 		unlock_fs(fs, FR_OK);		/* Unlock volume */
 #endif
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	return res;
 }
 
@@ -4738,7 +4738,7 @@ FRESULT f_readdir (
 	FRESULT res;
 	FATFS *fs;
 	DEF_NAMBUF
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 
 	res = validate(&dp->obj, &fs);	/* Check validity of the directory object */
 	if (res == FR_OK) {
@@ -4756,7 +4756,7 @@ FRESULT f_readdir (
 			FREE_NAMBUF();
 		}
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 
 	LEAVE_FF(fs, res);
 }
@@ -4828,7 +4828,7 @@ FRESULT f_stat (
 	FRESULT res;
 	DIR dj;
 	DEF_NAMBUF
-    taskENTER_CRITICAL();
+	vTaskSuspendAll();
 
 	/* Get logical drive */
 	res = mount_volume(&path, &dj.obj.fs, 0);
@@ -4844,7 +4844,7 @@ FRESULT f_stat (
 		}
 		FREE_NAMBUF();
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	LEAVE_FF(dj.obj.fs, res);
 }
 
@@ -4992,9 +4992,9 @@ inline static FRESULT __always_inline( _f_truncate ) (
 FRESULT f_truncate (
 	FIL* fp		/* Pointer to the file object */
 ) {
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 	FRESULT res = _f_truncate(fp);
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();
 	return res;
 }
 
@@ -5016,7 +5016,7 @@ FRESULT f_unlink (
 	FFOBJID obj;
 #endif
 	DEF_NAMBUF
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 
 	/* Get logical drive */
 	res = mount_volume(&path, &fs, FA_WRITE);
@@ -5087,7 +5087,7 @@ FRESULT f_unlink (
 		}
 		FREE_NAMBUF();
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	LEAVE_FF(fs, res);
 }
 
@@ -5109,7 +5109,7 @@ FRESULT f_mkdir (
 	DWORD dcl, pcl, tm;
 	DEF_NAMBUF
 
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 	res = mount_volume(&path, &fs, FA_WRITE);	/* Get logical drive */
 	if (res == FR_OK) {
 		dj.obj.fs = fs;
@@ -5171,7 +5171,7 @@ FRESULT f_mkdir (
 		}
 		FREE_NAMBUF();
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	LEAVE_FF(fs, res);
 }
 
@@ -5194,7 +5194,7 @@ FRESULT f_rename (
 	LBA_t sect;
 	DEF_NAMBUF
 
-	taskENTER_CRITICAL();
+	vTaskSuspendAll();;
 	get_ldnumber(&path_new);						/* Snip the drive number of new name off */
 	res = mount_volume(&path_old, &fs, FA_WRITE);	/* Get logical drive of the old object */
 	if (res == FR_OK) {
@@ -5276,7 +5276,7 @@ FRESULT f_rename (
 		}
 		FREE_NAMBUF();
 	}
-	taskEXIT_CRITICAL();
+	xTaskResumeAll();;
 	LEAVE_FF(fs, res);
 }
 

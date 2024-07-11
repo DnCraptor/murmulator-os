@@ -112,11 +112,9 @@ void clrScr(const uint8_t color) {
 }
 
 void draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    taskENTER_CRITICAL();
     if(graphics_driver && graphics_driver->draw_text) {
         graphics_driver->draw_text(string, x, y, color, bgcolor);
     }
-    taskEXIT_CRITICAL();
 }
 
 void draw_window(const char* title, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
@@ -288,17 +286,13 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
 }
 
 void gouta(char* buf) {
-    taskENTER_CRITICAL();
     if(graphics_driver && graphics_driver->print) {
         graphics_driver->print(buf);
     }
-    taskEXIT_CRITICAL();
 }
 
 void gbackspace() {
-    taskENTER_CRITICAL();
     if(graphics_driver && graphics_driver->backspace) {
         graphics_driver->backspace();
     }
-    taskEXIT_CRITICAL();
 }

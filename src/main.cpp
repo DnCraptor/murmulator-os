@@ -34,7 +34,7 @@ extern "C" {
 #include "nespad.h"
 
 static FATFS fs;
-extern "C" FATFS* get_mount_fs() { // only one FS is supported foe now
+extern "C" FATFS* get_mount_fs() { // only one FS is supported for now
     return &fs;
 }
 semaphore vga_start_semaphore;
