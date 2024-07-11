@@ -134,14 +134,7 @@ static cmd_ctx_t* set_default_vars() {
     return ctx;
 }
 
-static void load_config_sys() {
-    cmd_ctx_t* ctx = set_default_vars();
-    bool b_swap = false;
-    bool b_base = false;
-    bool b_temp = false;
-    char* buff = 0;
-    FIL* pf = 0;
-    
+static char* open_config(UINT* pbr) {
     FILINFO* pfileinfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
     size_t file_size = 0;
     char * cfn = "/config.sys";
@@ -149,30 +142,39 @@ static void load_config_sys() {
         cfn = "/mos/config.sys";
         if (f_stat(cfn, pfileinfo) != FR_OK || (pfileinfo->fattrib & AM_DIR)) {
             vPortFree(pfileinfo);
-            return;
+            return 0;
         } else {
             file_size = (size_t)pfileinfo->fsize & 0xFFFFFFFF;
         }
     } else {
         file_size = (size_t)pfileinfo->fsize & 0xFFFFFFFF;
     }
-
-    pf = (FIL*)pvPortMalloc(sizeof(FIL));
-    if(f_open(pf, cfn, FA_READ) != FR_OK) {
-        vPortFree(pfileinfo);
-        vPortFree(pf);
-        return;
-    }
     vPortFree(pfileinfo);
 
-    buff = (char*)pvPortMalloc(file_size + 1);
-    memset(buff, 0, file_size + 1);
-    UINT br;
-    if (f_read(pf, buff, file_size, &br) != FR_OK) {
+    FIL* pf = (FIL*)pvPortMalloc(sizeof(FIL));
+    if(f_open(pf, cfn, FA_READ) != FR_OK) {
+        vPortFree(pf);
+        return 0;
+    }
+    char* buff = (char*)pvPortCalloc(file_size + 1, 1);
+    if (f_read(pf, buff, file_size, pbr) != FR_OK) {
         goutf("Failed to read config.sys\n");
-        f_close(pf);
-    } else {
-        f_close(pf);
+        vPortFree(buff);
+        buff = 0;
+    }
+    f_close(pf);
+    vPortFree(pf);
+    return buff;
+}
+
+static void load_config_sys() {
+    cmd_ctx_t* ctx = set_default_vars();
+    bool b_swap = false;
+    bool b_base = false;
+    bool b_temp = false;
+    UINT br;
+    char* buff = open_config(&br);
+    if (buff) {
         tokenizeCfg(buff, br);
         char *t = buff;
         while (t - buff < br) {
@@ -204,7 +206,6 @@ static void load_config_sys() {
                 int cpu = atoi(t);
                 if (cpu > 123 && cpu < 450) {
                     set_overclocking(cpu * 1000);
-               //     overclocking();
                 }
             } else if (strcmp(t, BASE) == 0) {
                 t = next_token(t);
@@ -223,7 +224,6 @@ static void load_config_sys() {
             t = next_token(t);
         }
     }
-    if (pf) vPortFree(pf);
     if (buff) vPortFree(buff);
     if (!b_temp) f_mkdir(ctmp);
     if (!b_base) f_mkdir(MOS);
@@ -234,6 +234,7 @@ static void load_config_sys() {
         init_vram(t2);
         vPortFree(t2);
     }
+   // overclocking();
 }
 
 static inline void try_to_restore_api_tbl(cmd_ctx_t* ctx) {
