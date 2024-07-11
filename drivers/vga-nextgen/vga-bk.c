@@ -98,7 +98,7 @@ static volatile bool lock_buffer = false;
 static uint16_t* txt_palette_fast = NULL;
 //static uint16_t txt_palette_fast[256*4];
 
-static volatile enum graphics_mode_t graphics_mode;
+static volatile int graphics_mode = -1;
 
 // TODO: separate header for sound mixer
 
@@ -592,8 +592,8 @@ bool vga_set_mode(int mode) {
             break;
     }
     vga_context = context;
-    if (cleanup->graphics_buffer) {
-        vPortFree(cleanup->graphics_buffer);
+    if (cleanup) {
+        if (cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
         vPortFree(cleanup);
     }
     return true;
@@ -784,8 +784,8 @@ void vga_init() {
     if (vga_context) {
         return;
     };
-    vga_context = pvPortCalloc(1, sizeof(vga_context_t));
-    vga_context->graphics_buffer = pvPortCalloc(MAX_WIDTH * MAX_HEIGHT, 2);
+  //  vga_context = pvPortCalloc(1, sizeof(vga_context_t));
+  //  vga_context->graphics_buffer = pvPortCalloc(MAX_WIDTH * MAX_HEIGHT, 2);
     text_buffer_width = MAX_WIDTH;
     text_buffer_height = MAX_HEIGHT;
     vga_set_bgcolor(0x000000);
@@ -824,7 +824,7 @@ void vga_init() {
         dma_chan,
         &c0,
         &PIO_VGA->txf[sm], // Write address
-        lines_pattern[0], // read address
+        &lines_pattern[0], // read address
         600 / 4, //
         false // Don't start yet
     );
@@ -842,12 +842,12 @@ void vga_init() {
         1, //
         false // Don't start yet
     );
-    vga_set_mode(BK_256x256x2);
+  //  vga_set_mode(BK_256x256x2);
     irq_set_exclusive_handler(VGA_DMA_IRQ, dma_handler_VGA);
     dma_channel_set_irq0_enabled(dma_chan_ctrl, true);
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask((1u << dma_chan));
-    vga_set_mode(TEXTMODE_128x48);
+   // vga_set_mode(TEXTMODE_128x48);
 };
 
 static char* _rollup(char* t_buf) {

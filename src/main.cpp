@@ -324,7 +324,28 @@ extern "C" void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
 extern "C" char vga_dbg_msg[1024];
 #endif
 
-static void init() {
+static void show_logo(void) {
+    uint32_t w = get_console_width();
+    uint32_t y = get_console_height() - 1;
+    uint32_t sz = strlen(tmp);
+    uint32_t sps = (w - sz) / 2;
+
+    for(uint32_t x = 0; x < sps; ++x) {
+        draw_text(" ", x, 0, 13, 1);
+        draw_text(" ", x, y, 13, 1);
+    }
+    draw_text(tmp, sps, 0, 13, 1);
+    draw_text(tmp, sps, y, 13, 1);
+    for(uint32_t x = sps + sz; x < w; ++x) {
+        draw_text(" ", x, 0, 13, 1);
+        draw_text(" ", x, y, 13, 1);
+    }
+
+    graphics_set_con_pos(0, 1);
+    graphics_set_con_color(7, 0); // TODO: config
+}
+
+static void init(void) {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
@@ -365,26 +386,6 @@ static void init() {
         check_firmware();
     }
 
-    uint32_t w = get_console_width();
-    uint32_t y = get_console_height() - 1;
-    uint32_t sz = strlen(tmp);
-    uint32_t sps = (w - sz) / 2;
-
-    for(uint32_t x = 0; x < sps; ++x) {
-        draw_text(" ", x, 0, 13, 1);
-        draw_text(" ", x, y, 13, 1);
-    }
-    draw_text(tmp, sps, 0, 13, 1);
-    draw_text(tmp, sps, y, 13, 1);
-    for(uint32_t x = sps + sz; x < w; ++x) {
-        draw_text(" ", x, 0, 13, 1);
-        draw_text(" ", x, y, 13, 1);
-    }
-
-    graphics_set_con_pos(0, 1);
-    graphics_set_con_color(7, 0); // TODO: config
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
    
     if (!mount_res) {
@@ -393,8 +394,9 @@ static void init() {
         while (true);
     }
     load_config_sys();
-
     init_psram();
+    show_logo();
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
 static void info() {
