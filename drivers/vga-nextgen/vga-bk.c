@@ -45,12 +45,12 @@ const struct pio_program pio_program_VGA = {
 
 typedef struct {
     uint8_t* graphics_buffer;
+    uint32_t* lines_pattern_data;
 } vga_context_t;
 
-static vga_context_t* vga_context = NULL;
+static volatile vga_context_t* vga_context = NULL;
 
 static uint32_t* lines_pattern[4];
-static uint32_t* lines_pattern_data = NULL;
 static int _SM_VGA = -1;
 
 
@@ -175,7 +175,12 @@ uint8_t get_vga_buffer_bitness(void) {
     return bitness;
 }
 void vga_cleanup(void) {
-    // TODO:
+    vga_context_t* cleanup = vga_context;
+    vga_context = 0;
+    if (cleanup) {
+        if (cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
+        vPortFree(cleanup);
+    }
 }
 
 void graphics_inc_palleter_offset() {
@@ -518,17 +523,14 @@ bool vga_set_mode(int mode) {
             break;
     }
 
-    if (lines_pattern_data) {
-        vPortFree(lines_pattern_data);
-    }
     //инициализация шаблонов строк и синхросигнала
     if (mode == TEXTMODE_80x30) {
         const uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
         PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
         dma_channel_set_trans_count(dma_chan, line_size / 4, false);
-        lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
+        context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
         for (int i = 0; i < 4; i++) {
-            lines_pattern[i] = &lines_pattern_data[i * (line_size / 4)];
+            lines_pattern[i] = &context->lines_pattern_data[i * (line_size / 4)];
         }
         TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
         TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
@@ -552,9 +554,9 @@ bool vga_set_mode(int mode) {
         uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
         PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
         dma_channel_set_trans_count(dma_chan, line_size >> 2, false);
-        lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
+        context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
         for (int i = 0; i < 4; i++) {
-            lines_pattern[i] = &lines_pattern_data[i * (line_size >> 2)];
+            lines_pattern[i] = &context->lines_pattern_data[i * (line_size >> 2)];
         }
         TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
         TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
@@ -593,6 +595,7 @@ bool vga_set_mode(int mode) {
     }
     vga_context = context;
     if (cleanup) {
+        if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
         if (cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
         vPortFree(cleanup);
     }
