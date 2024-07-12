@@ -46,6 +46,8 @@ const struct pio_program pio_program_VGA = {
 typedef struct {
     uint8_t* graphics_buffer;
     uint32_t* lines_pattern_data;
+    // буфер 2К текстовой палитры для быстрой работы
+    uint16_t* txt_palette_fast;
 } vga_context_t;
 
 static volatile vga_context_t* vga_context = NULL;
@@ -93,11 +95,6 @@ static volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 static uint8_t __scratch_y("vga_driver_text") con_color = 7;
 static uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
 static volatile bool lock_buffer = false;
-
-//буфер 2К текстовой палитры для быстрой работы
-static uint16_t* txt_palette_fast = NULL;
-//static uint16_t txt_palette_fast[256*4];
-
 static volatile int graphics_mode = -1;
 
 // TODO: separate header for sound mixer
@@ -179,6 +176,8 @@ void vga_cleanup(void) {
     vga_context = 0;
     if (cleanup) {
         if (cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
+        if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
+        if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
         vPortFree(cleanup);
     }
 }
@@ -252,6 +251,7 @@ static void __time_critical_func(dma_handler_VGA_impl)() {
             uint32_t glyph_line = screen_line % font_height;
             //указатель откуда начать считывать символы
             uint8_t* text_buffer_line = &input_buffer[screen_line / font_height * text_buffer_width * 2];
+            uint16_t* txt_palette_fast = vga_context->txt_palette_fast;
             for (int x = 0; x < text_buffer_width; x++) {
                 //из таблицы символов получаем "срез" текущего символа
                 uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
@@ -282,6 +282,7 @@ static void __time_critical_func(dma_handler_VGA_impl)() {
             output_buffer_16bit += shift_picture / 2;
             const uint font_weight = 8;
             const uint font_height = 16;
+            uint16_t* txt_palette_fast = vga_context->txt_palette_fast;
             // "слой" символа
             register uint32_t glyph_line = screen_line % font_height;
             //указатель откуда начать считывать символы
@@ -587,6 +588,15 @@ bool vga_set_mode(int mode) {
         case TEXTMODE_80x30:
         case TEXTMODE_128x48:
             context->graphics_buffer = pvPortCalloc(text_buffer_width * text_buffer_height, 2);
+            context->txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
+            for (int i = 0; i < 256; i++) {
+                uint8_t c1 = txt_palette[i & 0xf];
+                uint8_t c0 = txt_palette[i >> 4];
+                context->txt_palette_fast[i * 4 + 0] = (c0) | (c0 << 8);
+                context->txt_palette_fast[i * 4 + 1] = (c1) | (c0 << 8);
+                context->txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
+                context->txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
+            }
             break;
         case BK_256x256x2:
         case BK_512x256x1:
@@ -595,6 +605,7 @@ bool vga_set_mode(int mode) {
     }
     vga_context = context;
     if (cleanup) {
+        if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
         if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
         if (cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
         vPortFree(cleanup);
@@ -762,17 +773,6 @@ static void init_palette() {
         uint8_t g = (i & 2) ? ((i >> 3) ? 3 : 2) : 0;
         uint8_t c = (r << 4) | (g << 2) | b;
         txt_palette[i] = (c & 0x3f) | 0xc0;
-    }
-    if (!(txt_palette_fast)) {
-        txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
-        for (int i = 0; i < 256; i++) {
-            uint8_t c1 = txt_palette[i & 0xf];
-            uint8_t c0 = txt_palette[i >> 4];
-            txt_palette_fast[i * 4 + 0] = (c0) | (c0 << 8);
-            txt_palette_fast[i * 4 + 1] = (c1) | (c0 << 8);
-            txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
-            txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
-        }
     }
     palette16_mask = 0xc0c0;
     //корректировка  палитры по маске бит синхры
