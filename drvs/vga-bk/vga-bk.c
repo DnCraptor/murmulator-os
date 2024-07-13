@@ -320,13 +320,178 @@ static uint8_t* dma_handler_VGA_impl() {
     return output_buffer;
 }
 
+static void vga_cleanup(void) {
+    vga_context_t* cleanup = vga_context;
+    vga_context = 0;
+    if (cleanup) {
+        if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
+        if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
+        if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
+        vPortFree(cleanup);
+    }
+}
+
+bool vga_set_mode(int mode) {
+    if (graphics_mode == mode) return true;
+    vga_context_t* context = pvPortCalloc(1, sizeof(vga_context_t));
+    switch (mode) {
+        case TEXTMODE_80x30:
+            text_buffer_width = 80;
+            text_buffer_height = 30;
+            bitness = 16;
+            break;
+        case TEXTMODE_128x48:
+            text_buffer_width = 128;
+            text_buffer_height = 48;
+            bitness = 16;
+            break;
+        case BK_256x256x2:
+            text_buffer_width = 256;
+            text_buffer_height = 256;
+            bitness = 2;
+            break;
+        case BK_512x256x1:
+            text_buffer_width = 512;
+            text_buffer_height = 256;
+            bitness = 1;
+            break;
+        default:
+            return false;
+    }
+    graphics_mode = mode;
+    pos_x = 0;
+    pos_y = 0;
+
+    uint8_t TMPL_VHS8 = 0;
+    uint8_t TMPL_VS8 = 0;
+    uint8_t TMPL_HS8 = 0;
+    uint8_t TMPL_LINE8 = 0;
+
+    int HS_SIZE = 4;
+    int HS_SHIFT = 100;
+
+    switch (graphics_mode) {
+        case TEXTMODE_80x30:
+            TMPL_LINE8 = 0b11000000;
+            HS_SHIFT = 328 * 2;
+            HS_SIZE = 48 * 2;
+            line_size = 400 * 2;
+            shift_picture = line_size - HS_SHIFT;
+            visible_line_size = 320;
+            N_lines_total = 525;
+            N_lines_visible = 480;
+            line_VS_begin = 490;
+            line_VS_end = 491;
+            set_graphics_clkdiv(25175000, line_size); // частота пиксельклока
+            break;
+        case TEXTMODE_128x48:
+        case BK_256x256x2:
+        case BK_512x256x1:
+            TMPL_LINE8 = 0b11000000;
+            // XGA Signal 1024 x 768 @ 60 Hz timing
+            HS_SHIFT = 1024 + 24; // Front porch + Visible area
+            HS_SIZE = 160; // Back porch
+            line_size = 1344;
+            shift_picture = line_size - HS_SHIFT;
+            visible_line_size = 1024 / 2;
+            N_lines_visible = 768;
+            line_VS_begin = 768 + 3; // + Front porch
+            line_VS_end = 768 + 3 + 6; // ++ Sync pulse 2?
+            N_lines_total = 806; // Whole frame
+            set_graphics_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
+            break;
+    }
+
+    //инициализация шаблонов строк и синхросигнала
+    if (mode == TEXTMODE_80x30) {
+        context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
+        for (int i = 0; i < 4; i++) {
+            lines_pattern[i] = &context->lines_pattern_data[i * (line_size / 4)];
+        }
+        TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
+        TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
+        TMPL_HS8 = TMPL_LINE8 ^ 0b01000000;
+        uint8_t* base_ptr = (uint8_t *)lines_pattern[0];
+        //пустая строка
+        memset(base_ptr, TMPL_LINE8, line_size);
+        //выровненная синхра вначале
+        memset(base_ptr, TMPL_HS8, HS_SIZE);
+        // кадровая синхра
+        base_ptr = (uint8_t *)lines_pattern[1];
+        memset(base_ptr, TMPL_VS8, line_size);
+        //выровненная синхра вначале
+        memset(base_ptr, TMPL_VHS8, HS_SIZE);
+        //заготовки для строк с изображением
+        base_ptr = (uint8_t *)lines_pattern[2];
+        memcpy(base_ptr, lines_pattern[0], line_size);
+        base_ptr = (uint8_t *)lines_pattern[3];
+        memcpy(base_ptr, lines_pattern[0], line_size);
+    } else {
+        context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
+        for (int i = 0; i < 4; i++) {
+            lines_pattern[i] = &context->lines_pattern_data[i * (line_size >> 2)];
+        }
+        TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
+        TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
+        TMPL_HS8 = TMPL_LINE8 ^ 0b01000000;
+        uint8_t* base_ptr = (uint8_t *)lines_pattern[0];
+        //пустая строка
+        memset(base_ptr, TMPL_LINE8, line_size);
+        //выровненная синхра вначале
+        memset(base_ptr, TMPL_HS8, HS_SIZE);
+        // кадровая синхра
+        base_ptr = (uint8_t *)lines_pattern[1];
+        memset(base_ptr, TMPL_VS8, line_size);
+        //выровненная синхра вначале
+        memset(base_ptr, TMPL_VHS8, HS_SIZE);
+        //заготовки для строк с изображением
+        base_ptr = (uint8_t *)lines_pattern[2];
+        memcpy(base_ptr, lines_pattern[0], line_size);
+        base_ptr = (uint8_t *)lines_pattern[3];
+        memcpy(base_ptr, lines_pattern[0], line_size);
+    }
+    frame_number = 0;
+    screen_line = 0;
+    input_buffer = NULL;
+    prev_output_buffer = 0;
+
+    vga_context_t* cleanup = vga_context;
+    switch (mode) {
+        case TEXTMODE_80x30:
+        case TEXTMODE_128x48:
+            context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(text_buffer_width * text_buffer_height, 2);
+            context->txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
+            for (int i = 0; i < 256; i++) {
+                uint8_t c1 = txt_palette[i & 0xf];
+                uint8_t c0 = txt_palette[i >> 4];
+                context->txt_palette_fast[i * 4 + 0] = (c0) | (c0 << 8);
+                context->txt_palette_fast[i * 4 + 1] = (c1) | (c0 << 8);
+                context->txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
+                context->txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
+            }
+            break;
+        case BK_256x256x2:
+        case BK_512x256x1:
+            context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(512 >> 3, 256);
+            break;
+    }
+    vga_context = context;
+    if (cleanup) {
+        if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
+        if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
+        if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
+        vPortFree(cleanup);
+    }
+    return true;
+};
+
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
     graphics_driver_t* gd = malloc(sizeof(graphics_driver_t));
     gd->ctx = ctx;
     gd->init = 0;
-    gd->cleanup = 0;
-    gd->set_mode = 0;
+    gd->cleanup = vga_cleanup;
+    gd->set_mode = vga_set_mode;
     gd->is_text = 0;
     gd->console_width = 0;
     gd->console_height = 0;
@@ -354,7 +519,8 @@ int main(void) {
     set_dma_handler_impl(dma_handler_VGA_impl);
     return 0;
 }
-
+/*
 int __required_m_api_verion(void) {
     return M_API_VERSION;
 }
+*/

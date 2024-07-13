@@ -48,6 +48,7 @@ bool is_buffer_text();
 int graphics_con_x(void);
 int graphics_con_y(void);
 void graphics_lock_buffer(bool);
+void set_graphics_clkdiv(uint32_t pixel_clock, uint32_t line_size);
 
 typedef void (*vv_fn)(void);
 typedef void (*vb_fn)(bool);

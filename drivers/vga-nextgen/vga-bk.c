@@ -492,7 +492,7 @@ bool vga_set_mode(int mode) {
             N_lines_visible = 480;
             line_VS_begin = 490;
             line_VS_end = 491;
-            fdiv = clock_get_hz(clk_sys) / 25175000.0; // частота пиксельклока
+            set_graphics_clkdiv(25175000, line_size); // частота пиксельклока
             break;
         case TEXTMODE_128x48:
         case BK_256x256x2:
@@ -508,15 +508,12 @@ bool vga_set_mode(int mode) {
             line_VS_begin = 768 + 3; // + Front porch
             line_VS_end = 768 + 3 + 6; // ++ Sync pulse 2?
             N_lines_total = 806; // Whole frame
-            fdiv = clock_get_hz(clk_sys) / (65000000.0); // 65.0 MHz
+            set_graphics_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
             break;
     }
 
     //инициализация шаблонов строк и синхросигнала
     if (mode == TEXTMODE_80x30) {
-        const uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
-        PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
-        dma_channel_set_trans_count(dma_chan, line_size / 4, false);
         context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
         for (int i = 0; i < 4; i++) {
             lines_pattern[i] = &context->lines_pattern_data[i * (line_size / 4)];
@@ -540,9 +537,6 @@ bool vga_set_mode(int mode) {
         base_ptr = (uint8_t *)lines_pattern[3];
         memcpy(base_ptr, lines_pattern[0], line_size);
     } else {
-        uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
-        PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
-        dma_channel_set_trans_count(dma_chan, line_size >> 2, false);
         context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
         for (int i = 0; i < 4; i++) {
             lines_pattern[i] = &context->lines_pattern_data[i * (line_size >> 2)];
@@ -913,4 +907,11 @@ void vga_set_bgcolor(const uint32_t color888) {
                   ((c_hi << 8 | c_lo) & 0x3f3f | palette16_mask);
     bg_color[1] = ((c_lo << 8 | c_hi) & 0x3f3f | palette16_mask) << 16 |
                   ((c_lo << 8 | c_hi) & 0x3f3f | palette16_mask);
+}
+
+void set_graphics_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
+    double fdiv = clock_get_hz(clk_sys) / (pixel_clock * 1.0); // частота пиксельклока
+    uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
+    PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
+    dma_channel_set_trans_count(dma_chan, line_size >> 2, false);
 }

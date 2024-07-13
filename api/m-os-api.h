@@ -491,13 +491,16 @@ inline static void* memset(void* p, int v, size_t sz) {
     typedef void* (*fn)(void *, int, size_t);
     return ((fn)_sys_table_ptrs[142])(p, v, sz);
 }
-inline static void* calloc(size_t xWantedSize) {
-    typedef char* (*pvPortMalloc_ptr_t)( size_t xWantedSize );
-    char* t = ((pvPortMalloc_ptr_t)_sys_table_ptrs[32])(xWantedSize); // allign?
-    memset(t, 0, xWantedSize);
-    return t;
-}
 */
+inline static void* calloc(size_t cnt, size_t sz) {
+    typedef char* (*pvPortCalloc_ptr_t)( size_t cnt, size_t sz );
+    return ((pvPortCalloc_ptr_t)_sys_table_ptrs[166])(cnt, sz);
+}
+inline static void* pvPortCalloc(size_t cnt, size_t sz) {
+    typedef char* (*pvPortCalloc_ptr_t)( size_t cnt, size_t sz );
+    return ((pvPortCalloc_ptr_t)_sys_table_ptrs[166])(cnt, sz);
+}
+
 inline static void free(void * pv) {
     typedef void (*vPortFree_ptr_t)( void * pv );
     ((vPortFree_ptr_t)_sys_table_ptrs[33])(pv);
@@ -622,6 +625,11 @@ typedef uint8_t* (*dma_handler_impl_fn)(void);
 inline static void set_dma_handler_impl(dma_handler_impl_fn impl) {
     typedef void (*fn_ptr_t)(dma_handler_impl_fn);
     return ((fn_ptr_t)_sys_table_ptrs[164])(impl);
+}
+
+inline static void set_graphics_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
+    typedef void (*fn_ptr_t)(uint32_t, uint32_t);
+    ((fn_ptr_t)_sys_table_ptrs[165])(pixel_clock, line_size);
 }
 
 #ifdef __cplusplus
