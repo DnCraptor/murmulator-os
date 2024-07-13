@@ -61,14 +61,11 @@ static volatile int N_lines_visible = 480;
 static volatile int line_VS_begin = 490;
 static volatile int line_VS_end = 491;
 static volatile int shift_picture = 0;
-
-static volatile int begin_line_index = 0;
 static volatile int visible_line_size = 320;
 
 static int dma_chan_ctrl;
 static int dma_chan;
 
-static volatile uint graphics_buffer_width = 0;
 static volatile int graphics_buffer_shift_x = 0;
 static volatile int graphics_buffer_shift_y = 0;
 

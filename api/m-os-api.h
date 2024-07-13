@@ -486,6 +486,7 @@ inline static void* malloc(size_t xWantedSize) {
     typedef void* (*pvPortMalloc_ptr_t)( size_t xWantedSize );
     return ((pvPortMalloc_ptr_t)_sys_table_ptrs[32])(xWantedSize);
 }
+/*
 inline static void* memset(void* p, int v, size_t sz) {
     typedef void* (*fn)(void *, int, size_t);
     return ((fn)_sys_table_ptrs[142])(p, v, sz);
@@ -496,6 +497,7 @@ inline static void* calloc(size_t xWantedSize) {
     memset(t, 0, xWantedSize);
     return t;
 }
+*/
 inline static void free(void * pv) {
     typedef void (*vPortFree_ptr_t)( void * pv );
     ((vPortFree_ptr_t)_sys_table_ptrs[33])(pv);
@@ -562,6 +564,7 @@ typedef void (*dt_fn)(const char*, int, int, uint8_t, uint8_t);
 typedef void (*vii_fn)(const int, const int);
 typedef void (*vu8u8_fn)(uint8_t, uint8_t);
 typedef void (*vcu32_fn)(const uint32_t);
+typedef uint8_t* (*dma_handler_impl_fn)(void);
 typedef void (*set_dma_handler_impl_fn)(dma_handler_impl_fn impl);
 
 typedef struct graphics_driver {
