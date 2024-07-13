@@ -94,6 +94,7 @@ int _init(void) {
     con_bgcolor = 0;
     lock_buffer = false;
     graphics_mode = -1;
+    return 0;
 }
 
 static uint8_t* dma_handler_VGA_impl() {
