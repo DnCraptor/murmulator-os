@@ -549,21 +549,26 @@ inline static void cleanup_graphics() {
 }
 
 typedef void (*vv_fn)(void);
-typedef void (*vi_fn)(int);
+typedef void (*vb_fn)(bool);
+typedef bool (*bi_fn)(int);
+typedef int (*iv_fn)(void);
 typedef bool (*bv_fn)(void);
 typedef uint32_t (*u32v_fn)(void);
 typedef uint8_t* (*pu8v_fn)(void);
 typedef uint8_t (*u8v_fn)(void);
 typedef void (*vpu8_fn)(uint8_t*);
 typedef void (*vu8_fn)(uint8_t);
-typedef void (*dt_fn)(const char* string, int x, int y, uint8_t color, uint8_t bgcolor);
-typedef void (*set_offsets_fn)(const int x, const int y);
-typedef void (*vcu32_fn)(const uint32_t color888);
+typedef void (*dt_fn)(const char*, int, int, uint8_t, uint8_t);
+typedef void (*vii_fn)(const int, const int);
+typedef void (*vu8u8_fn)(uint8_t, uint8_t);
+typedef void (*vcu32_fn)(const uint32_t);
+typedef void (*set_dma_handler_impl_fn)(dma_handler_impl_fn impl);
+
 typedef struct graphics_driver {
     cmd_ctx_t* ctx;
     vv_fn init;
     vv_fn cleanup;
-    vi_fn set_mode;
+    bi_fn set_mode;
     bv_fn is_text;
     u32v_fn console_width;
     u32v_fn console_height;
@@ -575,9 +580,19 @@ typedef struct graphics_driver {
     dt_fn draw_text;
     u8v_fn console_bitness;
     u8v_fn screen_bitness;
-    set_offsets_fn set_offsets;
+    vii_fn set_offsets;
     vcu32_fn set_bgcolor;
     u32v_fn allocated;
+    vii_fn set_con_pos;
+    iv_fn pos_x;
+    iv_fn pos_y;
+    vu8u8_fn set_con_color;
+    vpu8_fn print;
+    vv_fn backspace;
+    vb_fn lock_buffer;
+    iv_fn get_mode;
+    bi_fn is_mode_text;
+    set_dma_handler_impl_fn set_dma_handler;
 } graphics_driver_t;
 inline static void install_graphics_driver(graphics_driver_t* gd) {
     typedef void (*fn_ptr_t)(graphics_driver_t* gd);
@@ -600,7 +615,7 @@ inline static bool graphics_is_mode_text(int mode) {
     return ((fn_ptr_t)_sys_table_ptrs[163])(mode);
 }
 
-typedef void (*dma_handler_impl_fn)(void);
+typedef uint8_t* (*dma_handler_impl_fn)(void);
 inline static void set_dma_handler_impl(dma_handler_impl_fn impl) {
     typedef void (*fn_ptr_t)(dma_handler_impl_fn);
     return ((fn_ptr_t)_sys_table_ptrs[164])(impl);

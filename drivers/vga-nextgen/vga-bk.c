@@ -159,13 +159,12 @@ size_t vga_buffer_size() {
     switch (graphics_mode) {
         case TEXTMODE_80x30:
         case TEXTMODE_128x48:
-            return text_buffer_height * text_buffer_width * 2
+            return (lock_buffer ? 0 : text_buffer_height * text_buffer_width * 2)
                 + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
         case BK_256x256x2:
         case BK_512x256x1:
         default:
-            return 512 / 8 * 256
-                + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
+            return (lock_buffer ? 512 / 8 * 256 : 0) + line_size * sizeof(uint32_t);
     }
 }
 uint8_t get_vga_buffer_bitness(void) {
@@ -175,7 +174,7 @@ void vga_cleanup(void) {
     vga_context_t* cleanup = vga_context;
     vga_context = 0;
     if (cleanup) {
-        if (cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
+        if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
         if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
         if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
         vPortFree(cleanup);
@@ -192,7 +191,7 @@ static volatile uint32_t screen_line = 0;
 static volatile uint8_t* input_buffer = NULL;
 static volatile uint32_t* * prev_output_buffer = 0;
 
-static void __time_critical_func(dma_handler_VGA_impl)() {
+static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
     screen_line++;
 
     if (screen_line == N_lines_total) {
@@ -213,17 +212,14 @@ static void __time_critical_func(dma_handler_VGA_impl)() {
             }
         }
 
-        //синхросигналы
+        // синхросигналы
         if ((screen_line >= line_VS_begin) && (screen_line <= line_VS_end))
-            dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[1], false); //VS SYNC
-        else
-            dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false);
-        return;
+            return &lines_pattern[1]; // VS SYNC
+        return &lines_pattern[0];
     }
 
     if (!(input_buffer)) {
-        dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false);
-        return;
+        return &lines_pattern[0];
     } //если нет видеобуфера - рисуем пустую строку
 
     int y, line_number;
@@ -235,8 +231,7 @@ static void __time_critical_func(dma_handler_VGA_impl)() {
         case BK_512x256x1:
             if (screen_line % 3 != 0) { // три подряд строки рисуем одно и тоже
                 if (prev_output_buffer) output_buffer = prev_output_buffer;
-                dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-                return;
+                return output_buffer;
             }
             prev_output_buffer = output_buffer;
             line_number = screen_line / 3;
@@ -274,8 +269,7 @@ static void __time_critical_func(dma_handler_VGA_impl)() {
                     *output_buffer_16bit++ = color[glyph_pixels & 3];
                 }
             }
-            dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-            return;
+            return output_buffer;
         }
         case TEXTMODE_128x48: {
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
@@ -326,17 +320,14 @@ static void __time_critical_func(dma_handler_VGA_impl)() {
                     *output_buffer_16bit++ = color[glyph_pixels & 3];
                 }
             }
-            dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-            return;
+            return output_buffer;
         }
         default: {
-            dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false); // TODO: ensue it is required
-            return;
+            return &lines_pattern[0];
         }
     }
     if (y < 0) {
-        dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false); // TODO: ensue it is required
-        return;
+        return &lines_pattern[0];
     }
     uint graphics_buffer_height = g_conf.graphics_buffer_height;
     if (y >= graphics_buffer_height) {
@@ -351,8 +342,7 @@ static void __time_critical_func(dma_handler_VGA_impl)() {
                 *output_buffer_32bit++ = color32;
             }
         }
-        dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-        return;
+        return output_buffer;
     };
     //зона прорисовки изображения
     int addr_in_buf = 64 * (y + g_conf.shift_y - 0330);
@@ -420,7 +410,7 @@ static void __time_critical_func(dma_handler_VGA_impl)() {
         default:
             break;
     }
-    dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
+    return output_buffer;
 }
 
 static volatile dma_handler_impl_fn pdma_handler_VGA_impl = dma_handler_VGA_impl;
@@ -432,7 +422,8 @@ void set_vga_dma_handler_impl(dma_handler_impl_fn impl) {
 // to start sound later
 void __time_critical_func(dma_handler_VGA)() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
-    pdma_handler_VGA_impl();
+    uint8_t* data = pdma_handler_VGA_impl();
+    dma_channel_set_read_addr(dma_chan_ctrl, data, false);
 }
 
 #define MAX_WIDTH 128
@@ -587,7 +578,7 @@ bool vga_set_mode(int mode) {
     switch (mode) {
         case TEXTMODE_80x30:
         case TEXTMODE_128x48:
-            context->graphics_buffer = pvPortCalloc(text_buffer_width * text_buffer_height, 2);
+            context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(text_buffer_width * text_buffer_height, 2);
             context->txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
             for (int i = 0; i < 256; i++) {
                 uint8_t c1 = txt_palette[i & 0xf];
@@ -600,14 +591,14 @@ bool vga_set_mode(int mode) {
             break;
         case BK_256x256x2:
         case BK_512x256x1:
-            context->graphics_buffer = pvPortCalloc(512 >> 3, 256);
+            context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(512 >> 3, 256);
             break;
     }
     vga_context = context;
     if (cleanup) {
         if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
         if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
-        if (cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
+        if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
         vPortFree(cleanup);
     }
     return true;
