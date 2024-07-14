@@ -692,7 +692,8 @@ int main(void) {
     set_dma_handler_impl(dma_handler_VGA_impl);
     vga_set_mode(0);
     for(;;) {
-        vTaskDelay(1000); // TODO: lock it before release
+        vTaskDelay(100);
+        if (!vga_context) break;
     }
     return 0;
 }
