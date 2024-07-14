@@ -82,6 +82,7 @@ cpu NNN - change freq. to NNN MHz (it may hang on such action)<br/>
 mem - show current memory state<br/>
 set - show or set environment variables<br/>
 export - put variable into system context<br/>
+less - show not more than one page of other command in pipe, like ls | less<br/>
 
 [cmd] &gt; file - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format<br/>
