@@ -79,9 +79,9 @@ swap - provide some swap info<br/>
 sram - reference speed of swap base SRAM<br/>
 cpu - show current CPU freq. and dividers<br/>
 cpu NNN - change freq. to NNN MHz (it may hang on such action)<br/>
-mem - show current memory state
-set - show or set environment variables
-export - put variable into system context
+mem - show current memory state<br/>
+set - show or set environment variables<br/>
+export - put variable into system context<br/>
 
 [cmd] &gt; file - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format<br/>
