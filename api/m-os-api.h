@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 8
+#define M_API_VERSION 9
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)

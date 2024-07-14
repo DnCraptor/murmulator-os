@@ -492,7 +492,7 @@ bool vga_set_mode(int mode) {
             N_lines_visible = 480;
             line_VS_begin = 490;
             line_VS_end = 491;
-            set_graphics_clkdiv(25175000, line_size); // частота пиксельклока
+            set_vga_clkdiv(25175000, line_size); // частота пиксельклока
             break;
         case TEXTMODE_128x48:
         case BK_256x256x2:
@@ -508,7 +508,7 @@ bool vga_set_mode(int mode) {
             line_VS_begin = 768 + 3; // + Front porch
             line_VS_end = 768 + 3 + 6; // ++ Sync pulse 2?
             N_lines_total = 806; // Whole frame
-            set_graphics_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
+            set_vga_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
             break;
     }
 

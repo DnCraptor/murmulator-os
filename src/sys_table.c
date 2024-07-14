@@ -227,6 +227,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     set_dma_handler_impl, // 164
     set_graphics_clkdiv, // 165
     pvPortCalloc, // 166
+    memcpy, // 167
     // TODO:
     0
 };

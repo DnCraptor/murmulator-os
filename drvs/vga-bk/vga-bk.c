@@ -6,6 +6,11 @@ void* memset(void* p, int v, size_t sz) {
     return ((fn)_sys_table_ptrs[142])(p, v, sz);
 }
 
+void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz) {
+    typedef void* (*fn)(void *, const void*, size_t);
+    return ((fn)_sys_table_ptrs[167])(dst, src, sz);
+}
+
 enum graphics_mode_t {
     TEXTMODE_80x30,
     TEXTMODE_128x48,
@@ -64,7 +69,7 @@ static uint8_t con_bgcolor;
 static volatile bool lock_buffer;
 static volatile int graphics_mode;
 
-int _init(void) {
+static void init(void) {
     frame_number = 0;
     screen_line = 0;
     input_buffer = NULL;
@@ -94,7 +99,6 @@ int _init(void) {
     con_bgcolor = 0;
     lock_buffer = false;
     graphics_mode = -1;
-    return 0;
 }
 
 static uint8_t* dma_handler_VGA_impl() {
@@ -382,7 +386,7 @@ bool vga_set_mode(int mode) {
             N_lines_visible = 480;
             line_VS_begin = 490;
             line_VS_end = 491;
-            set_vga_clkdiv(25175000, line_size); // частота пиксельклока
+            set_graphics_clkdiv(25175000, line_size); // частота пиксельклока
             break;
         case TEXTMODE_128x48:
         case BK_256x256x2:
@@ -398,7 +402,7 @@ bool vga_set_mode(int mode) {
             line_VS_begin = 768 + 3; // + Front porch
             line_VS_end = 768 + 3 + 6; // ++ Sync pulse 2?
             N_lines_total = 806; // Whole frame
-            set_vga_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
+            set_graphics_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
             break;
     }
 
@@ -485,7 +489,175 @@ bool vga_set_mode(int mode) {
     return true;
 };
 
+static bool vga_is_mode_text(int mode) {
+    return mode <= TEXTMODE_128x48;
+}
+
+static bool vga_is_text_mode() {
+    return vga_is_mode_text(graphics_mode);
+}
+
+static int vga_get_mode(void) {
+    return graphics_mode;
+}
+
+static uint32_t get_vga_console_width() {
+    return text_buffer_width;
+}
+
+static uint32_t get_vga_console_height() {
+    return text_buffer_height;
+}
+
+static uint8_t* get_vga_buffer() {
+    if (!vga_context) return NULL;
+    return vga_context->graphics_buffer;
+}
+
+static void set_vga_buffer(uint8_t* buffer) {
+    if (!vga_context) return;
+    vga_context->graphics_buffer = buffer;
+}
+
+static size_t vga_buffer_size() {
+    switch (graphics_mode) {
+        case TEXTMODE_80x30:
+        case TEXTMODE_128x48:
+            return (lock_buffer ? 0 : text_buffer_height * text_buffer_width * 2)
+                + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
+        case BK_256x256x2:
+        case BK_512x256x1:
+        default:
+            return (lock_buffer ? 512 / 8 * 256 : 0) + line_size * sizeof(uint32_t);
+    }
+}
+
+static void vga_set_con_pos(int x, int y) {
+    pos_x = x;
+    pos_y = y;
+}
+
+static void vga_set_con_color(uint8_t color, uint8_t bgcolor) {
+    con_color = color;
+    con_bgcolor = bgcolor;
+}
+
+
+static char* _rollup(char* t_buf) {
+    char* b = vga_context->graphics_buffer;
+    if (pos_y >= text_buffer_height - 1) {
+        memcpy(b, b + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
+        t_buf = b + text_buffer_width * (text_buffer_height - 2) * 2;
+        for(int i = 0; i < text_buffer_width; ++i) {
+            *t_buf++ = ' ';
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+        pos_y = text_buffer_height - 2;
+    }
+    return b + text_buffer_width * 2 * pos_y + 2 * pos_x;
+}
+
+static void vga_print(char* buf) {
+    if (!vga_context || !vga_context->graphics_buffer) return;
+    uint8_t* t_buf = vga_context->graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    char c;
+    while (c = *buf++) {
+        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
+        if (c == '\n') {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            continue;
+        }
+        pos_x++;
+        if (pos_x >= text_buffer_width) {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+            pos_x++;
+        } else {
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+    }
+}
+
+static void vga_backspace(void) {
+    if (!vga_context || !vga_context->graphics_buffer) return;
+    uint8_t* t_buf;
+    pos_x--;
+    if (pos_x < 0) {
+        pos_x = text_buffer_width - 2;
+        pos_y--;
+        if (pos_y < 0) {
+            pos_y = 0;
+        }
+    }
+    t_buf = vga_context->graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
+    *t_buf++ = ' ';
+    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+}
+
+static void vga_lock_buffer(bool b) {
+    lock_buffer = b;
+}
+
+static void vga_clr_scr(uint8_t color) {
+    if (!vga_context || !vga_context->graphics_buffer) return;
+    uint8_t* t_buf = vga_context->graphics_buffer;
+    for (int yi = 0; yi < text_buffer_height; yi++)
+        for (int xi = 0; xi < text_buffer_width * 2; xi++) {
+            *t_buf++ = ' ';
+            *t_buf++ = (color << 4) | (color & 0xF);
+        }
+    vga_set_con_pos(0, 0);
+    vga_set_con_color(7, color); // TODO:
+};
+
+static void vga_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
+    if (!vga_context || !vga_context->graphics_buffer) return;
+    uint8_t* t_buf = vga_context->graphics_buffer + text_buffer_width * 2 * y + 2 * x;
+    uint8_t c = (bgcolor << 4) | (color & 0xF);
+    for (int xi = x; xi < text_buffer_width * 2; ++xi) {
+        if (!(*string)) break;
+        *t_buf++ = *string++;
+        *t_buf++ = c;
+    }
+}
+
+static uint8_t get_vga_buffer_bitness(void) {
+    return bitness;
+}
+
+static void vga_set_bgcolor(const uint32_t color888) {
+    const uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
+    const uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };
+
+    const uint8_t b = (color888 & 0xff) / 42;
+
+    const uint8_t r = (color888 >> 16 & 0xff) / 42;
+    const uint8_t g = (color888 >> 8 & 0xff) / 42;
+
+    const uint8_t c_hi = conv0[r] << 4 | conv0[g] << 2 | conv0[b];
+    const uint8_t c_lo = conv1[r] << 4 | conv1[g] << 2 | conv1[b];
+    bg_color[0] = ((c_hi << 8 | c_lo) & 0x3f3f | palette16_mask) << 16 |
+                  ((c_hi << 8 | c_lo) & 0x3f3f | palette16_mask);
+    bg_color[1] = ((c_lo << 8 | c_hi) & 0x3f3f | palette16_mask) << 16 |
+                  ((c_lo << 8 | c_hi) & 0x3f3f | palette16_mask);
+}
+
+static int vga_con_x(void) {
+    return pos_x;
+}
+
+static int vga_con_y(void) {
+    return pos_y;
+}
+
 int main(void) {
+    init();
     cmd_ctx_t* ctx = get_cmd_ctx();
     graphics_driver_t* gd0 = get_graphics_driver();
     graphics_driver_t* gd = malloc(sizeof(graphics_driver_t));
@@ -493,32 +665,36 @@ int main(void) {
     gd->init = 0;
     gd->cleanup = vga_cleanup;
     gd->set_mode = vga_set_mode;
-    gd->is_text = 0;
-    gd->console_width = 0;
-    gd->console_height = 0;
-    gd->screen_width = 0;
-    gd->screen_height = 0;
-    gd->buffer = 0;
-    gd->set_buffer = 0;
-    gd->cls = 0;
-    gd->draw_text = 0;
-    gd->console_bitness = 0;
-    gd->screen_bitness = 0;
+    gd->is_text = vga_is_text_mode;
+    gd->console_width = get_vga_console_width;
+    gd->console_height = get_vga_console_height;
+    gd->screen_width = get_vga_console_width;
+    gd->screen_height = get_vga_console_height;
+    gd->buffer = get_vga_buffer;
+    gd->set_buffer = set_vga_buffer;
+    gd->cls = vga_clr_scr;
+    gd->draw_text = vga_draw_text;
+    gd->console_bitness = get_vga_buffer_bitness;
+    gd->screen_bitness = get_vga_buffer_bitness;
     gd->set_offsets = 0;
-    gd->set_bgcolor = 0;
-    gd->allocated = 0;
-    gd->set_con_pos = 0;
-    gd->pos_x = 0;
-    gd->pos_y = 0;
-    gd->set_con_color = 0;
-    gd->print = 0;
-    gd->backspace = 0;
-    gd->lock_buffer = 0;
-    gd->get_mode = 0;
-    gd->is_mode_text = 0;
+    gd->set_bgcolor = vga_set_bgcolor;
+    gd->allocated = vga_buffer_size;
+    gd->set_con_pos = vga_set_con_pos;
+    gd->pos_x = vga_con_x;
+    gd->pos_y = vga_con_y;
+    gd->set_con_color = vga_set_con_color;
+    gd->print = vga_print;
+    gd->backspace = vga_backspace;
+    gd->lock_buffer = vga_lock_buffer;
+    gd->get_mode = vga_get_mode;
+    gd->is_mode_text = vga_is_text_mode;
     gd->set_clkdiv = gd0->set_clkdiv;
     install_graphics_driver(gd);
     set_dma_handler_impl(dma_handler_VGA_impl);
+    vga_set_mode(0);
+    for(;;) {
+        vTaskDelay(1000); // TODO: lock it before release
+    }
     return 0;
 }
 /*
