@@ -686,9 +686,9 @@ static void exec_sync(cmd_ctx_t* ctx) {
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
 
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
-    int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 0;
+    int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 5;
     if (rav > M_API_VERSION) {
-        goutf("Required by appilaction '%s' M-API version %d is grater than provided: %d\n",  ctx->argv[0], rav, M_API_VERSION);
+        goutf("Required by application '%s' M-API version %d is grater than provided )%d)\n",  ctx->argv[0], rav, M_API_VERSION);
         ctx->ret_code = -2;
         return;
     }

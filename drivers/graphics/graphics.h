@@ -48,6 +48,7 @@ bool is_buffer_text();
 int graphics_con_x(void);
 int graphics_con_y(void);
 void graphics_lock_buffer(bool);
+void set_graphics_clkdiv(uint32_t pixel_clock, uint32_t line_size);
 
 typedef void (*vv_fn)(void);
 typedef void (*vb_fn)(bool);
@@ -63,6 +64,9 @@ typedef void (*dt_fn)(const char*, int, int, uint8_t, uint8_t);
 typedef void (*vii_fn)(const int, const int);
 typedef void (*vu8u8_fn)(uint8_t, uint8_t);
 typedef void (*vcu32_fn)(const uint32_t);
+typedef void (*set_dma_handler_impl_fn)(dma_handler_impl_fn impl);
+typedef void (*vu32u32)(uint32_t, uint32_t);
+
 typedef struct graphics_driver {
     cmd_ctx_t* ctx;
     vv_fn init;
@@ -91,6 +95,8 @@ typedef struct graphics_driver {
     vb_fn lock_buffer;
     iv_fn get_mode;
     bi_fn is_mode_text;
+    set_dma_handler_impl_fn set_dma_handler;
+    vu32u32 set_clkdiv;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();
@@ -98,6 +104,7 @@ void clrScr(uint8_t color);
 bool graphics_set_mode(int mode);
 int graphics_get_mode(void);
 bool graphics_is_mode_text(int mode);
+void set_dma_handler_impl(dma_handler_impl_fn impl);
 
 #ifdef __cplusplus
 }

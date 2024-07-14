@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "m-os-api.h": "c",
+        "font8x16.h": "c"
+    }
+}

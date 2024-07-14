@@ -45,12 +45,14 @@ const struct pio_program pio_program_VGA = {
 
 typedef struct {
     uint8_t* graphics_buffer;
+    uint32_t* lines_pattern_data;
+    // буфер 2К текстовой палитры для быстрой работы
+    uint16_t* txt_palette_fast;
 } vga_context_t;
 
-static vga_context_t* vga_context = NULL;
+static volatile vga_context_t* vga_context = NULL;
 
 static uint32_t* lines_pattern[4];
-static uint32_t* lines_pattern_data = NULL;
 static int _SM_VGA = -1;
 
 
@@ -59,14 +61,11 @@ static volatile int N_lines_visible = 480;
 static volatile int line_VS_begin = 490;
 static volatile int line_VS_end = 491;
 static volatile int shift_picture = 0;
-
-static volatile int begin_line_index = 0;
 static volatile int visible_line_size = 320;
 
 static int dma_chan_ctrl;
 static int dma_chan;
 
-static volatile uint graphics_buffer_width = 0;
 static volatile int graphics_buffer_shift_x = 0;
 static volatile int graphics_buffer_shift_y = 0;
 
@@ -93,12 +92,7 @@ static volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 static uint8_t __scratch_y("vga_driver_text") con_color = 7;
 static uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
 static volatile bool lock_buffer = false;
-
-//буфер 2К текстовой палитры для быстрой работы
-static uint16_t* txt_palette_fast = NULL;
-//static uint16_t txt_palette_fast[256*4];
-
-static volatile enum graphics_mode_t graphics_mode;
+static volatile int graphics_mode = -1;
 
 // TODO: separate header for sound mixer
 
@@ -162,20 +156,26 @@ size_t vga_buffer_size() {
     switch (graphics_mode) {
         case TEXTMODE_80x30:
         case TEXTMODE_128x48:
-            return text_buffer_height * text_buffer_width * 2
+            return (lock_buffer ? 0 : text_buffer_height * text_buffer_width * 2)
                 + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
         case BK_256x256x2:
         case BK_512x256x1:
         default:
-            return 512 / 8 * 256
-                + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
+            return (lock_buffer ? 512 / 8 * 256 : 0) + line_size * sizeof(uint32_t);
     }
 }
 uint8_t get_vga_buffer_bitness(void) {
     return bitness;
 }
 void vga_cleanup(void) {
-    // TODO:
+    vga_context_t* cleanup = vga_context;
+    vga_context = 0;
+    if (cleanup) {
+        if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
+        if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
+        if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
+        vPortFree(cleanup);
+    }
 }
 
 void graphics_inc_palleter_offset() {
@@ -188,8 +188,7 @@ static volatile uint32_t screen_line = 0;
 static volatile uint8_t* input_buffer = NULL;
 static volatile uint32_t* * prev_output_buffer = 0;
 
-inline static void dma_handler_VGA_impl() {
-    dma_hw->ints0 = 1u << dma_chan_ctrl;
+static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
     screen_line++;
 
     if (screen_line == N_lines_total) {
@@ -210,17 +209,14 @@ inline static void dma_handler_VGA_impl() {
             }
         }
 
-        //синхросигналы
+        // синхросигналы
         if ((screen_line >= line_VS_begin) && (screen_line <= line_VS_end))
-            dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[1], false); //VS SYNC
-        else
-            dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false);
-        return;
+            return &lines_pattern[1]; // VS SYNC
+        return &lines_pattern[0];
     }
 
     if (!(input_buffer)) {
-        dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false);
-        return;
+        return &lines_pattern[0];
     } //если нет видеобуфера - рисуем пустую строку
 
     int y, line_number;
@@ -232,8 +228,7 @@ inline static void dma_handler_VGA_impl() {
         case BK_512x256x1:
             if (screen_line % 3 != 0) { // три подряд строки рисуем одно и тоже
                 if (prev_output_buffer) output_buffer = prev_output_buffer;
-                dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-                return;
+                return output_buffer;
             }
             prev_output_buffer = output_buffer;
             line_number = screen_line / 3;
@@ -248,6 +243,7 @@ inline static void dma_handler_VGA_impl() {
             uint32_t glyph_line = screen_line % font_height;
             //указатель откуда начать считывать символы
             uint8_t* text_buffer_line = &input_buffer[screen_line / font_height * text_buffer_width * 2];
+            uint16_t* txt_palette_fast = vga_context->txt_palette_fast;
             for (int x = 0; x < text_buffer_width; x++) {
                 //из таблицы символов получаем "срез" текущего символа
                 uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
@@ -270,14 +266,14 @@ inline static void dma_handler_VGA_impl() {
                     *output_buffer_16bit++ = color[glyph_pixels & 3];
                 }
             }
-            dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-            return;
+            return output_buffer;
         }
         case TEXTMODE_128x48: {
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture / 2;
             const uint font_weight = 8;
             const uint font_height = 16;
+            uint16_t* txt_palette_fast = vga_context->txt_palette_fast;
             // "слой" символа
             register uint32_t glyph_line = screen_line % font_height;
             //указатель откуда начать считывать символы
@@ -321,17 +317,14 @@ inline static void dma_handler_VGA_impl() {
                     *output_buffer_16bit++ = color[glyph_pixels & 3];
                 }
             }
-            dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-            return;
+            return output_buffer;
         }
         default: {
-            dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false); // TODO: ensue it is required
-            return;
+            return &lines_pattern[0];
         }
     }
     if (y < 0) {
-        dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false); // TODO: ensue it is required
-        return;
+        return &lines_pattern[0];
     }
     uint graphics_buffer_height = g_conf.graphics_buffer_height;
     if (y >= graphics_buffer_height) {
@@ -346,8 +339,7 @@ inline static void dma_handler_VGA_impl() {
                 *output_buffer_32bit++ = color32;
             }
         }
-        dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-        return;
+        return output_buffer;
     };
     //зона прорисовки изображения
     int addr_in_buf = 64 * (y + g_conf.shift_y - 0330);
@@ -415,12 +407,20 @@ inline static void dma_handler_VGA_impl() {
         default:
             break;
     }
-    dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
+    return output_buffer;
+}
+
+static volatile dma_handler_impl_fn pdma_handler_VGA_impl = dma_handler_VGA_impl;
+
+void set_vga_dma_handler_impl(dma_handler_impl_fn impl) {
+    pdma_handler_VGA_impl = impl;
 }
 
 // to start sound later
-void __not_in_flash_func(dma_handler_VGA)() {
-    dma_handler_VGA_impl();
+void __time_critical_func(dma_handler_VGA)() {
+    dma_hw->ints0 = 1u << dma_chan_ctrl;
+    uint8_t* data = pdma_handler_VGA_impl();
+    dma_channel_set_read_addr(dma_chan_ctrl, data, false);
 }
 
 #define MAX_WIDTH 128
@@ -492,7 +492,7 @@ bool vga_set_mode(int mode) {
             N_lines_visible = 480;
             line_VS_begin = 490;
             line_VS_end = 491;
-            fdiv = clock_get_hz(clk_sys) / 25175000.0; // частота пиксельклока
+            set_graphics_clkdiv(25175000, line_size); // частота пиксельклока
             break;
         case TEXTMODE_128x48:
         case BK_256x256x2:
@@ -508,21 +508,15 @@ bool vga_set_mode(int mode) {
             line_VS_begin = 768 + 3; // + Front porch
             line_VS_end = 768 + 3 + 6; // ++ Sync pulse 2?
             N_lines_total = 806; // Whole frame
-            fdiv = clock_get_hz(clk_sys) / (65000000.0); // 65.0 MHz
+            set_graphics_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
             break;
     }
 
-    if (lines_pattern_data) {
-        vPortFree(lines_pattern_data);
-    }
     //инициализация шаблонов строк и синхросигнала
     if (mode == TEXTMODE_80x30) {
-        const uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
-        PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
-        dma_channel_set_trans_count(dma_chan, line_size / 4, false);
-        lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
+        context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
         for (int i = 0; i < 4; i++) {
-            lines_pattern[i] = &lines_pattern_data[i * (line_size / 4)];
+            lines_pattern[i] = &context->lines_pattern_data[i * (line_size / 4)];
         }
         TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
         TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
@@ -543,12 +537,9 @@ bool vga_set_mode(int mode) {
         base_ptr = (uint8_t *)lines_pattern[3];
         memcpy(base_ptr, lines_pattern[0], line_size);
     } else {
-        uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
-        PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
-        dma_channel_set_trans_count(dma_chan, line_size >> 2, false);
-        lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
+        context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
         for (int i = 0; i < 4; i++) {
-            lines_pattern[i] = &lines_pattern_data[i * (line_size >> 2)];
+            lines_pattern[i] = &context->lines_pattern_data[i * (line_size >> 2)];
         }
         TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
         TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
@@ -578,16 +569,27 @@ bool vga_set_mode(int mode) {
     switch (mode) {
         case TEXTMODE_80x30:
         case TEXTMODE_128x48:
-            context->graphics_buffer = pvPortCalloc(text_buffer_width * text_buffer_height, 2);
+            context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(text_buffer_width * text_buffer_height, 2);
+            context->txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
+            for (int i = 0; i < 256; i++) {
+                uint8_t c1 = txt_palette[i & 0xf];
+                uint8_t c0 = txt_palette[i >> 4];
+                context->txt_palette_fast[i * 4 + 0] = (c0) | (c0 << 8);
+                context->txt_palette_fast[i * 4 + 1] = (c1) | (c0 << 8);
+                context->txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
+                context->txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
+            }
             break;
         case BK_256x256x2:
         case BK_512x256x1:
-            context->graphics_buffer = pvPortCalloc(512 >> 3, 256);
+            context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(512 >> 3, 256);
             break;
     }
     vga_context = context;
-    if (cleanup->graphics_buffer) {
-        vPortFree(cleanup->graphics_buffer);
+    if (cleanup) {
+        if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
+        if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
+        if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
         vPortFree(cleanup);
     }
     return true;
@@ -754,17 +756,6 @@ static void init_palette() {
         uint8_t c = (r << 4) | (g << 2) | b;
         txt_palette[i] = (c & 0x3f) | 0xc0;
     }
-    if (!(txt_palette_fast)) {
-        txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
-        for (int i = 0; i < 256; i++) {
-            uint8_t c1 = txt_palette[i & 0xf];
-            uint8_t c0 = txt_palette[i >> 4];
-            txt_palette_fast[i * 4 + 0] = (c0) | (c0 << 8);
-            txt_palette_fast[i * 4 + 1] = (c1) | (c0 << 8);
-            txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
-            txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
-        }
-    }
     palette16_mask = 0xc0c0;
     //корректировка  палитры по маске бит синхры
     bg_color[0] = (bg_color[0] & 0x3f3f3f3f) | palette16_mask | (palette16_mask << 16);
@@ -778,8 +769,8 @@ void vga_init() {
     if (vga_context) {
         return;
     };
-    vga_context = pvPortCalloc(1, sizeof(vga_context_t));
-    vga_context->graphics_buffer = pvPortCalloc(MAX_WIDTH * MAX_HEIGHT, 2);
+  //  vga_context = pvPortCalloc(1, sizeof(vga_context_t));
+  //  vga_context->graphics_buffer = pvPortCalloc(MAX_WIDTH * MAX_HEIGHT, 2);
     text_buffer_width = MAX_WIDTH;
     text_buffer_height = MAX_HEIGHT;
     vga_set_bgcolor(0x000000);
@@ -818,7 +809,7 @@ void vga_init() {
         dma_chan,
         &c0,
         &PIO_VGA->txf[sm], // Write address
-        lines_pattern[0], // read address
+        &lines_pattern[0], // read address
         600 / 4, //
         false // Don't start yet
     );
@@ -836,12 +827,12 @@ void vga_init() {
         1, //
         false // Don't start yet
     );
-    vga_set_mode(BK_256x256x2);
+  //  vga_set_mode(BK_256x256x2);
     irq_set_exclusive_handler(VGA_DMA_IRQ, dma_handler_VGA);
     dma_channel_set_irq0_enabled(dma_chan_ctrl, true);
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask((1u << dma_chan));
-    vga_set_mode(TEXTMODE_128x48);
+   // vga_set_mode(TEXTMODE_128x48);
 };
 
 static char* _rollup(char* t_buf) {
@@ -916,4 +907,11 @@ void vga_set_bgcolor(const uint32_t color888) {
                   ((c_hi << 8 | c_lo) & 0x3f3f | palette16_mask);
     bg_color[1] = ((c_lo << 8 | c_hi) & 0x3f3f | palette16_mask) << 16 |
                   ((c_lo << 8 | c_hi) & 0x3f3f | palette16_mask);
+}
+
+void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
+    double fdiv = clock_get_hz(clk_sys) / (pixel_clock * 1.0); // частота пиксельклока
+    uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
+    PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
+    dma_channel_set_trans_count(dma_chan, line_size >> 2, false);
 }

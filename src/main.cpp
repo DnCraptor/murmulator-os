@@ -34,7 +34,7 @@ extern "C" {
 #include "nespad.h"
 
 static FATFS fs;
-extern "C" FATFS* get_mount_fs() { // only one FS is supported foe now
+extern "C" FATFS* get_mount_fs() { // only one FS is supported for now
     return &fs;
 }
 semaphore vga_start_semaphore;
@@ -123,48 +123,58 @@ static const char PATH[] = "PATH";
 static const char SWAP[] = "SWAP"; 
 static const char COMSPEC[] = "COMSPEC"; 
 static const char ctmp[] = "/tmp"; 
-static const char ccmd[] = "/mos/cmd"; 
+static const char ccmd[] = "/mos/cmd";
 
-static void load_config_sys() {
+static cmd_ctx_t* set_default_vars() {
     cmd_ctx_t* ctx = get_cmd_startup_ctx();
     set_ctx_var(ctx, CD, MOS);
     set_ctx_var(ctx, BASE, MOS);
     set_ctx_var(ctx, TEMP, ctmp);
     set_ctx_var(ctx, COMSPEC, ccmd);
+    return ctx;
+}
 
-    bool b_swap = false;
-    bool b_base = false;
-    bool b_temp = false;
-    char* buff = 0;
-    FIL* pf = 0;
-    
+static char* open_config(UINT* pbr) {
     FILINFO* pfileinfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
     size_t file_size = 0;
     char * cfn = "/config.sys";
     if (f_stat(cfn, pfileinfo) != FR_OK || (pfileinfo->fattrib & AM_DIR)) {
         cfn = "/mos/config.sys";
         if (f_stat(cfn, pfileinfo) != FR_OK || (pfileinfo->fattrib & AM_DIR)) {
-            goto e;
+            vPortFree(pfileinfo);
+            return 0;
         } else {
             file_size = (size_t)pfileinfo->fsize & 0xFFFFFFFF;
         }
     } else {
         file_size = (size_t)pfileinfo->fsize & 0xFFFFFFFF;
     }
+    vPortFree(pfileinfo);
 
-    pf = (FIL*)pvPortMalloc(sizeof(FIL));
+    FIL* pf = (FIL*)pvPortMalloc(sizeof(FIL));
     if(f_open(pf, cfn, FA_READ) != FR_OK) {
-        goto e;
+        vPortFree(pf);
+        return 0;
     }
-
-    buff = (char*)pvPortMalloc(file_size + 1);
-    memset(buff, 0, file_size + 1);
-    UINT br;
-    if (f_read(pf, buff, file_size, &br) != FR_OK) {
+    char* buff = (char*)pvPortCalloc(file_size + 1, 1);
+    if (f_read(pf, buff, file_size, pbr) != FR_OK) {
         goutf("Failed to read config.sys\n");
-        f_close(pf);
-    } else {
-        f_close(pf);
+        vPortFree(buff);
+        buff = 0;
+    }
+    f_close(pf);
+    vPortFree(pf);
+    return buff;
+}
+
+static void load_config_sys() {
+    cmd_ctx_t* ctx = set_default_vars();
+    bool b_swap = false;
+    bool b_base = false;
+    bool b_temp = false;
+    UINT br;
+    char* buff = open_config(&br);
+    if (buff) {
         tokenizeCfg(buff, br);
         char *t = buff;
         while (t - buff < br) {
@@ -188,6 +198,15 @@ static void load_config_sys() {
                 t = next_token(t);
                 int mode = atoi(t);
                 graphics_set_mode(mode);
+            } else if (strcmp(t, "DRIVER") == 0) {
+                t = next_token(t);
+                // TODO:
+            } else if (strcmp(t, "CPU") == 0) {
+                t = next_token(t);
+                int cpu = atoi(t);
+                if (cpu > 123 && cpu < 450) {
+                    set_overclocking(cpu * 1000);
+                }
             } else if (strcmp(t, BASE) == 0) {
                 t = next_token(t);
                 set_ctx_var(ctx, BASE, t);
@@ -205,10 +224,7 @@ static void load_config_sys() {
             t = next_token(t);
         }
     }
-    vPortFree(pfileinfo);
-    if (pf) vPortFree(pf);
     if (buff) vPortFree(buff);
-e:
     if (!b_temp) f_mkdir(ctmp);
     if (!b_base) f_mkdir(MOS);
     if (!b_swap) {
@@ -218,6 +234,7 @@ e:
         init_vram(t2);
         vPortFree(t2);
     }
+   // overclocking();
 }
 
 static inline void try_to_restore_api_tbl(cmd_ctx_t* ctx) {
@@ -308,7 +325,28 @@ extern "C" void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
 extern "C" char vga_dbg_msg[1024];
 #endif
 
-static void init() {
+static void show_logo(void) {
+    uint32_t w = get_console_width();
+    uint32_t y = get_console_height() - 1;
+    uint32_t sz = strlen(tmp);
+    uint32_t sps = (w - sz) / 2;
+
+    for(uint32_t x = 0; x < sps; ++x) {
+        draw_text(" ", x, 0, 13, 1);
+        draw_text(" ", x, y, 13, 1);
+    }
+    draw_text(tmp, sps, 0, 13, 1);
+    draw_text(tmp, sps, y, 13, 1);
+    for(uint32_t x = sps + sz; x < w; ++x) {
+        draw_text(" ", x, 0, 13, 1);
+        draw_text(" ", x, y, 13, 1);
+    }
+
+    graphics_set_con_pos(0, 1);
+    graphics_set_con_color(7, 0); // TODO: config
+}
+
+static void init(void) {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
@@ -349,26 +387,6 @@ static void init() {
         check_firmware();
     }
 
-    uint32_t w = get_console_width();
-    uint32_t y = get_console_height() - 1;
-    uint32_t sz = strlen(tmp);
-    uint32_t sps = (w - sz) / 2;
-
-    for(uint32_t x = 0; x < sps; ++x) {
-        draw_text(" ", x, 0, 13, 1);
-        draw_text(" ", x, y, 13, 1);
-    }
-    draw_text(tmp, sps, 0, 13, 1);
-    draw_text(tmp, sps, y, 13, 1);
-    for(uint32_t x = sps + sz; x < w; ++x) {
-        draw_text(" ", x, 0, 13, 1);
-        draw_text(" ", x, y, 13, 1);
-    }
-
-    graphics_set_con_pos(0, 1);
-    graphics_set_con_color(7, 0); // TODO: config
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
    
     if (!mount_res) {
@@ -377,8 +395,9 @@ static void init() {
         while (true);
     }
     load_config_sys();
-
     init_psram();
+    show_logo();
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
 static void info() {

@@ -42,7 +42,9 @@ static graphics_driver_t internal_driver = {
     vga_backspace,
     vga_lock_buffer,
     vga_get_mode,
-    vga_is_mode_text
+    vga_is_mode_text,
+    set_vga_dma_handler_impl,
+    set_vga_clkdiv
 };
 static graphics_driver_t* graphics_driver = &internal_driver;
 
@@ -53,6 +55,12 @@ void graphics_init() {
         graphics_driver->init();
     }
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
+}
+
+void set_dma_handler_impl(dma_handler_impl_fn impl) {
+    if(graphics_driver && graphics_driver->set_dma_handler) {
+        graphics_driver->set_dma_handler(impl);
+    }
 }
 
 bool is_buffer_text(void) { // TODO: separate calls by supported or not
@@ -105,11 +113,9 @@ void clrScr(const uint8_t color) {
 }
 
 void draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    taskENTER_CRITICAL();
     if(graphics_driver && graphics_driver->draw_text) {
         graphics_driver->draw_text(string, x, y, color, bgcolor);
     }
-    taskEXIT_CRITICAL();
 }
 
 void draw_window(const char* title, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
@@ -281,17 +287,19 @@ void graphics_set_con_color(uint8_t color, uint8_t bgcolor) {
 }
 
 void gouta(char* buf) {
-    taskENTER_CRITICAL();
     if(graphics_driver && graphics_driver->print) {
         graphics_driver->print(buf);
     }
-    taskEXIT_CRITICAL();
 }
 
 void gbackspace() {
-    taskENTER_CRITICAL();
     if(graphics_driver && graphics_driver->backspace) {
         graphics_driver->backspace();
     }
-    taskEXIT_CRITICAL();
+}
+
+void set_graphics_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
+    if(graphics_driver && graphics_driver->set_clkdiv) {
+        graphics_driver->set_clkdiv(pixel_clock, line_size);
+    }
 }
