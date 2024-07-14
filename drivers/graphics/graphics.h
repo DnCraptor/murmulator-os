@@ -65,6 +65,7 @@ typedef void (*vii_fn)(const int, const int);
 typedef void (*vu8u8_fn)(uint8_t, uint8_t);
 typedef void (*vcu32_fn)(const uint32_t);
 typedef void (*set_dma_handler_impl_fn)(dma_handler_impl_fn impl);
+typedef void (*vu32u32)(uint32_t, uint32_t);
 
 typedef struct graphics_driver {
     cmd_ctx_t* ctx;
@@ -95,6 +96,7 @@ typedef struct graphics_driver {
     iv_fn get_mode;
     bi_fn is_mode_text;
     set_dma_handler_impl_fn set_dma_handler;
+    vu32u32 set_clkdiv;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();

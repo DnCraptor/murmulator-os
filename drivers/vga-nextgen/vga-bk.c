@@ -909,7 +909,7 @@ void vga_set_bgcolor(const uint32_t color888) {
                   ((c_lo << 8 | c_hi) & 0x3f3f | palette16_mask);
 }
 
-void set_graphics_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
+void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
     double fdiv = clock_get_hz(clk_sys) / (pixel_clock * 1.0); // частота пиксельклока
     uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
     PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm

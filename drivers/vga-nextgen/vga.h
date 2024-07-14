@@ -35,3 +35,4 @@ bool vga_is_text_mode();
 bool vga_is_mode_text(int mode);
 typedef uint8_t* (*dma_handler_impl_fn)(void);
 void set_vga_dma_handler_impl(dma_handler_impl_fn impl);
+void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size);

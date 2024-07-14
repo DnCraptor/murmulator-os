@@ -382,7 +382,7 @@ bool vga_set_mode(int mode) {
             N_lines_visible = 480;
             line_VS_begin = 490;
             line_VS_end = 491;
-            set_graphics_clkdiv(25175000, line_size); // частота пиксельклока
+            set_vga_clkdiv(25175000, line_size); // частота пиксельклока
             break;
         case TEXTMODE_128x48:
         case BK_256x256x2:
@@ -398,7 +398,7 @@ bool vga_set_mode(int mode) {
             line_VS_begin = 768 + 3; // + Front porch
             line_VS_end = 768 + 3 + 6; // ++ Sync pulse 2?
             N_lines_total = 806; // Whole frame
-            set_graphics_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
+            set_vga_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
             break;
     }
 
@@ -487,6 +487,7 @@ bool vga_set_mode(int mode) {
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
+    graphics_driver_t* gd0 = get_graphics_driver();
     graphics_driver_t* gd = malloc(sizeof(graphics_driver_t));
     gd->ctx = ctx;
     gd->init = 0;
@@ -515,6 +516,7 @@ int main(void) {
     gd->lock_buffer = 0;
     gd->get_mode = 0;
     gd->is_mode_text = 0;
+    gd->set_clkdiv = gd0->set_clkdiv;
     install_graphics_driver(gd);
     set_dma_handler_impl(dma_handler_VGA_impl);
     return 0;

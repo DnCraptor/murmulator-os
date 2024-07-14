@@ -43,7 +43,8 @@ static graphics_driver_t internal_driver = {
     vga_lock_buffer,
     vga_get_mode,
     vga_is_mode_text,
-    set_vga_dma_handler_impl
+    set_vga_dma_handler_impl,
+    set_vga_clkdiv
 };
 static graphics_driver_t* graphics_driver = &internal_driver;
 
@@ -294,5 +295,11 @@ void gouta(char* buf) {
 void gbackspace() {
     if(graphics_driver && graphics_driver->backspace) {
         graphics_driver->backspace();
+    }
+}
+
+void set_graphics_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
+    if(graphics_driver && graphics_driver->set_clkdiv) {
+        graphics_driver->set_clkdiv(pixel_clock, line_size);
     }
 }
