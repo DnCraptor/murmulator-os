@@ -632,8 +632,8 @@ void vga_clr_scr(uint8_t color) {
             *t_buf++ = ' ';
             *t_buf++ = (color << 4) | (color & 0xF);
         }
-    graphics_set_con_pos(0, 0);
-    graphics_set_con_color(7, color); // TODO:
+    vga_set_con_pos(0, 0);
+    vga_set_con_color(7, color); // TODO:
 };
 
 static void init_palette() {

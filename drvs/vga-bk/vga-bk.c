@@ -657,6 +657,7 @@ static int vga_con_y(void) {
 
 int main(void) {
     init();
+    printf("A\n");
     cmd_ctx_t* ctx = get_cmd_ctx();
     graphics_driver_t* gd0 = get_graphics_driver();
     graphics_driver_t* gd = malloc(sizeof(graphics_driver_t));
@@ -688,17 +689,20 @@ int main(void) {
     gd->get_mode = vga_get_mode;
     gd->is_mode_text = vga_is_text_mode;
     gd->set_clkdiv = gd0->set_clkdiv;
+    printf("B\n");
     install_graphics_driver(gd);
+    printf("C\n");
     set_dma_handler_impl(dma_handler_VGA_impl);
+    printf("D\n");
     vga_set_mode(0);
+    printf("E\n");
     for(;;) {
         vTaskDelay(100);
         if (!vga_context) break;
     }
     return 0;
 }
-/*
+
 int __required_m_api_verion(void) {
     return M_API_VERSION;
 }
-*/

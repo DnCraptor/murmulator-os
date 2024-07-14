@@ -46,7 +46,7 @@ static graphics_driver_t internal_driver = {
     set_vga_dma_handler_impl,
     set_vga_clkdiv
 };
-static graphics_driver_t* graphics_driver = &internal_driver;
+static volatile graphics_driver_t* graphics_driver = &internal_driver;
 
 void graphics_init() {
     DBG_PRINT("graphics_init %ph\n", graphics_driver);
