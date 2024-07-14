@@ -7,7 +7,7 @@
 #ifndef logMsg
    
 #ifdef DEBUG_VGA
-extern char vga_dbg_msg[1024];
+char vga_dbg_msg[1024] = { 0 };
 #define DBG_PRINT(...) { sprintf(vga_dbg_msg + strlen(vga_dbg_msg), __VA_ARGS__); }
 #else
 #define DBG_PRINT(...)
@@ -184,12 +184,8 @@ graphics_driver_t* get_graphics_driver() {
 void install_graphics_driver(graphics_driver_t* gd) {
     DBG_PRINT("install_graphics_driver %ph\n", gd);
     if (graphics_driver) {
-        DBG_PRINT("install_graphics_driver to cleanup %ph\n", graphics_driver);
-        cleanup_graphics();
-        if (graphics_driver != &internal_driver) {
-            remove_ctx(graphics_driver->ctx);
-            vPortFree(graphics_driver);
-        }
+        DBG_PRINT("install_graphics_driver: to cleanup %ph\n", graphics_driver);
+        cleanup_graphics(); // TODO: syg kill
     }
     graphics_driver = gd;
     DBG_PRINT("install_graphics_driver to init %ph\n", gd);
