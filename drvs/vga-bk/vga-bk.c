@@ -397,7 +397,7 @@ bool vga_set_mode(int mode) {
             HS_SIZE = 160; // Back porch
             line_size = 1344;
             shift_picture = line_size - HS_SHIFT;
-            visible_line_size = 1024 / 2;
+            visible_line_size = 512;
             N_lines_visible = 768;
             line_VS_begin = 768 + 3; // + Front porch
             line_VS_end = 768 + 3 + 6; // ++ Sync pulse 2?
@@ -410,7 +410,7 @@ bool vga_set_mode(int mode) {
     if (mode == TEXTMODE_80x30) {
         context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
         for (int i = 0; i < 4; i++) {
-            lines_pattern[i] = &context->lines_pattern_data[i * (line_size / 4)];
+            lines_pattern[i] = &context->lines_pattern_data[i * (line_size >> 2)];
         }
         TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
         TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
@@ -528,7 +528,7 @@ static size_t vga_buffer_size() {
         case BK_256x256x2:
         case BK_512x256x1:
         default:
-            return (lock_buffer ? 512 / 8 * 256 : 0) + line_size * sizeof(uint32_t);
+            return (lock_buffer ? (512 >> 3) * 256 : 0) + line_size * sizeof(uint32_t);
     }
 }
 
@@ -635,10 +635,9 @@ static void vga_set_bgcolor(const uint32_t color888) {
     const uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
     const uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };
 
-    const uint8_t b = (color888 & 0xff) / 42;
-
-    const uint8_t r = (color888 >> 16 & 0xff) / 42;
-    const uint8_t g = (color888 >> 8 & 0xff) / 42;
+    const uint8_t b = __u32u32u32_div(color888 & 0xff, 42);
+    const uint8_t r = __u32u32u32_div(color888 >> 16 & 0xff, 42);
+    const uint8_t g = __u32u32u32_div(color888 >> 8 & 0xff, 42);
 
     const uint8_t c_hi = conv0[r] << 4 | conv0[g] << 2 | conv0[b];
     const uint8_t c_lo = conv1[r] << 4 | conv1[g] << 2 | conv1[b];
