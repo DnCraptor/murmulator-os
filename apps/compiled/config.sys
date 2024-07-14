@@ -6,4 +6,4 @@ TEMP=tmp
 DRIVER=vga-bk.drv
 GMODE=0
 SWAP=/tmp/pagefile.sys 1M 16K 1K
-CPU=366
+CPU=404
