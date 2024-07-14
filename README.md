@@ -95,7 +95,7 @@ less - show not more than one page of other command in pipe, like ls | less<br/>
 [CTRL]+[TAB]+[-] - decrease CPU freq.</br>
 [ALT]+[0-9]+[0-9]+[0-9] - manual enter some character by its decimal code (CP-866 codepage)<br/>
 
-#M-OS system variables
+# M-OS system variables
 BASE - base directory with commands implementations
 SWAP - swap settings
 COMSPEC - a path to command interpretator
