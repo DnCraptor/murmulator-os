@@ -225,7 +225,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     graphics_get_mode, // 162
     graphics_is_mode_text, // 163
     set_vga_dma_handler_impl, // 164 (TODO: organize)
-    set_graphics_clkdiv, // 165
+    set_vga_clkdiv, // 165
     pvPortCalloc, // 166
     memcpy, // 167
     vga_dma_channel_set_read_addr, // 168

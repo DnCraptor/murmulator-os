@@ -795,9 +795,7 @@ static void vga_driver_init(void) {
 }
 
 int main(void) {
-    printf("A\n");
     cmd_ctx_t* ctx = get_cmd_ctx();
-    graphics_driver_t* gd0 = get_graphics_driver();
     graphics_driver_t* gd = malloc(sizeof(graphics_driver_t));
     gd->ctx = ctx;
     gd->init = vga_driver_init;
@@ -826,12 +824,8 @@ int main(void) {
     gd->lock_buffer = vga_lock_buffer;
     gd->get_mode = vga_get_mode;
     gd->is_mode_text = vga_is_text_mode;
-    gd->set_clkdiv = gd0->set_clkdiv;
-    printf("B\n");
     install_graphics_driver(gd);
-    printf("D\n");
     vga_set_mode(0);
-    printf("E\n");
     for(;;) {
         vTaskDelay(100);
         if (!vga_context) break;

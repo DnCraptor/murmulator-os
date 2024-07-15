@@ -598,7 +598,6 @@ typedef struct graphics_driver {
     vb_fn lock_buffer;
     iv_fn get_mode;
     bi_fn is_mode_text;
-    vu32u32 set_clkdiv;
 } graphics_driver_t;
 inline static void install_graphics_driver(graphics_driver_t* gd) {
     typedef void (*fn_ptr_t)(graphics_driver_t* gd);
