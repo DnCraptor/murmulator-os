@@ -389,7 +389,7 @@ extern "C" int main(void) {
         } else if (strtab_off < 0) {
             fgoutf(ctx->std_err, "Unable to find .strtab section header\n");            
         } else {
-            fgoutf(f, "SYMTAB:\n");
+            fgoutf(f2, "SYMTAB:\n");
             char* strtab = (char*)pvPortMalloc(strtab_len);
             f_lseek(f, strtab_off);
             if(f_read(f, strtab, strtab_len, &rb) != FR_OK || rb != strtab_len) {
@@ -397,12 +397,13 @@ extern "C" int main(void) {
             } else {                
                 f_lseek(f, symtab_off);
                 elf32_sym sym;
+                fgoutf(f2, "### st_value st_info_type st_info_bind st_name (st_size)) -> st_shndx .spec\n");
                 for(int i = 0; i < symtab_len / sizeof(sym); ++i) {
                     if(f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
                         fgoutf(ctx->std_err, "Unable to read .symtab section #%d\n", i);
                         break;
                     }
-                    fgoutf(f2, "%02d %ph %s %s %s (%d) -> %d%s\n",
+                    fgoutf(f2, "%03d %ph %s %s %s (%d) -> %d%s\n",
                            i, sym.st_value,
                            st_info_type2str(sym.st_info & 0xF),
                            st_info_bind2str(sym.st_info >> 4),

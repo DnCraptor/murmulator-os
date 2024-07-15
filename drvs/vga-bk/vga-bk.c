@@ -69,7 +69,8 @@ static uint8_t con_bgcolor;
 static volatile bool lock_buffer;
 static volatile int graphics_mode;
 
-static void init(void) {
+int _init(void) {
+    printf("0\n");
     frame_number = 0;
     screen_line = 0;
     input_buffer = NULL;
@@ -99,6 +100,7 @@ static void init(void) {
     con_bgcolor = 0;
     lock_buffer = false;
     graphics_mode = -1;
+    return 0;
 }
 
 static uint8_t* dma_handler_VGA_impl() {
@@ -656,7 +658,6 @@ static int vga_con_y(void) {
 }
 
 int main(void) {
-    init();
     printf("A\n");
     cmd_ctx_t* ctx = get_cmd_ctx();
     graphics_driver_t* gd0 = get_graphics_driver();
