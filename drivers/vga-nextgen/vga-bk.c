@@ -593,6 +593,7 @@ bool vga_set_mode(int mode) {
         if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
         vPortFree(cleanup);
     }
+    dma_channel_set_read_addr(dma_chan, &lines_pattern[0], false);
     return true;
 };
 
@@ -770,8 +771,7 @@ void vga_init() {
     if (vga_context) {
         return;
     };
-  //  vga_context = pvPortCalloc(1, sizeof(vga_context_t));
-  //  vga_context->graphics_buffer = pvPortCalloc(MAX_WIDTH * MAX_HEIGHT, 2);
+    static uint32_t* initial_lines_pattern[4]; // TODO: remove W/A
     text_buffer_width = MAX_WIDTH;
     text_buffer_height = MAX_HEIGHT;
     vga_set_bgcolor(0x000000);
@@ -810,7 +810,7 @@ void vga_init() {
         dma_chan,
         &c0,
         &PIO_VGA->txf[sm], // Write address
-        &lines_pattern[0], // read address
+        &initial_lines_pattern[0], // read address
         600 / 4, //
         false // Don't start yet
     );
@@ -824,16 +824,14 @@ void vga_init() {
         dma_chan_ctrl,
         &c1,
         &dma_hw->ch[dma_chan].read_addr, // Write address
-        &lines_pattern[0], // read address
+        &initial_lines_pattern[0], // read address
         1, //
         false // Don't start yet
     );
-  //  vga_set_mode(BK_256x256x2);
     irq_set_exclusive_handler(VGA_DMA_IRQ, dma_handler_VGA);
     dma_channel_set_irq0_enabled(dma_chan_ctrl, true);
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask((1u << dma_chan));
-   // vga_set_mode(TEXTMODE_128x48);
 };
 
 static char* _rollup(char* t_buf) {
