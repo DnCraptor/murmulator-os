@@ -97,10 +97,13 @@ void vga_init() {
     dma_start_channel_mask((1u << dma_chan));
 };
 
-void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size, const volatile void* read_addr) {
+void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
     double fdiv = clock_get_hz(clk_sys) / (pixel_clock * 1.0); // частота пиксельклока
     uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
     PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
     dma_channel_set_trans_count(dma_chan, line_size >> 2, false);
-    dma_channel_set_read_addr(dma_chan, read_addr, false);
+}
+
+void vga_dma_channel_set_read_addr(const volatile void* addr) {
+    dma_channel_set_read_addr(dma_chan, addr, false);
 }

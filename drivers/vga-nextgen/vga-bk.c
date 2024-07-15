@@ -489,7 +489,7 @@ bool vga_set_mode(int mode) {
         memcpy(base_ptr, lines_pattern[0], line_size);
         base_ptr = (uint8_t *)lines_pattern[3];
         memcpy(base_ptr, lines_pattern[0], line_size);
-        set_vga_clkdiv(25175000, line_size, &lines_pattern[0]); // частота пиксельклока 25.175 MHz
+        set_vga_clkdiv(25175000, line_size); // частота пиксельклока 25.175 MHz
     } else {
         context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
         for (int i = 0; i < 4; i++) {
@@ -513,7 +513,7 @@ bool vga_set_mode(int mode) {
         memcpy(base_ptr, lines_pattern[0], line_size);
         base_ptr = (uint8_t *)lines_pattern[3];
         memcpy(base_ptr, lines_pattern[0], line_size);
-        set_vga_clkdiv(65000000, line_size, &lines_pattern[0]); // частота пиксельклока 65.0 MHz
+        set_vga_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
     }
     frame_number = 0;
     screen_line = 0;
@@ -547,6 +547,7 @@ bool vga_set_mode(int mode) {
         if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
         vPortFree(cleanup);
     }
+    vga_dma_channel_set_read_addr(&lines_pattern[0]);
     return true;
 };
 
