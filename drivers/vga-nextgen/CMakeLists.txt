@@ -2,6 +2,7 @@ add_library(vga-nextgen INTERFACE)
 
 target_sources(vga-nextgen INTERFACE
         ${CMAKE_CURRENT_LIST_DIR}/fnt8x16.c
+        ${CMAKE_CURRENT_LIST_DIR}/vga.c
         ${CMAKE_CURRENT_LIST_DIR}/vga-bk.c
 )
 

@@ -42,6 +42,7 @@ semaphore vga_start_semaphore;
 void __time_critical_func(render_core)() {
     multicore_lockout_victim_init();
     graphics_init();
+    graphics_driver_init();
 
     // graphics_driver_t* gd = get_graphics_driver();
     // install_graphics_driver(gd);

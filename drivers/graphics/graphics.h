@@ -21,7 +21,8 @@ extern "C" {
 #include "tv.h"
 #endif
 
-void graphics_init();
+void graphics_init(); // hardware
+void graphics_driver_init();
 void graphics_set_buffer(uint8_t* buffer);
 void graphics_set_offset(int x, int y);
 void graphics_set_bgcolor(uint32_t color888);

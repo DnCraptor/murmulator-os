@@ -17,7 +17,7 @@ char vga_dbg_msg[1024] = { 0 };
 
 static graphics_driver_t internal_driver = {
     0, //ctx
-    vga_init,
+    vga_driver_init,
     vga_cleanup,
     vga_set_mode, // set_mode
     vga_is_text_mode, // is_text
@@ -48,9 +48,14 @@ static graphics_driver_t internal_driver = {
 static volatile graphics_driver_t* graphics_driver = &internal_driver;
 
 void graphics_init() {
+    // TODO: hdmi, etc...
+    vga_init();
+}
+
+void graphics_driver_init() {
     DBG_PRINT("graphics_init %ph\n", graphics_driver);
     if(graphics_driver && graphics_driver->init) {
-       DBG_PRINT("graphics_init->init %ph\n", graphics_driver->init);
+        DBG_PRINT("graphics_init->init %ph\n", graphics_driver->init);
         graphics_driver->init();
     }
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
@@ -182,7 +187,7 @@ void install_graphics_driver(graphics_driver_t* gd) {
     }
     graphics_driver = gd;
     DBG_PRINT("install_graphics_driver to init %ph\n", gd);
-    graphics_init();
+    graphics_driver_init();
     DBG_PRINT("install_graphics_driver exit\n");
 }
 
