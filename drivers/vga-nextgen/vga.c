@@ -48,6 +48,7 @@ void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
 
 void vga_init() {
     static uint32_t* initial_lines_pattern[4]; // TODO: remove W/A
+    if (_SM_VGA != -1) return; // do not init it twice
     //инициализация PIO
     //загрузка программы в один из PIO
     uint offset = pio_add_program(PIO_VGA, &pio_program_VGA);
