@@ -43,7 +43,6 @@ static graphics_driver_t internal_driver = {
     vga_lock_buffer,
     vga_get_mode,
     vga_is_mode_text,
-    set_vga_dma_handler_impl,
     set_vga_clkdiv
 };
 static volatile graphics_driver_t* graphics_driver = &internal_driver;
@@ -55,12 +54,6 @@ void graphics_init() {
         graphics_driver->init();
     }
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
-}
-
-void set_dma_handler_impl(dma_handler_impl_fn impl) {
-    if(graphics_driver && graphics_driver->set_dma_handler) {
-        graphics_driver->set_dma_handler(impl);
-    }
 }
 
 bool is_buffer_text(void) { // TODO: separate calls by supported or not
@@ -185,7 +178,7 @@ void install_graphics_driver(graphics_driver_t* gd) {
     DBG_PRINT("install_graphics_driver %ph\n", gd);
     if (graphics_driver) {
         DBG_PRINT("install_graphics_driver: to cleanup %ph\n", graphics_driver);
-        cleanup_graphics(); // TODO: syg kill
+        cleanup_graphics();
     }
     graphics_driver = gd;
     DBG_PRINT("install_graphics_driver to init %ph\n", gd);

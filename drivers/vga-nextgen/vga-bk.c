@@ -410,6 +410,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
     return output_buffer;
 }
 
+// TODO: common part
 static volatile dma_handler_impl_fn pdma_handler_VGA_impl = dma_handler_VGA_impl;
 
 void set_vga_dma_handler_impl(dma_handler_impl_fn impl) {

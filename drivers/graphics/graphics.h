@@ -95,7 +95,6 @@ typedef struct graphics_driver {
     vb_fn lock_buffer;
     iv_fn get_mode;
     bi_fn is_mode_text;
-    set_dma_handler_impl_fn set_dma_handler;
     vu32u32 set_clkdiv;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
@@ -104,7 +103,6 @@ void clrScr(uint8_t color);
 bool graphics_set_mode(int mode);
 int graphics_get_mode(void);
 bool graphics_is_mode_text(int mode);
-void set_dma_handler_impl(dma_handler_impl_fn impl);
 
 #ifdef __cplusplus
 }
