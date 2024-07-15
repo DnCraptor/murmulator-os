@@ -622,7 +622,7 @@ inline static bool graphics_is_mode_text(int mode) {
 }
 
 typedef uint8_t* (*dma_handler_impl_fn)(void);
-inline static void set_dma_handler_impl(dma_handler_impl_fn impl) {
+inline static void set_vga_dma_handler_impl(dma_handler_impl_fn impl) {
     typedef void (*fn_ptr_t)(dma_handler_impl_fn);
     return ((fn_ptr_t)_sys_table_ptrs[164])(impl);
 }
@@ -630,6 +630,11 @@ inline static void set_dma_handler_impl(dma_handler_impl_fn impl) {
 inline static void set_graphics_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
     typedef void (*fn_ptr_t)(uint32_t, uint32_t);
     ((fn_ptr_t)_sys_table_ptrs[165])(pixel_clock, line_size);
+}
+
+inline static void vga_dma_channel_set_read_addr(const volatile void* addr) {
+    typedef void (*fn_ptr_t)(const volatile void*);
+    ((fn_ptr_t)_sys_table_ptrs[168])(addr);
 }
 
 #ifdef __cplusplus

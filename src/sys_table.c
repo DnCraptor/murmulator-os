@@ -228,6 +228,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     set_graphics_clkdiv, // 165
     pvPortCalloc, // 166
     memcpy, // 167
+    vga_dma_channel_set_read_addr, // 168
     // TODO:
     0
 };
