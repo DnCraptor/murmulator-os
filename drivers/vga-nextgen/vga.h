@@ -12,6 +12,11 @@
 #define RGB888(r, g, b) ((r<<16) | (g << 8 ) | b )
 
 void vga_init(void);
+typedef uint8_t* (*dma_handler_impl_fn)(void);
+void set_vga_dma_handler_impl(dma_handler_impl_fn impl);
+void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size);
+void vga_dma_channel_set_read_addr(const volatile void* addr);
+
 void vga_cleanup(void);
 uint32_t get_vga_console_width(void);
 uint32_t get_vga_console_height(void);
@@ -33,6 +38,3 @@ bool vga_set_mode(int mode);
 void vga_lock_buffer(bool);
 bool vga_is_text_mode();
 bool vga_is_mode_text(int mode);
-typedef uint8_t* (*dma_handler_impl_fn)(void);
-void set_vga_dma_handler_impl(dma_handler_impl_fn impl);
-void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size);
