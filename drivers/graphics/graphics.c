@@ -17,7 +17,7 @@ char vga_dbg_msg[1024] = { 0 };
 
 static graphics_driver_t internal_driver = {
     0, //ctx
-    vga_init,
+    vga_driver_init,
     vga_cleanup,
     vga_set_mode, // set_mode
     vga_is_text_mode, // is_text
@@ -54,6 +54,7 @@ void graphics_init() {
         graphics_driver->init();
     }
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
+    vga_init(); // TODO: HDMI, etc...
 }
 
 bool is_buffer_text(void) { // TODO: separate calls by supported or not
