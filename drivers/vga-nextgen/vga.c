@@ -35,6 +35,9 @@ void __time_critical_func(dma_handler_VGA)() {
     dma_channel_set_read_addr(dma_chan_ctrl, data, false);
 }
 
+// TODO: avoid this W/A
+extern uint32_t* lines_pattern[4];
+
 void vga_init() {
     //инициализация PIO
     //загрузка программы в один из PIO
@@ -70,7 +73,7 @@ void vga_init() {
         dma_chan,
         &c0,
         &PIO_VGA->txf[sm], // Write address
-        0x20000000, // &lines_pattern[0], // read address
+        &lines_pattern[0], // read address
         600 / 4, //
         false // Don't start yet
     );
@@ -84,7 +87,7 @@ void vga_init() {
         dma_chan_ctrl,
         &c1,
         &dma_hw->ch[dma_chan].read_addr, // Write address
-        0x20000000, // &lines_pattern[0], // read address
+        &lines_pattern[0], // read address
         1, //
         false // Don't start yet
     );
@@ -94,9 +97,10 @@ void vga_init() {
     dma_start_channel_mask((1u << dma_chan));
 };
 
-void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
+void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size, const volatile void* read_addr) {
     double fdiv = clock_get_hz(clk_sys) / (pixel_clock * 1.0); // частота пиксельклока
     uint32_t div32 = (uint32_t)(fdiv * (1 << 16) + 0.0);
     PIO_VGA->sm[_SM_VGA].clkdiv = div32 & 0xfffff000; //делитель для конкретной sm
     dma_channel_set_trans_count(dma_chan, line_size >> 2, false);
+    dma_channel_set_read_addr(dma_chan, read_addr, false);
 }

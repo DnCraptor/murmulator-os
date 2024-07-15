@@ -25,7 +25,7 @@ typedef struct {
 
 static volatile vga_context_t* vga_context = NULL;
 
-static uint32_t* lines_pattern[4];
+uint32_t* lines_pattern[4];
 
 static volatile int N_lines_total = 525;
 static volatile int N_lines_visible = 480;
@@ -447,7 +447,6 @@ bool vga_set_mode(int mode) {
             N_lines_visible = 480;
             line_VS_begin = 490;
             line_VS_end = 491;
-            set_vga_clkdiv(25175000, line_size); // частота пиксельклока
             break;
         case TEXTMODE_128x48:
         case BK_256x256x2:
@@ -463,7 +462,6 @@ bool vga_set_mode(int mode) {
             line_VS_begin = 768 + 3; // + Front porch
             line_VS_end = 768 + 3 + 6; // ++ Sync pulse 2?
             N_lines_total = 806; // Whole frame
-            set_vga_clkdiv(65000000, line_size); // частота пиксельклока 65.0 MHz
             break;
     }
 
@@ -471,7 +469,7 @@ bool vga_set_mode(int mode) {
     if (mode == TEXTMODE_80x30) {
         context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
         for (int i = 0; i < 4; i++) {
-            lines_pattern[i] = &context->lines_pattern_data[i * (line_size / 4)];
+            lines_pattern[i] = &context->lines_pattern_data[i * (line_size >> 2)];
         }
         TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
         TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
@@ -491,6 +489,7 @@ bool vga_set_mode(int mode) {
         memcpy(base_ptr, lines_pattern[0], line_size);
         base_ptr = (uint8_t *)lines_pattern[3];
         memcpy(base_ptr, lines_pattern[0], line_size);
+        set_vga_clkdiv(25175000, line_size, &lines_pattern[0]); // частота пиксельклока 25.175 MHz
     } else {
         context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
         for (int i = 0; i < 4; i++) {
@@ -514,6 +513,7 @@ bool vga_set_mode(int mode) {
         memcpy(base_ptr, lines_pattern[0], line_size);
         base_ptr = (uint8_t *)lines_pattern[3];
         memcpy(base_ptr, lines_pattern[0], line_size);
+        set_vga_clkdiv(65000000, line_size, &lines_pattern[0]); // частота пиксельклока 65.0 MHz
     }
     frame_number = 0;
     screen_line = 0;
