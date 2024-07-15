@@ -26,6 +26,14 @@ typedef struct {
     uint32_t magicEnd;
 } UF2_Block_t;
 
+static void debug_sections(sect_entry_t* sect_entries) {
+    if (sect_entries) {
+        for (uint16_t i = 0; sect_entries[i].del_addr != 0; ++i) {
+            goutf("sec #%d: [%p][%p] %d\n", i, sect_entries[i].del_addr, sect_entries[i].prg_addr, sect_entries[i].sec_num);
+        }
+    }
+}
+
 inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expected_flash_target_offset, UF2_Block_t* puf2, size_t* psz) {
     *psz = 0;
     UINT bytes_read = 0;
@@ -274,7 +282,7 @@ static void add_sec(load_sec_ctx* ctx, char* del_addr, char* prg_addr, uint16_t 
     for (; i < ctx->max_sections_in_list - 1 && ctx->psections_list[i].del_addr != 0; ++i);
     if (i == ctx->max_sections_in_list - 1) {
         ctx->max_sections_in_list += 2; // may be more? 
-        //goutf("max sections count increased up to %d\n", ctx->max_sections_in_list);
+        // goutf("max sections count increased up to %d\n", ctx->max_sections_in_list);
         sect_entry_t* sects_list = (sect_entry_t*)pvPortMalloc(ctx->max_sections_in_list * sizeof(sect_entry_t));
         for (uint16_t j = 0; j < ctx->max_sections_in_list - 2; ++j) {
             sects_list[j] = ctx->psections_list[j];
@@ -282,14 +290,15 @@ static void add_sec(load_sec_ctx* ctx, char* del_addr, char* prg_addr, uint16_t 
         vPortFree(ctx->psections_list);
         ctx->psections_list = sects_list;
     }
-    //goutf("section #%d inserted @ line #%d\n", num, i);
+    // goutf("section #%d inserted @ line #%d\n", num, i);
     ctx->psections_list[i].del_addr = del_addr;
     ctx->psections_list[i].prg_addr = prg_addr;
     ctx->psections_list[i++].sec_num = num;
     if (i < ctx->max_sections_in_list) {
-        //goutf("next section line #%d\n", i);
+        // goutf("next section line #%d\n", i);
         ctx->psections_list[i].del_addr = 0;
     }
+    // debug_sections(ctx->psections_list);
 }
 
 inline static uint32_t sec_align(uint32_t addr, uint32_t a) {
@@ -522,17 +531,23 @@ e1:
 
 static uint32_t load_sec2mem_wrapper(load_sec_ctx* pctx, uint32_t req_idx) {
     if (req_idx != 0xFFFFFFFF) {
+        // goutf("Loading .symtab section #%d\n", req_idx);
         UINT rb;
-        elf32_sym sym;
+        elf32_sym* psym = pvPortMalloc(sizeof(elf32_sym));
         if (f_lseek(pctx->f2, pctx->symtab_off + req_idx * sizeof(elf32_sym)) != FR_OK ||
-            f_read(pctx->f2, &sym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)
+            f_read(pctx->f2, psym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)
         ) {
             goutf("Unable to read .symtab section #%d\n", req_idx);
+            vPortFree(psym);
             goto e3;
         }
-        uint8_t* t = load_sec2mem(pctx, sym.st_shndx);
+        uint16_t st_shndx = psym->st_shndx;
+        uint32_t st_value = psym->st_value;
+        vPortFree(psym);
+        uint8_t* t = load_sec2mem(pctx, st_shndx);
         if (!t) return 0;
-        return (uint32_t)(t + 1);
+        // debug_sections(pctx->psections_list);
+        return (uint32_t)(t + st_value);
     }
 e3:
     return 0;
@@ -637,14 +652,6 @@ bool load_app(cmd_ctx_t* ctx) {
     bootb_ctx->bootb[1] = load_sec2mem_wrapper(pctx, _init_idx);
     bootb_ctx->bootb[2] = load_sec2mem_wrapper(pctx, main_idx);
     bootb_ctx->bootb[3] = load_sec2mem_wrapper(pctx, _fini_idx);
-    /*
-    if (bootb_ctx->sect_entries) {
-        for (uint16_t i = 0; bootb_ctx->sect_entries[i].del_addr != 0; ++i) {
-            goutf("sec #%d: [%p][%p] %d\n", i, bootb_ctx->sect_entries[i].del_addr,bootb_ctx->sect_entries[i].prg_addr,bootb_ctx->sect_entries[i].sec_num);
-        }
-    }
-    goutf("[%p][%p][%p][%p]\n", bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3]);
-    */
 e3:
     vPortFree(strtab);
 e2:
@@ -656,6 +663,8 @@ e1:
     f_close(f);
     vPortFree(f);
     bootb_ctx->sect_entries = pctx->psections_list;
+    // debug_sections(bootb_ctx->sect_entries);
+    // goutf("[%p][%p][%p][%p]\n", bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3]);
     vPortFree(pctx);
     if (bootb_ctx->bootb[2] == 0) {
         goutf("'main' global function is not found in the '%s' elf-file\n", fn);
@@ -686,7 +695,9 @@ static void exec_sync(cmd_ctx_t* ctx) {
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
 
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
+    // goutf("__required_m_api_verion: [%p]\n", bootb_ctx->bootb[0]);
     int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 5;
+    // goutf("rav: %d\n", rav);
     if (rav > M_API_VERSION) {
         goutf("Required by application '%s' M-API version %d is grater than provided )%d)\n",  ctx->argv[0], rav, M_API_VERSION);
         ctx->ret_code = -2;
@@ -698,13 +709,15 @@ static void exec_sync(cmd_ctx_t* ctx) {
         return;
     }
     if (bootb_ctx->bootb[1]) {
-        bootb_ctx->bootb[1](); // tood: ensure stack
+        bootb_ctx->bootb[1]();
+        // gouta("_init done\n");
     }
+    // goutf("EXEC main: [%p]\n", bootb_ctx->bootb[2]);
     int res = bootb_ctx->bootb[2] ? bootb_ctx->bootb[2]() : -3;
-    // goutf("EXEC RET_CODE: %d -> _finit: %p\n", res, bootb_ctx->bootb[3]);
+    // goutf("EXEC RET_CODE: %d -> _fini: %p\n", res, bootb_ctx->bootb[3]);
     if (bootb_ctx->bootb[3]) {
         bootb_ctx->bootb[3]();
-        // gouta("_finit done\n");
+        // gouta("_fini done\n");
     }
     ctx->ret_code = res;
 }
