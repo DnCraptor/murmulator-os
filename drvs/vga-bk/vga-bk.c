@@ -789,12 +789,14 @@ static void init_palette() {
 }
 
 static void vga_driver_init(void) {
+    printf("[vga_driver_init]\n");
     set_vga_dma_handler_impl(dma_handler_VGA_impl);
     vga_set_bgcolor(0x000000);
     init_palette();
 }
 
 int main(void) {
+    printf("[main]\n");
     cmd_ctx_t* ctx = get_cmd_ctx();
     graphics_driver_t* gd = malloc(sizeof(graphics_driver_t));
     gd->ctx = ctx;

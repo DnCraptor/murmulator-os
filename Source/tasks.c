@@ -5955,8 +5955,8 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
         TCB_t * pxTCB;
 
         traceENTER_pvTaskGetThreadLocalStoragePointer( xTaskToQuery, xIndex );
-
-        if( ( xIndex >= 0 ) &&
+        if( xTaskToQuery && 
+            ( xIndex >= 0 ) &&
             ( xIndex < ( BaseType_t ) configNUM_THREAD_LOCAL_STORAGE_POINTERS ) )
         {
             pxTCB = prvGetTCBFromHandle( xTaskToQuery );
