@@ -70,7 +70,6 @@ static volatile bool lock_buffer;
 static volatile int graphics_mode;
 
 int _init(void) {
-    printf("0\n");
     frame_number = 0;
     screen_line = 0;
     input_buffer = NULL;
@@ -789,14 +788,12 @@ static void init_palette() {
 }
 
 static void vga_driver_init(void) {
-    printf("[vga_driver_init]\n");
     set_vga_dma_handler_impl(dma_handler_VGA_impl);
     vga_set_bgcolor(0x000000);
     init_palette();
 }
 
 int main(void) {
-    printf("[main]\n");
     cmd_ctx_t* ctx = get_cmd_ctx();
     graphics_driver_t* gd = malloc(sizeof(graphics_driver_t));
     gd->ctx = ctx;

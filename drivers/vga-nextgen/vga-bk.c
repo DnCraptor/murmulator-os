@@ -204,17 +204,15 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
         case TEXTMODE_80x30: {
             uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture / 2;
-            const uint font_weight = 8;
-            const uint font_height = 16;
             // "слой" символа
-            uint32_t glyph_line = screen_line % font_height;
-            //указатель откуда начать считывать символы
-            uint8_t* text_buffer_line = &input_buffer[screen_line / font_height * text_buffer_width * 2];
+            uint32_t glyph_line = screen_line & 0xF; // % font_height;
+            // указатель откуда начать считывать символы
+            register uint8_t* text_buffer_line = &input_buffer[(screen_line >> 4) * text_buffer_width * 2];
             uint16_t* txt_palette_fast = vga_context->txt_palette_fast;
             for (int x = 0; x < text_buffer_width; x++) {
-                //из таблицы символов получаем "срез" текущего символа
-                uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
-                //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
+                // из таблицы символов получаем "срез" текущего символа
+                uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
+                    // считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                 uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
                 if (cursor_blink_state && (screen_line >> 4) == pos_y && x == pos_x && glyph_line >= 13) { // TODO: cur height
                     color = &txt_palette_fast[0];
@@ -238,21 +236,19 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
         case TEXTMODE_128x48: {
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture / 2;
-            const uint font_weight = 8;
-            const uint font_height = 16;
             uint16_t* txt_palette_fast = vga_context->txt_palette_fast;
             // "слой" символа
-            register uint32_t glyph_line = screen_line % font_height;
-            //указатель откуда начать считывать символы
-            register uint8_t* text_buffer_line = &input_buffer[screen_line / font_height * text_buffer_width * 2];
+            register uint32_t glyph_line = screen_line & 0xF; // % font_height;
+            // указатель откуда начать считывать символы
+            register uint8_t* text_buffer_line = &input_buffer[(screen_line >> 4) * text_buffer_width * 2];
             register int xc = pos_x;
             if (cursor_blink_state && (screen_line >> 4) == pos_y && glyph_line >= 13) {
                 register uint16_t* color = &txt_palette_fast[0];
                 uint16_t c = color[7]; // TODO: setup cursor color
                 for (register uint32_t x = 0; x < text_buffer_width; x++) {
-                    //из таблицы символов получаем "срез" текущего символа
-                    uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
-                    //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
+                    // из таблицы символов получаем "срез" текущего символа
+                    uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
+                    // считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                     color = &txt_palette_fast[4 * (*text_buffer_line++)];
                     if (x == xc) { // TODO: cur height
                         *output_buffer_16bit++ = c;
@@ -271,9 +267,9 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
                 }
             } else {
               for (register uint32_t x = 0; x < text_buffer_width; x++) {
-                    //из таблицы символов получаем "срез" текущего символа
-                    uint8_t glyph_pixels = font_8x16[(*text_buffer_line++) * font_height + glyph_line];
-                    //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
+                    // из таблицы символов получаем "срез" текущего символа
+                    uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
+                    // считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                     uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
                     *output_buffer_16bit++ = color[glyph_pixels & 3];
                     glyph_pixels >>= 2;
