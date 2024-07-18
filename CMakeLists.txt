@@ -18,8 +18,8 @@ option(FLASH_SIZE "Target Flash Size" 2048)
 
 if(NOT FLASH_SIZE)
 #set(FLASH_SIZE 2048)
-#set(FLASH_SIZE 4096)
-set(FLASH_SIZE 16384)
+set(FLASH_SIZE 4096)
+#set(FLASH_SIZE 16384)
 endif ()
 
 set(MOS_VERSION 0.1.2)

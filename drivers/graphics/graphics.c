@@ -142,11 +142,11 @@ void __putc(char c) {
 void goutf(const char *__restrict str, ...) {
     FIL* f = get_stdout();
     va_list ap;
-#if DEBUG_HEAP_SIZE
+//#if DEBUG_HEAP_SIZE
     char buf[512];
-#else
-    char* buf = (char*)pvPortMalloc(512);
-#endif
+//#else
+//    char* buf = (char*)pvPortMalloc(512);
+//#endif
     va_start(ap, str);
     vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
     va_end(ap);
@@ -156,13 +156,14 @@ void goutf(const char *__restrict str, ...) {
         UINT bw;
         f_write(f, buf, strlen(buf), &bw); // TODO: error handling
     }
-#if !DEBUG_HEAP_SIZE
-    vPortFree(buf);
-#endif
+//#if !DEBUG_HEAP_SIZE
+//    vPortFree(buf);
+//#endif
 }
 
 void fgoutf(FIL *f, const char *__restrict str, ...) {
-    char* buf = (char*)pvPortMalloc(512);
+//    char* buf = (char*)pvPortMalloc(512);
+    char buf[512];
     va_list ap;
     va_start(ap, str);
     vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
@@ -173,7 +174,7 @@ void fgoutf(FIL *f, const char *__restrict str, ...) {
         UINT bw;
         f_write(f, buf, strlen(buf), &bw); // TODO: error handling
     }
-    vPortFree(buf);
+//    vPortFree(buf);
 }
 
 graphics_driver_t* get_graphics_driver() {
