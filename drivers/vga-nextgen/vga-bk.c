@@ -193,12 +193,12 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
     switch (graphics_mode) {
         case BK_256x256x2:
         case BK_512x256x1:
-            if (screen_line % 3 != 0) { // три подряд строки рисуем одно и тоже
+            line_number = screen_line / 3;
+            if (screen_line != line_number * 3) { // три подряд строки рисуем одно и тоже
                 if (prev_output_buffer) output_buffer = prev_output_buffer;
                 return output_buffer;
             }
             prev_output_buffer = output_buffer;
-            line_number = screen_line / 3;
             y = line_number - graphics_buffer_shift_y;
             break;
         case TEXTMODE_80x30: {

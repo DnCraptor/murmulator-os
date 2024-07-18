@@ -22,8 +22,8 @@ int main() {
         return 2;
     }
     UINT rb;
-    char* buf = (char*)pvPortMalloc(512);
-    while(f_read(f, buf, 512, &rb) == FR_OK && rb > 0) {
+    char* buf = (char*)pvPortMalloc(300);
+    while(f_read(f, buf, 299, &rb) == FR_OK && rb > 0) {
         buf[rb] = 0;
         fgoutf(ctx->std_out, buf);
     }
