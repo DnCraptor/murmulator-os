@@ -67,25 +67,26 @@ So it will be possible to call draw_text the same way as for case graphics.h and
 # M-OS commands
 cls - clear screen<br/>
 dir / ls [dir] - show directory content<br/>
-rm / del / era file - remove file (or empty directory)<br/>
-cd dir - change current directory<br/>
-cp file1 file2 - copy file1 as file2<br/>
-mkdir dir - create directory<br/>
-cat / type file - type file<br/>
-rmdir dir - remove directory (recurive)<br/>
-elfinfo file - provide .elf file info<br/>
+rm / del / era [file] - remove file (or empty directory)<br/>
+cd [dir] - change current directory<br/>
+cp [file1] [file2] - copy file1 as file2<br/>
+mkdir [dir] - create directory<br/>
+cat / type [file] - type file<br/>
+rmdir [dir] - remove directory (recurive)<br/>
+elfinfo [file] - provide .elf file info<br/>
 psram - provide some psram info<br/>
 swap - provide some swap info<br/>
 sram - reference speed of swap base SRAM<br/>
 cpu - show current CPU freq. and dividers<br/>
-cpu NNN - change freq. to NNN MHz (it may hang on such action)<br/>
+cpu [NNN] - change freq. to NNN MHz (it may hang on such action)<br/>
 mem - show current memory state<br/>
 set - show or set environment variables<br/>
 export - put variable into system context<br/>
-mode # - set video-mode (for now it is supported 0 - 80x30 and 1 - 128x48)<br/>
+mode [#] - set video-mode (for now it is supported 0 - 80x30 and 1 - 128x48)<br/>
 less - show not more than one page of other command in pipe, like ls | less<br/>
+hex [file] - show file as hexidecimal dump<br/>
 
-[cmd] &gt; file - output redirection to file<br/>
+[cmd] &gt; [file] - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format<br/>
 [TAB] - autocomplete<br/>
 [BACKSPACE] - remove last character<br/>
