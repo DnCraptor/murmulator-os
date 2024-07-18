@@ -145,7 +145,7 @@ static uint16_t last_ram_page = 0;
 static uint32_t last_lba_page = 0;
 
 uint32_t get_ram_page_for(const uint32_t addr32) {
-    const register uint32_t lba_page = addr32 >> _swap_page_div; // page idx
+    const register uint32_t lba_page = (addr32 >> _swap_page_div) + 1; // page idx
     if (last_lba_page == lba_page) {
         return last_ram_page;
     }
@@ -155,6 +155,9 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         register uint16_t lba_page_in_ram = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for 4K LBA bloks
         if (lba_page_in_ram == lba_page) {
             last_ram_page = ram_page;
+#ifdef BOOT_DEBUG_ACC
+    goutf("VRAM page: 0x%X (ram_page: %X)\n", lba_page, ram_page);
+#endif
             return ram_page;
         }
     }

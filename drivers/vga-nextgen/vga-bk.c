@@ -165,7 +165,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
     }
 
     if (screen_line >= N_lines_visible) {
-        //заполнение цветом фона
+        // заполнение цветом фона
         if ((screen_line == N_lines_visible) | (screen_line == (N_lines_visible + 3))) {
             uint32_t* output_buffer_32bit = lines_pattern[2 + ((screen_line) & 1)];
             output_buffer_32bit += shift_picture / 4;
@@ -182,9 +182,9 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
         return &lines_pattern[0];
     }
 
-    if (!(input_buffer)) {
+    if (!(input_buffer)) {  // если нет видеобуфера - рисуем пустую строку
         return &lines_pattern[0];
-    } //если нет видеобуфера - рисуем пустую строку
+    }
 
     int y, line_number;
 
