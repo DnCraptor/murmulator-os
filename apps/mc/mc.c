@@ -433,7 +433,7 @@ inline static void collect_files(file_panel_desc_t* p) {
         m_add_file(&fileInfo);
     }
     f_closedir(&dir);
-    qsort (files_info, files_count, sizeof(file_info_t), m_comp);
+    qsort(files_info, files_count, sizeof(file_info_t), m_comp);
 }
 
 inline static void construct_full_name(char* dst, const char* folder, const char* file) {
@@ -518,15 +518,15 @@ static void fill_panel(file_panel_desc_t* p) {
 }
 
 inline static void select_right_panel() {
-    psp = &right_panel;
-    fill_panel(&left_panel);
-    fill_panel(&right_panel);
+    psp = right_panel;
+    fill_panel(left_panel);
+    fill_panel(right_panel);
 }
 
 inline static void select_left_panel() {
-    psp = &left_panel;
-    fill_panel(&left_panel);
-    fill_panel(&right_panel);
+    psp = left_panel;
+    fill_panel(left_panel);
+    fill_panel(right_panel);
 }
 
 static void m_window() {
@@ -558,10 +558,9 @@ int main(void) {
     }
     MAX_WIDTH = get_console_width();
     MAX_HEIGHT = get_console_height();
-    PANEL_LAST_Y = CMD_Y_POS - 1;
-    TOTAL_SCREEN_LINES = MAX_HEIGHT;
     F_BTN_Y_POS = TOTAL_SCREEN_LINES - 1;
     CMD_Y_POS = F_BTN_Y_POS - 1;
+    PANEL_LAST_Y = CMD_Y_POS - 1;
     line = calloc(MAX_WIDTH + 2, 1);
     LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
 
@@ -580,7 +579,7 @@ int main(void) {
     pcs = calloc(1, sizeof(color_schema_t));
     pcs->BACKGROUND_FIELD_COLOR = 1, // Blue
     pcs->FOREGROUND_FIELD_COLOR = 7, // White
-    pcs->HIGHLIGHTED_FIELD_COLOR= 5, // LightWhite
+    pcs->HIGHLIGHTED_FIELD_COLOR = 15, // LightWhite
     pcs->BACKGROUND_F1_12_COLOR = 0, // Black
     pcs->FOREGROUND_F1_12_COLOR = 7, // White
     pcs->BACKGROUND_F_BTN_COLOR = 3, // Green
