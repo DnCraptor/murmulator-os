@@ -1,13 +1,23 @@
 #include "m-os-api.h"
 
 inline static void hex(uint32_t off, const char* buf, UINT rb) {
-    for (int i = 0; i < rb; ++i) {
-        printf("%02X ", buf[i]);
-        if (i != 0 && (i & 0xF) == 0) {
-            print("\n");
-        } else if (i != 0 && (i & 7) == 0) {
-            print(" ");
+    for (unsigned i = 0; i < rb; i += 16) {
+        printf("%08X  ", off + i);
+        for (unsigned j = 0; j < 16; ++j) {
+            if (j + i < rb) {
+                printf("%02X ", buf[i + j]);
+            } else {
+                print("   ");
+            }
+            if(j == 7) {
+                print(" ");
+            }
         }
+        print("  ");
+        for (unsigned j = 0; j < 16 && j + i < rb; ++j) {
+            printf("%c", buf[i + j] == '\n' ? ' ' : buf[i + j]);
+        }
+        print("\n");
     }
     print("\n");
 }
