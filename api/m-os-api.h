@@ -645,6 +645,12 @@ inline static void qsort(void *__base, size_t __nmemb, size_t __size, __compar_f
     ((fn_ptr_t)_sys_table_ptrs[169])(__base, __nmemb, __size, _compar);
 }
 
+inline static size_t strnlen(const char *str, size_t sz) {
+    typedef size_t (*fn_ptr_t)(const char *str, size_t sz);
+    return ((fn_ptr_t)_sys_table_ptrs[170])(str, sz);
+}
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -178,7 +178,7 @@ static void draw_panel(int left, int top, int width, int height, char* title, ch
             sl -= width + 4;
         }
         int title_left = left + (width - sl) / 2;
-        sprintf(line, " %s ", title);
+        snprintf(line, MAX_WIDTH, " %s ", title);
         draw_text(line, title_left, top, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
     }
     // middle lines
@@ -204,7 +204,7 @@ static void draw_panel(int left, int top, int width, int height, char* title, ch
             sl -= width + 4;
         } 
         int bottom_left = (width - sl) / 2;
-        sprintf(line, " %s ", bottom);
+        snprintf(line, MAX_WIDTH, " %s ", bottom);
         draw_text(line, bottom_left, top + height - 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
     }
 }
@@ -312,13 +312,13 @@ static inline fn_1_12_tbl_t* actual_fn_1_12_tbl() {
 
 static void draw_fn_btn(fn_1_12_tbl_rec_t* prec, int left, int top) {
     char line[10];
-    sprintf(line, "       ");
+    snprintf(line, MAX_WIDTH, "       ");
     // 1, 2, 3... button mark
     line[0] = prec->pre_mark;
     line[1] = prec->mark;
     draw_text(line, left, top, pcs->FOREGROUND_F1_12_COLOR, pcs->BACKGROUND_F1_12_COLOR);
     // button
-    sprintf(line, prec->name);
+    snprintf(line, MAX_WIDTH, prec->name);
     draw_text(line, left + 2, top, pcs->FOREGROUND_F_BTN_COLOR, pcs->BACKGROUND_F_BTN_COLOR);
 }
 
@@ -530,9 +530,9 @@ inline static void select_left_panel() {
 }
 
 static void m_window() {
-    sprintf(line, "SD:%s", left_panel->path);
+    snprintf(line, MAX_WIDTH, "SD:%s", left_panel->path);
     draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH / 2, PANEL_LAST_Y + 1, line, 0);
-    sprintf(line, "SD:%s", right_panel->path);
+    snprintf(line, MAX_WIDTH, "SD:%s", right_panel->path);
     draw_panel(MAX_WIDTH / 2, PANEL_TOP_Y, MAX_WIDTH / 2, PANEL_LAST_Y + 1, line, 0);
 }
 

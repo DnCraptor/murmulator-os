@@ -652,6 +652,7 @@ bool load_app(cmd_ctx_t* ctx) {
     bootb_ctx->bootb[1] = load_sec2mem_wrapper(pctx, _init_idx);
     bootb_ctx->bootb[2] = load_sec2mem_wrapper(pctx, main_idx);
     bootb_ctx->bootb[3] = load_sec2mem_wrapper(pctx, _fini_idx);
+    vTaskDelay(5000);
 e3:
     vPortFree(strtab);
 e2:

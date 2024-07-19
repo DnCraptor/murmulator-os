@@ -231,6 +231,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     vga_dma_channel_set_read_addr, // 168
     //
     qsort, // 169
+    strnlen,  // 170
     // TODO:
     0
 };
