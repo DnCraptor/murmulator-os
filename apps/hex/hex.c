@@ -7,19 +7,20 @@ inline static void hex(uint32_t off, const char* buf, UINT rb) {
             if (j + i < rb) {
                 printf("%02X ", buf[i + j]);
             } else {
-                print("   ");
+                printf("   ");
             }
             if(j == 7) {
-                print(" ");
+                printf(" ");
             }
         }
-        print("  ");
+        printf("  ");
         for (unsigned j = 0; j < 16 && j + i < rb; ++j) {
-            printf("%c", buf[i + j] == '\n' ? ' ' : buf[i + j]);
+            char c = buf[i + j];
+            printf("%c", !c || c == '\n' ? ' ' : c);
         }
-        print("\n");
+        printf("\n");
     }
-    print("\n");
+    printf("\n");
 }
 
 int main() {

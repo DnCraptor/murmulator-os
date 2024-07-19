@@ -86,10 +86,6 @@ inline static void gouta(char* string) {
     typedef void (*t_ptr_t)(char*);
     ((t_ptr_t)_sys_table_ptrs[127])(string);
 }
-inline static void print(char* string) {
-    typedef void (*t_ptr_t)(char*);
-    ((t_ptr_t)_sys_table_ptrs[127])(string);
-}
 /*
 static void goutf(const char *__restrict str, ...) {
     va_list ap;
