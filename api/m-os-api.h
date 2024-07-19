@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 9
+#define M_API_VERSION 10
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)
@@ -634,6 +634,15 @@ inline static void set_graphics_clkdiv(uint32_t pixel_clock, uint32_t line_size)
 inline static void vga_dma_channel_set_read_addr(const volatile void* addr) {
     typedef void (*fn_ptr_t)(const volatile void*);
     ((fn_ptr_t)_sys_table_ptrs[168])(addr);
+}
+
+#ifndef __compar_fn_t_defined
+#define __compar_fn_t_defined
+typedef int (*__compar_fn_t) (const void *, const void *);
+#endif
+inline static void qsort(void *__base, size_t __nmemb, size_t __size, __compar_fn_t _compar) {
+    typedef void (*fn_ptr_t)(void *__base, size_t __nmemb, size_t __size, __compar_fn_t _compar);
+    ((fn_ptr_t)_sys_table_ptrs[169])(__base, __nmemb, __size, _compar);
 }
 
 #ifdef __cplusplus
