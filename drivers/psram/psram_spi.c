@@ -184,8 +184,15 @@ void psram_spi_uninit(psram_spi_inst_t spi, bool fudge) {
     pio_remove_program(spi.pio, fudge ? &spi_psram_fudge_program : &spi_psram_program, spi.offset);
 }
 
+const static uint8_t read_id_command[] = {
+    32,         // 32 bits write
+    64,         // 64 bits read
+    0x9fu,      // command
+    0, 0, 0     // Address
+};
+
+
 // TODO:
-void psram_jedec_id(uint8_t rx[4]) {
-    uint8_t tx[4] = {0x9f};
-    pio_spi_write_read_dma_blocking(&psram_spi, tx, 4, rx, 4);
+void psram_jedec_id(uint8_t rx[8]) {
+    pio_spi_write_read_dma_blocking(&psram_spi, read_id_command, sizeof(read_id_command), rx, 8);
 }

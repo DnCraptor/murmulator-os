@@ -295,7 +295,6 @@ psram_spi_inst_t psram_spi_init_clkdiv(PIO pio, int sm, float clkdiv, bool fudge
  * all PSRAM access functions.
  */
 psram_spi_inst_t psram_spi_init(PIO pio, int sm);
-int test_psram(psram_spi_inst_t* psram_spi, int increment);
 
 void psram_spi_uninit(psram_spi_inst_t spi, bool fudge);
 
@@ -618,7 +617,7 @@ void write32psram(uint32_t addr32, uint32_t v);
 uint8_t read8psram(uint32_t addr32);
 uint16_t read16psram(uint32_t addr32);
 uint32_t read32psram(uint32_t addr32);
-void psram_jedec_id(uint8_t rx[4]);
+void psram_jedec_id(uint8_t rx[8]);
 
 #ifdef __cplusplus
 }
