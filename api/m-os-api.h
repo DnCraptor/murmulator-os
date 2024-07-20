@@ -655,6 +655,16 @@ inline static void psram_id(uint8_t rx[8]) {
     ((fn_ptr_t)_sys_table_ptrs[178])(rx);
 }
 
+#define DPAD_LEFT 0x40
+#define DPAD_RIGHT 0x80
+#define DPAD_DOWN 0x20
+#define DPAD_UP 0x10
+#define DPAD_START 0x08
+#define DPAD_SELECT 0x04
+#define DPAD_B 0x02
+#define DPAD_A 0x01
+
+
 #ifdef __cplusplus
 }
 #endif

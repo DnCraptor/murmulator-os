@@ -11,6 +11,7 @@
         "graphics.h": "c",
         "stdio.h": "c",
         "string.h": "c",
-        "hardfault.h": "c"
+        "hardfault.h": "c",
+        "keyboard.h": "c"
     }
 }

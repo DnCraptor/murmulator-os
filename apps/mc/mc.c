@@ -13,6 +13,9 @@ static char* line;
 static char selected_file_path[260]; // TODO: ctx->
 static char os_type[160]; 
 
+static volatile uint32_t lastCleanableScanCode;
+static volatile uint32_t lastSavedScanCode;
+
 static volatile bool backspacePressed = false;
 static volatile bool enterPressed = false;
 static volatile bool plusPressed = false;
@@ -39,6 +42,42 @@ static volatile bool leftPressed = false;
 static volatile bool rightPressed = false;
 static volatile bool upPressed = false;
 static volatile bool downPressed = false;
+static volatile bool aPressed = false;
+static volatile bool cPressed = false;
+static volatile bool gPressed = false;
+static volatile bool tPressed = false;
+static volatile bool dPressed = false;
+static volatile bool sPressed = false;
+static volatile bool xPressed = false;
+static volatile bool ePressed = false;
+static volatile bool uPressed = false;
+static volatile bool hPressed = false;
+static volatile bool left_panel_make_active = true;
+
+// TODO:
+static bool is_dendy_joystick = true;
+static bool is_kbd_joystick = false;
+#define DPAD_STATE_DELAY 200
+static int nespad_state_delay = DPAD_STATE_DELAY;
+static uint8_t nespad_state, nespad_state2;
+static bool mark_to_exit_flag = true;
+
+void nespad_read() {
+    // TODO:
+    nespad_state = nespad_state2 = 0;
+}
+
+inline static void scan_code_processed() {
+  if (lastCleanableScanCode) {
+      lastSavedScanCode = lastCleanableScanCode;
+  }
+  lastCleanableScanCode = 0;
+}
+
+static void scan_code_cleanup() {
+  lastSavedScanCode = 0;
+  lastCleanableScanCode = 0;
+}
 
 // type of F1-F10 function pointer
 typedef void (*fn_1_12_ptr)(uint8_t);
@@ -133,6 +172,7 @@ int _init(void) {
     files_count = 0;
     selected_file_path[0] = 0;
     os_type[0] = 0;
+    scan_code_cleanup();
 }
 
 inline static void m_cleanup() {
@@ -240,6 +280,11 @@ static void do_nothing(uint8_t cmd) {
     redraw_window();
 }
 
+static void reset(uint8_t cmd) {
+    f12Pressed = false;
+    // TODO:
+}
+
 // TODO:
 #define m_info do_nothing
 #define save_snap do_nothing
@@ -344,6 +389,7 @@ static void bottom_line() {
 //        0  // black
 //    );
     draw_cmd_line(0, CMD_Y_POS, os_type);
+    graphics_set_con_pos(strlen(os_type) + 1, CMD_Y_POS);
 }
 
 inline static void update_menu_color() {
@@ -396,9 +442,9 @@ inline static void m_add_file(FILINFO* fi) {
     fp->ftime   = fi->ftime;
     fp->fsize   = fi->fsize;
     if (fp->pname) free(fp->pname);
-    size_t sz = strlen(fi->fname);
-    if (sz > (MAX_WIDTH >> 1)) sz = MAX_WIDTH >> 1;
-    fp->pname = malloc(sz);
+    size_t sz = MAX_WIDTH >> 1; // strlen(fi->fname);
+    // if (sz > (MAX_WIDTH >> 1)) sz = MAX_WIDTH >> 1;
+    fp->pname = calloc(sz, 1);
     strncpy(fp->pname, fi->fname, sz);
 }
 
@@ -536,9 +582,661 @@ static void m_window() {
     draw_panel(MAX_WIDTH / 2, PANEL_TOP_Y, MAX_WIDTH / 2, PANEL_LAST_Y + 1, line, 0);
 }
 
+inline static void handleJoystickEmulation(uint8_t sc) { // core 1
+    if (!is_kbd_joystick) return;
+    DBGM_PRINT(("handleJoystickEmulation: %02Xh", sc));
+    switch(sc) {
+        case 0x1E: // A DPAD_A 
+            nespad_state |= DPAD_A;
+            break;
+        case 0x9E:
+            nespad_state &= ~DPAD_A;
+            break;
+        case 0x11: // W
+            nespad_state2 |= DPAD_A;
+            break;
+        case 0x91:
+            nespad_state2 &= ~DPAD_A;
+            break;
+        case 0x20: // D START
+            nespad_state |= DPAD_START;
+            break;
+        case 0xA0:
+            nespad_state &= ~DPAD_START;
+            break;
+        case 0x1F: // S SELECT 
+            nespad_state |= DPAD_SELECT;
+            break;
+        case 0x9F:
+            nespad_state &= ~DPAD_SELECT;
+            break;
+        case 0x2C: // Z
+            nespad_state2 |= DPAD_B;
+            break;
+        case 0xAC:
+            nespad_state2 &= ~DPAD_B;
+            break;
+        case 0x2D: // X
+            nespad_state2 |= DPAD_SELECT;
+            break;
+        case 0xAD:
+            nespad_state2 &= ~DPAD_SELECT;
+            break;
+        case 0x18: // O
+            nespad_state2 |= DPAD_START;
+            break;
+        case 0x98:
+            nespad_state2 &= ~DPAD_START;
+            break;
+        case 0x25: // K
+            nespad_state2 |= DPAD_UP;
+            break;
+        case 0xA5:
+            nespad_state2 &= ~DPAD_UP;
+            break;
+        case 0x27: // ;
+            nespad_state |= DPAD_DOWN;
+            break;
+        case 0xA7:
+            nespad_state &= ~DPAD_DOWN;
+            break;
+        case 0x26: // L
+            nespad_state |= DPAD_LEFT;
+            break;
+        case 0xA6:
+            nespad_state &= ~DPAD_LEFT;
+            break;
+        case 0x28: // ,(")
+            nespad_state |= DPAD_RIGHT;
+            break;
+        case 0xA8:
+            nespad_state &= ~DPAD_RIGHT;
+            break;
+        case 0x34: // .
+            nespad_state2 |= DPAD_DOWN;
+            break;
+        case 0xB4:
+            nespad_state2 &= ~DPAD_DOWN;
+            break;
+        case 0x10: // Q DPAD_B
+            nespad_state |= DPAD_B;
+            break;
+        case 0x90:
+            nespad_state &= ~DPAD_B;
+            break;
+        case 0x12: // E
+            nespad_state2 |= DPAD_LEFT;
+            break;
+        case 0x92:
+            nespad_state2 &= ~DPAD_LEFT;
+            break;
+        case 0x17: // I
+            nespad_state2 |= DPAD_RIGHT;
+            break;
+        case 0x97:
+            nespad_state2 &= ~DPAD_RIGHT;
+            break;
+        case 0x19: // P
+            nespad_state |= DPAD_UP;
+            break;
+        case 0x99:
+            nespad_state &= ~DPAD_UP;
+            break;
+        default:
+            return;
+    }
+}
+
+static scancode_handler_t scancode_handler;
+
+static bool scancode_handler_impl(const uint32_t ps2scancode) {
+    handleJoystickEmulation((uint8_t)ps2scancode);
+    lastCleanableScanCode = ps2scancode;
+    switch (ps2scancode) {
+      case 0x01: // Esc down
+        escPressed = true;
+        break;
+      case 0x81: // Esc up
+        escPressed = false; break;
+      case 0x4B: // left
+        leftPressed = true; break;
+      case 0xCB: // left
+        leftPressed = false; break;
+      case 0x4D: // right
+        rightPressed = true;  break;
+      case 0xCD: // right
+        rightPressed = false;  break;
+      case 0x48:
+        upPressed = true;
+        break;
+      case 0xC8:
+        upPressed = false;
+        break;
+      case 0x50:
+        downPressed = true;
+        break;
+      case 0xD0:
+        downPressed = false;
+        break;
+      case 0x38:
+        altPressed = true;
+        break;
+      case 0xB8:
+        altPressed = false;
+        break;
+      case 0x0E:
+        backspacePressed = true;
+        break;
+      case 0x8E:
+        backspacePressed = false;
+        break;
+      case 0x1C:
+        enterPressed = true;
+        break;
+      case 0x9C:
+        enterPressed = false;
+        break;
+      case 0x0C: // -
+      case 0x4A: // numpad -
+        minusPressed = true;
+        break;
+      case 0x8C: // -
+      case 0xCA: // numpad 
+        minusPressed = false;
+        break;
+      case 0x0D: // +=
+      case 0x4E: // numpad +
+        plusPressed = true;
+        break;
+      case 0x8D: // += 82?
+      case 0xCE: // numpad +
+        plusPressed = false;
+        break;
+      case 0x1D:
+        ctrlPressed = true;
+        break;
+      case 0x9D:
+        ctrlPressed = false;
+        break;
+      case 0x20:
+        dPressed = true;
+        break;
+      case 0xA0:
+        dPressed = false;
+        break;
+      case 0x2E:
+        cPressed = true;
+        break;
+      case 0xAE:
+        cPressed = false;
+        break;
+      case 0x14:
+        tPressed = true;
+        break;
+      case 0x94:
+        tPressed = false;
+        break;
+      case 0x22:
+        gPressed = true;
+        break;
+      case 0xA2:
+        gPressed = false;
+        break;
+      case 0x1E:
+        aPressed = true;
+        break;
+      case 0x9E:
+        aPressed = false;
+        break;
+      case 0x1F:
+        sPressed = true;
+        break;
+      case 0x9F:
+        sPressed = false;
+        break;
+      case 0x2D:
+        xPressed = true;
+        break;
+      case 0xAD:
+        xPressed = false;
+        break;
+      case 0x12:
+        ePressed = true;
+        break;
+      case 0x92:
+        ePressed = false;
+        break;
+      case 0x16:
+        uPressed = true;
+        break;
+      case 0x96:
+        uPressed = false;
+        break;
+      case 0x23:
+        hPressed = true;
+        break;
+      case 0xA3:
+        hPressed = false;
+        break;
+      case 0x3B: // F1..10 down
+        f1Pressed = true; break;
+      case 0x3C: // F2
+        f2Pressed = true; break;
+      case 0x3D: // F3
+        f3Pressed = true; break;
+      case 0x3E: // F4
+        f4Pressed = true; break;
+      case 0x3F: // F5
+        f5Pressed = true; break;
+      case 0x40: // F6
+        f6Pressed = true; break;
+      case 0x41: // F7
+        f7Pressed = true; break;
+      case 0x42: // F8
+        f8Pressed = true; break;
+      case 0x43: // F9
+        f9Pressed = true; break;
+      case 0x44: // F10
+        f10Pressed = true; break;
+      case 0x57: // F11
+        f11Pressed = true; break;
+      case 0x58: // F12
+        f12Pressed = true; break;
+      case 0xBB: // F1..10 up
+        f1Pressed = false; break;
+      case 0xBC: // F2
+        f2Pressed = false; break;
+      case 0xBD: // F3
+        f3Pressed = false; break;
+      case 0xBE: // F4
+        f4Pressed = false; break;
+      case 0xBF: // F5
+        f5Pressed = false; break;
+      case 0xC0: // F6
+        f6Pressed = false; break;
+      case 0xC1: // F7
+        f7Pressed = false; break;
+      case 0xC2: // F8
+        f8Pressed = false; break;
+      case 0xC3: // F9
+        f9Pressed = false; break;
+      case 0xC4: // F10
+        f10Pressed = false; break;
+      case 0xD7: // F11
+        f11Pressed = false; break;
+      case 0xD8: // F12
+        f12Pressed = false; break;
+      case 0x53: // Del down
+        delPressed = true; break;
+      case 0xD3: // Del up
+        delPressed = false; break;
+      case 0x39:
+        spacePressed = true; break;
+      case 0xB9:
+        spacePressed = false; break;
+      case 0x0F:
+        tabPressed = true;
+        break;
+      case 0x8F:
+        left_panel_make_active = !left_panel_make_active; // TODO: combinations?
+        tabPressed = false;
+        break;
+      default:
+        //DBGM_PRINT(("handleScancode default: %02Xh", ps2scancode));
+        break;
+    }
+    if (scancode_handler) {
+        return scancode_handler(ps2scancode);
+    }
+    return true;
+}
+
+static file_info_t* selected_file() {
+    int start_file_offset = psp->indexes[psp->level].start_file_offset;
+    int selected_file_idx = psp->indexes[psp->level].selected_file_idx;
+    if (selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && start_file_offset == 0 && strlen(psp->path) > 1) {
+        return 0;
+    }
+    collect_files(psp);
+    int y = 1;
+    int files_number = 0;
+    if (start_file_offset == 0 && strlen(psp->path) > 1) {
+        y++;
+        files_number++;
+    }
+    for(int fn = 0; fn < files_count; ++ fn) {
+        file_info_t* fp = &files_info[fn];
+        if (start_file_offset <= files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
+            if (selected_file_idx == y) {
+                return fp;
+            }
+            y++;
+        }
+        files_number++;
+    }
+    return 0; // ?? what a case?
+}
+
+static inline void redraw_current_panel() {
+    snprintf(line, "SD:%s", psp->path, MAX_WIDTH >> 1);
+    draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
+    fill_panel(psp);
+    draw_cmd_line(0, CMD_Y_POS, os_type);
+}
+
+static inline void enter_pressed() {
+    file_info_t* fp = selected_file();
+    if (!fp) { // up to parent dir
+        int i = strlen(psp->path);
+        while(--i > 0) {
+            if (psp->path[i] == '\\') {
+                psp->path[i] = 0;
+                psp->level--;
+                redraw_current_panel();
+                return;
+            }
+        }
+        psp->path[0] = '\\';
+        psp->path[1] = 0;
+#if EXT_DRIVES_MOUNT
+        psp->in_dos = false;
+#endif
+        psp->level--;
+        redraw_current_panel();
+        return;
+    }
+    if (fp->fattrib & AM_DIR) {
+        char path[256];
+        construct_full_name(path, psp->path, fp->pname);
+        strncpy(psp->path, path, 256);
+        psp->level++;
+        if (psp->level >= 16) {
+            psp->level = 15;
+        }
+        psp->indexes[psp->level].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
+        psp->indexes[psp->level].start_file_offset = 0;
+        psp->indexes[psp->level].dir_num = fp->dir_num;
+        redraw_current_panel();
+        return;
+    } else {
+        /*
+        size_t slen = strlen(fp->name);
+        if (slen > 4 && fp->name[slen - 4] == '.')
+        if(
+            (fp->name[slen - 1] == 'N' || fp->name[slen - 1] == 'n') &&
+            (fp->name[slen - 2] == 'I' || fp->name[slen - 2] == 'i') &&
+            (fp->name[slen - 3] == 'B' || fp->name[slen - 3] == 'b')
+        ) {
+            char path[256];
+            construct_full_name(path, psp->path, fp->name);
+            run_bin(path);
+            return;
+        } else if (
+            (fp->name[slen - 1] == 'G' || fp->name[slen - 1] == 'g') &&
+            (fp->name[slen - 2] == 'M' || fp->name[slen - 2] == 'm') &&
+            (fp->name[slen - 3] == 'I' || fp->name[slen - 3] == 'i')
+        ) {
+            char path[256];
+            construct_full_name(path, psp->path, fp->name);
+            run_img(path);
+            return;
+        } else if (
+            (fp->name[slen - 1] == 'D' || fp->name[slen - 1] == 'd') &&
+            (fp->name[slen - 2] == 'K' || fp->name[slen - 2] == 'k') &&
+            (fp->name[slen - 3] == 'B' || fp->name[slen - 3] == 'b')
+        ) {
+            char path[256];
+            construct_full_name(path, psp->path, fp->name);
+            run_img(path); // TODO: separate support for .BKD
+            return;
+        } else if (
+            (fp->name[slen - 1] == 'E' || fp->name[slen - 1] == 'e') &&
+            (fp->name[slen - 2] == 'K' || fp->name[slen - 2] == 'k') &&
+            (fp->name[slen - 3] == 'B' || fp->name[slen - 3] == 'b')
+        ) {
+            char path[256];
+            construct_full_name(path, psp->path, fp->name);
+            restore_snap_by_filename(path);
+            return;
+        }
+        */
+    }
+}
+
+inline static void handle_pagedown_pressed() {
+    indexes_t* p = &psp->indexes[psp->level];
+    for (int i = 0; i < MAX_HEIGHT / 2; ++i) {
+        if (p->selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
+            p->start_file_offset + p->selected_file_idx < psp->files_number
+        ) {
+            p->selected_file_idx++;
+        } else if (
+            p->selected_file_idx == LAST_FILE_LINE_ON_PANEL_Y &&
+            p->start_file_offset + p->selected_file_idx < psp->files_number
+        ) {
+            p->selected_file_idx--;
+            p->start_file_offset++;
+        }
+    }
+    fill_panel(psp);
+    scan_code_processed();
+}
+
+inline static void handle_down_pressed() {
+    indexes_t* p = &psp->indexes[psp->level];
+    if (p->selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
+        p->start_file_offset + p->selected_file_idx < psp->files_number
+    ) {
+        p->selected_file_idx++;
+        fill_panel(psp);
+    } else if (
+        p->selected_file_idx == LAST_FILE_LINE_ON_PANEL_Y &&
+        p->start_file_offset + p->selected_file_idx < psp->files_number
+    ) {
+        p->selected_file_idx -= 5;
+        p->start_file_offset += 5;
+        fill_panel(psp);    
+    }
+    scan_code_processed();
+}
+
+inline static void handle_pageup_pressed() {
+    indexes_t* p = &psp->indexes[psp->level];
+    for (int i = 0; i < MAX_HEIGHT / 2; ++i) {
+        if (p->selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y) {
+            p->selected_file_idx--;
+        } else if (p->selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && p->start_file_offset > 0) {
+            p->selected_file_idx++;
+            p->start_file_offset--;
+        }
+    }
+    fill_panel(psp);
+    scan_code_processed();
+}
+
+inline static void handle_up_pressed() {
+    indexes_t* p = &psp->indexes[psp->level];
+    if (p->selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y) {
+        p->selected_file_idx--;
+        fill_panel(psp);
+    } else if (p->selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && p->start_file_offset > 0) {
+        p->selected_file_idx += 5;
+        p->start_file_offset -= 5;
+        fill_panel(psp);       
+    }
+    scan_code_processed();
+}
+
+inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
+    if (fn_idx > 11) fn_idx -= 18; // F11-12
+    (*actual_fn_1_12_tbl())[fn_idx].action(fn_idx);
+}
+
 static inline void work_cycle() {
-    // TODO:
-    vTaskDelay(10000);
+    uint8_t repeat_cnt = 0;
+    for(;;) {
+        if (is_dendy_joystick || is_kbd_joystick) {
+            if (is_dendy_joystick) nespad_read();
+            if (nespad_state_delay > 0) {
+                nespad_state_delay--;
+                sleep_ms(1);
+            }
+            else {
+                nespad_state_delay = DPAD_STATE_DELAY;
+                if(nespad_state & DPAD_UP) {
+                    handle_up_pressed();
+                } else if(nespad_state & DPAD_DOWN) {
+                    handle_down_pressed();
+                } else if (nespad_state & DPAD_START) {
+                    enter_pressed();
+                } else if ((nespad_state & DPAD_A) && (nespad_state & DPAD_START)) {
+                    turn_usb_on(0);
+                } else if ((nespad_state & DPAD_B) && (nespad_state & DPAD_SELECT)) {
+                    mark_to_exit(0);
+                } else if ((nespad_state & DPAD_LEFT) || (nespad_state & DPAD_RIGHT)) {
+                    left_panel_make_active = !left_panel_make_active;
+                } else if ((nespad_state & DPAD_A) && (nespad_state & DPAD_SELECT)) {
+                    conf_it(0);
+                } else if ((nespad_state & DPAD_B) && (nespad_state & DPAD_START)) {
+                    reset(0);
+                    return;
+                }
+            }
+        }
+        if (ctrlPressed && altPressed && delPressed) {
+            ctrlPressed = altPressed = delPressed = false;
+            reset(0);
+            return;
+        }
+    //    if_swap_drives();
+    //    if_overclock();
+    //    if_sound_control();
+        if (psp == &left_panel && !left_panel_make_active) {
+            select_right_panel();
+        }
+        if (psp != &left_panel && left_panel_make_active) {
+            select_left_panel();
+        }
+        if (lastSavedScanCode != lastCleanableScanCode && lastSavedScanCode > 0x80) {
+            repeat_cnt = 0;
+        } else {
+            repeat_cnt++;
+            if (repeat_cnt > 0xFE && lastSavedScanCode < 0x80) {
+               lastCleanableScanCode = lastSavedScanCode + 0x80;
+               repeat_cnt = 0;
+            }
+        }
+        //if (lastCleanableScanCode) DBGM_PRINT(("lastCleanableScanCode: %02Xh", lastCleanableScanCode));
+        switch(lastCleanableScanCode) {
+          case 0x01: // Esc down
+          //  mark_to_exit(9);
+          case 0x81: // Esc up
+          //  scan_code_processed();
+            break;
+          case 0x3B: // F1..10 down
+          case 0x3C: // F2
+          case 0x3D: // F3
+          case 0x3E: // F4
+          case 0x3F: // F5
+          case 0x40: // F6
+          case 0x41: // F7
+          case 0x42: // F8
+          case 0x43: // F9
+          case 0x44: // F10
+          case 0x57: // F11
+          case 0x58: // F12
+            scan_code_processed();
+            break;
+          case 0xBB: // F1..10 up
+          case 0xBC: // F2
+          case 0xBD: // F3
+          case 0xBE: // F4
+          case 0xBF: // F5
+          case 0xC0: // F6
+          case 0xC1: // F7
+          case 0xC2: // F8
+          case 0xC3: // F9
+          case 0xC4: // F10
+          case 0xD7: // F11
+          case 0xD8: // F12
+            if (lastSavedScanCode != lastCleanableScanCode - 0x80) {
+                break;
+            }
+            fn_1_12_btn_pressed(lastCleanableScanCode - 0xBB);
+            scan_code_processed();
+            break;
+          case 0x1D: // Ctrl down
+          case 0x9D: // Ctrl up
+          case 0x38: // ALT down
+          case 0xB8: // ALT up
+            bottom_line();
+            scan_code_processed();
+            break;
+          case 0x50: // down arr down
+            scan_code_processed();
+            break;
+          case 0xD0: // down arr up
+            if (lastSavedScanCode != 0x50) {
+                break;
+            }
+            handle_down_pressed();
+            break;
+          case 0x49: // pageup arr down
+            scan_code_processed();
+            break;
+          case 0xC9: // pageup arr up
+            if (lastSavedScanCode != 0x49) {
+                break;
+            }
+            handle_pageup_pressed();
+            break;
+          case 0x51: // pagedown arr down
+            scan_code_processed();
+            break;
+          case 0xD1: // pagedown arr up
+            if (lastSavedScanCode != 0x51) {
+                break;
+            }
+            handle_pagedown_pressed();
+            break;
+          case 0x48: // up arr down
+            scan_code_processed();
+            break;
+          case 0xC8: // up arr up
+            if (lastSavedScanCode != 0x48) {
+                break;
+            }
+            handle_up_pressed();
+            break;
+          case 0xCB: // left
+            break;
+          case 0xCD: // right
+            break;
+          case 0x1C: // Enter down
+            scan_code_processed();
+            break;
+          case 0x9C: // Enter up
+            if (lastSavedScanCode != 0x1C) {
+                break;
+            }
+            enter_pressed();
+            scan_code_processed();
+            break;
+        }
+        /*
+        if (usb_started && tud_msc_ejected()) {
+            turn_usb_off(0);
+        }
+        if (usb_started) {
+            pico_usb_drive_heartbeat();
+        } else
+        */
+        if(mark_to_exit_flag) {
+            return;
+        }
+        //snprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode, 256);
+        //draw_cmd_line(0, CMD_Y_POS, line);
+    }
 }
 
 inline static void start_manager() {
@@ -592,8 +1290,12 @@ int main(void) {
 
     files_info = calloc(sizeof(file_info_t), MAX_FILES);
 
+    scancode_handler = get_scancode_handler();
+    set_scancode_handler(scancode_handler_impl);
+
     start_manager();
 
+    set_scancode_handler(scancode_handler);
     free(line);
     free(right_panel);
     free(left_panel);
