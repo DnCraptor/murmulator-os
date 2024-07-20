@@ -5,6 +5,11 @@ int main(void) {
     FIL * f = get_stdout();
     uint32_t sz = psram_size();
     fgoutf(f, "PSRAM size: %d bytes\n", sz);
+
+    uint8_t rx8[8];
+    psram_id(rx8);
+    fgoutf(f, "MF ID: %02x; KGD: %02x; EID: %02x%02x-%02x%02x-%02x%02x\n", rx8[0], rx8[1], rx8[2], rx8[3], rx8[4], rx8[5], rx8[6], rx8[7]);
+
     uint32_t a = 0;
     uint32_t begin = time_us_32();
     for (; a < sz; ++a) {

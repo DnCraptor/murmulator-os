@@ -650,6 +650,10 @@ inline static size_t strnlen(const char *str, size_t sz) {
     return ((fn_ptr_t)_sys_table_ptrs[170])(str, sz);
 }
 
+inline static void psram_id(uint8_t rx[8]) {
+    typedef void (*fn_ptr_t)(uint8_t rx[8]);
+    ((fn_ptr_t)_sys_table_ptrs[178])(rx);
+}
 
 #ifdef __cplusplus
 }

@@ -241,6 +241,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     multicore_lockout_start_blocking, // 175
     multicore_lockout_end_blocking, // 176
     get_cpu_flash_jedec_id, // 177
+    psram_id, // 178
     // TODO:
     0
 };
