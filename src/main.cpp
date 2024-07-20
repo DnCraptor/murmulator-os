@@ -406,6 +406,7 @@ static void info() {
     get_cpu_flash_jedec_id(rx);
     uint32_t psram32 = psram_size();
     FATFS* fs = get_mount_fs();
+    //TODO:  psram_jedec_id(rx);
     goutf("CPU %d MHz\n"
           "SRAM %d KB\n"
           "FLASH %d MB; JEDEC ID: %02x-%02x-%02x-%02x\n" // UniqueID: ?

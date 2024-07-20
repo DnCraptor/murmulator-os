@@ -184,59 +184,8 @@ void psram_spi_uninit(psram_spi_inst_t spi, bool fudge) {
     pio_remove_program(spi.pio, fudge ? &spi_psram_fudge_program : &spi_psram_program, spi.offset);
 }
 
-int test_psram(psram_spi_inst_t* psram_spi, int increment) {
-    puts("Writing PSRAM...");
-    uint8_t deadbeef[8] = {0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf};
-    for (uint32_t addr = 0; addr < (1024 * 1024); addr += increment) {
-        psram_write8(psram_spi, addr, (addr & 0xFF));
-        // psram_write8_async(psram_spi, addr, (addr & 0xFF));
-    }
-    puts("Reading PSRAM...");
-    uint32_t psram_begin = time_us_32();
-    for (uint32_t addr = 0; addr < (1024 * 1024); addr += increment) {
-        uint8_t result = psram_read8(psram_spi, addr);
-        if ((uint8_t)(addr & 0xFF) != result) {
-            printf("\nPSRAM failure at address %x (%x != %x)\n", addr, addr & 0xFF, result);
-            /* err_blink(); */
-            return 1;
-        }
-    }
-    uint32_t psram_elapsed = time_us_32() - psram_begin;
-    float psram_speed = 1000000.0 * 1024.0 * 1024 / psram_elapsed;
-    printf("8 bit: PSRAM read 1MB in %d us, %d B/s (target 705600 B/s)\n", psram_elapsed, (uint32_t)psram_speed);
-
-    psram_begin = time_us_32();
-    for (uint32_t addr = 0; addr < (1024 * 1024); addr += 2) {
-        uint16_t result = psram_read16(psram_spi, addr);
-        if ((uint16_t)(
-                (((addr + 1) & 0xFF) << 8) |
-                (addr & 0XFF)) != result
-        ) {
-            printf("PSRAM failure at address %x (%x != %x) ", addr, addr & 0xFF, result & 0xFF);
-            /* err_blink(); */
-            return 1;
-        }
-    }
-    psram_elapsed = (time_us_32() - psram_begin);
-    psram_speed = 1000000.0 * 1024 * 1024 / psram_elapsed;
-    printf("16 bit: PSRAM read 1MB in %d us, %d B/s (target 1411200 B/s)\n", psram_elapsed, (uint32_t)psram_speed);
-
-    psram_begin = time_us_32();
-    for (uint32_t addr = 0; addr < (1024 * 1024); addr += 4) {
-        uint32_t result = psram_read32(psram_spi, addr);
-        if ((uint32_t)(
-                (((addr + 3) & 0xFF) << 24) |
-                (((addr + 2) & 0xFF) << 16) |
-                (((addr + 1) & 0xFF) << 8)  |
-                (addr & 0XFF)) != result
-        ) {
-            printf("PSRAM failure at address %x (%x != %x) ", addr, addr & 0xFF, result & 0xFF);
-            /* err_blink(); */
-            return 1;
-        }
-    }
-    psram_elapsed = (time_us_32() - psram_begin);
-    psram_speed = 1000000.0 * 1024 * 1024 / psram_elapsed;
-    printf("32 bit: PSRAM read 1MB in %d us, %d B/s (target 1411200 B/s)\n", psram_elapsed, (uint32_t)psram_speed);
-    return 0;
+// TODO:
+void psram_jedec_id(uint8_t rx[4]) {
+    uint8_t tx[4] = {0x9f};
+    pio_spi_write_read_dma_blocking(&psram_spi, tx, 4, rx, 4);
 }
