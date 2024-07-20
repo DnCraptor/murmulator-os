@@ -1,3 +1,5 @@
+#include <hardware/flash.h>
+#include <pico/multicore.h>
 #include <pico/stdlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -232,6 +234,13 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     qsort, // 169
     strnlen,  // 170
+    flash_do_cmd, // 171
+    flash_range_erase, // 172
+    flash_range_program, // 173
+    flash_get_unique_id, // 174
+    multicore_lockout_start_blocking, // 175
+    multicore_lockout_end_blocking, // 176
+    get_cpu_flash_jedec_id, // 177
     // TODO:
     0
 };

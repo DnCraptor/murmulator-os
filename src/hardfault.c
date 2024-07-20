@@ -76,30 +76,16 @@ uint32_t get_cpu_ram_size(void) {
 #include <pico/multicore.h>
 
 uint32_t get_cpu_flash_size(void) {
-    /*
-    bool det = true;
-    for(uint32_t sz = 0x00200000; sz < 0x01000000; sz <<= 1) {
-        for (uint32_t addr = 0x10000100; addr < 0x11000000; addr += sz) {
-            if( *(uint32_t*)addr != *(uint32_t*)(addr + sz) ) {
-                det = false;
-                break;
-            }
-            if( *(uint32_t*)(addr + 0x00100000) != *(uint32_t*)(addr + sz + 0x00100000) ) {
-                det = false;
-                break;
-            }
-        }
-        if (det)
-            return sz;
-    }
-    return 0x01000000;
-    */
-    uint8_t tx[4] = {0x9f};
     uint8_t rx[4] = {0};
+    get_cpu_flash_jedec_id(rx);
+    return 1 << rx[3];
+}
+
+void get_cpu_flash_jedec_id(uint8_t rx[4]) {
+    uint8_t tx[4] = {0x9f};
     multicore_lockout_start_blocking();
     const uint32_t ints = save_and_disable_interrupts();
     flash_do_cmd(tx, rx, 4);
     restore_interrupts(ints);
     multicore_lockout_end_blocking();
-    return 1 << rx[3];
 }

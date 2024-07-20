@@ -402,12 +402,13 @@ static void init(void) {
 
 static void info() {
     uint32_t ram32 = get_cpu_ram_size();
-    uint32_t flash32 = get_cpu_flash_size();
+    uint8_t rx[4];
+    get_cpu_flash_jedec_id(rx);
     uint32_t psram32 = psram_size();
     FATFS* fs = get_mount_fs();
     goutf("CPU %d MHz\n"
           "SRAM %d KB\n"
-          "FLASH %d MB\n"
+          "FLASH %d MB; JEDEC ID: %02x-%02x-%02x-%02x\n" // UniqueID: ?
           "PSRAM %d MB\n"
           "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
           "SWAP %d MB; RAM: %d KB; pages index: %d x %d KB\n"
@@ -415,9 +416,9 @@ static void info() {
           "\n",
           get_overclocking_khz() / 1000,
           ram32 >> 10,
-          flash32 >> 20,
+          (1 << rx[3]) >> 20, rx[0], rx[1], rx[2], rx[3],
           psram32 >> 20,
-          fs->n_fats,
+          fs->n_fats, 
           f_getfree32(fs),
           fs->csize >> 1,
           swap_size() >> 20, swap_base_size() >> 10, swap_pages(), swap_page_size() >> 10,

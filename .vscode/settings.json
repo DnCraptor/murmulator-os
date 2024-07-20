@@ -10,6 +10,7 @@
         "ff.h": "c",
         "graphics.h": "c",
         "stdio.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "hardfault.h": "c"
     }
 }
