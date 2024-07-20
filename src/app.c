@@ -523,9 +523,14 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         prg_addr = 0;
         goto e1;
     }
+    goto e2;
 e1:
+    vTaskDelay(3000);
+e2:
     vPortFree(psh);
-    if (!prg_addr && del_addr) vPortFree(del_addr);
+    if (!prg_addr && del_addr) {
+        vPortFree(del_addr);
+    }
     return prg_addr;
 }
 

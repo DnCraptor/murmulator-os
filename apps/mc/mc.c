@@ -389,7 +389,6 @@ static void bottom_line() {
 //        0  // black
 //    );
     draw_cmd_line(0, CMD_Y_POS, os_type);
-    graphics_set_con_pos(strlen(os_type) + 1, CMD_Y_POS);
 }
 
 inline static void update_menu_color() {
@@ -458,6 +457,7 @@ static void draw_cmd_line(int left, int top, char* cmd) {
         memset(line, ' ', MAX_WIDTH); line[0] = '>';
     }
     line[MAX_WIDTH] = 0;
+    graphics_set_con_pos(strlen(line), CMD_Y_POS);
     draw_text(line, left, top, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
 }
 
@@ -1074,7 +1074,10 @@ inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
 
 static inline void work_cycle() {
     uint8_t repeat_cnt = 0;
+    draw_cmd_line(0, CMD_Y_POS, "A0");
     for(;;) {
+        snprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode, 256);
+        draw_cmd_line(0, CMD_Y_POS, line);
         if (is_dendy_joystick || is_kbd_joystick) {
             if (is_dendy_joystick) nespad_read();
             if (nespad_state_delay > 0) {
@@ -1234,16 +1237,20 @@ static inline void work_cycle() {
         if(mark_to_exit_flag) {
             return;
         }
-        //snprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode, 256);
-        //draw_cmd_line(0, CMD_Y_POS, line);
+        snprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode, 256);
+        draw_cmd_line(0, CMD_Y_POS, line);
     }
 }
 
 inline static void start_manager() {
+    draw_cmd_line(0, CMD_Y_POS, "S0");
     m_window();
+    draw_cmd_line(0, CMD_Y_POS, "S1");
     select_left_panel();
+    draw_cmd_line(0, CMD_Y_POS, "S2");
     update_menu_color();
 //        m_info(0); // F1 TODO: ensure it is not too aggressive
+    draw_cmd_line(0, CMD_Y_POS, "S3");
     work_cycle();
 //    set_start_debug_line(25); // ?? to be removed
 }

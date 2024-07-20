@@ -99,7 +99,7 @@ static char tricode2c(char tricode[4], size_t s) {
     return (char)r & 0xFF;
 }
 
-static scancode_handler_t scancode_handler = 0;
+static volatile scancode_handler_t scancode_handler = 0;
 scancode_handler_t get_scancode_handler() {
     return scancode_handler;
 }
