@@ -62,7 +62,7 @@ static int nespad_state_delay = DPAD_STATE_DELAY;
 static uint8_t nespad_state, nespad_state2;
 static bool mark_to_exit_flag = false;
 
-void nespad_read() {
+inline static void nespad_read() {
     // TODO:
     nespad_state = nespad_state2 = 0;
 }
@@ -313,7 +313,7 @@ static void draw_box(int left, int top, int width, int height, const char* title
 }
 
 static void do_nothing(uint8_t cmd) {
-    snprintf(line, 130, "CMD: F%d", cmd + 1);
+    snprintf(line, MAX_WIDTH, "CMD: F%d", cmd + 1);
     const line_t lns[2] = {
         { -1, "Not yet implemented function" },
         { -1, line }
@@ -337,12 +337,19 @@ static void reset(uint8_t cmd) {
 #define m_mk_dir do_nothing
 #define m_delete_file do_nothing
 #define swap_drives do_nothing
-#define mark_to_exit do_nothing
 #define switch_mode do_nothing
 #define switch_color do_nothing
 #define conf_it do_nothing
 #define turn_usb_on do_nothing
 #define restore_snap do_nothing
+
+static void mark_to_exit(uint8_t cmd) {
+    f10Pressed = false;
+    escPressed = false;
+  //  if (!usb_started) // TODO: USB in emulation mode
+        mark_to_exit_flag = true;
+}
+
 
 static fn_1_12_tbl_t fn_1_12_tbl = {
     ' ', '1', " Help ", m_info,
@@ -534,7 +541,7 @@ inline static void construct_full_name(char* dst, const char* folder, const char
     }
 }
 
-void detect_os_type(const char* path, char* os_type, size_t sz) {
+inline static void detect_os_type(const char* path, char* os_type, size_t sz) {
     // TODO:
     strncpy(os_type, path, sz);
 }
@@ -733,33 +740,28 @@ inline static void handleJoystickEmulation(uint8_t sc) { // core 1
 
 static scancode_handler_t scancode_handler;
 
-static bool scancode_handler_impl(const uint32_t ps2scancode) {
+static bool scancode_handler_impl(const uint32_t ps2scancode) { // core ?
     handleJoystickEmulation((uint8_t)ps2scancode);
-    lastCleanableScanCode = ps2scancode;
+    lastCleanableScanCode = ps2scancode & 0xFF; // ensure
     bool numlock = get_leds_stat() & PS2_LED_NUM_LOCK;
     if (ps2scancode == 0xE048 || (ps2scancode == 0x48 && !numlock)) {
         upPressed = true;
-        return false;
-    }
-    if (ps2scancode == 0xE0C8 || (ps2scancode == 0xC8 && !numlock)) {
+        goto r;
+    } else if (ps2scancode == 0xE0C8 || (ps2scancode == 0xC8 && !numlock)) {
         upPressed = false;
-        return false;
-    }
-    if (ps2scancode == 0xE050 || (ps2scancode == 0x50 && !numlock)) {
+        goto r;
+    } else if (ps2scancode == 0xE050 || (ps2scancode == 0x50 && !numlock)) {
         downPressed = true;
-        return false;
-    }
-    if (ps2scancode == 0xE0D0 || (ps2scancode == 0xD0 && !numlock)) {
+        goto r;
+    } else if (ps2scancode == 0xE0D0 || (ps2scancode == 0xD0 && !numlock)) {
         downPressed = false;
-        return false;
-    }
-    if (ps2scancode == 0xE01C) {
+        goto r;
+    } else if (ps2scancode == 0xE01C) {
         enterPressed = true;
-        return false;
-    }
-    if (ps2scancode == 0xE09C) {
+        goto r;
+    } else if (ps2scancode == 0xE09C) {
         enterPressed = false;
-        return false;
+        goto r;
     }
     switch ((uint8_t)ps2scancode & 0xFF) {
       case 0x01: // Esc down
@@ -942,6 +944,7 @@ static bool scancode_handler_impl(const uint32_t ps2scancode) {
         //DBGM_PRINT(("handleScancode default: %02Xh", ps2scancode));
         break;
     }
+r:
     if (scancode_handler) {
         return scancode_handler(ps2scancode);
     }
@@ -975,7 +978,7 @@ static file_info_t* selected_file() {
 }
 
 static inline void redraw_current_panel() {
-    snprintf(line, "SD:%s", psp->path, MAX_WIDTH >> 1);
+    snprintf(line, MAX_WIDTH >> 1, "SD:%s", psp->path);
     draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
     fill_panel(psp);
     draw_cmd_line(0, CMD_Y_POS, os_type);
@@ -1168,10 +1171,10 @@ static inline void work_cycle() {
     //    if_swap_drives();
     //    if_overclock();
     //    if_sound_control();
-        if (psp == &left_panel && !left_panel_make_active) {
+        if (psp == left_panel && !left_panel_make_active) {
             select_right_panel();
         }
-        if (psp != &left_panel && left_panel_make_active) {
+        if (psp != left_panel && left_panel_make_active) {
             select_left_panel();
         }
         if (lastSavedScanCode != lastCleanableScanCode && lastSavedScanCode > 0x80) {
@@ -1291,8 +1294,10 @@ static inline void work_cycle() {
         if(mark_to_exit_flag) {
             return;
         }
-        // snprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode, 256);
+        // static char tt[] = "cleanable scan-code: %02Xh / saved scan-code: %02Xh";
+        // snprintf(line, MAX_WIDTH, tt, lastCleanableScanCode, lastSavedScanCode);
         // draw_cmd_line(0, CMD_Y_POS, line);
+        // sleep_ms(500);
     }
 }
 
@@ -1302,7 +1307,6 @@ inline static void start_manager() {
     update_menu_color();
 //        m_info(0); // F1 TODO: ensure it is not too aggressive
     work_cycle();
-//    set_start_debug_line(25); // ?? to be removed
 }
 
 int main(void) {
