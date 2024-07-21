@@ -664,6 +664,14 @@ inline static void psram_id(uint8_t rx[8]) {
 #define DPAD_B 0x02
 #define DPAD_A 0x01
 
+#define PS2_LED_SCROLL_LOCK 1
+#define PS2_LED_NUM_LOCK    2
+#define PS2_LED_CAPS_LOCK   4
+
+inline static uint8_t get_leds_stat() {
+    typedef uint8_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[64])();
+}
 
 #ifdef __cplusplus
 }

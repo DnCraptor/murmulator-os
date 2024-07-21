@@ -172,6 +172,50 @@ int _init(void) {
     files_count = 0;
     selected_file_path[0] = 0;
     os_type[0] = 0;
+
+    backspacePressed = false;
+    enterPressed = false;
+    plusPressed = false;
+    minusPressed = false;
+    ctrlPressed = false;
+    altPressed = false;
+    delPressed = false;
+    f1Pressed = false;
+    f2Pressed = false;
+    f3Pressed = false;
+    f4Pressed = false;
+    f5Pressed = false;
+    f6Pressed = false;
+    f7Pressed = false;
+    f8Pressed = false;
+    f9Pressed = false;
+    f10Pressed = false;
+    f11Pressed = false;
+    f12Pressed = false;
+    tabPressed = false;
+    spacePressed = false;
+    escPressed = false;
+    leftPressed = false;
+    rightPressed = false;
+    upPressed = false;
+    downPressed = false;
+    aPressed = false;
+    cPressed = false;
+    gPressed = false;
+    tPressed = false;
+    dPressed = false;
+    sPressed = false;
+    xPressed = false;
+    ePressed = false;
+    uPressed = false;
+    hPressed = false;
+    left_panel_make_active = true;
+
+    is_dendy_joystick = true;
+    is_kbd_joystick = false;
+    nespad_state_delay = DPAD_STATE_DELAY;
+    nespad_state = nespad_state2 = 0;
+    mark_to_exit_flag = false;
     scan_code_cleanup();
 }
 
@@ -584,7 +628,7 @@ static void m_window() {
 
 inline static void handleJoystickEmulation(uint8_t sc) { // core 1
     if (!is_kbd_joystick) return;
-    DBGM_PRINT(("handleJoystickEmulation: %02Xh", sc));
+    // DBGM_PRINT(("handleJoystickEmulation: %02Xh", sc));
     switch(sc) {
         case 0x1E: // A DPAD_A 
             nespad_state |= DPAD_A;
@@ -692,7 +736,32 @@ static scancode_handler_t scancode_handler;
 static bool scancode_handler_impl(const uint32_t ps2scancode) {
     handleJoystickEmulation((uint8_t)ps2scancode);
     lastCleanableScanCode = ps2scancode;
-    switch (ps2scancode) {
+    bool numlock = get_leds_stat() & PS2_LED_NUM_LOCK;
+    if (ps2scancode == 0xE048 || (ps2scancode == 0x48 && !numlock)) {
+        upPressed = true;
+        return false;
+    }
+    if (ps2scancode == 0xE0C8 || (ps2scancode == 0xC8 && !numlock)) {
+        upPressed = false;
+        return false;
+    }
+    if (ps2scancode == 0xE050 || (ps2scancode == 0x50 && !numlock)) {
+        downPressed = true;
+        return false;
+    }
+    if (ps2scancode == 0xE0D0 || (ps2scancode == 0xD0 && !numlock)) {
+        downPressed = false;
+        return false;
+    }
+    if (ps2scancode == 0xE01C) {
+        enterPressed = true;
+        return false;
+    }
+    if (ps2scancode == 0xE09C) {
+        enterPressed = false;
+        return false;
+    }
+    switch ((uint8_t)ps2scancode & 0xFF) {
       case 0x01: // Esc down
         escPressed = true;
         break;
@@ -706,18 +775,6 @@ static bool scancode_handler_impl(const uint32_t ps2scancode) {
         rightPressed = true;  break;
       case 0xCD: // right
         rightPressed = false;  break;
-      case 0x48:
-        upPressed = true;
-        break;
-      case 0xC8:
-        upPressed = false;
-        break;
-      case 0x50:
-        downPressed = true;
-        break;
-      case 0xD0:
-        downPressed = false;
-        break;
       case 0x38:
         altPressed = true;
         break;
@@ -888,7 +945,7 @@ static bool scancode_handler_impl(const uint32_t ps2scancode) {
     if (scancode_handler) {
         return scancode_handler(ps2scancode);
     }
-    return true;
+    return false;
 }
 
 static file_info_t* selected_file() {
