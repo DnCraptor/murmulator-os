@@ -60,7 +60,7 @@ static bool is_kbd_joystick = false;
 #define DPAD_STATE_DELAY 200
 static int nespad_state_delay = DPAD_STATE_DELAY;
 static uint8_t nespad_state, nespad_state2;
-static bool mark_to_exit_flag = true;
+static bool mark_to_exit_flag = false;
 
 void nespad_read() {
     // TODO:
@@ -492,7 +492,7 @@ inline static void construct_full_name(char* dst, const char* folder, const char
 
 void detect_os_type(const char* path, char* os_type, size_t sz) {
     // TODO:
-    strcpy(os_type, path);
+    strncpy(os_type, path, sz);
 }
 
 static void fill_panel(file_panel_desc_t* p) {
@@ -540,11 +540,11 @@ static void fill_panel(file_panel_desc_t* p) {
             ) {
                 char path[260];
                 construct_full_name(path, p->path, fp->pname);
-                if (strncmp(selected_file_path, path, 260) != 0) {
-                    detect_os_type(path, os_type, 160);
-                    strncpy(selected_file_path, path, 260);
-                }
-                draw_cmd_line(0, CMD_Y_POS, os_type);
+            //    if (strncmp(selected_file_path, path, 260) != 0) {
+            //        detect_os_type(path, os_type, 160);
+            //        strncpy(selected_file_path, path, 260);
+            //    }
+                draw_cmd_line(0, CMD_Y_POS, path);// os_type);
             } else if (
 #if EXT_DRIVES_MOUNT
               p->in_dos ||
@@ -1074,10 +1074,7 @@ inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
 
 static inline void work_cycle() {
     uint8_t repeat_cnt = 0;
-    draw_cmd_line(0, CMD_Y_POS, "A0");
     for(;;) {
-        snprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode, 256);
-        draw_cmd_line(0, CMD_Y_POS, line);
         if (is_dendy_joystick || is_kbd_joystick) {
             if (is_dendy_joystick) nespad_read();
             if (nespad_state_delay > 0) {
@@ -1237,20 +1234,16 @@ static inline void work_cycle() {
         if(mark_to_exit_flag) {
             return;
         }
-        snprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode, 256);
-        draw_cmd_line(0, CMD_Y_POS, line);
+        // snprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode, 256);
+        // draw_cmd_line(0, CMD_Y_POS, line);
     }
 }
 
 inline static void start_manager() {
-    draw_cmd_line(0, CMD_Y_POS, "S0");
     m_window();
-    draw_cmd_line(0, CMD_Y_POS, "S1");
     select_left_panel();
-    draw_cmd_line(0, CMD_Y_POS, "S2");
     update_menu_color();
 //        m_info(0); // F1 TODO: ensure it is not too aggressive
-    draw_cmd_line(0, CMD_Y_POS, "S3");
     work_cycle();
 //    set_start_debug_line(25); // ?? to be removed
 }
