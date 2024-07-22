@@ -171,6 +171,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #BOOT_DEBUG_ACC=0
         #DEBUG_HEAP_SIZE=512
         #DEBUG_VGA=1
+        #DEBUG_APP_LOAD=1
 
         M_API_VERSION=10
         MOS_VERSION_STR="${MOS_VERSION}"

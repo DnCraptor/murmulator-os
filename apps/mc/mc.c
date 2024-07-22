@@ -330,7 +330,6 @@ static void reset(uint8_t cmd) {
 }
 
 // TODO:
-#define m_info do_nothing
 #define save_snap do_nothing
 #define m_copy_file do_nothing
 #define m_move_file do_nothing
@@ -350,6 +349,26 @@ static void mark_to_exit(uint8_t cmd) {
         mark_to_exit_flag = true;
 }
 
+static void m_info(uint8_t cmd) {
+    line_t plns[2] = {
+        { 1, " It is ZX Murmulator OS Commander" },
+        { 1, "tba" }
+    };
+    lines_t lines = { 2, 0, plns };
+    draw_box(5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
+    enterPressed = escPressed = false;
+    nespad_state_delay = DPAD_STATE_DELAY;
+    while(!escPressed && !enterPressed) {
+        if (is_dendy_joystick || is_kbd_joystick) {
+            if (is_dendy_joystick) nespad_read();
+            if (nespad_state && !(nespad_state & DPAD_START) && !(nespad_state & DPAD_SELECT)) {
+                nespad_state_delay = DPAD_STATE_DELAY;
+                break;
+            }
+        }
+    }
+    redraw_window();
+}
 
 static fn_1_12_tbl_t fn_1_12_tbl = {
     ' ', '1', " Help ", m_info,

@@ -436,7 +436,9 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         if (f_lseek(c->f2, psh->sh_offset) == FR_OK &&
             f_read(c->f2, prg_addr, psh->sh_size, &rb) == FR_OK && rb == psh->sh_size
         ) {
-            // goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, prg_addr);
+            #if DEBUG_APP_LOAD
+            goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, prg_addr);
+            #endif
             add_sec(c, del_addr, prg_addr, sec_num);
             // links and relocations
             if (f_lseek(c->f2, c->pehdr->sh_offset) != FR_OK) {
@@ -513,11 +515,13 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                 }
             }
         } else {
-            //goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, del_addr);
+            goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, del_addr);
             prg_addr = 0;
             goto e1;
         }
-        //goutf("Section #%d - load completed @%ph\n", sec_num, prg_addr);
+        #if DEBUG_APP_LOAD
+        goutf("Section #%d - load completed @%ph\n", sec_num, prg_addr);
+        #endif
     } else {
         goutf("Unable to read section #%d info\n", sec_num);
         prg_addr = 0;
@@ -536,7 +540,9 @@ e2:
 
 static uint32_t load_sec2mem_wrapper(load_sec_ctx* pctx, uint32_t req_idx) {
     if (req_idx != 0xFFFFFFFF) {
-        // goutf("Loading .symtab section #%d\n", req_idx);
+        #if DEBUG_APP_LOAD
+        goutf("Loading .symtab section #%d\n", req_idx);
+        #endif
         UINT rb;
         elf32_sym* psym = pvPortMalloc(sizeof(elf32_sym));
         if (f_lseek(pctx->f2, pctx->symtab_off + req_idx * sizeof(elf32_sym)) != FR_OK ||
@@ -617,8 +623,7 @@ bool load_app(cmd_ctx_t* ctx) {
         goto e3;
     }
     f_lseek(f, symtab_off);
-    elf32_sym sym;
- //   sizeof(elf32_sym);
+    elf32_sym* psym = pvPortMalloc(sizeof(elf32_sym));;
     uint32_t _init_idx = 0xFFFFFFFF;
     uint32_t _fini_idx = 0xFFFFFFFF;
     uint32_t main_idx = 0xFFFFFFFF;
@@ -631,17 +636,17 @@ bool load_app(cmd_ctx_t* ctx) {
     pctx->f2 = f;
     pctx->pehdr = pehdr;
     pctx->symtab_off = symtab_off;
-    pctx->psym = &sym;
+    pctx->psym = psym;
     pctx->pstrtab = strtab;
     pctx->psections_list = bootb_ctx->sect_entries;
     pctx->max_sections_in_list = max_sects;
     for (uint32_t i = 0; i < symtab_len / sizeof(elf32_sym); ++i) {
-        if (f_read(f, &sym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)) {
+        if (f_read(f, psym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)) {
             goutf("Unable to read .symtab section #%d\n", i);
             break;
         }
-        if (sym.st_info == STR_TAB_GLOBAL_FUNC) {
-            char* gfn = strtab + sym.st_name;
+        if (psym->st_info == STR_TAB_GLOBAL_FUNC) {
+            char* gfn = strtab + psym->st_name;
             if (0 == strcmp("_init", gfn)) {
                 _init_idx = i;
             } else if (0 == strcmp("__required_m_api_verion", gfn)) {
@@ -657,6 +662,7 @@ bool load_app(cmd_ctx_t* ctx) {
     bootb_ctx->bootb[1] = load_sec2mem_wrapper(pctx, _init_idx);
     bootb_ctx->bootb[2] = load_sec2mem_wrapper(pctx, main_idx);
     bootb_ctx->bootb[3] = load_sec2mem_wrapper(pctx, _fini_idx);
+    vPortFree(psym);
 e3:
     vPortFree(strtab);
 e2:
@@ -668,9 +674,11 @@ e1:
     f_close(f);
     vPortFree(f);
     bootb_ctx->sect_entries = pctx->psections_list;
-    // debug_sections(bootb_ctx->sect_entries);
-    // goutf("[%p][%p][%p][%p]\n", bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3]);
     vPortFree(pctx);
+    #if DEBUG_APP_LOAD
+    debug_sections(bootb_ctx->sect_entries);
+    goutf("[%p][%p][%p][%p]\n", bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3]);
+    #endif
     if (bootb_ctx->bootb[2] == 0) {
         goutf("'main' global function is not found in the '%s' elf-file\n", fn);
         ctx->ret_code = -1;
@@ -684,7 +692,7 @@ e1:
 }
 
 static void exec_sync(cmd_ctx_t* ctx) {
-    /*
+    #if DEBUG_APP_LOAD
          goutf("orig_cmd: [%p] %s, pipe: [%p] ", ctx, ctx->orig_cmd, ctx->next);
          if (ctx->argc) {
             goutf("%d argc [", ctx->argc);
@@ -695,14 +703,18 @@ static void exec_sync(cmd_ctx_t* ctx) {
          } else {
             goutf("0 argc\n");
          }
-    */
+    #endif
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
 
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
-    // goutf("__required_m_api_verion: [%p]\n", bootb_ctx->bootb[0]);
+    #if DEBUG_APP_LOAD
+    goutf("__required_m_api_verion: [%p]\n", bootb_ctx->bootb[0]);
+    #endif
     int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 5;
-    // goutf("rav: %d\n", rav);
+    #if DEBUG_APP_LOAD
+    goutf("rav: %d\n", rav);
+    #endif
     if (rav > M_API_VERSION) {
         goutf("Required by application '%s' M-API version %d is grater than provided )%d)\n",  ctx->argv[0], rav, M_API_VERSION);
         ctx->ret_code = -2;
@@ -715,36 +727,52 @@ static void exec_sync(cmd_ctx_t* ctx) {
     }
     if (bootb_ctx->bootb[1]) {
         bootb_ctx->bootb[1]();
-        // gouta("_init done\n");
+        #if DEBUG_APP_LOAD
+        gouta("_init done\n");
+        #endif
     }
-    // goutf("EXEC main: [%p]\n", bootb_ctx->bootb[2]);
+    #if DEBUG_APP_LOAD
+    goutf("EXEC main: [%p]\n", bootb_ctx->bootb[2]);
+    #endif
     int res = bootb_ctx->bootb[2] ? bootb_ctx->bootb[2]() : -3;
-    // goutf("EXEC RET_CODE: %d -> _fini: %p\n", res, bootb_ctx->bootb[3]);
+    #if DEBUG_APP_LOAD
+    goutf("EXEC RET_CODE: %d -> _fini: %p\n", res, bootb_ctx->bootb[3]);
+    #endif
     if (bootb_ctx->bootb[3]) {
         bootb_ctx->bootb[3]();
-        // gouta("_fini done\n");
+        #if DEBUG_APP_LOAD
+        gouta("_fini done\n");
+        #endif
     }
     ctx->ret_code = res;
 }
 
 static void vAppDetachedTask(void *pv) {
     cmd_ctx_t* ctx = (cmd_ctx_t*)pv;
-    // goutf("vAppDetachedTask: %s [%p]\n", ctx->orig_cmd, ctx);
+    #if DEBUG_APP_LOAD
+    goutf("vAppDetachedTask: %s [%p]\n", ctx->orig_cmd, ctx);
+    #endif
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     exec_sync(ctx);
     remove_ctx(ctx);
-    // goutf("vAppDetachedTask: [%p] <<<\n", ctx);
+    #if DEBUG_APP_LOAD
+    goutf("vAppDetachedTask: [%p] <<<\n", ctx);
+    #endif
     vTaskDelete( NULL );
 }
 
 void exec(cmd_ctx_t* ctx) {
     do {
         cmd_ctx_t* pipe_ctx = ctx->next;
-        // goutf("EXEC [%p]->[%p]\n", ctx, pipe_ctx);
+        #if DEBUG_APP_LOAD
+        goutf("EXEC [%p]->[%p]\n", ctx, pipe_ctx);
+        #endif
         if (ctx->detached) {
             cmd_ctx_t* ctxi = clone_ctx(ctx);
-            // goutf("Clone ctx [%p]->[%p]\n", ctx, ctxi);
+            #if DEBUG_APP_LOAD
+            goutf("Clone ctx [%p]->[%p]\n", ctx, ctxi);
+            #endif
             xTaskCreate(vAppDetachedTask, ctxi->argv[0], 1024/*x4=4096k*/, ctxi, configMAX_PRIORITIES - 1, NULL);
             cleanup_ctx(ctx);
         } else {
@@ -753,7 +781,9 @@ void exec(cmd_ctx_t* ctx) {
             if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
                 cleanup_ctx(ctx);
             }
-            // goutf("EXEC [%p] <<\n", ctx);
+            #if DEBUG_APP_LOAD
+            goutf("EXEC [%p] <<\n", ctx);
+            #endif
         }
         ctx = pipe_ctx;
     } while(ctx);
