@@ -675,4 +675,23 @@ inline static uint8_t get_leds_stat() {
 
 #ifdef __cplusplus
 }
+// TODO: separate h-file
+inline void* operator new(size_t sz) {
+    return malloc(sz);
+}
+inline void operator delete(void* p) {
+    return free(p);
+}
+inline void operator delete(void* p, size_t) {
+    return free(p);
+}
+inline void* operator new[](size_t sz) {
+    return malloc(sz);
+}
+inline void operator delete[](void* p) {
+    return free(p);
+}
+inline void operator delete[](void* p, size_t) {
+    return free(p);
+}
 #endif

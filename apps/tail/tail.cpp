@@ -1,5 +1,14 @@
 #include "m-os-api.h"
 
+extern "C" void* memset(void* p, int v, size_t sz) {
+    typedef void* (*fn)(void *, int, size_t);
+    return ((fn)_sys_table_ptrs[142])(p, v, sz);
+}
+
+extern "C" void _ZdlPvj(void* p) { // TODO: lookup for a case
+    free(p);
+}
+
 static volatile bool ctrlPressed;
 static volatile bool cPressed;
 static volatile scancode_handler_t scancode_handler;
@@ -33,7 +42,7 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
         fprintf(ctx->std_err, "Unexpected argument: %s\n", ctx->argv[2]);
         return 3;
     }
-    FIL* f = (FIL*)malloc(sizeof(FIL));
+    FIL* f = new FIL();
     if (f_open(f, fn, FA_READ) != FR_OK) {
         free(f);
         fprintf(ctx->std_err, "Unable to open file: '%s'\n", fn);
@@ -42,7 +51,7 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
     uint32_t MAX_WIDTH = ctx->detached ? 255 : get_console_width();
     uint32_t MAX_LEN = MAX_WIDTH + 1;
     char* p = (char*)calloc(MAX_LEN, len);
-    char* buf = (char*)malloc(512);
+    char* buf = new char[512];
     size_t curr_line = 0; size_t curr_pos = 0;
     size_t lines = 0;
     size_t rb;
@@ -68,9 +77,9 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
             *(p + curr_line * MAX_LEN + curr_pos) = 0;
         }
     }
-    free(buf);
+    delete[] buf;
     f_close(f);
-    free(f);
+    delete f;
     printf("Total lines: %d; show lines: %d\n", lines, len);
     for (size_t cl = curr_line; cl < len; ++cl) {
         const char* s = p + cl * MAX_LEN;
