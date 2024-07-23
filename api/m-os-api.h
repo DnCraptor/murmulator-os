@@ -694,4 +694,80 @@ inline void operator delete[](void* p) {
 inline void operator delete[](void* p, size_t) {
     return free(p);
 }
+// TODO: separate h-file
+class string {
+    size_t sz;
+    char* p;
+public:
+    inline string(): sz(1), p(new char[1]) { p[0] = 0; }
+    inline ~string() { delete[] p; }
+    inline string(const char* s) {
+        sz = strlen(s) + 1;
+        p = new char[sz];
+        strncpy(p, s, sz);
+    }
+    inline string(const string& s): sz(s.sz) {
+        p = new char[sz];
+        strncpy(p, s.p, sz);
+    }
+    inline const char* c_str() const { return p; }
+    inline string& operator=(const string& s) {
+        if (this == &s) {
+            return *this;
+        }
+        delete[] p;
+        sz = s.sz;
+        p = new char[sz];
+        strncpy(p, s.p, sz);
+        return *this;
+    }
+    inline string& operator=(const char* s) {
+        delete[] p;
+        sz = strlen(s) + 1;
+        p = new char[sz];
+        strncpy(p, s, sz);
+        return *this;
+    }
+    inline char operator[](size_t i) const {
+        return p[i];
+    }
+    inline size_t size() const { return sz - 1; }
+    inline string& operator+=(const char c) {
+        char* n_p = new char[sz + 1];
+        strncpy(n_p, p, sz);
+        delete[] p;
+        p = n_p;
+        p[sz - 1] = c;
+        p[sz++] = 0;
+        return *this;
+    }
+    inline string& operator+=(const char* s) {
+        size_t n_sz = strlen(s);
+        char* n_p = new char[sz + n_sz];
+        strncpy(n_p, p, sz);
+        delete[] p;
+        p = n_p;
+        strncpy(p + sz - 1, s, n_sz + 1);
+        sz += n_sz;
+        return *this;
+    }
+    inline string& operator+=(const string& s) {
+        char* n_p = new char[sz + s.sz - 1];
+        strncpy(n_p, p, sz);
+        delete[] p;
+        p = n_p;
+        strncpy(p + sz - 1, s.p, s.sz);
+        sz += s.sz - 1;
+        return *this;
+    }
+    inline string& operator+(const string& s2) {
+        *this += s2;
+        return *this;
+    }
+    inline friend string operator+(const string& s1, const string& s2) {
+        string s(s1);
+        s += s2;
+        return s;
+    }
+};
 #endif

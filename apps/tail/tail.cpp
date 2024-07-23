@@ -5,7 +5,8 @@ extern "C" void* memset(void* p, int v, size_t sz) {
     return ((fn)_sys_table_ptrs[142])(p, v, sz);
 }
 
-extern "C" void _ZdlPvj(void* p) { // TODO: lookup for a case
+extern "C" void _ZdlPvj(void* p) { // TODO: lookup for a case ...
+    printf("_ZdlPvj [%p]\n");
     free(p);
 }
 
@@ -37,7 +38,6 @@ static bool scancode_handler_impl(const uint32_t ps2scancode) { // core ?
 }
 
 inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
-    // printf("tail(%s, %d)\n", fn, len);
     if(!len) {
         fprintf(ctx->std_err, "Unexpected argument: %s\n", ctx->argv[2]);
         return 3;
@@ -48,11 +48,9 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
         fprintf(ctx->std_err, "Unable to open file: '%s'\n", fn);
         return 2;
     }
-    uint32_t MAX_WIDTH = ctx->detached ? 255 : get_console_width();
-    uint32_t MAX_LEN = MAX_WIDTH + 1;
-    char* p = (char*)calloc(MAX_LEN, len);
+    string* p = new string[len];
     char* buf = new char[512];
-    size_t curr_line = 0; size_t curr_pos = 0;
+    size_t curr_line = 0;
     size_t lines = 0;
     size_t rb;
     while(f_read(f, buf, 512, &rb) == FR_OK && rb > 0) {
@@ -61,20 +59,14 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
             if (c == '\r') continue;
             if (c == '\n') {
                 curr_line++;
-                curr_pos = 0;
                 lines++;
-            } else {
-                *(p + curr_line * MAX_LEN + curr_pos) = c ? c : ' ';
-                curr_pos++;
-                if (curr_pos >= MAX_WIDTH) {
-                    curr_line++;
-                    curr_pos = 0;
+                if (curr_line >= len) {
+                    curr_line = 0;
                 }
+                p[curr_line] = "";
+            } else {
+                p[curr_line] += c ? c : ' ';
             }
-            if (curr_line >= len) {
-                curr_line = 0;
-            }
-            *(p + curr_line * MAX_LEN + curr_pos) = 0;
         }
     }
     delete[] buf;
@@ -82,14 +74,12 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
     delete f;
     printf("Total lines: %d; show lines: %d\n", lines, len);
     for (size_t cl = curr_line; cl < len; ++cl) {
-        const char* s = p + cl * MAX_LEN;
-        if (strlen(s))
-            printf("%s\n", s);
+        printf("%s\n", p[cl].c_str());
     }
     for (size_t cl = 0; cl < curr_line; ++cl) {
-        printf("%s\n", p + cl * MAX_LEN);
+        printf("%s\n", p[cl].c_str());
     }
-    free(p);
+    delete[] p;
     return 0;
 }
 
