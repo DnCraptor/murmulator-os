@@ -33,7 +33,7 @@ foreach (SRC_FILE IN LISTS SRC)
 endforeach ()
 message(STATUS "")
 
-add_executable(${PROJECT_NAME} tail.c)
+add_executable(${PROJECT_NAME} tail.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -68,6 +68,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC
         -Wno-error=stringop-truncation
         -Wno-error=restrict
         -w
+        -fno-exceptions
 )
 endif ()
 

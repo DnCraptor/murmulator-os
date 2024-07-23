@@ -1,24 +1,8 @@
 #include "m-os-api.h"
 
-static volatile bool ctrlPressed = false;
-static volatile bool cPressed = false;
-
-void* memset(void* p, int v, size_t sz) {
-    typedef void* (*fn)(void *, int, size_t);
-    return ((fn)_sys_table_ptrs[142])(p, v, sz);
-}
-
-void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz) {
-    typedef void* (*fn)(void *, const void*, size_t);
-    return ((fn)_sys_table_ptrs[167])(dst, src, sz);
-}
-
-int _init(void) {
-    ctrlPressed = false;
-    cPressed = false;
-}
-
-static scancode_handler_t scancode_handler;
+static volatile bool ctrlPressed;
+static volatile bool cPressed;
+static volatile scancode_handler_t scancode_handler;
 
 static bool scancode_handler_impl(const uint32_t ps2scancode) { // core ?
     switch ((uint8_t)ps2scancode & 0xFF) {
@@ -44,37 +28,38 @@ static bool scancode_handler_impl(const uint32_t ps2scancode) { // core ?
 }
 
 inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
+    // printf("tail(%s, %d)\n", fn, len);
     if(!len) {
         fprintf(ctx->std_err, "Unexpected argument: %s\n", ctx->argv[2]);
         return 3;
     }
-    uint32_t MAX_WIDTH = ctx->detached ? 255 : get_console_width();
-    uint32_t MAX_LEN = MAX_WIDTH + 1;
-    char* p = calloc(MAX_LEN, len);
     FIL* f = (FIL*)malloc(sizeof(FIL));
     if (f_open(f, fn, FA_READ) != FR_OK) {
         free(f);
-        free(p);
         fprintf(ctx->std_err, "Unable to open file: '%s'\n", fn);
         return 2;
     }
-    char* buf = malloc(300);
+    uint32_t MAX_WIDTH = ctx->detached ? 255 : get_console_width();
+    uint32_t MAX_LEN = MAX_WIDTH + 1;
+    char* p = (char*)calloc(MAX_LEN, len);
+    char* buf = (char*)malloc(512);
     size_t curr_line = 0; size_t curr_pos = 0;
+    size_t lines = 0;
     size_t rb;
-    while(f_read(f, buf, 299, &rb) == FR_OK && rb > 0) {
+    while(f_read(f, buf, 512, &rb) == FR_OK && rb > 0) {
         for (size_t i = 0; i < rb; ++i) {
             char c = buf[i];
             if (c == '\r') continue;
             if (c == '\n') {
                 curr_line++;
                 curr_pos = 0;
+                lines++;
             } else {
                 *(p + curr_line * MAX_LEN + curr_pos) = c ? c : ' ';
                 curr_pos++;
                 if (curr_pos >= MAX_WIDTH) {
-                    *(p + curr_line * MAX_LEN + curr_pos) = 0;
-                    curr_pos = 0;
                     curr_line++;
+                    curr_pos = 0;
                 }
             }
             if (curr_line >= len) {
@@ -86,8 +71,11 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
     free(buf);
     f_close(f);
     free(f);
+    printf("Total lines: %d; show lines: %d\n", lines, len);
     for (size_t cl = curr_line; cl < len; ++cl) {
-        printf("%s\n", p + cl * MAX_LEN);
+        const char* s = p + cl * MAX_LEN;
+        if (strlen(s))
+            printf("%s\n", s);
     }
     for (size_t cl = 0; cl < curr_line; ++cl) {
         printf("%s\n", p + cl * MAX_LEN);
@@ -97,10 +85,12 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
 }
 
 inline static int monitor(const char * fn) {
+    ctrlPressed = false;
+    cPressed = false;
     scancode_handler = get_scancode_handler();
     set_scancode_handler(scancode_handler_impl);
 
-    while (!ctrlPressed && !cPressed) {
+    while (!ctrlPressed || !cPressed) {
         
     }    
 
@@ -140,6 +130,6 @@ e2:
     return 2;
 }
 
-int __required_m_api_verion(void) {
+extern "C" int __required_m_api_verion(void) {
     return M_API_VERSION;
 }
