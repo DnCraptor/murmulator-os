@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 10
+#define M_API_VERSION 11
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)
@@ -671,6 +671,28 @@ inline static void psram_id(uint8_t rx[8]) {
 inline static uint8_t get_leds_stat() {
     typedef uint8_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[64])();
+}
+
+// USB
+
+inline void init_pico_usb_drive() {
+    typedef void (*fn_ptr_t)();
+    ((fn_ptr_t)_sys_table_ptrs[179])();
+}
+
+inline void pico_usb_drive_heartbeat() {
+    typedef void (*fn_ptr_t)();
+    ((fn_ptr_t)_sys_table_ptrs[180])();
+}
+
+inline bool tud_msc_ejected() {
+    typedef bool (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[181])();
+}
+
+void set_tud_msc_ejected(bool v) {
+    typedef void (*fn_ptr_t)(bool);
+    ((fn_ptr_t)_sys_table_ptrs[181])(v);
 }
 
 #ifdef __cplusplus

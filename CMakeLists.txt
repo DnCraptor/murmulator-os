@@ -22,7 +22,7 @@ set(FLASH_SIZE 4096)
 #set(FLASH_SIZE 16384)
 endif ()
 
-set(MOS_VERSION 0.1.3)
+set(MOS_VERSION 0.1.4)
 
 SET(BUILD_NAME "${PROJECT_NAME}-${FLASH_SIZE}K-${MOS_VERSION}")
 
@@ -50,7 +50,8 @@ add_subdirectory(drivers/vga-nextgen)
 add_subdirectory(drivers/graphics)
 
 # INCLUDE FILES THAT SHOULD BE COMPILED:
-file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c" "drivers/usb/*.c Minimal/*.c")
+file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c" "drivers/usb/*.c")
+#  "Minimal/*.c" ?
 
 message(STATUS "Add source files:")
 foreach (SRC_FILE IN LISTS SRC)
@@ -64,6 +65,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/api
+    ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb
 )
 
 configure_file(memmap.ld.in memmap.ld @ONLY)
@@ -94,8 +96,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         hardware_pwm
         hardware_flash
 
-       # tinyusb_board
-       # tinyusb_device
+        tinyusb_board
+        tinyusb_device
         FreeRTOS-Kernel
         FreeRTOS-Kernel-Heap4
         
@@ -173,7 +175,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #DEBUG_VGA=1
         #DEBUG_APP_LOAD=1
 
-        M_API_VERSION=10
+        M_API_VERSION=11
         MOS_VERSION_STR="${MOS_VERSION}"
         FLASH_SIZE_STR="${FLASH_SIZE}"
 
@@ -182,7 +184,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 
 pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
-math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 80) + 0x10000000")
+math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 96) + 0x10000000")
 message(STATUS "${CUSTOM_XIP_BASE}")
 target_compile_definitions(slower_boot2 PRIVATE CUSTOM_XIP_BASE=${CUSTOM_XIP_BASE})
 target_compile_definitions(slower_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)

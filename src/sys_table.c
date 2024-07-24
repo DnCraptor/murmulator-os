@@ -21,6 +21,7 @@
 #include "overclock.h"
 #include "hardfault.h"
 #include "keyboard.h"
+#include "usb.h"
 
 FATFS* get_mount_fs(); // only one FS is supported foe now
 
@@ -242,6 +243,11 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     multicore_lockout_end_blocking, // 176
     get_cpu_flash_jedec_id, // 177
     psram_id, // 178
+    //
+    init_pico_usb_drive, // 179
+    pico_usb_drive_heartbeat, // 180
+    tud_msc_ejected, // 181
+    set_tud_msc_ejected, // 182
     // TODO:
     0
 };
