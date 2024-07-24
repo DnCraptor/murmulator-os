@@ -4,12 +4,12 @@ extern "C" void* memset(void* p, int v, size_t sz) {
     typedef void* (*fn)(void *, int, size_t);
     return ((fn)_sys_table_ptrs[142])(p, v, sz);
 }
-
+/*
 extern "C" void _ZdlPvj(void* p) { // TODO: lookup for a case ...
     printf("_ZdlPvj [%p]\n");
     free(p);
 }
-
+*/
 static volatile bool ctrlPressed;
 static volatile bool cPressed;
 static volatile scancode_handler_t scancode_handler;
@@ -48,7 +48,7 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
         fprintf(ctx->std_err, "Unable to open file: '%s'\n", fn);
         return 2;
     }
-    string* p = new string[len];
+    string* p = new string[len + 1];
     char* buf = new char[512];
     size_t curr_line = 0;
     size_t lines = 0;
@@ -60,7 +60,7 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
             if (c == '\n') {
                 curr_line++;
                 lines++;
-                if (curr_line >= len) {
+                if (curr_line >= len + 1) {
                     curr_line = 0;
                 }
                 p[curr_line] = "";
@@ -72,8 +72,10 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
     delete[] buf;
     f_close(f);
     delete f;
+
     printf("Total lines: %d; show lines: %d\n", lines, len);
-    for (size_t cl = curr_line; cl < len; ++cl) {
+    bool empty_last = (0 == p[curr_line].size());
+    for (size_t cl = (empty_last ? curr_line + 1 : curr_line); cl < (empty_last ? len + 1 : len); ++cl) {
         printf("%s\n", p[cl].c_str());
     }
     for (size_t cl = 0; cl < curr_line; ++cl) {

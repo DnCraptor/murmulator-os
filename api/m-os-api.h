@@ -697,17 +697,19 @@ inline void operator delete[](void* p, size_t) {
 // TODO: separate h-file
 class string {
     size_t sz;
+    size_t alloc;
     char* p;
 public:
-    inline string(): sz(1), p(new char[1]) { p[0] = 0; }
+    inline string(): sz(1), alloc(16), p(new char[1]) { p[0] = 0; }
     inline ~string() { delete[] p; }
     inline string(const char* s) {
         sz = strlen(s) + 1;
-        p = new char[sz];
+        alloc = sz + 16;
+        p = new char[alloc];
         strncpy(p, s, sz);
     }
-    inline string(const string& s): sz(s.sz) {
-        p = new char[sz];
+    inline string(const string& s): sz(s.sz), alloc(s.alloc) {
+        p = new char[alloc];
         strncpy(p, s.p, sz);
     }
     inline const char* c_str() const { return p; }
@@ -717,14 +719,20 @@ public:
         }
         delete[] p;
         sz = s.sz;
-        p = new char[sz];
+        alloc = s.alloc;
+        p = new char[alloc];
         strncpy(p, s.p, sz);
         return *this;
     }
     inline string& operator=(const char* s) {
-        delete[] p;
         sz = strlen(s) + 1;
-        p = new char[sz];
+        if (sz < alloc) {
+            strncpy(p, s, sz);
+            return *this;
+        }
+        delete[] p;
+        alloc = sz + 16;
+        p = new char[alloc];
         strncpy(p, s, sz);
         return *this;
     }
@@ -733,7 +741,13 @@ public:
     }
     inline size_t size() const { return sz - 1; }
     inline string& operator+=(const char c) {
-        char* n_p = new char[sz + 1];
+        if (sz < alloc) {
+            p[sz - 1] = c;
+            p[sz++] = 0;
+            return *this;
+        }
+        alloc += 16;
+        char* n_p = new char[alloc];
         strncpy(n_p, p, sz);
         delete[] p;
         p = n_p;
@@ -743,7 +757,13 @@ public:
     }
     inline string& operator+=(const char* s) {
         size_t n_sz = strlen(s);
-        char* n_p = new char[sz + n_sz];
+        if (sz + n_sz < alloc) {
+            strncpy(p + sz - 1, s, n_sz + 1);
+            sz += n_sz;
+            return *this;
+        }
+        alloc += n_sz + 16;
+        char* n_p = new char[alloc];
         strncpy(n_p, p, sz);
         delete[] p;
         p = n_p;
@@ -752,7 +772,13 @@ public:
         return *this;
     }
     inline string& operator+=(const string& s) {
-        char* n_p = new char[sz + s.sz - 1];
+        if (sz + s.sz - 1 < alloc) {
+            strncpy(p + sz - 1, s.p, s.sz);
+            sz += s.sz - 1;
+            return *this;
+        }
+        alloc += s.sz + 16;
+        char* n_p = new char[alloc];
         strncpy(n_p, p, sz);
         delete[] p;
         p = n_p;
