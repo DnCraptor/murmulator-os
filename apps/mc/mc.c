@@ -3,6 +3,7 @@
 static void m_window();
 static void redraw_window();
 static void draw_cmd_line(int left, int top, char* cmd);
+static void bottom_line();
 
 #define PANEL_TOP_Y 0
 #define FIRST_FILE_LINE_ON_PANEL_Y (PANEL_TOP_Y + 1)
@@ -339,14 +340,17 @@ static void reset(uint8_t cmd) {
 #define switch_mode do_nothing
 #define switch_color do_nothing
 #define conf_it do_nothing
-#define turn_usb_on do_nothing
 #define restore_snap do_nothing
+
+static void turn_usb_off(uint8_t cmd);
+static void turn_usb_on(uint8_t cmd);
 
 static void mark_to_exit(uint8_t cmd) {
     f10Pressed = false;
     escPressed = false;
-  //  if (!usb_started) // TODO: USB in emulation mode
+    if (tud_msc_ejected()) {
         mark_to_exit_flag = true;
+    }
 }
 
 static void m_info(uint8_t cmd) {
@@ -414,6 +418,52 @@ static fn_1_12_tbl_t fn_1_12_tbl_ctrl = {
     '1', '1', "EmMODE", switch_mode,
     '1', '2', " B/W  ", switch_color
 };
+
+static void turn_usb_off(uint8_t cmd) {
+    if (tud_msc_ejected()) return;
+    set_tud_msc_ejected(true);
+    int cnt = 1000;
+    while(--cnt) {
+        sleep_ms(1);
+        pico_usb_drive_heartbeat();
+    }
+    // Alt + F10 no more actions
+    sprintf(fn_1_12_tbl_alt[9].name, " USB  ");
+    fn_1_12_tbl_alt[9].action = turn_usb_on;
+    // F10 / Ctrl + F10 - Exit
+    sprintf(fn_1_12_tbl[9].name, " Exit ");
+    fn_1_12_tbl[9].action = mark_to_exit;
+    sprintf(fn_1_12_tbl_ctrl[9].name, " Exit ");
+    fn_1_12_tbl_ctrl[9].action = mark_to_exit;
+    redraw_window();
+}
+
+static void turn_usb_on(uint8_t cmd) {
+    if (!tud_msc_ejected()) return;
+
+    init_pico_usb_drive();
+
+    // do not Exit in usb mode
+    memset(fn_1_12_tbl[9].name, ' ', BTN_WIDTH);
+    fn_1_12_tbl[9].action = do_nothing;
+    memset(fn_1_12_tbl_ctrl[9].name, ' ', BTN_WIDTH);
+    fn_1_12_tbl_ctrl[9].action = do_nothing;
+    // Alt + F10 - force unmount usb
+    snprintf(fn_1_12_tbl_alt[9].name, BTN_WIDTH, " UnUSB ");
+    fn_1_12_tbl_alt[9].action = turn_usb_off;
+    bottom_line();
+
+    while (!tud_msc_ejected()) {
+        sleep_ms(1);
+        pico_usb_drive_heartbeat();
+    }
+    // printf("USB-drive was ejected");
+    int post_cicles = 10;
+    while (--post_cicles) {
+        sleep_ms(1);
+        pico_usb_drive_heartbeat();
+    }
+}
 
 static inline fn_1_12_tbl_t* actual_fn_1_12_tbl() {
     const fn_1_12_tbl_t * ptbl = &fn_1_12_tbl;

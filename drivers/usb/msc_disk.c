@@ -67,6 +67,14 @@ inline bool tud_msc_ejected() {
 void set_tud_msc_ejected(bool v) {
     // char tmp[80]; sprintf(tmp, "set_tud_msc_ejected: %s", v ? "true" : "false"); logMsg(tmp);
     ejectedDrv = v;
+    /* TODO:
+    if (!v) {
+        tusb_cdc_stop();
+        tusb_hid_stop();
+        tusb_msc_stop();
+        tusb_deinit();
+    }
+    */
 }
 
 // Invoked when received SCSI_CMD_READ_CAPACITY_10 and SCSI_CMD_READ_FORMAT_CAPACITY to determine the disk size
