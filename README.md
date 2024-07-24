@@ -85,6 +85,8 @@ export - put variable into system context<br/>
 mode [#] - set video-mode (for now it is supported 0 - 80x30 and 1 - 128x48)<br/>
 less - show not more than one page of other command in pipe, like ls | less<br/>
 hex [file] - show file as hexidecimal dump<br/>
+tail [-n #] [file] - show specified (or 10) last lines from the file<br>
+usb - start a process to mount murmulator CD-card as USB-drive<br>
 
 [cmd] &gt; [file] - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format<br/>
