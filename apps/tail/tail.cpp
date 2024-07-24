@@ -91,6 +91,7 @@ inline static int monitor(const char * fn) {
     scancode_handler = get_scancode_handler();
     set_scancode_handler(scancode_handler_impl);
 
+    printf("Not yet implemented mode. Press: Ctrl+C\n");
     while (!ctrlPressed || !cPressed) {
         
     }    
