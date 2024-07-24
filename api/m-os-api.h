@@ -692,7 +692,7 @@ inline bool tud_msc_ejected() {
 
 void set_tud_msc_ejected(bool v) {
     typedef void (*fn_ptr_t)(bool);
-    ((fn_ptr_t)_sys_table_ptrs[181])(v);
+    ((fn_ptr_t)_sys_table_ptrs[182])(v);
 }
 
 #ifdef __cplusplus
