@@ -593,25 +593,25 @@ static void m_mk_dir(uint8_t cmd) {
     char dir[256];
     construct_full_name(dir, psp->path, "_");
     size_t len = strnlen(dir, 256) - 1;
-    draw_panel(20, MAX_HEIGHT / 2 - 20, MAX_WIDTH - 40, 5, "DIR NAME", 0);
-    draw_label(22, MAX_HEIGHT / 2 - 18, MAX_WIDTH - 44, dir, true, true);
+    draw_panel(20, MAX_HEIGHT / 2 - 3, MAX_WIDTH - 40, 5, "DIR NAME", 0);
+    draw_label(22, MAX_HEIGHT / 2 - 1, MAX_WIDTH - 44, dir, true, true);
     while(1) {
         char c = getch();
-        if (escPressed) {
+        if (escPressed || c == 0x1B) {
             escPressed = false;
             scan_code_cleanup();
             redraw_window();
             return;
         }
-        if (backspacePressed) {
+        if (backspacePressed || c == 8) {
             backspacePressed = false;
             scan_code_cleanup();
             if (len == 0) continue;
             dir[len--] = 0;
             dir[len] = '_';
-            draw_label(22, MAX_HEIGHT / 2 - 18, MAX_WIDTH - 44, dir, true, true);
+            draw_label(22, MAX_HEIGHT / 2 - 1, MAX_WIDTH - 44, dir, true, true);
         }
-        if (enterPressed) {
+        if (enterPressed || c == '\n') {
             enterPressed = false;
             break;
         }
@@ -624,7 +624,7 @@ static void m_mk_dir(uint8_t cmd) {
         dir[len++] = c;
         dir[len] = '_';
         dir[len + 1] = 0;
-        draw_label(22, MAX_HEIGHT / 2 - 18, MAX_WIDTH - 44, dir, true, true);
+        draw_label(22, MAX_HEIGHT / 2 - 1, MAX_WIDTH - 44, dir, true, true);
     }
     if (len) {
         dir[len] = 0;
