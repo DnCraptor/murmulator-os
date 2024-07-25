@@ -361,8 +361,6 @@ static file_info_t* selected_file() {
 
 // TODO:
 #define save_snap do_nothing
-#define m_move_file do_nothing
-#define m_mk_dir do_nothing
 #define m_delete_file do_nothing
 #define swap_drives do_nothing
 #define switch_mode do_nothing
@@ -582,6 +580,96 @@ static void m_info(uint8_t cmd) {
         }
     }
     redraw_window();
+}
+
+static void m_mk_dir(uint8_t cmd) {
+#if EXT_DRIVES_MOUNT
+    if (psp->in_dos) {
+        // TODO:
+        do_nothing(cmd);
+        return;
+    }
+#endif
+    char dir[256];
+    construct_full_name(dir, psp->path, "_");
+    size_t len = strnlen(dir, 256) - 1;
+    draw_panel(20, MAX_HEIGHT / 2 - 20, MAX_WIDTH - 40, 5, "DIR NAME", 0);
+    draw_label(22, MAX_HEIGHT / 2 - 18, MAX_WIDTH - 44, dir, true, true);
+    while(1) {
+        char c = getch();
+        if (escPressed) {
+            escPressed = false;
+            scan_code_cleanup();
+            redraw_window();
+            return;
+        }
+        if (backspacePressed) {
+            backspacePressed = false;
+            scan_code_cleanup();
+            if (len == 0) continue;
+            dir[len--] = 0;
+            dir[len] = '_';
+            draw_label(22, MAX_HEIGHT / 2 - 18, MAX_WIDTH - 44, dir, true, true);
+        }
+        if (enterPressed) {
+            enterPressed = false;
+            break;
+        }
+        uint8_t sc = (uint8_t)lastCleanableScanCode;
+        scan_code_cleanup();
+        if (!sc || sc >= 0x80) continue;
+       // char c = scan_code_2_cp866[sc]; // TODO: shift, caps lock, alt, rus...
+        if (!c) continue;
+        if (len + 2 == MAX_WIDTH - 44) continue;
+        dir[len++] = c;
+        dir[len] = '_';
+        dir[len + 1] = 0;
+        draw_label(22, MAX_HEIGHT / 2 - 18, MAX_WIDTH - 44, dir, true, true);
+    }
+    if (len) {
+        dir[len] = 0;
+        f_mkdir(dir);
+    }
+    scan_code_cleanup();
+    redraw_window();
+}
+
+static void m_move_file(uint8_t cmd) {
+#if EXT_DRIVES_MOUNT
+    if (psp->in_dos) {
+        // TODO:
+        do_nothing(cmd);
+        return;
+    }
+#endif
+  //  gpio_put(PICO_DEFAULT_LED_PIN, true);
+    file_info_t* fp = selected_file();
+    if (!fp) {
+       no_selected_file();
+       return;
+    }
+    char path[256];
+    file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
+    snprintf(path, 256, "Move %s %s to %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file", dsp->path);
+    if (m_prompt(path)) { // TODO: ask name
+        construct_full_name(path, psp->path, fp->pname);
+        char dest[256];
+        construct_full_name(dest, dsp->path, fp->pname);
+        FRESULT result = f_rename(path, dest);
+        if (result != FR_OK) {
+            snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
+            const line_t lns[3] = {
+                { -1, "Unable to move selected item!" },
+                { -1, path },
+                { -1, line }
+            };
+            const lines_t lines = { 3, 2, lns };
+            draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+            sleep_ms(2500);
+        }
+    }
+    redraw_window();
+//    gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
 static fn_1_12_tbl_t fn_1_12_tbl = {
