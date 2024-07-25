@@ -4,6 +4,7 @@ static void m_window();
 static void redraw_window();
 static void draw_cmd_line(int left, int top, char* cmd);
 static void bottom_line();
+static void construct_full_name(char* dst, const char* folder, const char* file);
 
 #define PANEL_TOP_Y 0
 #define FIRST_FILE_LINE_ON_PANEL_Y (PANEL_TOP_Y + 1)
@@ -112,6 +113,7 @@ typedef struct file_panel_desc {
 #endif
 } file_panel_desc_t;
 static void fill_panel(file_panel_desc_t* p);
+static void collect_files(file_panel_desc_t* p);
 
 static file_panel_desc_t* left_panel;
 static file_panel_desc_t* right_panel;
@@ -153,6 +155,7 @@ typedef struct {
     char*   pname; //[MAX_WIDTH >> 1];
     int     dir_num;
 } file_info_t;
+static file_info_t* selected_file();
 
 #define MAX_FILES 500
 
@@ -330,9 +333,34 @@ static void reset(uint8_t cmd) {
     // TODO:
 }
 
+static file_info_t* selected_file() {
+    int start_file_offset = psp->indexes[psp->level].start_file_offset;
+    int selected_file_idx = psp->indexes[psp->level].selected_file_idx;
+    if (selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && start_file_offset == 0 && strlen(psp->path) > 1) {
+        return 0;
+    }
+    collect_files(psp);
+    int y = 1;
+    int files_number = 0;
+    if (start_file_offset == 0 && strlen(psp->path) > 1) {
+        y++;
+        files_number++;
+    }
+    for(int fn = 0; fn < files_count; ++ fn) {
+        file_info_t* fp = &files_info[fn];
+        if (start_file_offset <= files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
+            if (selected_file_idx == y) {
+                return fp;
+            }
+            y++;
+        }
+        files_number++;
+    }
+    return 0; // ?? what a case?
+}
+
 // TODO:
 #define save_snap do_nothing
-#define m_copy_file do_nothing
 #define m_move_file do_nothing
 #define m_mk_dir do_nothing
 #define m_delete_file do_nothing
@@ -341,6 +369,188 @@ static void reset(uint8_t cmd) {
 #define switch_color do_nothing
 #define conf_it do_nothing
 #define restore_snap do_nothing
+
+inline static FRESULT m_copy(char* path, char* dest) {
+    FIL file1;
+    FRESULT result = f_open(&file1, path, FA_READ);
+    if (result != FR_OK) return result;
+    FIL file2;
+    result = f_open(&file2, dest, FA_WRITE | FA_CREATE_ALWAYS);
+    if (result != FR_OK) {
+        f_close(&file1);
+        return result;
+    }
+    UINT br;
+    do {
+        result = f_read(&file1, files_info, sizeof(files_info), &br);
+        if (result != FR_OK || br == 0) break;
+        UINT bw;
+        f_write(&file2, files_info, br, &bw);
+        if (result != FR_OK) break;
+    } while (br);
+    f_close(&file1);
+    f_close(&file2);
+    return result;
+}
+
+inline static FRESULT m_copy_recursive(char* path, char* dest) {
+ //   gpio_put(PICO_DEFAULT_LED_PIN, true);
+    DIR dir;
+    FRESULT res = f_opendir(&dir, path);
+    if (res != FR_OK) return res;
+    res = f_mkdir(dest);
+    draw_cmd_line(0, CMD_Y_POS, dest);
+    if (res != FR_OK) return res;
+    FILINFO fileInfo;
+    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
+        char path2[256];
+        construct_full_name(path2, path, fileInfo.fname);
+        char dest2[256];
+        construct_full_name(dest2, dest, fileInfo.fname);
+        draw_cmd_line(0, CMD_Y_POS, dest2);
+        if (fileInfo.fattrib & AM_DIR) {
+            res = m_copy_recursive(path2, dest2);
+        } else {
+            res = m_copy(path2, dest2);
+        }
+        if (res != FR_OK) break;
+    }
+    f_closedir(&dir);
+    if (res == FR_OK) {
+        draw_cmd_line(0, CMD_Y_POS, 0);
+    }
+ //   gpio_put(PICO_DEFAULT_LED_PIN, false);
+    return res;
+}
+
+static void draw_button(int left, int top, int width, const char* txt, bool selected) {
+    int len = strlen(txt);
+    if (len > 39) return;
+    char tmp[40];
+    int start = (width - len) / 2;
+    for (int i = 0; i < start; ++i) {
+        tmp[i] = ' ';
+    }
+    bool fin = false;
+    int j = 0;
+    for (int i = start; i < width; ++i) {
+        if (!fin) {
+            if (!txt[j]) {
+                fin = true;
+                tmp[i] = ' ';
+            } else {
+                tmp[i] = txt[j++];
+            }
+        } else {
+            tmp[i] = ' ';
+        }
+    }
+    tmp[width] = 0;
+    draw_text(tmp, left, top, pcs->FOREGROUND_F_BTN_COLOR, selected ? pcs->BACKGROUND_SEL_BTN_COLOR : pcs->BACKGROUND_F_BTN_COLOR);
+}
+
+static bool m_prompt(const char* txt) {
+    const line_t lns[1] = {
+        { -1, txt },
+    };
+    const lines_t lines = { 1, 2, lns };
+    draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Are you sure?", &lines);
+    bool yes = true;
+    draw_button((MAX_WIDTH - 60) / 2 + 16, 12, 11, "Yes", yes);
+    draw_button((MAX_WIDTH - 60) / 2 + 35, 12, 10, "No", !yes);
+    while(1) {
+        if (is_dendy_joystick || is_kbd_joystick) {
+            if (is_dendy_joystick) nespad_read();
+            if (nespad_state_delay > 0) {
+                nespad_state_delay--;
+                sleep_ms(1);
+            }
+            else {
+                nespad_state_delay = DPAD_STATE_DELAY;
+                if(nespad_state & DPAD_UP) {
+                    upPressed = true;
+                } else if(nespad_state & DPAD_DOWN) {
+                    downPressed = true;
+                } else if (nespad_state & DPAD_A) {
+                    enterPressed = true;
+                } else if (nespad_state & DPAD_B) {
+                    escPressed = true;
+                } else if (nespad_state & DPAD_LEFT) {
+                    leftPressed = true;
+                } else if (nespad_state & DPAD_RIGHT) {
+                    rightPressed = true;
+                } else if (nespad_state & DPAD_SELECT) {
+                    tabPressed = true;
+                }
+            }
+        }
+        if (enterPressed) {
+            enterPressed = false;
+            scan_code_cleanup();
+            return yes;
+        }
+        if (tabPressed || leftPressed || rightPressed) { // TODO: own msgs cycle
+            yes = !yes;
+            draw_button((MAX_WIDTH - 60) / 2 + 16, 12, 11, "Yes", yes);
+            draw_button((MAX_WIDTH - 60) / 2 + 35, 12, 10, "No", !yes);
+            tabPressed = leftPressed = rightPressed = false;
+            scan_code_cleanup();
+        }
+        if (escPressed) {
+            escPressed = false;
+            scan_code_cleanup();
+            return false;
+        }
+    }
+}
+
+inline static void no_selected_file() {
+    const line_t lns[1] = {
+        { -1, "Pls. select some file for this action" },
+    };
+    const lines_t lines = { 1, 3, lns };
+    draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Info", &lines);
+    sleep_ms(1500);
+    redraw_window();
+}
+
+static void m_copy_file(uint8_t cmd) {
+#if EXT_DRIVES_MOUNT
+    if (psp->in_dos) {
+        // TODO:
+        do_nothing(cmd);
+        return;
+    }
+#endif
+//    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    file_info_t* fp = selected_file();
+    if (!fp) {
+       no_selected_file();
+       return;
+    }
+    char path[256];
+    file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
+    snprintf(path, 256, "Copy %s %s to %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file", dsp->path);
+    if (m_prompt(path)) { // TODO: ask name
+        construct_full_name(path, psp->path, fp->pname);
+        char dest[256];
+        construct_full_name(dest, dsp->path, fp->pname);
+        FRESULT result = fp->fattrib & AM_DIR ? m_copy_recursive(path, dest) : m_copy(path, dest);
+        if (result != FR_OK) {
+            snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
+            const line_t lns[3] = {
+                { -1, "Unable to copy selected item!" },
+                { -1, path },
+                { -1, line }
+            };
+            const lines_t lines = { 3, 2, lns };
+            draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+            sleep_ms(2500);
+        }
+    }
+    redraw_window();
+  //  gpio_put(PICO_DEFAULT_LED_PIN, false);
+}
 
 static void turn_usb_off(uint8_t cmd);
 static void turn_usb_on(uint8_t cmd);
@@ -575,7 +785,7 @@ static void draw_cmd_line(int left, int top, char* cmd) {
     draw_text(line, left, top, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
 }
 
-inline static void collect_files(file_panel_desc_t* p) {
+static void collect_files(file_panel_desc_t* p) {
     m_cleanup();
 #if EXT_DRIVES_MOUNT
     if (p->in_dos) {
@@ -596,7 +806,7 @@ inline static void collect_files(file_panel_desc_t* p) {
     qsort(files_info, files_count, sizeof(file_info_t), m_comp);
 }
 
-inline static void construct_full_name(char* dst, const char* folder, const char* file) {
+static void construct_full_name(char* dst, const char* folder, const char* file) {
     if (strlen(folder) > 1) {
         snprintf(dst, 256, "%s\\%s", folder, file);
     } else {
@@ -1012,32 +1222,6 @@ r:
         return scancode_handler(ps2scancode);
     }
     return false;
-}
-
-static file_info_t* selected_file() {
-    int start_file_offset = psp->indexes[psp->level].start_file_offset;
-    int selected_file_idx = psp->indexes[psp->level].selected_file_idx;
-    if (selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && start_file_offset == 0 && strlen(psp->path) > 1) {
-        return 0;
-    }
-    collect_files(psp);
-    int y = 1;
-    int files_number = 0;
-    if (start_file_offset == 0 && strlen(psp->path) > 1) {
-        y++;
-        files_number++;
-    }
-    for(int fn = 0; fn < files_count; ++ fn) {
-        file_info_t* fp = &files_info[fn];
-        if (start_file_offset <= files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
-            if (selected_file_idx == y) {
-                return fp;
-            }
-            y++;
-        }
-        files_number++;
-    }
-    return 0; // ?? what a case?
 }
 
 static inline void redraw_current_panel() {
