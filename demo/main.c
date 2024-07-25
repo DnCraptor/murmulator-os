@@ -16,6 +16,7 @@ void vTask1(void *pv) {
         vTaskDelay(500 * portTICK_PERIOD_MS);
     }
     vPortFree(string);
+    vTaskDelete(NULL);
 }
 
 void vTask2(void *pv) {
@@ -26,6 +27,7 @@ void vTask2(void *pv) {
         draw_text(string, 0, T2_LINE, 13, 1);
         vTaskDelay(25 * portTICK_PERIOD_MS);
     }
+    vTaskDelete(NULL);
 }
 
 static vApplicationMallocFailedHookPtr mh = NULL;

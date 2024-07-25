@@ -4,17 +4,13 @@ inline static int usb_on() {
     init_pico_usb_drive();
 
     while (!tud_msc_ejected()) {
-        sleep_ms(1);
         pico_usb_drive_heartbeat();
     }
-    printf("USB-drive was ejected");
-    int post_cicles = 10;
+    printf("USB-drive was ejected...\n");
+    int post_cicles = 100;
     while (--post_cicles) {
-        sleep_ms(1);
-        printf(".");
         pico_usb_drive_heartbeat();
     }
-    printf("\n");
     return 0;
 }
 

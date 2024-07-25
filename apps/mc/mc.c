@@ -419,14 +419,20 @@ static fn_1_12_tbl_t fn_1_12_tbl_ctrl = {
     '1', '2', " B/W  ", switch_color
 };
 
+static void usb_task(void *pv) {
+    while (!tud_msc_ejected()) {
+        pico_usb_drive_heartbeat();
+    }
+    int post_cicles = 100;
+    while (--post_cicles) {
+        pico_usb_drive_heartbeat();
+    }
+    vTaskDelete(NULL);
+}
+
 static void turn_usb_off(uint8_t cmd) {
     if (tud_msc_ejected()) return;
     set_tud_msc_ejected(true);
-    int cnt = 1000;
-    while(--cnt) {
-        sleep_ms(1);
-        pico_usb_drive_heartbeat();
-    }
     // Alt + F10 no more actions
     sprintf(fn_1_12_tbl_alt[9].name, " USB  ");
     fn_1_12_tbl_alt[9].action = turn_usb_on;
@@ -440,9 +446,7 @@ static void turn_usb_off(uint8_t cmd) {
 
 static void turn_usb_on(uint8_t cmd) {
     if (!tud_msc_ejected()) return;
-
     init_pico_usb_drive();
-
     // do not Exit in usb mode
     memset(fn_1_12_tbl[9].name, ' ', BTN_WIDTH);
     fn_1_12_tbl[9].action = do_nothing;
@@ -452,17 +456,7 @@ static void turn_usb_on(uint8_t cmd) {
     snprintf(fn_1_12_tbl_alt[9].name, BTN_WIDTH, " UnUSB ");
     fn_1_12_tbl_alt[9].action = turn_usb_off;
     bottom_line();
-
-    while (!tud_msc_ejected()) {
-        sleep_ms(1);
-        pico_usb_drive_heartbeat();
-    }
-    // printf("USB-drive was ejected");
-    int post_cicles = 10;
-    while (--post_cicles) {
-        sleep_ms(1);
-        pico_usb_drive_heartbeat();
-    }
+    xTaskCreate(usb_task, "mc usb task", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
 }
 
 static inline fn_1_12_tbl_t* actual_fn_1_12_tbl() {
