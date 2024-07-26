@@ -5,6 +5,8 @@ static void redraw_window();
 static void draw_cmd_line(int left, int top, char* cmd);
 static void bottom_line();
 static void construct_full_name(char* dst, const char* folder, const char* file);
+static bool m_prompt(const char* txt);
+static void no_selected_file();
 
 #define PANEL_TOP_Y 0
 #define FIRST_FILE_LINE_ON_PANEL_Y (PANEL_TOP_Y + 1)
@@ -361,12 +363,72 @@ static file_info_t* selected_file() {
 
 // TODO:
 #define save_snap do_nothing
-#define m_delete_file do_nothing
 #define swap_drives do_nothing
 #define switch_mode do_nothing
 #define switch_color do_nothing
 #define conf_it do_nothing
 #define restore_snap do_nothing
+
+static FRESULT m_unlink_recursive(char * path) {
+    DIR dir;
+    FRESULT res = f_opendir(&dir, path);
+    if (res != FR_OK) return res;
+    FILINFO fileInfo;
+    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
+        char path2[256];
+        construct_full_name(path2, path, fileInfo.fname);
+        draw_cmd_line(0, CMD_Y_POS, path2);
+        if (fileInfo.fattrib & AM_DIR) {
+            res = m_unlink_recursive(path2);
+        } else {
+            res = f_unlink(path2);
+        }
+        if (res != FR_OK) break;
+    }
+    f_closedir(&dir);
+    if (res == FR_OK) {
+        draw_cmd_line(0, CMD_Y_POS, 0);
+        res = f_unlink(path);
+    }
+    return res;
+}
+
+static void m_delete_file(uint8_t cmd) {
+#if EXT_DRIVES_MOUNT
+    if (psp->in_dos) {
+        // TODO:
+        do_nothing(cmd);
+        return;
+    }
+#endif
+//    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    file_info_t* fp = selected_file();
+    if (!fp) {
+       no_selected_file();
+       return;
+    }
+    char path[256];
+    snprintf(path, 256, "Remove %s %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file");
+    if (m_prompt(path)) {
+        construct_full_name(path, psp->path, fp->pname);
+        FRESULT result = fp->fattrib & AM_DIR ? m_unlink_recursive(path) : f_unlink(path);
+        if (result != FR_OK) {
+            snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
+            const line_t lns[3] = {
+                { -1, "Unable to delete selected item!" },
+                { -1, path },
+                { -1, line }
+            };
+            const lines_t lines = { 3, 2, lns };
+            draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+            sleep_ms(2500);
+        } else {
+            psp->indexes[psp->level].selected_file_idx--;
+        }
+    }
+//    gpio_put(PICO_DEFAULT_LED_PIN, false);
+    redraw_window();    
+}
 
 inline static FRESULT m_copy(char* path, char* dest) {
     FIL file1;
@@ -502,7 +564,7 @@ static bool m_prompt(const char* txt) {
     }
 }
 
-inline static void no_selected_file() {
+static void no_selected_file() {
     const line_t lns[1] = {
         { -1, "Pls. select some file for this action" },
     };

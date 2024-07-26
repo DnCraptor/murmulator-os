@@ -174,6 +174,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #DEBUG_HEAP_SIZE=512
         #DEBUG_VGA=1
         #DEBUG_APP_LOAD=1
+        #CFG_TUSB_DEBUG=3
 
         M_API_VERSION=11
         MOS_VERSION_STR="${MOS_VERSION}"
