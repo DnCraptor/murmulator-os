@@ -1699,19 +1699,118 @@ inline static void handle_tab_pressed() {
     select_left_panel();
 }
 
+inline static void restore_console(cmd_ctx_t* ctx) {
+    char* tmp = get_ctx_var(ctx, "TEMP");
+    if(!tmp) tmp = "";
+    size_t cdl = strlen(tmp);
+    char * mc_con_file = concat(tmp, ".mc.con");
+    FIL* pfh = (FIL*)malloc(sizeof(FIL));
+    if (FR_OK != f_open(pfh, mc_con_file, FA_READ)) {
+        goto r;
+    }
+    char* b = get_buffer();
+    UINT rb;
+    f_read(pfh, b, MAX_WIDTH * (MAX_HEIGHT - 2) * 2, &rb);
+    f_close(pfh);
+r:
+    free(pfh);
+    free(mc_con_file);
+}
+
+inline static void save_console(cmd_ctx_t* ctx) {
+    char* tmp = get_ctx_var(ctx, "TEMP");
+    if(!tmp) tmp = "";
+    size_t cdl = strlen(tmp);
+    char * mc_con_file = concat(tmp, ".mc.con");
+    FIL* pfh = (FIL*)malloc(sizeof(FIL));
+    if (FR_OK != f_open(pfh, mc_con_file, FA_CREATE_NEW | FA_CREATE_ALWAYS | FA_WRITE)) {
+        goto r;
+    }
+    char* b = get_buffer();
+    UINT wb;
+    f_write(pfh, b, MAX_WIDTH * (MAX_HEIGHT - 2) * 2, &wb);
+    f_close(pfh);
+r:
+    free(pfh);
+    free(mc_con_file);
+}
+
 inline static void hide_pannels() {
     hidePannels = !hidePannels;
     if (hidePannels) {
+/*
         for (size_t y = 0; y < MAX_HEIGHT - 2; ++y) {
             for (size_t x = 0; x < MAX_WIDTH; ++x) {
                 draw_text(" ", x, y, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
             }
         }
+*/
+        restore_console(get_cmd_ctx());
     } else {
+        save_console(get_cmd_ctx());
         m_window();
         fill_panel(left_panel);
         fill_panel(right_panel);
     }
+}
+
+inline static void save_rc() {
+    cmd_ctx_t* ctx = get_cmd_ctx();
+    char* tmp = get_ctx_var(ctx, "TEMP");
+    if(!tmp) tmp = "";
+    size_t cdl = strlen(tmp);
+    char * mc_rc_file = concat(tmp, ".mc.rc");
+    FIL* pfh = (FIL*)malloc(sizeof(FIL));
+    if (FR_OK != f_open(pfh, mc_rc_file, FA_CREATE_NEW | FA_CREATE_ALWAYS | FA_WRITE)) {
+        goto r;
+    }
+    UINT wb;
+    f_write(pfh, left_panel, sizeof(file_panel_desc_t), &wb);
+    f_write(pfh, right_panel, sizeof(file_panel_desc_t), &wb);
+    bool left_selected = (psp == left_panel);
+    f_write(pfh, &left_selected, sizeof(left_selected), &wb);
+    f_write(pfh, &hidePannels, sizeof(hidePannels), &wb);
+    f_close(pfh);
+r:
+    free(pfh);
+    free(mc_rc_file);
+}
+
+inline static bool initi_from_rc(cmd_ctx_t* ctx) {
+    bool res = false;
+    char* tmp = get_ctx_var(ctx, "TEMP");
+    if(!tmp) tmp = "";
+    size_t cdl = strlen(tmp);
+    char * mc_rc_file = concat(tmp, ".mc.rc");
+    FIL* pfh = (FIL*)malloc(sizeof(FIL));
+    if (FR_OK != f_open(pfh, mc_rc_file, FA_READ)) {
+        goto r1;
+    }
+    UINT rb;
+    if(FR_OK != f_read(pfh, left_panel, sizeof(file_panel_desc_t), &rb)) {
+        goto r2;
+    }
+    if(FR_OK != f_read(pfh, right_panel, sizeof(file_panel_desc_t), &rb)) {
+        goto r2;
+    }
+    bool left_selected;
+    if(FR_OK != f_read(pfh, &left_selected, sizeof(left_selected), &rb)) {
+        goto r2;
+    }
+    if (!left_selected) {
+        psp = right_panel;
+    }
+    if(FR_OK != f_read(pfh, &hidePannels, sizeof(hidePannels), &rb)) {
+        goto r2;
+    }
+    res = true;
+r2:
+    f_close(pfh);
+r1:
+    free(pfh);
+r:
+    free(mc_rc_file);
+    return res;
 }
 
 static inline void work_cycle() {
@@ -1883,6 +1982,7 @@ static inline void work_cycle() {
         } else
         */
         if(mark_to_exit_flag) {
+            save_rc();
             free(cmd);
             return;
         }
@@ -1914,18 +2014,22 @@ int main(void) {
     PANEL_LAST_Y = CMD_Y_POS - 1;
     line = calloc(MAX_WIDTH + 2, 1);
     LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
+    save_console(ctx);
 
     left_panel = calloc(1, sizeof(file_panel_desc_t));
-    left_panel->width = MAX_WIDTH >> 1;
-    strncpy(left_panel->path, "/", 256);
-    left_panel->indexes[0].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
+    right_panel = calloc(1, sizeof(file_panel_desc_t));
     psp = left_panel;
 
-    right_panel = calloc(1, sizeof(file_panel_desc_t));
+    if (!initi_from_rc(ctx)) {
+        strncpy(left_panel->path, "/", 256);
+        left_panel->indexes[0].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
+        strncpy(right_panel->path, "/MOS", 256);
+        right_panel->indexes[0].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
+    }
+    // TODO: in case other mode, dynamic size, etc...
+    left_panel->width = MAX_WIDTH >> 1;
     right_panel->left = MAX_WIDTH >> 1;
     right_panel->width = MAX_WIDTH >> 1;
-    strncpy(right_panel->path, "/MOS", 256);
-    right_panel->indexes[0].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
 
     pcs = calloc(1, sizeof(color_schema_t));
     pcs->BACKGROUND_FIELD_COLOR = 1, // Blue
