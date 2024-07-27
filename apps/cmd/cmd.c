@@ -420,6 +420,7 @@ inline static void cmd_down(cmd_ctx_t* ctx) {
 }
 
 int main(void) {
+    show_logo(false);
     cmd_ctx_t* ctx = get_cmd_ctx();
     cleanup_ctx(ctx);
     cmd = malloc(512);

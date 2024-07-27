@@ -695,6 +695,11 @@ inline static void set_tud_msc_ejected(bool v) {
     ((fn_ptr_t)_sys_table_ptrs[182])(v);
 }
 
+inline static void show_logo(bool with_top) {
+    typedef void (*fn_ptr_t)(bool);
+    ((fn_ptr_t)_sys_table_ptrs[183])(with_top);
+}
+
 #ifdef __cplusplus
 }
 // TODO: separate h-file

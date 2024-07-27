@@ -248,6 +248,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     pico_usb_drive_heartbeat, // 180
     tud_msc_ejected, // 181
     set_tud_msc_ejected, // 182
+    //
+    show_logo, // 183
     // TODO:
     0
 };

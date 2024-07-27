@@ -78,6 +78,7 @@ char* concat(const char* s1, const char* s2);
 bool exists(cmd_ctx_t* ctx);
 char* concat2(const char* s1, size_t sz, const char* s2);
 char* copy_str(const char* s);
+void show_logo(bool with_top);
 
 #ifdef __cplusplus
 }
