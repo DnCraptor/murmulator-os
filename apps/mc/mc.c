@@ -958,11 +958,6 @@ static void construct_full_name(char* dst, const char* folder, const char* file)
     }
 }
 
-inline static void detect_os_type(const char* path, char* os_type, size_t sz) {
-    // TODO:
-    strncpy(os_type, path, sz);
-}
-
 static void fill_panel(file_panel_desc_t* p) {
     collect_files(p);
     indexes_t* pp = &p->indexes[p->level];
@@ -1378,49 +1373,8 @@ static inline void enter_pressed() {
         psp->indexes[psp->level].dir_num = fp->dir_num;
         redraw_current_panel();
         return;
-    } else {
-        /*
-        size_t slen = strlen(fp->name);
-        if (slen > 4 && fp->name[slen - 4] == '.')
-        if(
-            (fp->name[slen - 1] == 'N' || fp->name[slen - 1] == 'n') &&
-            (fp->name[slen - 2] == 'I' || fp->name[slen - 2] == 'i') &&
-            (fp->name[slen - 3] == 'B' || fp->name[slen - 3] == 'b')
-        ) {
-            char path[256];
-            construct_full_name(path, psp->path, fp->name);
-            run_bin(path);
-            return;
-        } else if (
-            (fp->name[slen - 1] == 'G' || fp->name[slen - 1] == 'g') &&
-            (fp->name[slen - 2] == 'M' || fp->name[slen - 2] == 'm') &&
-            (fp->name[slen - 3] == 'I' || fp->name[slen - 3] == 'i')
-        ) {
-            char path[256];
-            construct_full_name(path, psp->path, fp->name);
-            run_img(path);
-            return;
-        } else if (
-            (fp->name[slen - 1] == 'D' || fp->name[slen - 1] == 'd') &&
-            (fp->name[slen - 2] == 'K' || fp->name[slen - 2] == 'k') &&
-            (fp->name[slen - 3] == 'B' || fp->name[slen - 3] == 'b')
-        ) {
-            char path[256];
-            construct_full_name(path, psp->path, fp->name);
-            run_img(path); // TODO: separate support for .BKD
-            return;
-        } else if (
-            (fp->name[slen - 1] == 'E' || fp->name[slen - 1] == 'e') &&
-            (fp->name[slen - 2] == 'K' || fp->name[slen - 2] == 'k') &&
-            (fp->name[slen - 3] == 'B' || fp->name[slen - 3] == 'b')
-        ) {
-            char path[256];
-            construct_full_name(path, psp->path, fp->name);
-            restore_snap_by_filename(path);
-            return;
-        }
-        */
     }
+    // todo:
 }
 
 inline static void handle_pagedown_pressed() {

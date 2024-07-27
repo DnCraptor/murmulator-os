@@ -29,12 +29,19 @@ int main(void) {
         return usb_on();
     }
     if (ctx->argc == 2) { // usb [on/off]
-        if (strncmp(ctx->argv[1], "on", 3) == 0) return usb_on();
-        if (strncmp(ctx->argv[1], "off", 4) == 0) return usb_off();
+        if (strncmp(ctx->argv[1], "on", 2) == 0) return usb_on();
+        if (strncmp(ctx->argv[1], "off", 3) == 0) return usb_off();
+    }
+    if (ctx->argc > 2) {
+        fprintf(ctx->std_err,
+                "Unexpected number of argument: %d\n"
+                "Use: usb [on/off] &\n", ctx->argc
+        );
+        return 3;
     }
     fprintf(ctx->std_err,
-            "Unexpected arguments\n"
-            "Use: usb [on/off] &\n"
+            "Unexpected argument: %s\n"
+            "Use: usb [on/off] &\n", ctx->argv[1]
     );
     return 4;
 }
