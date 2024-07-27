@@ -675,22 +675,22 @@ inline static uint8_t get_leds_stat() {
 
 // USB
 
-inline void init_pico_usb_drive() {
+inline static void init_pico_usb_drive() {
     typedef void (*fn_ptr_t)();
     ((fn_ptr_t)_sys_table_ptrs[179])();
 }
 
-inline void pico_usb_drive_heartbeat() {
+inline static void pico_usb_drive_heartbeat() {
     typedef void (*fn_ptr_t)();
     ((fn_ptr_t)_sys_table_ptrs[180])();
 }
 
-inline bool tud_msc_ejected() {
+inline static bool tud_msc_ejected() {
     typedef bool (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[181])();
 }
 
-void set_tud_msc_ejected(bool v) {
+inline static void set_tud_msc_ejected(bool v) {
     typedef void (*fn_ptr_t)(bool);
     ((fn_ptr_t)_sys_table_ptrs[182])(v);
 }

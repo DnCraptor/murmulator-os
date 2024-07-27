@@ -1,5 +1,15 @@
 #include "m-os-api.h"
 
+void* memset(void* p, int v, size_t sz) {
+    typedef void* (*fn)(void *, int, size_t);
+    return ((fn)_sys_table_ptrs[142])(p, v, sz);
+}
+
+void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz) {
+    typedef void* (*fn)(void *, const void*, size_t);
+    return ((fn)_sys_table_ptrs[167])(dst, src, sz);
+}
+
 static char* cmd = 0;
 
 inline static void cmd_backspace() {
@@ -146,7 +156,7 @@ inline static bool prepare_ctx(char* cmdt, cmd_ctx_t* ctx) {
             }
             b++;
         }
-        ctx->std_out = calloc(sizeof(FIL));
+        ctx->std_out = calloc(1, sizeof(FIL));
         if (FR_OK != f_open(ctx->std_out, std_out, FA_WRITE | (append ? FA_OPEN_APPEND : FA_CREATE_ALWAYS))) {
             printf("Unable to open file: '%s'\n", std_out);
             return false;
@@ -201,6 +211,13 @@ inline static cmd_ctx_t* new_ctx(cmd_ctx_t* src) {
     return res;
 }
 
+inline static void prompt(cmd_ctx_t* ctx) {
+    graphics_set_con_color(13, 0);
+    printf("[%s]", get_ctx_var(ctx, "CD"));
+    graphics_set_con_color(7, 0);
+    printf("$ ");
+}
+
 inline static bool cmd_enter(cmd_ctx_t* ctx) {
     putc('\n');
     size_t cmd_pos = strlen(cmd);
@@ -228,9 +245,9 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
             cmd_ctx_t* curr = ctxi;
             cmd_ctx_t* next = new_ctx(ctxi);
             exit = prepare_ctx(ts, curr);
-            curr->std_out = calloc(sizeof(FIL));
+            curr->std_out = calloc(1, sizeof(FIL));
             curr->std_err = curr->std_out;
-            next->std_in = calloc(sizeof(FIL));
+            next->std_in = calloc(1, sizeof(FIL));
             f_open_pipe(curr->std_out, next->std_in);
             curr->detached = true;
             next->prev = curr;
@@ -259,7 +276,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     }
     cleanup_ctx(ctx); // base ctx to be there
 r2:
-    goutf("[%s]$", get_ctx_var(ctx, "CD"));
+    prompt(ctx);
     cmd[0] = 0;
     return false;
 }
@@ -407,7 +424,7 @@ int main(void) {
     cleanup_ctx(ctx);
     cmd = malloc(512);
     cmd[0] = 0;
-    goutf("[%s]$", get_ctx_var(ctx, "CD"));
+    prompt(ctx);
     while(1) {
         char c = getch();
         if (c) {
