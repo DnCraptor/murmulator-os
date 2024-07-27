@@ -2,7 +2,7 @@
 
 static void m_window();
 static void redraw_window();
-static void draw_cmd_line(int left, int top, char* cmd);
+static void draw_cmd_line(int left, int top);
 static void bottom_line();
 static void construct_full_name(char* dst, const char* folder, const char* file);
 static bool m_prompt(const char* txt);
@@ -15,7 +15,6 @@ static uint8_t PANEL_LAST_Y, F_BTN_Y_POS, CMD_Y_POS, LAST_FILE_LINE_ON_PANEL_Y;
 #define TOTAL_SCREEN_LINES MAX_HEIGHT
 static char* line;
 static char selected_file_path[260]; // TODO: ctx->
-static char os_type[160]; 
 
 static volatile uint32_t lastCleanableScanCode;
 static volatile uint32_t lastSavedScanCode;
@@ -177,7 +176,6 @@ void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz) {
 int _init(void) {
     files_count = 0;
     selected_file_path[0] = 0;
-    os_type[0] = 0;
 
     backspacePressed = false;
     enterPressed = false;
@@ -377,7 +375,6 @@ static FRESULT m_unlink_recursive(char * path) {
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
         char path2[256];
         construct_full_name(path2, path, fileInfo.fname);
-        draw_cmd_line(0, CMD_Y_POS, path2);
         if (fileInfo.fattrib & AM_DIR) {
             res = m_unlink_recursive(path2);
         } else {
@@ -386,10 +383,6 @@ static FRESULT m_unlink_recursive(char * path) {
         if (res != FR_OK) break;
     }
     f_closedir(&dir);
-    if (res == FR_OK) {
-        draw_cmd_line(0, CMD_Y_POS, 0);
-        res = f_unlink(path);
-    }
     return res;
 }
 
@@ -459,7 +452,6 @@ inline static FRESULT m_copy_recursive(char* path, char* dest) {
     FRESULT res = f_opendir(&dir, path);
     if (res != FR_OK) return res;
     res = f_mkdir(dest);
-    draw_cmd_line(0, CMD_Y_POS, dest);
     if (res != FR_OK) return res;
     FILINFO fileInfo;
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
@@ -467,7 +459,6 @@ inline static FRESULT m_copy_recursive(char* path, char* dest) {
         construct_full_name(path2, path, fileInfo.fname);
         char dest2[256];
         construct_full_name(dest2, dest, fileInfo.fname);
-        draw_cmd_line(0, CMD_Y_POS, dest2);
         if (fileInfo.fattrib & AM_DIR) {
             res = m_copy_recursive(path2, dest2);
         } else {
@@ -476,9 +467,6 @@ inline static FRESULT m_copy_recursive(char* path, char* dest) {
         if (res != FR_OK) break;
     }
     f_closedir(&dir);
-    if (res == FR_OK) {
-        draw_cmd_line(0, CMD_Y_POS, 0);
-    }
  //   gpio_put(PICO_DEFAULT_LED_PIN, false);
     return res;
 }
@@ -870,7 +858,7 @@ static void bottom_line() {
 //        5, // red
 //        0  // black
 //    );
-    draw_cmd_line(0, CMD_Y_POS, os_type);
+    draw_cmd_line(0, CMD_Y_POS);
 }
 
 inline static void update_menu_color() {
@@ -885,7 +873,7 @@ static void redraw_window() {
     m_window();
     fill_panel(left_panel);
     fill_panel(right_panel);
-    draw_cmd_line(0, CMD_Y_POS, os_type);
+    draw_cmd_line(0, CMD_Y_POS);
     update_menu_color();
 }
 
@@ -929,18 +917,16 @@ inline static void m_add_file(FILINFO* fi) {
     strncpy(fp->pname, fi->fname, sz);
 }
 
-static void draw_cmd_line(int left, int top, char* cmd) {
-    char line[MAX_WIDTH + 2];
-    if (cmd) {
-        int sl = strlen(cmd);
-        snprintf(line, MAX_WIDTH, ">%s", cmd);
-        memset(line + sl + 1, ' ', MAX_WIDTH - sl);
-    } else {
-        memset(line, ' ', MAX_WIDTH); line[0] = '>';
+static void draw_cmd_line(int left, int top) {
+    for (size_t i = left; i < MAX_WIDTH; ++i) {
+        draw_text(" ", i, top, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
     }
-    line[MAX_WIDTH] = 0;
-    graphics_set_con_pos(strlen(line), CMD_Y_POS);
-    draw_text(line, left, top, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
+    graphics_set_con_pos(left, top);
+    graphics_set_con_color(13, 0);
+    printf("[%s]", get_ctx_var(get_cmd_ctx(), "CD"));
+    graphics_set_con_color(7, 0);
+    printf("> ");
+    graphics_set_con_color(pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
 }
 
 static void collect_files(file_panel_desc_t* p) {
@@ -998,50 +984,18 @@ static void fill_panel(file_panel_desc_t* p) {
         if (start_file_offset <= p->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
             char* filename = fp->pname;
             snprintf(line, MAX_WIDTH, "%s\\%s", p->path, fp->pname);
-#if EXT_DRIVES_MOUNT
-            if (!p->in_dos)
-            for (int i = 0; i < 4; ++i) { // mark mounted drived by labels FDD0,FDD1,HDD0...
-                if (drives_states[i].path && strncmp(drives_states[i].path, line, MAX_WIDTH) == 0) {
-                    snprintf(line, p->width, "%s", fp->name);
-                    for (int j = strlen(fp->name); j < p->width - 6; ++j) {
-                        line[j] = ' ';
-                    }
-                    snprintf(line + p->width - 6, 6, "%s", drives_states[i].lbl);
-                    filename = line;
-                    break;
-                }
-            }
-#endif
             bool selected = p == psp && selected_file_idx == y;
             draw_label(p->left + 1, y, p->width - 2, filename, selected, fp->fattrib & AM_DIR);
-            if (
-#if EXT_DRIVES_MOUNT
-                !p->in_dos &&
-#endif
-                selected && (fp->fattrib & AM_DIR) == 0
-            ) {
-                char path[260];
-                construct_full_name(path, p->path, fp->pname);
-            //    if (strncmp(selected_file_path, path, 260) != 0) {
-            //        detect_os_type(path, os_type, 160);
-            //        strncpy(selected_file_path, path, 260);
-            //    }
-                draw_cmd_line(0, CMD_Y_POS, path);// os_type);
-            } else if (
-#if EXT_DRIVES_MOUNT
-              p->in_dos ||
-#endif
-              selected
-            ) {
-                os_type[0] = 0;
-                draw_cmd_line(0, CMD_Y_POS, 0);
-            }
             y++;
         }
         p->files_number++;
     }
     for (; y <= LAST_FILE_LINE_ON_PANEL_Y; ++y) {
         draw_label(p->left + 1, y, p->width - 2, "", false, false);
+    }
+    if (p == psp) {
+        set_ctx_var(get_cmd_ctx(), "CD", psp->path);
+        draw_cmd_line(0, CMD_Y_POS);
     }
 }
 
@@ -1386,7 +1340,8 @@ static inline void redraw_current_panel() {
     snprintf(line, MAX_WIDTH >> 1, "SD:%s", psp->path);
     draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
     fill_panel(psp);
-    draw_cmd_line(0, CMD_Y_POS, os_type);
+    set_ctx_var(get_cmd_ctx(), "CD", psp->path);
+    draw_cmd_line(0, CMD_Y_POS);
 }
 
 static inline void enter_pressed() {
