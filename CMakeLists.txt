@@ -22,7 +22,7 @@ set(FLASH_SIZE 4096)
 #set(FLASH_SIZE 16384)
 endif ()
 
-set(MOS_VERSION 0.1.4)
+set(MOS_VERSION 0.1.5)
 
 SET(BUILD_NAME "${PROJECT_NAME}-${FLASH_SIZE}K-${MOS_VERSION}")
 
@@ -176,7 +176,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #DEBUG_APP_LOAD=1
         #CFG_TUSB_DEBUG=3
 
-        M_API_VERSION=11
+        M_API_VERSION=12
         MOS_VERSION_STR="${MOS_VERSION}"
         FLASH_SIZE_STR="${FLASH_SIZE}"
 
