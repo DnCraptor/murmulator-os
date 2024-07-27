@@ -792,29 +792,14 @@ static void usb_task(void *pv) {
 
 static void turn_usb_off(uint8_t cmd) {
     if (tud_msc_ejected()) return;
+// TODO: eject
     set_tud_msc_ejected(true);
-    // Alt + F10 no more actions
-    sprintf(fn_1_12_tbl_alt[9].name, " USB  ");
-    fn_1_12_tbl_alt[9].action = turn_usb_on;
-    // F10 / Ctrl + F10 - Exit
-    sprintf(fn_1_12_tbl[9].name, " Exit ");
-    fn_1_12_tbl[9].action = mark_to_exit;
-    sprintf(fn_1_12_tbl_ctrl[9].name, " Exit ");
-    fn_1_12_tbl_ctrl[9].action = mark_to_exit;
     redraw_window();
 }
 
 static void turn_usb_on(uint8_t cmd) {
     if (!tud_msc_ejected()) return;
     init_pico_usb_drive();
-    // do not Exit in usb mode
-    memset(fn_1_12_tbl[9].name, ' ', BTN_WIDTH);
-    fn_1_12_tbl[9].action = do_nothing;
-    memset(fn_1_12_tbl_ctrl[9].name, ' ', BTN_WIDTH);
-    fn_1_12_tbl_ctrl[9].action = do_nothing;
-    // Alt + F10 - force unmount usb
-    snprintf(fn_1_12_tbl_alt[9].name, BTN_WIDTH, " UnUSB ");
-    fn_1_12_tbl_alt[9].action = turn_usb_off;
     bottom_line();
     xTaskCreate(usb_task, "mc usb task", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
 }
@@ -842,6 +827,29 @@ static void draw_fn_btn(fn_1_12_tbl_rec_t* prec, int left, int top) {
 }
 
 static void bottom_line() {
+    if (tud_msc_ejected()) {
+        if (fn_1_12_tbl[9].action != mark_to_exit) {
+            // Alt + F10 no more actions
+            sprintf(fn_1_12_tbl_alt[9].name, " USB  ");
+            fn_1_12_tbl_alt[9].action = turn_usb_on;
+            // F10 / Ctrl + F10 - Exit
+            sprintf(fn_1_12_tbl[9].name, " Exit ");
+            fn_1_12_tbl[9].action = mark_to_exit;
+            sprintf(fn_1_12_tbl_ctrl[9].name, " Exit ");
+            fn_1_12_tbl_ctrl[9].action = mark_to_exit;
+        }
+    } else {
+        if (fn_1_12_tbl_alt[9].action != turn_usb_off) {
+            // do not Exit in usb mode
+            memset(fn_1_12_tbl[9].name, ' ', BTN_WIDTH);
+            fn_1_12_tbl[9].action = do_nothing;
+            memset(fn_1_12_tbl_ctrl[9].name, ' ', BTN_WIDTH);
+            fn_1_12_tbl_ctrl[9].action = do_nothing;
+            // Alt + F10 - force unmount usb
+            snprintf(fn_1_12_tbl_alt[9].name, BTN_WIDTH, " UnUSB ");
+            fn_1_12_tbl_alt[9].action = turn_usb_off;
+        }
+    }
     for (int i = 0; i < BTNS_COUNT && (i + 1) * BTN_WIDTH < MAX_WIDTH; ++i) {
         const fn_1_12_tbl_rec_t* rec = &(*actual_fn_1_12_tbl())[i];
         draw_fn_btn(rec, i * BTN_WIDTH, F_BTN_Y_POS);
