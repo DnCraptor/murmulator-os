@@ -816,7 +816,7 @@ static void draw_fn_btn(fn_1_12_tbl_rec_t* prec, int left, int top) {
 }
 
 static void bottom_line() {
-    if (tud_msc_ejected()) {
+    if (tud_msc_ejected()) { // TODO: ensure
         if (fn_1_12_tbl[9].action != mark_to_exit) {
             // Alt + F10 no more actions
             sprintf(fn_1_12_tbl_alt[9].name, " USB  ");
@@ -1710,7 +1710,9 @@ inline static void restore_console(cmd_ctx_t* ctx) {
     }
     char* b = get_buffer();
     UINT rb;
-    f_read(pfh, b, MAX_WIDTH * (MAX_HEIGHT - 2) * 2, &rb);
+    for (size_t y = 0; y <= PANEL_LAST_Y; ++y)  {
+        f_read(pfh, b + MAX_WIDTH * y * 2, MAX_WIDTH * 2, &rb);
+    }
     f_close(pfh);
 r:
     free(pfh);
@@ -1723,12 +1725,14 @@ inline static void save_console(cmd_ctx_t* ctx) {
     size_t cdl = strlen(tmp);
     char * mc_con_file = concat(tmp, ".mc.con");
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
-    if (FR_OK != f_open(pfh, mc_con_file, FA_CREATE_NEW | FA_CREATE_ALWAYS | FA_WRITE)) {
+    if (FR_OK != f_open(pfh, mc_con_file, FA_CREATE_ALWAYS | FA_WRITE)) {
         goto r;
     }
     char* b = get_buffer();
     UINT wb;
-    f_write(pfh, b, MAX_WIDTH * (MAX_HEIGHT - 2) * 2, &wb);
+    for (size_t y = 0; y <= PANEL_LAST_Y; ++y)  {
+        f_write(pfh, b + MAX_WIDTH * y * 2, MAX_WIDTH * 2, &wb);
+    }
     f_close(pfh);
 r:
     free(pfh);
@@ -1761,7 +1765,7 @@ inline static void save_rc() {
     size_t cdl = strlen(tmp);
     char * mc_rc_file = concat(tmp, ".mc.rc");
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
-    if (FR_OK != f_open(pfh, mc_rc_file, FA_CREATE_NEW | FA_CREATE_ALWAYS | FA_WRITE)) {
+    if (FR_OK != f_open(pfh, mc_rc_file, FA_CREATE_ALWAYS | FA_WRITE)) {
         goto r;
     }
     UINT wb;
@@ -1813,7 +1817,7 @@ r:
     return res;
 }
 
-static inline void work_cycle() {
+static inline void work_cycle(cmd_ctx_t* ctx) {
     uint8_t repeat_cnt = 0;
     cmd = malloc(512);
     cmd[0] = 0;
@@ -1984,6 +1988,7 @@ static inline void work_cycle() {
         if(mark_to_exit_flag) {
             save_rc();
             free(cmd);
+            restore_console(ctx);
             return;
         }
         // static char tt[] = "cleanable scan-code: %02Xh / saved scan-code: %02Xh";
@@ -1993,12 +1998,12 @@ static inline void work_cycle() {
     }
 }
 
-inline static void start_manager() {
+inline static void start_manager(cmd_ctx_t* ctx) {
     m_window();
     select_left_panel();
     update_menu_color();
 //        m_info(0); // F1 TODO: ensure it is not too aggressive
-    work_cycle();
+    work_cycle(ctx);
 }
 
 int main(void) {
@@ -2050,7 +2055,7 @@ int main(void) {
     scancode_handler = get_scancode_handler();
     set_scancode_handler(scancode_handler_impl);
 
-    start_manager();
+    start_manager(ctx);
 
     set_scancode_handler(scancode_handler);
     free(line);
