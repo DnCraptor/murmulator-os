@@ -1540,7 +1540,20 @@ r2:
     return false;
 }
 
+static char* cmd = 0;
+
 static inline void enter_pressed() {
+    size_t cmd_pos = strlen(cmd);
+    if (cmd_pos) {
+        bool exit = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
+        if (exit) {
+            if (!tud_msc_ejected()) {
+                turn_usb_off(0);
+            }
+            mark_to_exit_flag = true;
+        }
+        return;
+    }
     file_info_t* fp = selected_file();
     if (!fp) { // up to parent dir
         int i = strlen(psp->path);
@@ -1655,9 +1668,41 @@ inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
     (*actual_fn_1_12_tbl())[fn_idx].action(fn_idx);
 }
 
+inline static void cmd_backspace() {
+    size_t cmd_pos = strlen(cmd);
+    if (cmd_pos == 0) {
+        // TODO: blimp
+        return;
+    }
+    cmd[--cmd_pos] = 0;
+    gbackspace();
+}
+
+inline static void cmd_push(char c) {
+    size_t cmd_pos = strlen(cmd);
+    if (cmd_pos >= 512) {
+        // TODO: blimp
+    }
+    cmd[cmd_pos++] = c;
+    cmd[cmd_pos] = 0;
+    putc(c);
+}
+
 static inline void work_cycle() {
     uint8_t repeat_cnt = 0;
+    cmd = malloc(512);
+    cmd[0] = 0;
     for(;;) {
+        char c = getch();
+        if (c) {
+            if (c == 8) cmd_backspace();
+            else if (c == 17) handle_up_pressed();
+            else if (c == 18) handle_down_pressed();
+            else if (c == '\t') {}
+            else if (c == '\n') enter_pressed();
+            else cmd_push(c);
+        }
+
         if (is_dendy_joystick || is_kbd_joystick) {
             if (is_dendy_joystick) nespad_read();
             if (nespad_state_delay > 0) {
@@ -1681,6 +1726,7 @@ static inline void work_cycle() {
                 } else if ((nespad_state & DPAD_A) && (nespad_state & DPAD_SELECT)) {
                     conf_it(0);
                 } else if ((nespad_state & DPAD_B) && (nespad_state & DPAD_START)) {
+                    free(cmd);
                     reset(0);
                     return;
                 }
@@ -1688,6 +1734,7 @@ static inline void work_cycle() {
         }
         if (ctrlPressed && altPressed && delPressed) {
             ctrlPressed = altPressed = delPressed = false;
+            free(cmd);
             reset(0);
             return;
         }
@@ -1758,12 +1805,12 @@ static inline void work_cycle() {
           case 0x50: // down arr down
             scan_code_processed();
             break;
-          case 0xD0: // down arr up
-            if (lastSavedScanCode != 0x50) {
-                break;
-            }
-            handle_down_pressed();
-            break;
+        //  case 0xD0: // down arr up
+        //    if (lastSavedScanCode != 0x50) {
+        //        break;
+        //    }
+        //    handle_down_pressed();
+        //    break;
           case 0x49: // pageup arr down
             scan_code_processed();
             break;
@@ -1785,12 +1832,12 @@ static inline void work_cycle() {
           case 0x48: // up arr down
             scan_code_processed();
             break;
-          case 0xC8: // up arr up
-            if (lastSavedScanCode != 0x48) {
-                break;
-            }
-            handle_up_pressed();
-            break;
+        //  case 0xC8: // up arr up
+        //    if (lastSavedScanCode != 0x48) {
+        //        break;
+        //    }
+        //    handle_up_pressed();
+        //    break;
           case 0xCB: // left
             break;
           case 0xCD: // right
@@ -1815,6 +1862,7 @@ static inline void work_cycle() {
         } else
         */
         if(mark_to_exit_flag) {
+            free(cmd);
             return;
         }
         // static char tt[] = "cleanable scan-code: %02Xh / saved scan-code: %02Xh";
