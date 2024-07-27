@@ -1339,6 +1339,207 @@ static inline void redraw_current_panel() {
     draw_cmd_line(0, CMD_Y_POS);
 }
 
+inline static cmd_ctx_t* new_ctx(cmd_ctx_t* src) {
+    cmd_ctx_t* res = (cmd_ctx_t*)pvPortMalloc(sizeof(cmd_ctx_t));
+    memset(res, 0, sizeof(cmd_ctx_t));
+    if (src->vars_num && src->vars) {
+        res->vars = (vars_t*)pvPortMalloc( sizeof(vars_t) * src->vars_num );
+        res->vars_num = src->vars_num;
+        for (size_t i = 0; i < src->vars_num; ++i) {
+            if (src->vars[i].value) {
+                res->vars[i].value = copy_str(src->vars[i].value);
+            }
+            res->vars[i].key = src->vars[i].key; // const
+        }
+    }
+    res->stage = src->stage;
+    return res;
+}
+
+inline static char replace_spaces0(char t) {
+    return (t == ' ') ? 0 : t;
+}
+
+inline static int tokenize_cmd(char* cmdt, cmd_ctx_t* ctx) {
+    while (!cmdt[0 && cmdt[0] == ' ']) ++cmdt; // ignore trailing spaces
+    if (cmdt[0] == 0) {
+        return 0;
+    }
+    if (ctx->orig_cmd) free(ctx->orig_cmd);
+    ctx->orig_cmd = copy_str(cmdt);
+    //goutf("orig_cmd: '%s' [%p]; cmd: '%s' [%p]\n", ctx->orig_cmd, ctx->orig_cmd, cmdt, cmdt);
+    bool in_space = true;
+    bool in_qutas = false;
+    int inTokenN = 0;
+    char* t1 = ctx->orig_cmd;
+    char* t2 = cmdt;
+    while(*t1) {
+        if (*t1 == '"') in_qutas = !in_qutas;
+        if (in_qutas) {
+            *t2++ = *t1++;
+            continue; 
+        }
+        char c = replace_spaces0(*t1++);
+        //goutf("%02X -> %c %02X; t1: '%s' [%p], t2: '%s' [%p]\n", c, *t2, *t2, t1, t1, t2, t2);
+        if (in_space) {
+            if(c) { // token started
+                in_space = 0;
+                inTokenN++; // new token
+            }
+        } else if(!c) { // not in space, after the token
+            in_space = true;
+        }
+        *t2++ = c;
+    }
+    *t2 = 0;
+    //goutf("cmd: %s\n", cmd);
+    return inTokenN;
+}
+
+inline static bool prepare_ctx(char* cmdt, cmd_ctx_t* ctx) {
+    char* t = cmdt;
+    bool in_quotas = false;
+    bool append = false;
+    char* std_out = 0;
+    while (*t) {
+        if (*t == '"') in_quotas = !in_quotas;
+        if (!in_quotas && *t == '>') {
+            *t++ = 0;
+            if (*t == '>') {
+                *t++ = 0;
+                append = true;
+                std_out = t;
+            } else {
+                std_out = t;
+            }
+            break;
+        }
+        t++;
+    }
+    if (std_out) {
+        char* b = std_out;
+        in_quotas = false;
+        bool any_legal = false;
+        while(*b) {
+            if (!in_quotas && *b == ' ') {
+                if (any_legal) {
+                    *b = 0;
+                    break;
+                }
+                std_out = b + 1;
+            } else if (*b == '"') {
+                if (in_quotas) {
+                    *b = 0;
+                    break;
+                } else {
+                    std_out = b + 1;
+                }
+                in_quotas = !in_quotas;
+            } else {
+                any_legal = true;
+            }
+            b++;
+        }
+        ctx->std_out = calloc(1, sizeof(FIL));
+        if (FR_OK != f_open(ctx->std_out, std_out, FA_WRITE | (append ? FA_OPEN_APPEND : FA_CREATE_ALWAYS))) {
+            printf("Unable to open file: '%s'\n", std_out);
+            return false;
+        }
+    }
+
+    int tokens = tokenize_cmd(cmdt, ctx);
+    if (tokens == 0) {
+        return false;
+    }
+
+    ctx->argc = tokens;
+    ctx->argv = (char**)malloc(sizeof(char*) * tokens);
+    t = cmdt;
+    while (!t[0 && t[0] == ' ']) ++t; // ignore trailing spaces
+    for (uint32_t i = 0; i < tokens; ++i) {
+        ctx->argv[i] = copy_str(t);
+        t = next_token(t);
+        char *q = t;
+        bool in_quotas = false;
+        while (*q) {
+            if (*q == '"') {
+                if(in_quotas) {
+                    *q = 0;
+                    break;
+                }
+                else t = q + 1;
+                in_quotas = !in_quotas;
+            }
+            q++;
+        }
+        
+    }
+    ctx->stage = PREPARED;
+    return true;
+}
+
+inline static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd) {
+    putc('\n');
+    size_t cmd_pos = strlen(cmd);
+    if (cmd_pos) {
+// todo:        cmd_write_history(ctx);
+    } else {
+        goto r2;
+    }
+
+    char* tc = cmd;
+    char* ts = cmd;
+    bool exit = false;
+    bool in_qutas = false;
+    cmd_ctx_t* ctxi = ctx;
+    while(1) {
+        if (!*tc) {
+            //printf("'%s' by end zero\n", ts);
+            exit = prepare_ctx(ts, ctxi);
+            break;
+        } else if (*tc == '"') {
+            in_qutas = !in_qutas;
+        } else if (!in_qutas && *tc == '|') {
+            //printf("'%s' by pipe\n", ts);
+            *tc = 0;
+            cmd_ctx_t* curr = ctxi;
+            cmd_ctx_t* next = new_ctx(ctxi);
+            exit = prepare_ctx(ts, curr);
+            curr->std_out = calloc(1, sizeof(FIL));
+            curr->std_err = curr->std_out;
+            next->std_in = calloc(1, sizeof(FIL));
+            f_open_pipe(curr->std_out, next->std_in);
+            curr->detached = true;
+            next->prev = curr;
+            curr->next = next;
+            next->detached = false;
+            ctxi = next;
+            ts = tc + 1;
+        } else if (!in_qutas && *tc == '&') {
+            //printf("'%s' detached\n", ts);
+            *tc = 0;
+            exit = prepare_ctx(ts, ctxi);
+            ctxi->detached = true;
+            break;
+        }
+        tc++;
+    }
+    if (exit) { // prepared ctx
+        return true;
+    }
+    ctxi = ctx->next;
+    ctx->next = 0;
+    while(ctxi) { // remove pipe chain
+        cmd_ctx_t* next = ctxi->next;
+        remove_ctx(ctxi);
+        ctxi = next;
+    }
+    cleanup_ctx(ctx); // base ctx to be there
+r2:
+    draw_cmd_line(0, CMD_Y_POS);
+    return false;
+}
+
 static inline void enter_pressed() {
     file_info_t* fp = selected_file();
     if (!fp) { // up to parent dir
@@ -1360,8 +1561,8 @@ static inline void enter_pressed() {
         redraw_current_panel();
         return;
     }
+    char path[256];
     if (fp->fattrib & AM_DIR) {
-        char path[256];
         construct_full_name(path, psp->path, fp->pname);
         strncpy(psp->path, path, 256);
         psp->level++;
@@ -1374,7 +1575,15 @@ static inline void enter_pressed() {
         redraw_current_panel();
         return;
     }
-    // todo:
+    construct_full_name(path, psp->path, fp->pname);
+    printf(path);
+    bool exit = cmd_enter(get_cmd_ctx(), path); // TODO: support "no exit" mode
+    if (exit) {
+        if (!tud_msc_ejected()) {
+            turn_usb_off(0);
+        }
+        mark_to_exit_flag = true;
+    }
 }
 
 inline static void handle_pagedown_pressed() {

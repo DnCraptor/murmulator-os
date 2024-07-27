@@ -33,22 +33,8 @@ inline static void type_char(char c) {
     cmd[cmd_pos] = 0;
 }
 
-
 inline static char replace_spaces0(char t) {
-    if (t == ' ') {
-        return 0;
-    }
-//    if (t >= 'A' && t <= 'Z') {
-//        return t + ('a' - 'A');
-//    }
-//    if (t >= 0x80 && t <= 0x8F /* А-П */) {
-//        return t + (0xA0 - 0x80);
-//    }
-//    if (t >= 0x90 && t <= 0x9F /* Р-Я */) {
-//        return t + (0xE0 - 0x90);
-//    }
-//    if (t >= 0xF0 && t <= 0xF6) return t + 1; // Ё...
-    return t;
+    return (t == ' ') ? 0 : t;
 }
 
 inline static int tokenize_cmd(char* cmdt, cmd_ctx_t* ctx) {
