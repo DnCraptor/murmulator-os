@@ -8,6 +8,7 @@ bool handleScancode(const uint32_t ps2scancode);
 uint32_t get_last_scancode();
 char __getch(void);
 int __getc(FIL*);
+char getch_now(void);
 
 typedef bool (*scancode_handler_t)(const uint32_t);
 scancode_handler_t get_scancode_handler();

@@ -250,6 +250,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     set_tud_msc_ejected, // 182
     //
     show_logo, // 183
+    getch_now, // 184
     // TODO:
     0
 };

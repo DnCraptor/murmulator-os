@@ -18,6 +18,7 @@ static char selected_file_path[260]; // TODO: ctx->
 
 static volatile uint32_t lastCleanableScanCode;
 static volatile uint32_t lastSavedScanCode;
+static bool hidePannels = false;
 
 static volatile bool backspacePressed = false;
 static volatile bool enterPressed = false;
@@ -55,7 +56,6 @@ static volatile bool xPressed = false;
 static volatile bool ePressed = false;
 static volatile bool uPressed = false;
 static volatile bool hPressed = false;
-static volatile bool left_panel_make_active = true;
 
 // TODO:
 static bool is_dendy_joystick = true;
@@ -176,6 +176,7 @@ void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz) {
 int _init(void) {
     files_count = 0;
     selected_file_path[0] = 0;
+    hidePannels = false;
 
     backspacePressed = false;
     enterPressed = false;
@@ -213,7 +214,6 @@ int _init(void) {
     ePressed = false;
     uPressed = false;
     hPressed = false;
-    left_panel_make_active = true;
 
     is_dendy_joystick = true;
     is_kbd_joystick = false;
@@ -250,6 +250,7 @@ static void draw_label(int left, int top, int width, char* txt, bool selected, b
 
 
 static void draw_panel(int left, int top, int width, int height, char* title, char* bottom) {
+    if (hidePannels) return;
     char line[MAX_WIDTH + 2];
     // top line
     for(int i = 1; i < width - 1; ++i) {
@@ -1007,6 +1008,7 @@ inline static void select_left_panel() {
 }
 
 static void m_window() {
+    if (hidePannels) return;
     snprintf(line, MAX_WIDTH, "SD:%s", left_panel->path);
     draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH / 2, PANEL_LAST_Y + 1, line, 0);
     snprintf(line, MAX_WIDTH, "SD:%s", right_panel->path);
@@ -1317,7 +1319,7 @@ static bool scancode_handler_impl(const uint32_t ps2scancode) { // core ?
         tabPressed = true;
         break;
       case 0x8F:
-        left_panel_make_active = !left_panel_make_active; // TODO: combinations?
+//        left_panel_make_active = !left_panel_make_active; // TODO: combinations?
         tabPressed = false;
         break;
       default:
@@ -1554,6 +1556,7 @@ static inline void enter_pressed() {
         }
         return;
     }
+    if (hidePannels) return;
     file_info_t* fp = selected_file();
     if (!fp) { // up to parent dir
         int i = strlen(psp->path);
@@ -1688,18 +1691,42 @@ inline static void cmd_push(char c) {
     putc(c);
 }
 
+inline static void handle_tab_pressed() {
+    if (psp == left_panel) {
+        select_right_panel();
+        return;
+    }
+    select_left_panel();
+}
+
+inline static void hide_pannels() {
+    hidePannels = !hidePannels;
+    if (hidePannels) {
+        for (size_t y = 0; y < MAX_HEIGHT - 2; ++y) {
+            for (size_t x = 0; x < MAX_WIDTH; ++x) {
+                draw_text(" ", x, y, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
+            }
+        }
+    } else {
+        m_window();
+        fill_panel(left_panel);
+        fill_panel(right_panel);
+    }
+}
+
 static inline void work_cycle() {
     uint8_t repeat_cnt = 0;
     cmd = malloc(512);
     cmd[0] = 0;
     for(;;) {
-        char c = getch();
+        char c = getch_now();
         if (c) {
             if (c == 8) cmd_backspace();
             else if (c == 17) handle_up_pressed();
             else if (c == 18) handle_down_pressed();
-            else if (c == '\t') {}
+            else if (c == '\t') handle_tab_pressed();
             else if (c == '\n') enter_pressed();
+            else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
             else cmd_push(c);
         }
 
@@ -1722,7 +1749,7 @@ static inline void work_cycle() {
                 } else if ((nespad_state & DPAD_B) && (nespad_state & DPAD_SELECT)) {
                     mark_to_exit(0);
                 } else if ((nespad_state & DPAD_LEFT) || (nespad_state & DPAD_RIGHT)) {
-                    left_panel_make_active = !left_panel_make_active;
+                    handle_tab_pressed();
                 } else if ((nespad_state & DPAD_A) && (nespad_state & DPAD_SELECT)) {
                     conf_it(0);
                 } else if ((nespad_state & DPAD_B) && (nespad_state & DPAD_START)) {
@@ -1741,12 +1768,6 @@ static inline void work_cycle() {
     //    if_swap_drives();
     //    if_overclock();
     //    if_sound_control();
-        if (psp == left_panel && !left_panel_make_active) {
-            select_right_panel();
-        }
-        if (psp != left_panel && left_panel_make_active) {
-            select_left_panel();
-        }
         if (lastSavedScanCode != lastCleanableScanCode && lastSavedScanCode > 0x80) {
             repeat_cnt = 0;
         } else {
@@ -1802,9 +1823,9 @@ static inline void work_cycle() {
             bottom_line();
             scan_code_processed();
             break;
-          case 0x50: // down arr down
-            scan_code_processed();
-            break;
+        //  case 0x50: // down arr down
+        //    scan_code_processed();
+        //    break;
         //  case 0xD0: // down arr up
         //    if (lastSavedScanCode != 0x50) {
         //        break;
@@ -1829,9 +1850,9 @@ static inline void work_cycle() {
             }
             handle_pagedown_pressed();
             break;
-          case 0x48: // up arr down
-            scan_code_processed();
-            break;
+        //  case 0x48: // up arr down
+        //    scan_code_processed();
+        //    break;
         //  case 0xC8: // up arr up
         //    if (lastSavedScanCode != 0x48) {
         //        break;
@@ -1842,16 +1863,16 @@ static inline void work_cycle() {
             break;
           case 0xCD: // right
             break;
-          case 0x1C: // Enter down
-            scan_code_processed();
-            break;
-          case 0x9C: // Enter up
-            if (lastSavedScanCode != 0x1C) {
-                break;
-            }
-            enter_pressed();
-            scan_code_processed();
-            break;
+        //  case 0x1C: // Enter down
+        //    scan_code_processed();
+        //    break;
+        //  case 0x9C: // Enter up
+        //    if (lastSavedScanCode != 0x1C) {
+        //        break;
+        //    }
+        //    enter_pressed();
+        //    scan_code_processed();
+        //    break;
         }
         /*
         if (usb_started && tud_msc_ejected()) {

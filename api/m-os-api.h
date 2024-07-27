@@ -700,6 +700,11 @@ inline static void show_logo(bool with_top) {
     ((fn_ptr_t)_sys_table_ptrs[183])(with_top);
 }
 
+inline static char getch_now(void) {
+    typedef char (*fn_ptr_t)(void);
+    return ((fn_ptr_t)_sys_table_ptrs[184])();
+}
+
 #ifdef __cplusplus
 }
 // TODO: separate h-file
