@@ -468,7 +468,46 @@ static void redraw_window() {
 
 static void m_window() {
     if (hidePannels) return;
-    draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH, PANEL_LAST_Y + 1, " TODO ", 0);
+    cmd_ctx_t* ctx = get_cmd_ctx();
+    draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH, PANEL_LAST_Y + 1, ctx->argv[1], 0);
+    FIL* f = malloc(sizeof(FIL));
+    if (FR_OK != f_open(f, ctx->argv[1], FA_READ)) {
+        const line_t lns[2] = {
+            { -1, "Unable to open file:" },
+            { -1, ctx->argv[1] }
+        };
+        const lines_t lines = { 2, 3, lns };
+        draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+        vTaskDelay(1500);
+        goto e1;
+    }
+    size_t width = MAX_WIDTH - 2;
+    size_t height = MAX_HEIGHT - 3;
+    size_t btr = height * width;
+    char* buff = calloc(btr, 1);
+    UINT br;
+    if (FR_OK != f_read(f, buff, btr, &br)) {
+        const line_t lns[2] = {
+            { -1, "Unable to read file:" },
+            { -1, ctx->argv[1] }
+        };
+        const lines_t lines = { 2, 3, lns };
+        draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+        vTaskDelay(1500);
+        goto e2;
+    }
+    for (size_t y = 1; y < height; ++y) {
+        char* b = buff + width * (y - 1);
+        char c = b[width];
+        b[width] = 0;
+        draw_text(b, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+        b[width] = c;
+    }
+e2:
+    free(buff);
+    f_close(f);
+e1:
+    free(f);
 }
 
 inline static void handleJoystickEmulation(uint8_t sc) { // core 1
@@ -882,13 +921,13 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
     for(;;) {
         char c = getch_now();
         if (c) {
-/*            if (c == 8) cmd_backspace();
+            if (c == 8) cmd_backspace();
             else if (c == 17) handle_up_pressed();
             else if (c == 18) handle_down_pressed();
             else if (c == '\t') handle_tab_pressed();
-            else if (c == '\n') enter_pressed();*/
-//            else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
-  //          else cmd_push(c);
+            else if (c == '\n') enter_pressed();
+            else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
+//            else push_char(c);
         }
 
         if (is_dendy_joystick || is_kbd_joystick) {
