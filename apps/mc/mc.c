@@ -960,6 +960,7 @@ static void construct_full_name(char* dst, const char* folder, const char* file)
 }
 
 static void fill_panel(file_panel_desc_t* p) {
+    if (hidePannels) return;
     collect_files(p);
     indexes_t* pp = &p->indexes[p->level];
     if (pp->selected_file_idx < FIRST_FILE_LINE_ON_PANEL_Y)
@@ -1334,10 +1335,12 @@ r:
 }
 
 static inline void redraw_current_panel() {
-    snprintf(line, MAX_WIDTH >> 1, "SD:%s", psp->path);
-    draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
-    fill_panel(psp);
-    set_ctx_var(get_cmd_ctx(), "CD", psp->path);
+    if (!hidePannels) {
+        snprintf(line, MAX_WIDTH >> 1, "SD:%s", psp->path);
+        draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
+        fill_panel(psp);
+        set_ctx_var(get_cmd_ctx(), "CD", psp->path);
+    }
     draw_cmd_line(0, CMD_Y_POS);
 }
 
