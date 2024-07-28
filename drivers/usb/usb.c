@@ -62,7 +62,14 @@ inline void init_pico_usb_drive() {
     }
 }
 
-inline void pico_usb_drive_heartbeat() {
+void pico_usb_drive_heartbeat() {
+    if (tud_msc_ejected()) { // TODO: ???
+        char buf[4] = { 0, 0, 0, 0 };
+        tud_cdc_write(buf, 4);
+        tud_cdc_write_flush();
+        blink_interval_ms = BLINK_NOT_MOUNTED;
+        return;
+    }
     tud_task(); // tinyusb device task
     led_blinking_task();
     cdc_task();

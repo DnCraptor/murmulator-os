@@ -28,7 +28,7 @@
 #include "usb.h"
 
 // whether host does safe-eject
-static bool ejectedDrv = false;
+static bool ejectedDrv = true;
 
 // Invoked when received SCSI_CMD_INQUIRY
 // Application fill vendor id, product id and revision with string up to 8, 16, 4 characters respectively
