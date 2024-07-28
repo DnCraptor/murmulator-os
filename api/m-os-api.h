@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 12
+#define M_API_VERSION 13
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)
@@ -674,12 +674,13 @@ inline static uint8_t get_leds_stat() {
 }
 
 // USB
-
+// (better use usb_driver)
 inline static void init_pico_usb_drive() {
     typedef void (*fn_ptr_t)();
     ((fn_ptr_t)_sys_table_ptrs[179])();
 }
 
+// (better use usb_driver)
 inline static void pico_usb_drive_heartbeat() {
     typedef void (*fn_ptr_t)();
     ((fn_ptr_t)_sys_table_ptrs[180])();
@@ -690,6 +691,7 @@ inline static bool tud_msc_ejected() {
     return ((fn_ptr_t)_sys_table_ptrs[181])();
 }
 
+// (better use usb_driver)
 inline static void set_tud_msc_ejected(bool v) {
     typedef void (*fn_ptr_t)(bool);
     ((fn_ptr_t)_sys_table_ptrs[182])(v);
@@ -703,6 +705,11 @@ inline static void show_logo(bool with_top) {
 inline static char getch_now(void) {
     typedef char (*fn_ptr_t)(void);
     return ((fn_ptr_t)_sys_table_ptrs[184])();
+}
+
+inline static void usb_driver(bool on) {
+    typedef void (*fn_ptr_t)(bool);
+    ((fn_ptr_t)_sys_table_ptrs[185])(on);
 }
 
 #ifdef __cplusplus

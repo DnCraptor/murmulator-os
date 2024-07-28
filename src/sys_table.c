@@ -244,13 +244,15 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     get_cpu_flash_jedec_id, // 177
     psram_id, // 178
     //
-    init_pico_usb_drive, // 179
-    pico_usb_drive_heartbeat, // 180
+    init_pico_usb_drive, // 179 (better use usb_driver)
+    pico_usb_drive_heartbeat, // 180 (better use usb_driver)
     tud_msc_ejected, // 181
-    set_tud_msc_ejected, // 182
+    set_tud_msc_ejected, // 182 (better use usb_driver)
     //
     show_logo, // 183
     getch_now, // 184
+    //
+    usb_driver, // 185
     // TODO:
     0
 };

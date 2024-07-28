@@ -7,6 +7,7 @@
 
 void init_pico_usb_drive();
 void pico_usb_drive_heartbeat();
+void usb_driver(bool on);
 
 // msc_disk.c
 bool tud_msc_ejected();

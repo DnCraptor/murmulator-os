@@ -7,6 +7,7 @@ static void bottom_line();
 static void construct_full_name(char* dst, const char* folder, const char* file);
 static bool m_prompt(const char* txt);
 static void no_selected_file();
+static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd);
 
 #define PANEL_TOP_Y 0
 #define FIRST_FILE_LINE_ON_PANEL_Y (PANEL_TOP_Y + 1)
@@ -770,29 +771,15 @@ static fn_1_12_tbl_t fn_1_12_tbl_ctrl = {
     '1', '2', " B/W  ", switch_color
 };
 
-static void usb_task(void *pv) {
-    while (!tud_msc_ejected()) {
-        pico_usb_drive_heartbeat();
-    }
-    int post_cicles = 100;
-    while (--post_cicles) {
-        pico_usb_drive_heartbeat();
-    }
-    vTaskDelete(NULL);
-}
-
 static void turn_usb_off(uint8_t cmd) {
     if (tud_msc_ejected()) return;
-// TODO: eject
-    set_tud_msc_ejected(true);
+    usb_driver(false);
     redraw_window();
 }
 
-static void turn_usb_on(uint8_t cmd) {
+static void turn_usb_on(uint8_t nu) {
     if (!tud_msc_ejected()) return;
-    init_pico_usb_drive();
-    bottom_line();
-    xTaskCreate(usb_task, "mc usb task", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
+    usb_driver(true);
 }
 
 static inline fn_1_12_tbl_t* actual_fn_1_12_tbl() {
@@ -818,24 +805,14 @@ static void draw_fn_btn(fn_1_12_tbl_rec_t* prec, int left, int top) {
 }
 
 static void bottom_line() {
-    if (tud_msc_ejected()) { // TODO: ensure
-        if (fn_1_12_tbl[9].action != mark_to_exit) {
+    if (tud_msc_ejected()) {
+        if (fn_1_12_tbl_alt[9].action != turn_usb_on) {
             // Alt + F10 no more actions
             sprintf(fn_1_12_tbl_alt[9].name, " USB  ");
             fn_1_12_tbl_alt[9].action = turn_usb_on;
-            // F10 / Ctrl + F10 - Exit
-            sprintf(fn_1_12_tbl[9].name, " Exit ");
-            fn_1_12_tbl[9].action = mark_to_exit;
-            sprintf(fn_1_12_tbl_ctrl[9].name, " Exit ");
-            fn_1_12_tbl_ctrl[9].action = mark_to_exit;
         }
     } else {
         if (fn_1_12_tbl_alt[9].action != turn_usb_off) {
-            // do not Exit in usb mode
-            memset(fn_1_12_tbl[9].name, ' ', BTN_WIDTH);
-            fn_1_12_tbl[9].action = do_nothing;
-            memset(fn_1_12_tbl_ctrl[9].name, ' ', BTN_WIDTH);
-            fn_1_12_tbl_ctrl[9].action = do_nothing;
             // Alt + F10 - force unmount usb
             snprintf(fn_1_12_tbl_alt[9].name, BTN_WIDTH, " UnUSB ");
             fn_1_12_tbl_alt[9].action = turn_usb_off;
@@ -1500,7 +1477,7 @@ inline static void cmd_write_history(cmd_ctx_t* ctx) {
     free(cmd_history_file);
 }
 
-inline static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd) {
+static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd) {
     putc('\n');
     size_t cmd_pos = strlen(cmd);
     if (cmd_pos) {
@@ -1565,13 +1542,7 @@ r2:
 static inline void enter_pressed() {
     size_t cmd_pos = strlen(cmd);
     if (cmd_pos && !ctrlPressed) {
-        bool exit = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
-        if (exit) {
-            if (!tud_msc_ejected()) {
-                turn_usb_off(0);
-            }
-            mark_to_exit_flag = true;
-        }
+        mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
         return;
     }
     if (hidePannels) return;
@@ -1616,13 +1587,7 @@ static inline void enter_pressed() {
     }
     construct_full_name(path, psp->path, fp->pname);
     printf(path);
-    bool exit = cmd_enter(get_cmd_ctx(), path); // TODO: support "no exit" mode
-    if (exit) {
-        if (!tud_msc_ejected()) {
-            turn_usb_off(0);
-        }
-        mark_to_exit_flag = true;
-    }
+    mark_to_exit_flag = cmd_enter(get_cmd_ctx(), path); // TODO: support "no exit" mode
 }
 
 inline static void handle_pagedown_pressed() {

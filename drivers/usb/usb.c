@@ -51,8 +51,31 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 void led_blinking_task(void);
 void cdc_task(void);
 
+static void usb_task(void *pv) {
+    while (!tud_msc_ejected()) {
+        pico_usb_drive_heartbeat();
+        vTaskDelay(1);
+    }
+    int post_cicles = 10;
+    while (--post_cicles) {
+        pico_usb_drive_heartbeat();
+        vTaskDelay(1);
+    }
+    vTaskDelete(NULL);
+}
+
+void usb_driver(bool on) {
+  if (on) {
+    init_pico_usb_drive();
+    xTaskCreate(usb_task, "usb_task", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);    
+  } else {
+    // TODO: lookup for the better way
+    set_tud_msc_ejected(true);    
+  }
+}
+
 /*------------- MAIN -------------*/
-inline void init_pico_usb_drive() {
+void init_pico_usb_drive() {
     set_tud_msc_ejected(false);
     board_init();
     // init device stack on configured roothub port
@@ -84,7 +107,7 @@ void in_flash_drive() {
   }
   for (int i = 0; i < 10; ++i) { // sevaral hb till end of cycle, TODO: care eject
     pico_usb_drive_heartbeat();
-    sleep_ms(50);
+    vTaskDelay(50);
   }
 }
 

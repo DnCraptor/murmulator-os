@@ -1,21 +1,12 @@
 #include "m-os-api.h"
 
 inline static int usb_on() {
-    init_pico_usb_drive();
-
-    while (!tud_msc_ejected()) {
-        pico_usb_drive_heartbeat();
-    }
-    printf("USB-drive was ejected...\n");
-    int post_cicles = 100;
-    while (--post_cicles) {
-        pico_usb_drive_heartbeat();
-    }
+    usb_driver(true);
     return 0;
 }
 
 inline static int usb_off() {
-    set_tud_msc_ejected(true);
+    usb_driver(false);
     return 0;
 }
 
