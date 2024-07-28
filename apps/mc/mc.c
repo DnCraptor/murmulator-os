@@ -8,6 +8,7 @@ static void construct_full_name(char* dst, const char* folder, const char* file)
 static bool m_prompt(const char* txt);
 static void no_selected_file();
 static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd);
+static void enter_pressed();
 
 #define PANEL_TOP_Y 0
 #define FIRST_FILE_LINE_ON_PANEL_Y (PANEL_TOP_Y + 1)
@@ -610,9 +611,7 @@ static void turn_usb_on(uint8_t cmd);
 static void mark_to_exit(uint8_t cmd) {
     f10Pressed = false;
     escPressed = false;
-    if (tud_msc_ejected()) {
-        mark_to_exit_flag = true;
-    }
+    mark_to_exit_flag = true;
 }
 
 static void m_info(uint8_t cmd) {
@@ -726,11 +725,47 @@ static void m_move_file(uint8_t cmd) {
 //    gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
+void m_view(uint8_t nu) {
+    if (hidePannels) return;
+    file_info_t* fp = selected_file();
+    if (!fp) return; // warn?
+    if (fp->fattrib & AM_DIR) {
+        enter_pressed();
+        return;
+    }
+    static const char cstr[] = "mcview \"";
+    strncpy(cmd, cstr, 512);
+    construct_full_name(cmd + sizeof(cstr) - 1, psp->path, fp->pname);
+    size_t sz = strlen(cmd);
+    cmd[sz++] = '\"';
+    cmd[sz] = 0;
+    draw_cmd_line(0, CMD_Y_POS);
+    mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd);
+}
+
+void m_edit(uint8_t nu) {
+    if (hidePannels) return;
+    file_info_t* fp = selected_file();
+    if (!fp) return; // warn?
+    if (fp->fattrib & AM_DIR) {
+        enter_pressed();
+        return;
+    }
+    static const char cstr[] = "mcedit \"";
+    strncpy(cmd, cstr, 512);
+    construct_full_name(cmd + sizeof(cstr) - 1, psp->path, fp->pname);
+    size_t sz = strlen(cmd);
+    cmd[sz++] = '\"';
+    cmd[sz] = 0;
+    draw_cmd_line(0, CMD_Y_POS);
+    mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd);
+}
+
 static fn_1_12_tbl_t fn_1_12_tbl = {
     ' ', '1', " Help ", m_info,
     ' ', '2', " Snap ", save_snap,
-    ' ', '3', " View ", do_nothing,
-    ' ', '4', " Edit ", do_nothing,
+    ' ', '3', " View ", m_view,
+    ' ', '4', " Edit ", m_edit,
     ' ', '5', " Copy ", m_copy_file,
     ' ', '6', " Move ", m_move_file,
     ' ', '7', "MkDir ", m_mk_dir,
@@ -744,8 +779,8 @@ static fn_1_12_tbl_t fn_1_12_tbl = {
 static fn_1_12_tbl_t fn_1_12_tbl_alt = {
     ' ', '1', "Right ", do_nothing,
     ' ', '2', " Conf ", conf_it,
-    ' ', '3', " View ", do_nothing,
-    ' ', '4', " Edit ", do_nothing,
+    ' ', '3', " View ", m_view,
+    ' ', '4', " Edit ", m_edit,
     ' ', '5', " Copy ", m_copy_file,
     ' ', '6', " Move ", m_move_file,
     ' ', '7', " Find ", do_nothing,
@@ -760,7 +795,7 @@ static fn_1_12_tbl_t fn_1_12_tbl_ctrl = {
     ' ', '1', "Eject ", do_nothing,
     ' ', '2', "ReSnap", restore_snap,
     ' ', '3', "Debug ", do_nothing,
-    ' ', '4', " Edit ", do_nothing,
+    ' ', '4', " Edit ", m_edit,
     ' ', '5', " Copy ", m_copy_file,
     ' ', '6', " Move ", m_move_file,
     ' ', '7', " Find ", do_nothing,
@@ -1539,7 +1574,7 @@ r2:
     return false;
 }
 
-static inline void enter_pressed() {
+static void enter_pressed() {
     size_t cmd_pos = strlen(cmd);
     if (cmd_pos && !ctrlPressed) {
         mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
