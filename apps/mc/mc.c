@@ -65,6 +65,8 @@ static int nespad_state_delay = DPAD_STATE_DELAY;
 static uint8_t nespad_state, nespad_state2;
 static bool mark_to_exit_flag = false;
 
+static char* cmd = 0;
+
 inline static void nespad_read() {
     // TODO:
     nespad_state = nespad_state2 = 0;
@@ -926,7 +928,7 @@ static void draw_cmd_line(int left, int top) {
     graphics_set_con_color(13, 0);
     printf("[%s]", get_ctx_var(get_cmd_ctx(), "CD"));
     graphics_set_con_color(7, 0);
-    printf("> ");
+    printf("> %s", cmd);
     graphics_set_con_color(pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
 }
 
@@ -1483,11 +1485,26 @@ inline static bool prepare_ctx(char* cmdt, cmd_ctx_t* ctx) {
     return true;
 }
 
+inline static void cmd_write_history(cmd_ctx_t* ctx) {
+    char* tmp = get_ctx_var(ctx, "TEMP");
+    if(!tmp) tmp = "";
+    size_t cdl = strlen(tmp);
+    char * cmd_history_file = concat(tmp, ".cmd_history");
+    FIL* pfh = (FIL*)malloc(sizeof(FIL));
+    f_open(pfh, cmd_history_file, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
+    UINT br;
+    f_write(pfh, cmd, strlen(cmd), &br);
+    f_write(pfh, "\n", 1, &br);
+    f_close(pfh);
+    free(pfh);
+    free(cmd_history_file);
+}
+
 inline static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd) {
     putc('\n');
     size_t cmd_pos = strlen(cmd);
     if (cmd_pos) {
-// todo:        cmd_write_history(ctx);
+        cmd_write_history(ctx);
     } else {
         goto r2;
     }
@@ -1545,11 +1562,9 @@ r2:
     return false;
 }
 
-static char* cmd = 0;
-
 static inline void enter_pressed() {
     size_t cmd_pos = strlen(cmd);
-    if (cmd_pos) {
+    if (cmd_pos && !ctrlPressed) {
         bool exit = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
         if (exit) {
             if (!tud_msc_ejected()) {
@@ -1594,6 +1609,11 @@ static inline void enter_pressed() {
         redraw_current_panel();
         return;
     }
+    if (ctrlPressed) {
+        construct_full_name(cmd + cmd_pos, psp->path, fp->pname);
+        draw_cmd_line(0, CMD_Y_POS);
+        return;
+    }
     construct_full_name(path, psp->path, fp->pname);
     printf(path);
     bool exit = cmd_enter(get_cmd_ctx(), path); // TODO: support "no exit" mode
@@ -1624,7 +1644,70 @@ inline static void handle_pagedown_pressed() {
     scan_code_processed();
 }
 
+static int cmd_history_idx = -2;
+
+inline static int history_steps(cmd_ctx_t* ctx) {
+    char* tmp = get_ctx_var(ctx, "TEMP");
+    if(!tmp) tmp = "";
+    size_t cdl = strlen(tmp);
+    char * cmd_history_file = concat(tmp, ".cmd_history");
+    FIL* pfh = (FIL*)malloc(sizeof(FIL));
+    size_t j = 0;
+    int idx = 0;
+    UINT br;
+    f_open(pfh, cmd_history_file, FA_READ);
+    char* b = malloc(512);
+    while(f_read(pfh, b, 512, &br) == FR_OK && br) {
+        for(size_t i = 0; i < br; ++i) {
+            char t = b[i];
+            if(t == '\n') { // next line
+                cmd[j] = 0;
+                j = 0;
+                if(cmd_history_idx == idx)
+                    break;
+                idx++;
+            } else {
+                cmd[j++] = t;
+            }
+        }
+    }
+    free(b);
+    f_close(pfh);
+    free(pfh);
+    free(cmd_history_file);
+    return idx;
+}
+
+
+inline static void cancel_entered() {
+    size_t cmd_pos = strlen(cmd);
+    while(cmd_pos) {
+        cmd[--cmd_pos] = 0;
+        gbackspace();
+    }
+}
+
+inline static void cmd_up(cmd_ctx_t* ctx) {
+    cancel_entered();
+    cmd_history_idx--;
+    int idx = history_steps(ctx);
+    if (cmd_history_idx < 0) cmd_history_idx = idx;
+    goutf(cmd);
+}
+
+inline static void cmd_down(cmd_ctx_t* ctx) {
+    cancel_entered();
+    if (cmd_history_idx == -2) cmd_history_idx = -1;
+    cmd_history_idx++;
+    history_steps(ctx);
+    goutf(cmd);
+}
+
 inline static void handle_down_pressed() {
+    if (hidePannels) {
+        cmd_down(get_cmd_ctx());
+        return;
+    }
     indexes_t* p = &psp->indexes[psp->level];
     if (p->selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
         p->start_file_offset + p->selected_file_idx < psp->files_number
@@ -1657,6 +1740,10 @@ inline static void handle_pageup_pressed() {
 }
 
 inline static void handle_up_pressed() {
+    if (hidePannels) {
+        cmd_up(get_cmd_ctx());
+        return;
+    }
     indexes_t* p = &psp->indexes[psp->level];
     if (p->selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y) {
         p->selected_file_idx--;
@@ -1694,7 +1781,102 @@ inline static void cmd_push(char c) {
     putc(c);
 }
 
+inline static char* next_on(char* l, char *bi, bool in_quotas) {
+    char *b = bi;
+    while(*l && *b && *l == *b) {
+        if (*b == ' ' && !in_quotas) break;
+        l++;
+        b++;
+    }
+    if (*l == 0 && !in_quotas) {
+        char* bb = b;
+        while(*bb) {
+            if (*bb == ' ') {
+                return bi;
+            }
+            bb++;
+        }
+    }
+    return *l == 0 ? b : bi;
+}
+
+inline static void type_char(char c) {
+    size_t cmd_pos = strlen(cmd);
+    if (cmd_pos >= 512) {
+        // TODO: blimp
+        return;
+    }
+    putc(c);
+    cmd[cmd_pos++] = c;
+    cmd[cmd_pos] = 0;
+}
+
+inline static void cmd_tab(cmd_ctx_t* ctx) {
+    char * p = cmd;
+    char * p2 = cmd;
+    bool in_quotas = false;
+    while (*p) {
+        char c = *p++;
+        if (c == '"') {
+            p2 = p;
+            in_quotas = true;
+            break;
+        }
+        if (c == ' ') {
+            p2 = p;
+        }
+    }
+    p = p2;
+    char * p3 = p2;
+    while (*p3) {
+        if (*p3++ == '/') {
+            p2 = p3;
+        }
+    }
+    char* b = malloc(512);
+    if (p != p2) {
+        strncpy(b, p, p2 - p);
+        b[p2 - p] = 0;
+    }
+    DIR* pdir = (DIR*)malloc(sizeof(DIR));
+    FILINFO* pfileInfo = malloc(sizeof(FILINFO));
+    //goutf("\nDIR: %s\n", p != p2 ? b : curr_dir);
+    if (FR_OK != f_opendir(pdir, p != p2 ? b : get_ctx_var(ctx, "CD"))) {
+        free(b);
+        return;
+    }
+    int total_files = 0;
+    while (f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
+        p3 = next_on(p2, pfileInfo->fname, in_quotas);
+        if (p3 != pfileInfo->fname) {
+            strcpy(b, p3);
+            total_files++;
+            break; // TODO: variants
+        }
+        //goutf("p3: %s; p2: %s; fn: %s; cmd_t: %s; fls: %d\n", p3, p2, fileInfo.fname, b, total_files);
+    }
+    if (total_files == 1) {
+        p3 = b;
+        while (*p3) {
+            type_char(*p3++);
+        }
+        if (in_quotas) {
+            type_char('"');
+        }
+    } else {
+        // TODO: blimp
+    }
+    free(b);
+    f_closedir(pdir);
+    free(pfileInfo);
+    free(pdir);
+}
+
 inline static void handle_tab_pressed() {
+    if (hidePannels) {
+        cmd_tab(get_cmd_ctx());
+        return;
+    }
     if (psp == left_panel) {
         select_right_panel();
         return;
@@ -1733,7 +1915,7 @@ inline static void save_console(cmd_ctx_t* ctx) {
     }
     char* b = get_buffer();
     UINT wb;
-    for (size_t y = 0; y <= PANEL_LAST_Y; ++y)  {
+    for (size_t y = 1; y <= CMD_Y_POS; ++y)  {
         f_write(pfh, b + MAX_WIDTH * y * 2, MAX_WIDTH * 2, &wb);
     }
     f_close(pfh);
@@ -1822,8 +2004,6 @@ r:
 
 static inline void work_cycle(cmd_ctx_t* ctx) {
     uint8_t repeat_cnt = 0;
-    cmd = malloc(512);
-    cmd[0] = 0;
     for(;;) {
         char c = getch_now();
         if (c) {
@@ -1867,7 +2047,6 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
         }
         if (ctrlPressed && altPressed && delPressed) {
             ctrlPressed = altPressed = delPressed = false;
-            free(cmd);
             reset(0);
             return;
         }
@@ -2024,6 +2203,9 @@ int main(void) {
     LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
     save_console(ctx);
 
+    cmd = malloc(512);
+    cmd[0] = 0;
+
     left_panel = calloc(1, sizeof(file_panel_desc_t));
     right_panel = calloc(1, sizeof(file_panel_desc_t));
     psp = left_panel;
@@ -2069,6 +2251,7 @@ int main(void) {
         if (files_info[i].pname) free(files_info[i].pname); 
     }
     free(files_info);
+    free(cmd);
 
     return 0;
 }

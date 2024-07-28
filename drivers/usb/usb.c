@@ -68,6 +68,7 @@ void pico_usb_drive_heartbeat() {
         tud_cdc_write(buf, 4);
         tud_cdc_write_flush();
         blink_interval_ms = BLINK_NOT_MOUNTED;
+        dcd_disconnect();
         return;
     }
     tud_task(); // tinyusb device task
