@@ -2182,7 +2182,8 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
 
 inline static void start_manager(cmd_ctx_t* ctx) {
     m_window();
-    select_left_panel();
+    fill_panel(left_panel);
+    fill_panel(right_panel);
     update_menu_color();
 //        m_info(0); // F1 TODO: ensure it is not too aggressive
     work_cycle(ctx);
