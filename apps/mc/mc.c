@@ -1895,7 +1895,7 @@ inline static void restore_console(cmd_ctx_t* ctx) {
     }
     char* b = get_buffer();
     UINT rb;
-    for (size_t y = 0; y <= PANEL_LAST_Y; ++y)  {
+    for (size_t y = 0; y < MAX_HEIGHT - 2; ++y)  {
         f_read(pfh, b + MAX_WIDTH * y * 2, MAX_WIDTH * 2, &rb);
     }
     f_close(pfh);
@@ -1915,7 +1915,7 @@ inline static void save_console(cmd_ctx_t* ctx) {
     }
     char* b = get_buffer();
     UINT wb;
-    for (size_t y = 1; y <= CMD_Y_POS; ++y)  {
+    for (size_t y = 0; y < MAX_HEIGHT - 2; ++y)  {
         f_write(pfh, b + MAX_WIDTH * y * 2, MAX_WIDTH * 2, &wb);
     }
     f_close(pfh);
@@ -1927,13 +1927,6 @@ r:
 inline static void hide_pannels() {
     hidePannels = !hidePannels;
     if (hidePannels) {
-/*
-        for (size_t y = 0; y < MAX_HEIGHT - 2; ++y) {
-            for (size_t x = 0; x < MAX_WIDTH; ++x) {
-                draw_text(" ", x, y, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
-            }
-        }
-*/
         restore_console(get_cmd_ctx());
     } else {
         save_console(get_cmd_ctx());
@@ -2169,8 +2162,10 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
         */
         if(mark_to_exit_flag) {
             save_rc();
-            free(cmd);
             restore_console(ctx);
+            draw_cmd_line(0, CMD_Y_POS);
+            putc('\n');
+            free(cmd);
             return;
         }
         // static char tt[] = "cleanable scan-code: %02Xh / saved scan-code: %02Xh";
