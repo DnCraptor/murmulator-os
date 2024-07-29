@@ -71,6 +71,9 @@ static int nespad_state_delay = DPAD_STATE_DELAY;
 static uint8_t nespad_state, nespad_state2;
 static bool mark_to_exit_flag = false;
 
+static size_t line_s = 0;
+static size_t line_e = 0;
+
 inline static void nespad_read() {
     // TODO:
     nespad_state = nespad_state2 = 0;
@@ -173,6 +176,8 @@ int _init(void) {
     nespad_state_delay = DPAD_STATE_DELAY;
     nespad_state = nespad_state2 = 0;
     mark_to_exit_flag = false;
+    line_s = 0;
+    line_e = 0;
     scan_code_cleanup();
 }
 
@@ -498,15 +503,29 @@ static void m_window() {
     }
     char* b = buff;
     int ds = br;
-    for (size_t y = 1; y < height; ++y) {
+    line_e = line_s;
+    size_t line = 0;
+    for (size_t y = 1; y < height && ds > 0; ) {
         char* a = b;
         while (*b != '\r' && *b != '\n' && b - a < width && ds > 0) { ++b; --ds; }
-        char c = *b;
-        *b = 0;
-        draw_text(a, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-        *b = c;
+        if (line >= line_s) { // skip some lines
+            char c = *b;
+            *b = 0;
+            draw_text(a, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+            *b = c;
+            ++y;
+        }
         if (*b == '\r' && ds > 0) { ++b; --ds; }
-        if (*b == '\n' && ds > 0) { ++b; --ds; }
+        if (*b == '\n' && ds > 0) { ++b; --ds; ++line; }
+    }
+    snprintf(buff, btr, "Lines: %d - %d", line_s, line_e);
+    if (BTN_WIDTH * 13 + strlen(buff) + 1 < MAX_WIDTH) {
+        draw_text(" ", BTN_WIDTH * 13, F_BTN_Y_POS, 0, 0);
+        draw_text(
+            buff,
+            BTN_WIDTH * 13 + 1,
+            F_BTN_Y_POS, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR
+        );
     }
 e2:
     free(buff);
@@ -834,23 +853,42 @@ r:
 }
 
 static inline void redraw_current_panel() {
+    m_window();
 }
 
 static void enter_pressed() {
+    if (hidePannels) return;
+    ++line_s;
+    m_window();
 }
 
 inline static void handle_pagedown_pressed() {
+    if (hidePannels) return;
+    line_s += MAX_WIDTH - 4;
+    m_window();
 }
 
 inline static void handle_down_pressed() {
+    if (hidePannels) return;
+    ++line_s;
+    m_window();
 }
 
 inline static void handle_pageup_pressed() {
+    if (hidePannels) return;
+    if (line_s < MAX_WIDTH - 4) {
+        line_s = 0;
+    } else {
+        line_s -= MAX_WIDTH - 4;
+    }
+    m_window();
 }
 
 inline static void handle_up_pressed() {
-    if (hidePannels) {
-        return;
+    if (hidePannels) return;
+    if (line_s >= 1) {
+        --line_s;
+        m_window();
     }
 }
 
@@ -974,7 +1012,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
         }
         switch(lastCleanableScanCode) {
           case 0x01: // Esc down
-          //  mark_to_exit(9);
+            mark_to_exit(9);
           case 0x81: // Esc up
           //  scan_code_processed();
             break;
