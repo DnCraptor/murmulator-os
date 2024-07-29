@@ -496,12 +496,17 @@ static void m_window() {
         vTaskDelay(1500);
         goto e2;
     }
+    char* b = buff;
+    int ds = br;
     for (size_t y = 1; y < height; ++y) {
-        char* b = buff + width * (y - 1);
-        char c = b[width];
-        b[width] = 0;
-        draw_text(b, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-        b[width] = c;
+        char* a = b;
+        while (*b != '\r' && *b != '\n' && b - a < width && ds > 0) { ++b; --ds; }
+        char c = *b;
+        *b = 0;
+        draw_text(a, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+        *b = c;
+        if (*b == '\r' && ds > 0) { ++b; --ds; }
+        if (*b == '\n' && ds > 0) { ++b; --ds; }
     }
 e2:
     free(buff);
