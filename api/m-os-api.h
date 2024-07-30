@@ -739,7 +739,7 @@ class string {
     size_t alloc;
     char* p;
 public:
-    inline string(): sz(1), alloc(16), p(new char[1]) { p[0] = 0; }
+    inline string(): sz(1), alloc(16), p(new char[16]) { p[0] = 0; }
     inline ~string() { delete[] p; }
     inline string(const char* s) {
         sz = strlen(s) + 1;
@@ -835,4 +835,88 @@ public:
         return s;
     }
 };
+#else
+typedef struct string {
+    size_t sz;
+    size_t alloc;
+    char* p;
+} string_t;
+
+inline static string_t* new_string_v(void) {
+    string_t* res = malloc(sizeof(string_t));
+    res->sz = 1,
+    res->alloc = 16;
+    res->p = malloc(16);
+    res->p[0] = 0;
+    return res;
+}
+
+inline static void delete_string(string_t* s) {
+    free(s->p);
+    free(s);
+}
+
+inline static string_t* new_string_cc(const char* s) {
+    string_t* res = malloc(sizeof(string_t));
+    res->sz = strlen(s) + 1;
+    res->alloc = res->sz + 16;
+    res->p = malloc(res->alloc);
+    strncpy(res->p, s, res->sz);
+    return res;
+}
+
+inline static void string_push_back(string_t* s, const char c) {
+    if (s->sz < s->alloc) {
+        s->p[s->sz - 1] = c;
+        s->p[s->sz++] = 0;
+        return;
+    }
+    s->alloc += 16;
+    char* n_p = malloc(s->alloc);
+    strncpy(n_p, s->p, s->sz);
+    free(s->p);
+    s->p = n_p;
+    s->p[s->sz - 1] = c;
+    s->p[s->sz++] = 0;
+}
+
+typedef struct node {
+    struct node* prev;
+    struct node* next;
+    void* data;
+} node_t;
+
+typedef struct list {
+    node_t* first;
+    node_t* last;
+} list_t;
+
+inline static list_t* new_list_v(void) {
+    list_t* res = malloc(sizeof(list_t));
+    res->first = NULL;
+    res->last = NULL;
+    return res;
+}
+
+inline static void list_push_back(list_t* lst, void* s) {
+    node_t* i = malloc(sizeof(node_t));
+    i->prev = lst->last;
+    i->next = NULL;
+    i->data = s;
+    if (lst->first == NULL) lst->first = i;
+    if (lst->last != NULL) lst->last->next = i;
+    lst->last = i;
+}
+
+inline static void delete_list(list_t* lst) {
+    node_t* i = lst->last;
+    while(i) {
+        node_t* prev = i->prev;
+        if (i->data) free(i->data);
+        free(i);
+        i = prev;
+    }
+    free(lst);
+}
+
 #endif

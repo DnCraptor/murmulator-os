@@ -72,7 +72,9 @@ static uint8_t nespad_state, nespad_state2;
 static bool mark_to_exit_flag = false;
 
 static size_t line_s = 0;
-static size_t line_e = 0;
+static size_t line_n, col_n = 0;
+static size_t f_sz;
+static list_t* lst;
 
 inline static void nespad_read() {
     // TODO:
@@ -177,7 +179,8 @@ int _init(void) {
     nespad_state = nespad_state2 = 0;
     mark_to_exit_flag = false;
     line_s = 0;
-    line_e = 0;
+    line_n = 0;
+    col_n = 0;
     scan_code_cleanup();
 }
 
@@ -500,39 +503,26 @@ static void redraw_window() {
     bottom_line();
 }
 
-static bool m_load() {
-    return true;
-}
-
 static void m_window() {
     if (hidePannels) return;
     cmd_ctx_t* ctx = get_cmd_ctx();
     draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH, PANEL_LAST_Y + 1, ctx->argv[1], 0);
-    FIL* f = malloc(sizeof(FIL));
-    if (FR_OK != f_open(f, ctx->argv[1], FA_READ)) {
-        const line_t lns[2] = {
-            { -1, "Unable to open file:" },
-            { -1, ctx->argv[1] }
-        };
-        const lines_t lines = { 2, 3, lns };
-        draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
-        vTaskDelay(1500);
-        goto e1;
-    }
-    size_t width = MAX_WIDTH - 2;
-    size_t height = MAX_HEIGHT - 3;
-    char* buff = malloc(width);
+
     size_t y = 1;
     size_t line = 0;
-    while (f_read_str(f, buff, width) && y <= height) {
+    node_t* i = lst->first;
+    while(i) {
         if (line >= line_s) {
-            draw_text(buff, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-            ++y;
+            draw_text(i->data, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+            y++;
+            if (y > MAX_HEIGHT - 2) continue;
         }
+        i = i->next;
         ++line;
     }
-    line_e = line;
-    snprintf(buff, width, "Lines: %d - %d", line_s, line_e);
+
+    char buff[16];
+    snprintf(buff, 16, "[%d:%d] %dK", line_n, col_n, f_sz >> 10);
     size_t sz = strlen(buff);
     if (BTN_WIDTH * 13 + 1 + sz < MAX_WIDTH) {
         draw_text(" ", BTN_WIDTH * 13, F_BTN_Y_POS, 0, 0);
@@ -545,11 +535,6 @@ static void m_window() {
             draw_text(" ", i, F_BTN_Y_POS, 0, 0);
         }
     }
-e2:
-    free(buff);
-    f_close(f);
-e1:
-    free(f);
 }
 
 inline static void handleJoystickEmulation(uint8_t sc) { // core 1
@@ -1096,14 +1081,15 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
 }
 
 inline static void start_viewer(cmd_ctx_t* ctx) {
-    size_t sz;
+    list_t* lst = new_list_v();
+    f_sz = 0;
     {
         FILINFO* fno = malloc(sizeof(FILINFO));
         if (FR_OK != f_stat(ctx->argv[1], fno) || (fno->fattrib & AM_DIR)) {
             free(fno);
             return false;
         }
-        sz = fno->fsize; // TODO: if more than RAM
+        f_sz = fno->fsize; // TODO: if more than RAM
         free(fno);
     }
     char* buff;
@@ -1113,9 +1099,9 @@ inline static void start_viewer(cmd_ctx_t* ctx) {
             free(f);
             return false;
         }
-        buff = malloc(sz);
+        buff = malloc(f_sz);
         UINT br;
-        if (FR_OK != f_read(f, buff, sz, &br) || br != sz) {
+        if (FR_OK != f_read(f, buff, f_sz, &br) || br != f_sz) {
             free(buff);
             free(f);
             return false;
@@ -1123,11 +1109,25 @@ inline static void start_viewer(cmd_ctx_t* ctx) {
         f_close(f);
         free(f);
     }
+    string_t* s = new_string_v();
+    for (size_t i = 0; i < f_sz; ++i) {
+        char c = buff[i];
+        if (c == '\r') continue;
+        if (c == '\n') {
+            list_push_back(lst, s);
+            s = new_string_v();
+        } else {
+            string_push_back(s, c);
+        }
+    }
+    free(buff);
     m_window();
     bottom_line();
+
     work_cycle(ctx);
 
-    free(buff);
+// TODO: save?
+    delete_list(lst);
 }
 
 int main(void) {
