@@ -1134,6 +1134,7 @@ int main(void) {
     start_viewer(ctx);
 
     set_scancode_handler(scancode_handler);
+    free(pcs);
 
     return 0;
 }

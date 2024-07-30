@@ -500,7 +500,10 @@ inline static void* pvPortCalloc(size_t cnt, size_t sz) {
     typedef char* (*pvPortCalloc_ptr_t)( size_t cnt, size_t sz );
     return ((pvPortCalloc_ptr_t)_sys_table_ptrs[166])(cnt, sz);
 }
-
+inline static size_t xPortGetFreeHeapSize( void ) {
+    typedef size_t (*_ptr_t)(void);
+    return ((_ptr_t)_sys_table_ptrs[145])();
+}
 inline static void free(void * pv) {
     typedef void (*vPortFree_ptr_t)( void * pv );
     ((vPortFree_ptr_t)_sys_table_ptrs[33])(pv);
@@ -836,6 +839,7 @@ public:
     }
 };
 #else
+
 typedef struct string {
     size_t sz;
     size_t alloc;
@@ -912,11 +916,17 @@ inline static void delete_list(list_t* lst) {
     node_t* i = lst->last;
     while(i) {
         node_t* prev = i->prev;
-        if (i->data) free(i->data);
+        if (i->data) { // TODO: list not of strings?
+            delete_string(i->data);
+        }
         free(i);
         i = prev;
     }
     free(lst);
+}
+
+inline static const char* c_str(const string_t* s) {
+    return s->p;
 }
 
 #endif

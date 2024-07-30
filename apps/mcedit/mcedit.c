@@ -513,16 +513,17 @@ static void m_window() {
     node_t* i = lst->first;
     while(i) {
         if (line >= line_s) {
-            draw_text(((string_t*)i->data)->p, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+            draw_text(c_str(i->data), 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
             y++;
-            if (y > MAX_HEIGHT - 2) continue;
+            if (y > MAX_HEIGHT - 2) break;
         }
         i = i->next;
         ++line;
     }
 
     char buff[16];
-    snprintf(buff, 16, "[%d:%d] %dK", line_n, col_n, f_sz >> 10);
+    size_t free_sz = xPortGetFreeHeapSize();
+    snprintf(buff, 16, "[%d:%d] %dK %dK", line_n, col_n, f_sz >> 10, free_sz >> 10);
     size_t sz = strlen(buff);
     if (BTN_WIDTH * 13 + 1 + sz < MAX_WIDTH) {
         draw_text(" ", BTN_WIDTH * 13, F_BTN_Y_POS, 0, 0);
@@ -1121,6 +1122,7 @@ inline static void start_viewer(cmd_ctx_t* ctx) {
         }
     }
     free(buff);
+
     m_window();
     bottom_line();
 
@@ -1167,6 +1169,7 @@ int main(void) {
     start_viewer(ctx);
 
     set_scancode_handler(scancode_handler);
+    free(pcs);
 
     return 0;
 }
