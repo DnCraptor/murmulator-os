@@ -28,7 +28,7 @@ in/arm-none-eabi-gcc" "-DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/arm-none-eabi-g++"
  - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
  - ignore linker (ld) errors<br/>
  - for GUI VSCode build mode do not miss to set build Configuration to use "GCC 10.3.1. arm-none-eabi" and "Release"<br/>
- - lookup for "_&ast.c&ast.obj_" file, rename it and use as executable<br/>
+ - lookup for appropriated "obj" file, rename it and use as executable<br/>
 
 # OS syscalls
 TBA
