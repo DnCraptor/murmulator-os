@@ -16,11 +16,19 @@ RP2040 core 0: starts FreeRTOS (based on https://github.com/FreeRTOS/FreeRTOS-Co
 RP2040 core 1: starts VGA driver (based on ZX Murmulator comunity version last used before it in https://github.com/xrip/pico-launcher)
 
 # MOS build hints:
- - update TinyUSB in your SDK to version: cfbdc44a8d099240ad5ef208bd639487c2f28153    branch 'master' of https://github.com/hathach/tinyusb<br/>
- - update exit_from_boot2.S in SDK ("C:\Program Files\Raspberry Pi\Pico SDK v1.5.1\pico-sdk\src\rp2_common\boot_stage2\asminclude\boot2_helpers\exit_from_boot2.S")<br/>
+ - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
+ - update TinyUSB in your SDK ("C:\Program Files\Raspberry Pi\Pico SDK v1.5.1\pico-sdk\lib\tinyusb") to version: cfbdc44a8d099240ad5ef208bd639487c2f28153    branch 'master' of https://github.com/hathach/tinyusb<br/>
+ - update exit_from_boot2.S (patch/exit_from_boot2.S there) in SDK ("C:\Program Files\Raspberry Pi\Pico SDK v1.5.1\pico-sdk\src\rp2_common\boot_stage2\asminclude\boot2_helpers\exit_from_boot2.S")<br/>
  - cmake command (for CLI-build Win10/11): "C:\Program Files\Raspberry Pi\Pico SDK v1.5.1\cmake\bin\cmake.EXE" -DCMAKE_BUILD_TYPE:STRING=MinSizeRel -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE "-DCMAKE_C_COMPILER:FILEPATH=C:\Program Files\Raspberry Pi\Pico SDK v1.5.1\gcc-arm-none-eabi\bin\arm-none-eabi-gcc.exe" "-DCMAKE_CXX_COMPILER:FILEPATH=C:\Program Files\Raspberry Pi\Pico SDK v1.5.1\gcc-arm-none-eabi\bin\arm-none-eabi-g++.exe" --no-warn-unused-cli -SC:/Pico/murmulator/Cross/murmulator-os -Bc:/Pico/murmulator/Cross/murmulator-os/build -G Ninja<br/>
  - Linux: cmake -DCMAKE_BUILD_TYPE:STRING=MinSizeRel -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE "-DCMAKE_C_COMPILER:FILEPATH=/usr/b
 in/arm-none-eabi-gcc" "-DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/arm-none-eabi-g++" --no-warn-unused-cli ..<br/>
+ - for GUI VSCode build mode do not miss to set build Configuration to use "GCC 10.3.1. arm-none-eabi" and "MinSizeRel"<br/>
+
+# MOS applications build hints:
+ - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
+ - ignore linker (ld) errors<br/>
+ - for GUI VSCode build mode do not miss to set build Configuration to use "GCC 10.3.1. arm-none-eabi" and "Release"<br/>
+ - lookup for *.c*.obj file, rename it and use as executable<br/>
 
 # OS syscalls
 TBA
