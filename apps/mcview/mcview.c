@@ -181,6 +181,35 @@ int _init(void) {
     scan_code_cleanup();
 }
 
+static bool f_read_str(FIL* f, char* buf, size_t lim) { // TODO: API
+    UINT br;
+    if (f_read(f, buf, lim, &br) != FR_OK || br == 0) {
+        return false;
+    }
+    if (buf[0] == '\r') {
+        for (size_t i = 1; i < br; ++i) {
+            buf[i - 1] = buf[i];
+            if(buf[i] == '\n') {
+               if (i != 1 && buf[i - 2] == '\r') buf[i - 2] = 0;
+                buf[i - 1] = 0;
+                f_lseek(f, f_tell(f) + i - br);
+                return true;
+            }
+        }
+    }
+    for (size_t i = 0; i < br; ++i) {
+        if(buf[i] == '\n') {
+            if (i != 0 && buf[i - 1] == '\r') buf[i - 1] = 0;
+            buf[i] = 0;
+            f_lseek(f, f_tell(f) + i + 1 - br);
+            return true;
+        }
+    }
+    buf[br - 1] = 0;
+    f_lseek(f, f_tell(f) - 1);
+    return true;
+}
+
 static void draw_label(int left, int top, int width, char* txt, bool selected, bool highlighted) {
     char line[MAX_WIDTH + 2];
     bool fin = false;
@@ -488,44 +517,29 @@ static void m_window() {
     }
     size_t width = MAX_WIDTH - 2;
     size_t height = MAX_HEIGHT - 3;
-    size_t btr = height * width;
-    char* buff = calloc(btr, 1);
-    UINT br;
-    if (FR_OK != f_read(f, buff, btr, &br)) {
-        const line_t lns[2] = {
-            { -1, "Unable to read file:" },
-            { -1, ctx->argv[1] }
-        };
-        const lines_t lines = { 2, 3, lns };
-        draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
-        vTaskDelay(1500);
-        goto e2;
-    }
-    char* b = buff;
-    int ds = br;
-    line_e = line_s;
+    char* buff = malloc(width);
+    size_t y = 1;
     size_t line = 0;
-    for (size_t y = 1; y < height && ds > 0; ) {
-        char* a = b;
-        while (*b != '\r' && *b != '\n' && b - a < width && ds > 0) { ++b; --ds; }
-        if (line >= line_s) { // skip some lines
-            char c = *b;
-            *b = 0;
-            draw_text(a, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-            *b = c;
+    while (f_read_str(f, buff, width) && y <= height) {
+        if (line >= line_s) {
+            draw_text(buff, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
             ++y;
         }
-        if (*b == '\r' && ds > 0) { ++b; --ds; }
-        if (*b == '\n' && ds > 0) { ++b; --ds; ++line; }
+        ++line;
     }
-    snprintf(buff, btr, "Lines: %d - %d", line_s, line_e);
-    if (BTN_WIDTH * 13 + strlen(buff) + 1 < MAX_WIDTH) {
+    line_e = line;
+    snprintf(buff, width, "Lines: %d - %d", line_s, line_e);
+    size_t sz = strlen(buff);
+    if (BTN_WIDTH * 13 + 1 + sz < MAX_WIDTH) {
         draw_text(" ", BTN_WIDTH * 13, F_BTN_Y_POS, 0, 0);
         draw_text(
             buff,
             BTN_WIDTH * 13 + 1,
             F_BTN_Y_POS, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR
         );
+        for (size_t i = BTN_WIDTH * 13 + 1 + sz; i < MAX_WIDTH; ++i) {
+            draw_text(" ", i, F_BTN_Y_POS, 0, 0);
+        }
     }
 e2:
     free(buff);
@@ -876,7 +890,7 @@ inline static void handle_down_pressed() {
 
 inline static void handle_pageup_pressed() {
     if (hidePannels) return;
-    if (line_s < MAX_WIDTH - 4) {
+    if (line_s <= MAX_WIDTH - 4) {
         line_s = 0;
     } else {
         line_s -= MAX_WIDTH - 4;
@@ -1056,22 +1070,16 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             scan_code_processed();
             break;
           case 0x49: // pageup arr down
+            handle_pageup_pressed();
             scan_code_processed();
             break;
           case 0xC9: // pageup arr up
-            if (lastSavedScanCode != 0x49) {
-                break;
-            }
-            handle_pageup_pressed();
             break;
           case 0x51: // pagedown arr down
+            handle_pagedown_pressed();
             scan_code_processed();
             break;
           case 0xD1: // pagedown arr up
-            if (lastSavedScanCode != 0x51) {
-                break;
-            }
-            handle_pagedown_pressed();
             break;
           default:
             break;
