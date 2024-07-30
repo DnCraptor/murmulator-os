@@ -513,7 +513,7 @@ static void m_window() {
     node_t* i = lst->first;
     while(i) {
         if (line >= line_s) {
-            draw_text(i->data, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+            draw_text(((string_t*)i->data)->p, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
             y++;
             if (y > MAX_HEIGHT - 2) continue;
         }
@@ -1081,7 +1081,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
 }
 
 inline static void start_viewer(cmd_ctx_t* ctx) {
-    list_t* lst = new_list_v();
+    lst = new_list_v();
     f_sz = 0;
     {
         FILINFO* fno = malloc(sizeof(FILINFO));
@@ -1136,7 +1136,7 @@ int main(void) {
         fprintf(ctx->std_err, "ATTTENTION! BROKEN EXECUTION CONTEXT [%p]!\n", ctx);
         return -1;
     }
-    if (ctx->argc > 2) {
+    if (ctx->argc != 2) {
         fprintf(ctx->std_err, "Unexpected number of arguemts: %d\n", ctx->argc);
         return 1;
     }
