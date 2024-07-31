@@ -875,19 +875,49 @@ inline static string_t* new_string_cc(const char* s) {
     return res;
 }
 
-inline static void string_push_back(string_t* s, const char c) {
-    if (s->sz < s->alloc) {
-        s->p[s->sz - 1] = c;
-        s->p[s->sz++] = 0;
-        return;
-    }
-    s->alloc += 16;
-    char* n_p = malloc(s->alloc);
+inline static void string_reseve(string_t* s, size_t alloc) {
+    if (alloc <= s->alloc) return;
+    char* n_p = malloc(alloc);
     strncpy(n_p, s->p, s->sz);
     free(s->p);
     s->p = n_p;
+    s->alloc = alloc;
+}
+
+inline static void string_push_back(string_t* s, const char c) {
+    if (s->sz + 1 == s->alloc) {
+        string_reseve(s, s->alloc + 16);
+    }
     s->p[s->sz - 1] = c;
     s->p[s->sz++] = 0;
+}
+
+inline void string_clip(string_t* s, size_t idx) {
+    for (size_t i = idx; i <= s->sz; ++i) {
+        s->p[i] = s->p[i + 1];
+    }
+}
+
+inline void string_insert(string_t* s, char c, size_t idx) {
+    if (idx >= s->sz) {
+        while(idx > s->sz) {
+            string_push_back(s, ' ');
+        }
+        string_push_back(s, c);
+        return;
+    }
+    if (s->sz + 1 == s->alloc) {
+        string_reseve(s, s->alloc + 16);
+    }
+    for (size_t i = s->sz; i > idx; --i) {
+        s->p[i] = s->p[i - 1];
+    }
+    s->p[idx] = c;
+    ++s->sz;
+}
+
+inline static const char* c_str(const string_t* s) {
+    return s->p;
 }
 
 typedef struct node {
@@ -897,14 +927,17 @@ typedef struct node {
 } node_t;
 
 typedef void (*dealloc_fn_ptr_t)(void*);
+typedef void* (*alloc_fn_ptr_t)(void);
 typedef struct list {
+    alloc_fn_ptr_t allocator;
     dealloc_fn_ptr_t deallocator;
     node_t* first;
     node_t* last;
 } list_t;
 
-inline static list_t* new_list_v(dealloc_fn_ptr_t deallocator) {
+inline static list_t* new_list_v(alloc_fn_ptr_t allocator, dealloc_fn_ptr_t deallocator) {
     list_t* res = malloc(sizeof(list_t));
+    res->allocator = allocator ? allocator : malloc;
     res->deallocator = deallocator ? deallocator : free;
     res->first = NULL;
     res->last = NULL;
@@ -934,8 +967,32 @@ inline static void delete_list(list_t* lst) {
     free(lst);
 }
 
-inline static const char* c_str(const string_t* s) {
-    return s->p;
+inline static void* list_inject_till(list_t* lst, size_t idx) {
+    node_t* i = lst->first;
+    size_t n = 0;
+    while (i) {
+        if (!i->next) {
+            list_push_back(lst, lst->allocator());
+        }
+        if (n == idx) {
+            return i->data;
+        }
+        i = i->next;
+        ++n;
+    }
+}
+
+inline static void* list_get_data_at(list_t* lst, size_t idx) {
+    node_t* i = lst->first;
+    size_t n = 0;
+    while (i) {
+        if (n == idx) {
+            return i->data;
+        }
+        i = i->next;
+        ++n;
+    }
+    return NULL;
 }
 
 #endif

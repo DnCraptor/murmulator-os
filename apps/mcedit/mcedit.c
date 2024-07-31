@@ -869,15 +869,15 @@ static void enter_pressed() {
 
 inline static void handle_pagedown_pressed() {
     if (hidePannels) return;
-    line_s += MAX_WIDTH - 4;
-    line_n += MAX_WIDTH - 4;
+    line_s += MAX_HEIGHT - 4;
+    line_n += MAX_HEIGHT - 4;
     m_window();
 }
 
 inline static void handle_down_pressed() {
     if (hidePannels) return;
     ++line_n;
-    if (line_n > line_s + MAX_WIDTH - 3) {
+    if (line_n > line_s + MAX_HEIGHT - 5) {
         ++line_s;
     }
     m_window();
@@ -885,25 +885,28 @@ inline static void handle_down_pressed() {
 
 inline static void handle_pageup_pressed() {
     if (hidePannels) return;
-    if (line_s <= MAX_WIDTH - 4) {
+    if (line_s <= MAX_HEIGHT - 4) {
         line_s = 0;
         line_n = 0;
     } else {
-        line_s -= MAX_WIDTH - 4;
-        line_n -= MAX_WIDTH - 4;
+        line_s -= MAX_HEIGHT - 4;
+        line_n -= MAX_HEIGHT - 4;
     }
     m_window();
 }
 
 inline static void handle_up_pressed() {
     if (hidePannels) return;
-    if (line_n >= 1) {
-        --line_n;
-        m_window();
-    } else if (line_s >= 1) {
-        --line_s;
-        m_window();
+    if (line_n == line_s) {
+        if (line_n >= 1) {
+            --line_s;
+            --line_n;
+            m_window();
+        }
+        return;
     }
+    --line_n;
+    m_window();
 }
 
 inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
@@ -911,16 +914,61 @@ inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
     (*actual_fn_1_12_tbl())[fn_idx].action(fn_idx);
 }
 
+inline static void push_char(char c) {
+    string_t* s = list_get_data_at(lst, line_n);
+    if (!s) {
+        s = list_inject_till(lst, line_n);
+    }
+    string_insert(s, c, col_n);
+    ++col_n;
+    m_window();
+}
+
 inline static void cmd_backspace() {
+    string_t* s = list_get_data_at(lst, line_n);
+    if (!s) {
+        s = list_inject_till(lst, line_n);
+    }
+    if (s->sz && col_n > 0) {
+        --col_n;
+        string_clip(s, col_n);
+    }
+    m_window();
 }
 
-inline static void cmd_tab(cmd_ctx_t* ctx) {
-}
-
-inline static void handle_tab_pressed() {
+inline static void handle_right_pressed(void) {
     if (hidePannels) {
         return;
     }
+    ++col_n;
+    m_window();
+}
+
+inline static void handle_left_pressed(void) {
+    if (hidePannels || !col_n) {
+        return;
+    }
+    --col_n;
+    m_window();
+}
+
+inline static void handle_tab_pressed(void) {
+    if (hidePannels) {
+        return;
+    }
+    string_t* s = list_get_data_at(lst, line_n);
+    if (!s) {
+        s = list_inject_till(lst, line_n);
+    }
+    string_insert(s, ' ', col_n);
+    ++col_n;
+    string_insert(s, ' ', col_n);
+    ++col_n;
+    string_insert(s, ' ', col_n);
+    ++col_n;
+    string_insert(s, ' ', col_n);
+    ++col_n;
+    m_window();
 }
 
 inline static void restore_console(cmd_ctx_t* ctx) {
@@ -984,7 +1032,15 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             else if (c == '\t') handle_tab_pressed();
             else if (c == '\n') enter_pressed();
             else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
-//            else push_char(c);
+            else push_char(c);
+        }
+        if (rightPressed) {
+            rightPressed = false;
+            handle_right_pressed();
+        }
+        if (leftPressed) {
+            leftPressed = false;
+            handle_left_pressed();
         }
 
         if (is_dendy_joystick || is_kbd_joystick) {
@@ -1092,7 +1148,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
 }
 
 inline static void start_editor(cmd_ctx_t* ctx) {
-    lst = new_list_v(delete_string); // list of string_t*
+    lst = new_list_v(new_string_v, delete_string); // list of string_t*
     f_sz = 0;
     {
         FILINFO* fno = malloc(sizeof(FILINFO));
@@ -1189,7 +1245,7 @@ int main(void) {
     scancode_handler = get_scancode_handler();
     set_scancode_handler(scancode_handler_impl);
 
-    set_cursor_color(0); // TODO: blinking
+    set_cursor_color(15); // TODO: blinking
     start_editor(ctx);
     set_cursor_color(7); // TODO: rc/config?
 
