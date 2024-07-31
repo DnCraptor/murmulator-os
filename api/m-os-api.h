@@ -601,6 +601,7 @@ typedef struct graphics_driver {
     vb_fn lock_buffer;
     iv_fn get_mode;
     bi_fn is_mode_text;
+    vu8_fn set_cursor_color;
 } graphics_driver_t;
 inline static void install_graphics_driver(graphics_driver_t* gd) {
     typedef void (*fn_ptr_t)(graphics_driver_t* gd);
@@ -713,6 +714,11 @@ inline static char getch_now(void) {
 inline static void usb_driver(bool on) {
     typedef void (*fn_ptr_t)(bool);
     ((fn_ptr_t)_sys_table_ptrs[185])(on);
+}
+
+inline static void set_cursor_color(uint8_t c) {
+    typedef void (*fn_ptr_t)(uint8_t);
+    ((fn_ptr_t)_sys_table_ptrs[186])(c);
 }
 
 #ifdef __cplusplus
@@ -890,13 +896,16 @@ typedef struct node {
     void* data;
 } node_t;
 
+typedef void (*dealloc_fn_ptr_t)(void*);
 typedef struct list {
+    dealloc_fn_ptr_t deallocator;
     node_t* first;
     node_t* last;
 } list_t;
 
-inline static list_t* new_list_v(void) {
+inline static list_t* new_list_v(dealloc_fn_ptr_t deallocator) {
     list_t* res = malloc(sizeof(list_t));
+    res->deallocator = deallocator ? deallocator : free;
     res->first = NULL;
     res->last = NULL;
     return res;
@@ -916,8 +925,8 @@ inline static void delete_list(list_t* lst) {
     node_t* i = lst->last;
     while(i) {
         node_t* prev = i->prev;
-        if (i->data) { // TODO: list not of strings?
-            delete_string(i->data);
+        if (i->data) {
+            lst->deallocator(i->data);
         }
         free(i);
         i = prev;

@@ -64,8 +64,9 @@ static volatile int pos_x;
 static volatile int pos_y;
 static volatile bool cursor_blink_state;
 
-static uint8_t con_color;
-static uint8_t con_bgcolor;
+static volatile uint8_t con_color;
+static volatile uint8_t con_bgcolor;
+static volatile uint8_t _cursor_color;
 static volatile bool lock_buffer;
 static volatile int graphics_mode;
 
@@ -97,9 +98,14 @@ int _init(void) {
     cursor_blink_state = true;
     con_color = 7;
     con_bgcolor = 0;
+    _cursor_color = 7;
     lock_buffer = false;
     graphics_mode = -1;
     return 0;
+}
+
+void vga_set_cursor_color(uint8_t color) {
+    _cursor_color = color;
 }
 
 static uint8_t* dma_handler_VGA_impl() {
@@ -137,6 +143,7 @@ static uint8_t* dma_handler_VGA_impl() {
 
     uint32_t* * output_buffer = &lines_pattern[2 + (screen_line & 1)];
     uint32_t div_factor = 2;
+    int cursor_color = _cursor_color;
     switch (graphics_mode) {
         case BK_256x256x2:
         case BK_512x256x1:
@@ -163,7 +170,7 @@ static uint8_t* dma_handler_VGA_impl() {
                 uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
                 if (cursor_blink_state && (screen_line >> 4) == pos_y && x == pos_x && glyph_line >= 13) { // TODO: cur height
                     color = &txt_palette_fast[0];
-                    uint16_t c = color[7]; // TODO: setup cursor color
+                    uint16_t c = color[cursor_color];
                     *output_buffer_16bit++ = c;
                     *output_buffer_16bit++ = c;
                     *output_buffer_16bit++ = c;
@@ -191,7 +198,7 @@ static uint8_t* dma_handler_VGA_impl() {
             register int xc = pos_x;
             if (cursor_blink_state && (screen_line >> 4) == pos_y && glyph_line >= 13) {
                 register uint16_t* color = &txt_palette_fast[0];
-                uint16_t c = color[7]; // TODO: setup cursor color
+                uint16_t c = color[cursor_color];
                 for (register uint32_t x = 0; x < text_buffer_width; x++) {
                     // из таблицы символов получаем "срез" текущего символа
                     uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
@@ -820,6 +827,7 @@ int main(void) {
     gd->lock_buffer = vga_lock_buffer;
     gd->get_mode = vga_get_mode;
     gd->is_mode_text = vga_is_text_mode;
+    gd->set_cursor_color = vga_set_cursor_color;
     install_graphics_driver(gd);
     vga_set_mode(0);
     for(;;) {

@@ -42,7 +42,8 @@ static graphics_driver_t internal_driver = {
     vga_backspace,
     vga_lock_buffer,
     vga_get_mode,
-    vga_is_mode_text
+    vga_is_mode_text,
+    vga_set_cursor_color
 };
 
 static volatile graphics_driver_t* graphics_driver = &internal_driver;
@@ -55,6 +56,12 @@ void graphics_init() {
     }
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
     vga_init(); // TODO: HDMI, etc...
+}
+
+void set_cursor_color(uint8_t color) {
+    if(graphics_driver && graphics_driver->set_cursor_color) {
+        return graphics_driver->set_cursor_color(color);
+    }
 }
 
 bool is_buffer_text(void) { // TODO: separate calls by supported or not

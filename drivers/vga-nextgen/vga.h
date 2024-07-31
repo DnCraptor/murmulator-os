@@ -41,3 +41,4 @@ bool vga_set_mode(int mode);
 void vga_lock_buffer(bool);
 bool vga_is_text_mode();
 bool vga_is_mode_text(int mode);
+void vga_set_cursor_color(uint8_t color);

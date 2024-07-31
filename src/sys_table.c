@@ -253,6 +253,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     getch_now, // 184
     //
     usb_driver, // 185
+    set_cursor_color, // 186
     // TODO:
     0
 };

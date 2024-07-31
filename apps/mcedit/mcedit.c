@@ -515,7 +515,7 @@ static void m_window() {
         if (line >= line_s) {
             draw_text(c_str(i->data), 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
             y++;
-            if (y > MAX_HEIGHT - 2) break;
+            if (y > MAX_HEIGHT - 3) break;
         }
         i = i->next;
         ++line;
@@ -870,12 +870,16 @@ static void enter_pressed() {
 inline static void handle_pagedown_pressed() {
     if (hidePannels) return;
     line_s += MAX_WIDTH - 4;
+    line_n += MAX_WIDTH - 4;
     m_window();
 }
 
 inline static void handle_down_pressed() {
     if (hidePannels) return;
-    ++line_s;
+    ++line_n;
+    if (line_n > line_s + MAX_WIDTH - 3) {
+        ++line_s;
+    }
     m_window();
 }
 
@@ -883,15 +887,20 @@ inline static void handle_pageup_pressed() {
     if (hidePannels) return;
     if (line_s <= MAX_WIDTH - 4) {
         line_s = 0;
+        line_n = 0;
     } else {
         line_s -= MAX_WIDTH - 4;
+        line_n -= MAX_WIDTH - 4;
     }
     m_window();
 }
 
 inline static void handle_up_pressed() {
     if (hidePannels) return;
-    if (line_s >= 1) {
+    if (line_n >= 1) {
+        --line_n;
+        m_window();
+    } else if (line_s >= 1) {
         --line_s;
         m_window();
     }
@@ -1083,7 +1092,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
 }
 
 inline static void start_editor(cmd_ctx_t* ctx) {
-    lst = new_list_v();
+    lst = new_list_v(delete_string); // list of string_t*
     f_sz = 0;
     {
         FILINFO* fno = malloc(sizeof(FILINFO));
@@ -1114,7 +1123,7 @@ inline static void start_editor(cmd_ctx_t* ctx) {
             free(f);
             return false;
         }
-        buff = malloc(f_sz);
+        buff = malloc(f_sz); // TODO: dynamic
         UINT br;
         if (FR_OK != f_read(f, buff, f_sz, &br) || br != f_sz) {
             free(buff);
@@ -1180,9 +1189,9 @@ int main(void) {
     scancode_handler = get_scancode_handler();
     set_scancode_handler(scancode_handler_impl);
 
-    graphics_set_con_color(0, 1); // TODO: blinking
+    set_cursor_color(0); // TODO: blinking
     start_editor(ctx);
-    graphics_set_con_color(7, 0); // TODO: rc/config?
+    set_cursor_color(7); // TODO: rc/config?
 
     set_scancode_handler(scancode_handler);
     free(pcs);

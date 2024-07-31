@@ -56,8 +56,9 @@ static volatile int __scratch_y("vga_driver_text") pos_x = 0;
 static volatile int __scratch_y("vga_driver_text") pos_y = 0;
 static volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 
-static uint8_t __scratch_y("vga_driver_text") con_color = 7;
-static uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
+static volatile uint8_t __scratch_y("vga_driver_text") con_color = 7;
+static volatile uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
+static volatile uint8_t __scratch_y("vga_driver_text") _cursor_color = 7;
 static volatile bool lock_buffer = false;
 static volatile int graphics_mode = -1;
 
@@ -84,6 +85,9 @@ void vga_lock_buffer(bool b) {
 void vga_set_con_color(uint8_t color, uint8_t bgcolor) {
     con_color = color;
     con_bgcolor = bgcolor;
+}
+void vga_set_cursor_color(uint8_t color) {
+    _cursor_color = color;
 }
 uint32_t get_vga_console_width() {
     return text_buffer_width;
@@ -190,6 +194,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
 
     uint32_t* * output_buffer = &lines_pattern[2 + (screen_line & 1)];
     uint div_factor = 2;
+    int cursor_color = _cursor_color;
     switch (graphics_mode) {
         case BK_256x256x2:
         case BK_512x256x1:
@@ -216,7 +221,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
                 uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
                 if (cursor_blink_state && (screen_line >> 4) == pos_y && x == pos_x && glyph_line >= 13) { // TODO: cur height
                     color = &txt_palette_fast[0];
-                    uint16_t c = color[7]; // TODO: setup cursor color
+                    uint16_t c = color[cursor_color];
                     *output_buffer_16bit++ = c;
                     *output_buffer_16bit++ = c;
                     *output_buffer_16bit++ = c;
@@ -244,7 +249,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             register int xc = pos_x;
             if (cursor_blink_state && (screen_line >> 4) == pos_y && glyph_line >= 13) {
                 register uint16_t* color = &txt_palette_fast[0];
-                uint16_t c = color[7]; // TODO: setup cursor color
+                uint16_t c = color[cursor_color];
                 for (register uint32_t x = 0; x < text_buffer_width; x++) {
                     // из таблицы символов получаем "срез" текущего символа
                     uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
