@@ -536,6 +536,7 @@ static void m_window() {
             draw_text(" ", i, F_BTN_Y_POS, 0, 0);
         }
     }
+    graphics_set_con_pos(col_n + 1, line_n - line_s + 1);
 }
 
 inline static void handleJoystickEmulation(uint8_t sc) { // core 1
@@ -1081,7 +1082,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
     }
 }
 
-inline static void start_viewer(cmd_ctx_t* ctx) {
+inline static void start_editor(cmd_ctx_t* ctx) {
     lst = new_list_v();
     f_sz = 0;
     {
@@ -1090,8 +1091,21 @@ inline static void start_viewer(cmd_ctx_t* ctx) {
             free(fno);
             return false;
         }
-        f_sz = fno->fsize; // TODO: if more than RAM
+        f_sz = fno->fsize;
         free(fno);
+    }
+    size_t free_sz = xPortGetFreeHeapSize();
+    if (f_sz * 2 > free_sz) { // TODO: virtual RAM
+        char line[32];
+        snprintf(line, 16, "File size: %d", f_sz);
+        const line_t lns[2] = {
+            { -1, "Not enough SRAM for this operation" },
+            { -1, line }
+        };
+        const lines_t lines = { 2, 3, lns };
+        draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+        vTaskDelay(1500);
+        return false;
     }
     char* buff;
     {
@@ -1166,7 +1180,9 @@ int main(void) {
     scancode_handler = get_scancode_handler();
     set_scancode_handler(scancode_handler_impl);
 
-    start_viewer(ctx);
+    graphics_set_con_color(0, 1); // TODO: blinking
+    start_editor(ctx);
+    graphics_set_con_color(7, 0); // TODO: rc/config?
 
     set_scancode_handler(scancode_handler);
     free(pcs);
