@@ -869,14 +869,14 @@ inline static void delete_string(string_t* s) {
 inline static string_t* new_string_cc(const char* s) {
     string_t* res = malloc(sizeof(string_t));
     res->sz = strlen(s) + 1;
-    res->alloc = res->sz + 16;
+    res->alloc = res->sz;
     res->p = malloc(res->alloc);
     strncpy(res->p, s, res->sz);
     return res;
 }
 
 inline static void string_reseve(string_t* s, size_t alloc) {
-    if (alloc <= s->alloc) return;
+    if (s->alloc >= alloc) return; // already more or eq. than requested
     char* n_p = malloc(alloc);
     strncpy(n_p, s->p, s->sz);
     free(s->p);
@@ -886,21 +886,22 @@ inline static void string_reseve(string_t* s, size_t alloc) {
 
 inline static void string_push_back(string_t* s, const char c) {
     if (s->sz == s->alloc) {
-        string_reseve(s, s->alloc + 16);
+        string_reseve(s, s->alloc << 1);
     }
     s->p[s->sz - 1] = c;
     s->p[s->sz++] = 0;
 }
 
 inline void string_clip(string_t* s, size_t idx) {
-    for (size_t i = idx; i < s->sz; ++i) {
-        s->p[i] = s->p[i + 1];
-    }
-    if (idx) --s->sz;
+   // for (size_t i = idx; i < s->sz; ++i) {
+   //     s->p[i] = s->p[i + 1];
+   // }
+   //  --s->sz;
 }
 
 inline void string_insert_c(string_t* s, char c, size_t idx) {
-    string_reseve(s, ((idx + 1) & 0xF) + 16);
+/*    string_reseve(s, idx + 1);
+
     if (idx + 1 >= s->sz) {
         while(idx >= s->sz) {
             string_push_back(s, ' ');
@@ -908,18 +909,23 @@ inline void string_insert_c(string_t* s, char c, size_t idx) {
         string_push_back(s, c);
         return;
     }
-    for (size_t i = s->sz - 1; i > idx; --i) {
-        s->p[i] = s->p[i - 1];
+    if (s->sz) {
+        for (size_t i = s->sz - 1; i > idx; --i) {
+            s->p[i] = s->p[i - 1];
+        }
     }
+    */
     s->p[idx] = c;
     ++s->sz;
 }
 
 inline string_t* string_split_at(string_t* s, size_t idx) {
-    string_reseve(s, ((idx + 1) & 0xF) + 16);
-    string_t* res = new_string_cc(s->p[idx]); // TODO: out of?
+    if (idx + 1 >= s->sz) {
+        return new_string_v();
+    }
+    string_t* res = new_string_cc(s->p + idx);
     s->p[idx] = 0;
-    s->sz = strlen(s->p) + 1;
+    s->sz = idx + 1;
     return res;
 }
 

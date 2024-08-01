@@ -521,21 +521,16 @@ static void m_window() {
         ++line;
     }
 
-    char buff[16];
+    char buff[32];
     size_t free_sz = xPortGetFreeHeapSize();
-    snprintf(buff, 16, "[%d:%d] %dK %dK", line_n, col_n, f_sz >> 10, free_sz >> 10);
-    size_t sz = strlen(buff);
-    if (BTN_WIDTH * 13 + 1 + sz < MAX_WIDTH) {
-        draw_text(" ", BTN_WIDTH * 13, F_BTN_Y_POS, 0, 0);
-        draw_text(
-            buff,
-            BTN_WIDTH * 13 + 1,
-            F_BTN_Y_POS, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR
-        );
-        for (size_t i = BTN_WIDTH * 13 + 1 + sz; i < MAX_WIDTH; ++i) {
-            draw_text(" ", i, F_BTN_Y_POS, 0, 0);
-        }
-    }
+    snprintf(buff, 32, " [%d:%d] sz: %dK free: %dK ", line_n, col_n, f_sz >> 10, free_sz >> 10);
+    draw_text(
+        buff,
+        2,
+        PANEL_LAST_Y,
+        pcs->FOREGROUND_FIELD_COLOR,
+        pcs->BACKGROUND_FIELD_COLOR
+    );
     graphics_set_con_pos(col_n + 1, line_n - line_s + 1);
 }
 
@@ -922,7 +917,7 @@ inline static void push_char(char c) {
     if (!s) {
         s = list_inject_till(lst, line_n);
     }
-    string_insert_c(s, c, col_n);
+//    string_insert_c(s, c, col_n);
     ++col_n;
     m_window();
 }
@@ -934,7 +929,7 @@ inline static void cmd_backspace() {
     }
     if (s->sz && col_n > 0) {
         --col_n;
-        string_clip(s, col_n);
+//        string_clip(s, col_n);
     }
     m_window();
 }
