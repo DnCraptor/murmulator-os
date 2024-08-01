@@ -847,8 +847,8 @@ public:
 #else
 
 typedef struct string {
-    size_t sz;
-    size_t alloc;
+    size_t sz; // size including end-0
+    size_t alloc; // really allocated bytes
     char* p;
 } string_t;
 
@@ -885,7 +885,7 @@ inline static void string_reseve(string_t* s, size_t alloc) {
 }
 
 inline static void string_push_back(string_t* s, const char c) {
-    if (s->sz + 1 == s->alloc) {
+    if (s->sz == s->alloc) {
         string_reseve(s, s->alloc + 16);
     }
     s->p[s->sz - 1] = c;
@@ -893,27 +893,34 @@ inline static void string_push_back(string_t* s, const char c) {
 }
 
 inline void string_clip(string_t* s, size_t idx) {
-    for (size_t i = idx; i <= s->sz; ++i) {
+    for (size_t i = idx; i < s->sz; ++i) {
         s->p[i] = s->p[i + 1];
     }
+    if (idx) --s->sz;
 }
 
-inline void string_insert(string_t* s, char c, size_t idx) {
-    if (idx >= s->sz) {
-        while(idx > s->sz) {
+inline void string_insert_c(string_t* s, char c, size_t idx) {
+    string_reseve(s, ((idx + 1) & 0xF) + 16);
+    if (idx + 1 >= s->sz) {
+        while(idx >= s->sz) {
             string_push_back(s, ' ');
         }
         string_push_back(s, c);
         return;
     }
-    if (s->sz + 1 == s->alloc) {
-        string_reseve(s, s->alloc + 16);
-    }
-    for (size_t i = s->sz; i > idx; --i) {
+    for (size_t i = s->sz - 1; i > idx; --i) {
         s->p[i] = s->p[i - 1];
     }
     s->p[idx] = c;
     ++s->sz;
+}
+
+inline string_t* string_split_at(string_t* s, size_t idx) {
+    string_reseve(s, ((idx + 1) & 0xF) + 16);
+    string_t* res = new_string_cc(s->p[idx]); // TODO: out of?
+    s->p[idx] = 0;
+    s->sz = strlen(s->p) + 1;
+    return res;
 }
 
 inline static const char* c_str(const string_t* s) {
@@ -982,17 +989,35 @@ inline static void* list_inject_till(list_t* lst, size_t idx) {
     }
 }
 
-inline static void* list_get_data_at(list_t* lst, size_t idx) {
+inline static node_t* list_get_node_at(list_t* lst, size_t idx) {
     node_t* i = lst->first;
     size_t n = 0;
     while (i) {
         if (n == idx) {
-            return i->data;
+            return i;
         }
         i = i->next;
         ++n;
     }
     return NULL;
+}
+
+inline static void* list_get_data_at(list_t* lst, size_t idx) {
+    node_t* i = list_get_data_at(lst, idx);
+    return i ? i->data : NULL;
+}
+
+inline static void list_inset_node_after(list_t* lst, node_t* n, node_t* i) {
+    i->prev = n;
+    i->next = n->next;
+    n->next = i;
+    if (n == lst->last) lst->last = i;
+}
+
+inline static void list_inset_data_after(list_t* lst, node_t* n, void* s) {
+    node_t* i = malloc(sizeof(node_t));
+    i->data = s;
+    list_inset_node_after(lst, n, i);
 }
 
 #endif

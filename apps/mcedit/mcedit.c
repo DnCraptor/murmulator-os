@@ -857,16 +857,6 @@ r:
     return false;
 }
 
-static inline void redraw_current_panel() {
-    m_window();
-}
-
-static void enter_pressed() {
-    if (hidePannels) return;
-    ++line_s;
-    m_window();
-}
-
 inline static void handle_pagedown_pressed() {
     if (hidePannels) return;
     line_s += MAX_HEIGHT - 4;
@@ -909,6 +899,19 @@ inline static void handle_up_pressed() {
     m_window();
 }
 
+inline static void enter_pressed() {
+    if (hidePannels) return;
+    node_t* n = list_get_node_at(lst, line_n);
+    if (!n) {
+        list_inject_till(lst, line_n);
+    } else {
+        string_t* s = string_split_at(n->data, col_n);
+        list_inset_data_after(lst, n, s);
+    }
+    col_n = 0;
+    handle_down_pressed();
+}
+
 inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
     if (fn_idx > 11) fn_idx -= 18; // F11-12
     (*actual_fn_1_12_tbl())[fn_idx].action(fn_idx);
@@ -919,7 +922,7 @@ inline static void push_char(char c) {
     if (!s) {
         s = list_inject_till(lst, line_n);
     }
-    string_insert(s, c, col_n);
+    string_insert_c(s, c, col_n);
     ++col_n;
     m_window();
 }
@@ -960,13 +963,13 @@ inline static void handle_tab_pressed(void) {
     if (!s) {
         s = list_inject_till(lst, line_n);
     }
-    string_insert(s, ' ', col_n);
+    string_insert_c(s, ' ', col_n);
     ++col_n;
-    string_insert(s, ' ', col_n);
+    string_insert_c(s, ' ', col_n);
     ++col_n;
-    string_insert(s, ' ', col_n);
+    string_insert_c(s, ' ', col_n);
     ++col_n;
-    string_insert(s, ' ', col_n);
+    string_insert_c(s, ' ', col_n);
     ++col_n;
     m_window();
 }
