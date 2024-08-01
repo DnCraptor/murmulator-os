@@ -492,9 +492,14 @@ static void draw_fn_btn(fn_1_12_tbl_rec_t* prec, int left, int top) {
 }
 
 static void bottom_line() {
-    for (int i = 0; i < BTNS_COUNT && (i + 1) * BTN_WIDTH < MAX_WIDTH; ++i) {
+    int i = 0;
+    for (; i < BTNS_COUNT && (i + 1) * BTN_WIDTH < MAX_WIDTH; ++i) {
         const fn_1_12_tbl_rec_t* rec = &(*actual_fn_1_12_tbl())[i];
         draw_fn_btn(rec, i * BTN_WIDTH, F_BTN_Y_POS);
+    }
+    i = i * BTN_WIDTH;
+    for (; i < MAX_WIDTH; ++i) {
+        draw_text(" ", i, F_BTN_Y_POS, pcs->FOREGROUND_F1_12_COLOR, pcs->BACKGROUND_F1_12_COLOR);
     }
 }
 
@@ -523,7 +528,11 @@ static void m_window() {
 
     char buff[32];
     size_t free_sz = xPortGetFreeHeapSize();
-    snprintf(buff, 32, " [%d:%d] sz: %dK free: %dK ", line_n, col_n, f_sz >> 10, free_sz >> 10);
+    if (f_sz > 10000) {
+        snprintf(buff, 32, " [%d:%d] sz: %dK free: %dK ", line_n, col_n, f_sz >> 10, free_sz >> 10);
+    } else {
+        snprintf(buff, 32, " [%d:%d] sz: %d free: %dK ", line_n, col_n, f_sz, free_sz >> 10);
+    }
     draw_text(
         buff,
         2,
@@ -917,7 +926,7 @@ inline static void push_char(char c) {
     if (!s) {
         s = list_inject_till(lst, line_n);
     }
-//    string_insert_c(s, c, col_n);
+    string_insert_c(s, c, col_n);
     ++col_n;
     m_window();
 }
@@ -929,7 +938,7 @@ inline static void cmd_backspace() {
     }
     if (s->sz && col_n > 0) {
         --col_n;
-//        string_clip(s, col_n);
+        string_clip(s, col_n);
     }
     m_window();
 }

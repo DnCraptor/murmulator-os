@@ -893,15 +893,14 @@ inline static void string_push_back(string_t* s, const char c) {
 }
 
 inline void string_clip(string_t* s, size_t idx) {
-   // for (size_t i = idx; i < s->sz; ++i) {
-   //     s->p[i] = s->p[i + 1];
-   // }
-   //  --s->sz;
+    for (size_t i = idx; i < s->sz; ++i) {
+        s->p[i] = s->p[i + 1];
+    }
+    if(s->sz) --s->sz;
 }
 
 inline void string_insert_c(string_t* s, char c, size_t idx) {
-/*    string_reseve(s, idx + 1);
-
+    string_reseve(s, idx + 1);
     if (idx + 1 >= s->sz) {
         while(idx >= s->sz) {
             string_push_back(s, ' ');
@@ -914,7 +913,6 @@ inline void string_insert_c(string_t* s, char c, size_t idx) {
             s->p[i] = s->p[i - 1];
         }
     }
-    */
     s->p[idx] = c;
     ++s->sz;
 }
@@ -1009,7 +1007,7 @@ inline static node_t* list_get_node_at(list_t* lst, size_t idx) {
 }
 
 inline static void* list_get_data_at(list_t* lst, size_t idx) {
-    node_t* i = list_get_data_at(lst, idx);
+    node_t* i = list_get_node_at(lst, idx);
     return i ? i->data : NULL;
 }
 
