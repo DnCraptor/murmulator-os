@@ -893,10 +893,11 @@ inline static void string_push_back(string_t* s, const char c) {
 }
 
 inline void string_clip(string_t* s, size_t idx) {
+    if (idx + 1 >= s->sz) return;
     for (size_t i = idx; i < s->sz; ++i) {
         s->p[i] = s->p[i + 1];
     }
-    if(s->sz) --s->sz;
+    if (s->sz) --s->sz;
 }
 
 inline void string_insert_c(string_t* s, char c, size_t idx) {
@@ -914,7 +915,7 @@ inline void string_insert_c(string_t* s, char c, size_t idx) {
         }
     }
     s->p[idx] = c;
-    ++s->sz;
+    s->p[s->sz++] = 0;
 }
 
 inline string_t* string_split_at(string_t* s, size_t idx) {
@@ -1022,6 +1023,15 @@ inline static void list_inset_data_after(list_t* lst, node_t* n, void* s) {
     node_t* i = malloc(sizeof(node_t));
     i->data = s;
     list_inset_node_after(lst, n, i);
+}
+
+inline static void list_erase_node(list_t* lst, node_t* n) {
+    if (n->prev) n->prev->next = n->next;
+    if (n->next) n->next->prev = n->prev;
+    if (n->data) lst->deallocator(n->data);
+    if (lst->first == n) lst->first = n->next;
+    if (lst->last == n) lst->last = n->prev;
+    free(n);
 }
 
 #endif

@@ -526,12 +526,12 @@ static void m_window() {
         ++line;
     }
 
-    char buff[32];
+    char buff[64];
     size_t free_sz = xPortGetFreeHeapSize();
     if (f_sz > 10000) {
-        snprintf(buff, 32, " [%d:%d] sz: %dK free: %dK ", line_n, col_n, f_sz >> 10, free_sz >> 10);
+        snprintf(buff, 64, " [%d:%d] file size: %dK heap: %dK ", line_n, col_n, f_sz >> 10, free_sz >> 10);
     } else {
-        snprintf(buff, 32, " [%d:%d] sz: %d free: %dK ", line_n, col_n, f_sz, free_sz >> 10);
+        snprintf(buff, 64, " [%d:%d] file size: %d heap: %dK ", line_n, col_n, f_sz, free_sz >> 10);
     }
     draw_text(
         buff,
@@ -932,12 +932,53 @@ inline static void push_char(char c) {
 }
 
 inline static void cmd_backspace() {
+    if (col_n == 0) {
+        if (line_n == 0) {
+            return;
+        }
+        --line_n;
+        if (line_s < line_n) line_s = line_n;
+        node_t* n = list_get_node_at(lst, line_n);
+        if (!n || !n->prev) return;
+        string_t* s1 = n->prev->data;
+        string_t* s2 = n->data;
+        for (int i = 0; i < s2->sz; ++i) { // TODO: optimize
+            string_push_back(s1, s2->p[i]);
+        }
+        col_n = s1->sz - 1;
+        list_erase_node(lst, n);
+        m_window();
+        return;
+    }
     string_t* s = list_get_data_at(lst, line_n);
     if (!s) {
         s = list_inject_till(lst, line_n);
     }
     if (s->sz && col_n > 0) {
         --col_n;
+        string_clip(s, col_n);
+    }
+    m_window();
+}
+
+inline static void cmd_del() {
+    string_t* s = list_get_data_at(lst, line_n);
+    if (!s) {
+        s = list_inject_till(lst, line_n);
+    }
+    if (col_n + 1 == s->sz) {
+        node_t* n = list_get_node_at(lst, line_n);
+        if (!n || !n->next) return;
+        string_t* s1 = n->data;
+        string_t* s2 = n->next->data;
+        for (int i = 0; i < s2->sz; ++i) { // TODO: optimize
+            string_push_back(s1, s2->p[i]);
+        }
+        list_erase_node(lst, n->next);
+        m_window();
+        return;
+    }
+    if (s->sz) {
         string_clip(s, col_n);
     }
     m_window();
@@ -1040,14 +1081,26 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             else if (c == '\n') enter_pressed();
             else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
             else push_char(c);
+            scan_code_processed();
+            continue;
+        }
+        if (delPressed) {
+            delPressed = false;
+            cmd_del();
+            scan_code_processed();
+            continue;
         }
         if (rightPressed) {
             rightPressed = false;
             handle_right_pressed();
+            scan_code_processed();
+            continue;
         }
         if (leftPressed) {
             leftPressed = false;
             handle_left_pressed();
+            scan_code_processed();
+            continue;
         }
 
         if (is_dendy_joystick || is_kbd_joystick) {
@@ -1090,6 +1143,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
         switch(lastCleanableScanCode) {
           case 0x01: // Esc down
             mark_to_exit(9);
+            scan_code_processed();
           case 0x81: // Esc up
           //  scan_code_processed();
             break;
