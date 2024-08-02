@@ -529,9 +529,9 @@ static void m_window() {
 
     size_t free_sz = xPortGetFreeHeapSize();
     if (f_sz > 10000) {
-        snprintf(buff, 64, " [%d:%d] file size: %dK heap: %dK ", line_n, col_n, f_sz >> 10, free_sz >> 10);
+        snprintf(buff, 64, " [%d:%d] %dK of %dK ", line_n, col_n, f_sz >> 10, free_sz >> 10);
     } else {
-        snprintf(buff, 64, " [%d:%d] file size: %d heap: %dK ", line_n, col_n, f_sz, free_sz >> 10);
+        snprintf(buff, 64, " [%d:%d] %d of %dK ", line_n, col_n, f_sz, free_sz >> 10);
     }
     draw_text(
         buff,

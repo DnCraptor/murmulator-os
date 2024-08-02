@@ -489,9 +489,14 @@ static void draw_fn_btn(fn_1_12_tbl_rec_t* prec, int left, int top) {
 }
 
 static void bottom_line() {
-    for (int i = 0; i < BTNS_COUNT && (i + 1) * BTN_WIDTH < MAX_WIDTH; ++i) {
+    int i = 0;
+    for (; i < BTNS_COUNT && (i + 1) * BTN_WIDTH < MAX_WIDTH; ++i) {
         const fn_1_12_tbl_rec_t* rec = &(*actual_fn_1_12_tbl())[i];
         draw_fn_btn(rec, i * BTN_WIDTH, F_BTN_Y_POS);
+    }
+    i = i * BTN_WIDTH;
+    for (; i < MAX_WIDTH; ++i) {
+        draw_text(" ", i, F_BTN_Y_POS, pcs->FOREGROUND_F1_12_COLOR, pcs->BACKGROUND_F1_12_COLOR);
     }
 }
 
@@ -528,19 +533,16 @@ static void m_window() {
         ++line;
     }
     line_e = line;
-    snprintf(buff, width, "Lines: %d - %d", line_s, line_e);
-    size_t sz = strlen(buff);
-    if (BTN_WIDTH * 13 + 1 + sz < MAX_WIDTH) {
-        draw_text(" ", BTN_WIDTH * 13, F_BTN_Y_POS, 0, 0);
-        draw_text(
-            buff,
-            BTN_WIDTH * 13 + 1,
-            F_BTN_Y_POS, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR
-        );
-        for (size_t i = BTN_WIDTH * 13 + 1 + sz; i < MAX_WIDTH; ++i) {
-            draw_text(" ", i, F_BTN_Y_POS, 0, 0);
-        }
-    }
+
+    size_t free_sz = xPortGetFreeHeapSize();
+    snprintf(buff, width, " Lines: %d-%d ", line_s, line_e);
+    draw_text(
+        buff,
+        2,
+        PANEL_LAST_Y,
+        pcs->FOREGROUND_FIELD_COLOR,
+        pcs->BACKGROUND_FIELD_COLOR
+    );
 e2:
     free(buff);
     f_close(f);
