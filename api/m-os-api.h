@@ -847,14 +847,14 @@ public:
 #else
 
 typedef struct string {
-    size_t sz; // size including end-0
+    size_t size; // string size excluding end-0
     size_t alloc; // really allocated bytes
     char* p;
 } string_t;
 
 inline static string_t* new_string_v(void) {
     string_t* res = malloc(sizeof(string_t));
-    res->sz = 1,
+    res->size = 0,
     res->alloc = 16;
     res->p = malloc(16);
     res->p[0] = 0;
@@ -868,63 +868,71 @@ inline static void delete_string(string_t* s) {
 
 inline static string_t* new_string_cc(const char* s) {
     string_t* res = malloc(sizeof(string_t));
-    res->sz = strlen(s) + 1;
-    res->alloc = res->sz;
+    res->size = strlen(s);
+    res->alloc = res->size + 1;
     res->p = malloc(res->alloc);
-    strncpy(res->p, s, res->sz);
+    strncpy(res->p, s, res->alloc);
     return res;
 }
 
 inline static void string_reseve(string_t* s, size_t alloc) {
     if (s->alloc >= alloc) return; // already more or eq. than requested
     char* n_p = malloc(alloc);
-    strncpy(n_p, s->p, s->sz);
+    strncpy(n_p, s->p, s->alloc);
     free(s->p);
     s->p = n_p;
     s->alloc = alloc;
 }
 
-inline static void string_push_back(string_t* s, const char c) {
-    if (s->sz == s->alloc) {
-        string_reseve(s, s->alloc << 1);
+inline static void string_push_back_c(string_t* s, const char c) {
+    if (s->size + 1 == s->alloc) {
+        string_reseve(s, s->alloc + 16);
     }
-    s->p[s->sz - 1] = c;
-    s->p[s->sz++] = 0;
+    s->p[s->size] = c;
+    s->p[++s->size] = 0;
+}
+
+inline static void string_push_back_cs(string_t* s, const string_t* cs) {
+    size_t sz = s->size + cs->size;
+    if (sz >= s->alloc) {
+        string_reseve(s, sz + 1);
+    }
+    memcpy(s->p + s->size, cs->p, cs->size);
+    s->p[sz] = 0;
+    s->size = sz;
 }
 
 inline void string_clip(string_t* s, size_t idx) {
-    if (idx + 1 >= s->sz) return;
-    for (size_t i = idx; i < s->sz; ++i) {
+    if (idx >= s->size) return;
+    for (size_t i = idx; i <= s->size; ++i) {
         s->p[i] = s->p[i + 1];
     }
-    if (s->sz) --s->sz;
+    if (s->size) --s->size;
 }
 
 inline void string_insert_c(string_t* s, char c, size_t idx) {
     string_reseve(s, idx + 1);
-    if (idx + 1 >= s->sz) {
-        while(idx >= s->sz) {
-            string_push_back(s, ' ');
-        }
-        string_push_back(s, c);
+    if (idx >= s->size) {
+        size_t sps = idx - s->size;
+        memset(s->p + s->size, ' ', sps);
+        s->size += sps;
+        string_push_back_c(s, c);
         return;
     }
-    if (s->sz) {
-        for (size_t i = s->sz - 1; i > idx; --i) {
-            s->p[i] = s->p[i - 1];
-        }
+    for (size_t i = s->size; i > idx; --i) {
+        s->p[i] = s->p[i - 1];
     }
     s->p[idx] = c;
-    s->p[s->sz++] = 0;
+    s->p[++s->size] = 0;
 }
 
 inline string_t* string_split_at(string_t* s, size_t idx) {
-    if (idx + 1 >= s->sz) {
+    if (idx >= s->size) {
         return new_string_v();
     }
     string_t* res = new_string_cc(s->p + idx);
     s->p[idx] = 0;
-    s->sz = idx + 1;
+    s->size = idx;
     return res;
 }
 
@@ -979,7 +987,7 @@ inline static void delete_list(list_t* lst) {
     free(lst);
 }
 
-inline static void* list_inject_till(list_t* lst, size_t idx) {
+inline static node_t* list_inject_till(list_t* lst, size_t idx) {
     node_t* i = lst->first;
     size_t n = 0;
     while (i) {
@@ -987,11 +995,13 @@ inline static void* list_inject_till(list_t* lst, size_t idx) {
             list_push_back(lst, lst->allocator());
         }
         if (n == idx) {
-            return i->data;
+            return i;
         }
         i = i->next;
         ++n;
     }
+    // unreachable
+    return NULL;
 }
 
 inline static node_t* list_get_node_at(list_t* lst, size_t idx) {

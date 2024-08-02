@@ -510,8 +510,9 @@ static void redraw_window() {
 
 static void m_window() {
     if (hidePannels) return;
+    char buff[64];
     cmd_ctx_t* ctx = get_cmd_ctx();
-    draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH, PANEL_LAST_Y + 1, ctx->argv[1], 0);
+    draw_panel(0, PANEL_TOP_Y, MAX_WIDTH, PANEL_LAST_Y + 1, ctx->argv[1], 0);
 
     size_t y = 1;
     size_t line = 0;
@@ -526,7 +527,6 @@ static void m_window() {
         ++line;
     }
 
-    char buff[64];
     size_t free_sz = xPortGetFreeHeapSize();
     if (f_sz > 10000) {
         snprintf(buff, 64, " [%d:%d] file size: %dK heap: %dK ", line_n, col_n, f_sz >> 10, free_sz >> 10);
@@ -924,7 +924,7 @@ inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
 inline static void push_char(char c) {
     string_t* s = list_get_data_at(lst, line_n);
     if (!s) {
-        s = list_inject_till(lst, line_n);
+        s = list_inject_till(lst, line_n)->data;
     }
     string_insert_c(s, c, col_n);
     ++col_n;
@@ -936,49 +936,50 @@ inline static void cmd_backspace() {
         if (line_n == 0) {
             return;
         }
-        --line_n;
-        if (line_s < line_n) line_s = line_n;
         node_t* n = list_get_node_at(lst, line_n);
-        if (!n || !n->prev) return;
-        string_t* s1 = n->prev->data;
-        string_t* s2 = n->data;
-        for (int i = 0; i < s2->sz; ++i) { // TODO: optimize
-            string_push_back(s1, s2->p[i]);
+        if (!n || !n->prev) {
+            --line_n;
+            m_window();
+            return;
         }
-        col_n = s1->sz - 1;
+        string_t* s1 = n->prev->data;
+        col_n = s1->size;
+        string_push_back_cs(s1, n->data);
         list_erase_node(lst, n);
+        --line_n;
+        if (line_n < line_s) line_s = line_n;
         m_window();
         return;
     }
     string_t* s = list_get_data_at(lst, line_n);
     if (!s) {
-        s = list_inject_till(lst, line_n);
+        s = list_inject_till(lst, line_n)->data;
     }
-    if (s->sz && col_n > 0) {
+    if (s->size > 0 && col_n > 0) {
         --col_n;
         string_clip(s, col_n);
+    } else if (line_n > 0) {
+        --line_n;
     }
     m_window();
 }
 
 inline static void cmd_del() {
-    string_t* s = list_get_data_at(lst, line_n);
-    if (!s) {
-        s = list_inject_till(lst, line_n);
+    node_t* n = list_get_node_at(lst, line_n);
+    if (!n || !n->next) {
+        return;
     }
-    if (col_n + 1 == s->sz) {
-        node_t* n = list_get_node_at(lst, line_n);
-        if (!n || !n->next) return;
-        string_t* s1 = n->data;
-        string_t* s2 = n->next->data;
-        for (int i = 0; i < s2->sz; ++i) { // TODO: optimize
-            string_push_back(s1, s2->p[i]);
+    string_t* s = n->data;
+    if (col_n >= s->size) {
+        while (col_n != s->size) { // todo: memset
+            string_push_back_c(s, ' ');
         }
+        string_push_back_cs(s, n->next->data);
         list_erase_node(lst, n->next);
         m_window();
         return;
     }
-    if (s->sz) {
+    if (s->size) {
         string_clip(s, col_n);
     }
     m_window();
@@ -1006,7 +1007,7 @@ inline static void handle_tab_pressed(void) {
     }
     string_t* s = list_get_data_at(lst, line_n);
     if (!s) {
-        s = list_inject_till(lst, line_n);
+        s = list_inject_till(lst, line_n)->data;
     }
     string_insert_c(s, ' ', col_n);
     ++col_n;
@@ -1258,7 +1259,7 @@ inline static void start_editor(cmd_ctx_t* ctx) {
             list_push_back(lst, s);
             s = new_string_v();
         } else {
-            string_push_back(s, c);
+            string_push_back_c(s, c);
         }
     }
     free(buff);
