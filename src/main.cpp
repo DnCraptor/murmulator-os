@@ -33,6 +33,8 @@ extern "C" {
 
 #include "nespad.h"
 
+extern "C" uint32_t flash_size;;
+
 static FATFS fs;
 extern "C" FATFS* get_mount_fs() { // only one FS is supported for now
     return &fs;
@@ -357,17 +359,18 @@ static void info(bool with_sd) {
     uint32_t ram32 = 264 << 10;// get_cpu_ram_size();
     uint8_t rx[4];
     get_cpu_flash_jedec_id(rx);
+    flash_size = (1 << rx[3]);
     goutf("CPU %d MHz\n"
           "SRAM %d KB\n"
-          "FLASH %d MB; JEDEC ID: %02x-%02x-%02x-%02x\n",
+          "FLASH %d MB; JEDEC ID: %02X-%02X-%02X-%02X\n",
           get_overclocking_khz() / 1000,
           ram32 >> 10,
-          (1 << rx[3]) >> 20, rx[0], rx[1], rx[2], rx[3]
+          flash_size >> 20, rx[0], rx[1], rx[2], rx[3]
     );
     uint32_t psram32 = psram_size();
     uint8_t rx8[8];
     psram_id(rx8);
-    goutf("PSRAM %d MB; MF ID: %02x; KGD: %02x; EID: %02x%02x-%02x%02x-%02x%02x\n",
+    goutf("PSRAM %d MB; MF ID: %02x; KGD: %02x; EID: %02X%02X-%02X%02X-%02X%02X\n",
           psram32 >> 20, rx8[0], rx8[1], rx8[2], rx8[3], rx8[4], rx8[5], rx8[6], rx8[7]
     );
     if (!with_sd) {

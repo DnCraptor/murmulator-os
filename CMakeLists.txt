@@ -14,7 +14,7 @@ option(VGA "Enable VGA" ON)
 option(TFT "Enable TFT display" OFF)
 option(ILI9341 "Enable TFT ILI9341 display" OFF)
 option(HDMI "Enable HDMI display" OFF)
-option(FLASH_SIZE "Target Flash Size" 2048)
+option(FLASH_SIZE "Target Flash Size" 16384)
 
 if(NOT FLASH_SIZE)
 #set(FLASH_SIZE 2048)
@@ -22,9 +22,9 @@ if(NOT FLASH_SIZE)
 set(FLASH_SIZE 16384)
 endif ()
 
-set(MOS_VERSION 0.1.6)
+set(MOS_VERSION 0.1.6.1)
 
-SET(BUILD_NAME "${PROJECT_NAME}-${FLASH_SIZE}K-${MOS_VERSION}")
+SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -178,7 +178,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         M_API_VERSION=13
         MOS_VERSION_STR="${MOS_VERSION}"
-        FLASH_SIZE_STR="${FLASH_SIZE}"
+        #FLASH_SIZE_STR="${FLASH_SIZE}"
 
         TESTS=0
 )

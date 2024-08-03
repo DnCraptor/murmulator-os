@@ -27,6 +27,8 @@ typedef struct {
     uint32_t magicEnd;
 } UF2_Block_t;
 
+uint32_t flash_size;
+
 static void debug_sections(sect_entry_t* sect_entries) {
     if (sect_entries) {
         for (uint16_t i = 0; sect_entries[i].del_addr != 0; ++i) {
@@ -199,7 +201,7 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
 
 bool load_firmware(char* pathname) {
     f_stat(pathname, &fileinfo);
-    if (FLASH_SIZE - 64 << 10 < fileinfo.fsize / 2) {
+    if (flash_size - (96 << 10) < (fileinfo.fsize >> 1)) {
         fgoutf(get_stdout(), "ERROR: Firmware too large (%dK)! Canceled!\n", fileinfo.fsize >> 11);
         return false;
     }

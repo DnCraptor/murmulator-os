@@ -9,7 +9,7 @@ extern "C" {
 
 #include "cmd.h"
 
-#define OS_TABLE_BACKUP_FN (".os-tbl-backup-" MOS_VERSION_STR "-" FLASH_SIZE_STR)
+#define OS_TABLE_BACKUP_FN (".os-tbl-backup-" MOS_VERSION_STR)
 #define FIRMWARE_MARKER_FN "/.firmware"
 
 bool load_firmware(char* pathname);
