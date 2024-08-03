@@ -345,6 +345,14 @@ extern "C" void show_logo(bool with_top) {
     graphics_set_con_color(7, 0); // TODO: config
 }
 
+static void startup_vga(void) {
+    sem_init(&vga_start_semaphore, 0, 1);
+    multicore_launch_core1(render_core);
+    sem_release(&vga_start_semaphore);
+    sleep_ms(300);
+    clrScr(0);
+}
+
 static void init(void) {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -362,11 +370,6 @@ static void init(void) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     bool mount_res = (FR_OK == f_mount(&fs, "SD", 1));
 
-    sem_init(&vga_start_semaphore, 0, 1);
-    multicore_launch_core1(render_core);
-    sem_release(&vga_start_semaphore);
-    sleep_ms(30);
-    clrScr(0);
 #ifdef DEBUG_VGA
     FIL f;
     f_open(&f, "mos-vga.log", FA_OPEN_APPEND | FA_WRITE);
@@ -374,25 +377,38 @@ static void init(void) {
     f_write(&f, vga_dbg_msg, strlen(vga_dbg_msg), &wr);
     f_close(&f);
 #endif
-    // F12 Boot to USB FIRMWARE UPDATE mode
-    if (nespad_state & DPAD_START || get_last_scancode() == 0x58 /*F12*/) {
-        unlink_firmware();
-        reset_usb_boot(0, 0);
-    }
-    if (nespad_state & DPAD_SELECT || get_last_scancode() == 0x57 /*F11*/) {
-        unlink_firmware(); // return to OS
-    }
+    kbd_state_t* ks = get_kbd_state();
     if (mount_res) {
+        for (int a = 0; a < 5; ++a) {
+            // F12 Boot to USB FIRMWARE UPDATE mode
+            if ((nespad_state & DPAD_START) || (ks->input == 0x58) /*F12*/) {
+                unlink_firmware();
+                reset_usb_boot(0, 0);
+                while(1);
+            }
+            // F11 unlink prev uf2 firmware
+            if ((nespad_state & DPAD_SELECT) || (ks->input == 0x57) /*F11*/) {
+                unlink_firmware(); // return to OS
+            }
+            sleep_ms(50);
+            nespad_read();
+        }
         check_firmware();
+    } else {
+        startup_vga();
+        graphics_set_mode(0);
+        graphics_set_con_color(12, 0);
+        gouta("SD Card not inserted or SD Card error! Pls. insert it and reboot...\n");
+        while (true) {
+            goutf("Scancode tester: %xh   \n", ks->input);
+            sleep_ms(50);
+            graphics_set_con_pos(0, 1);
+        }
     }
 
+    startup_vga();
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
    
-    if (!mount_res) {
-        graphics_set_con_color(12, 0);
-        gouta("SD Card not inserted or SD Card error!");
-        while (true);
-    }
     load_config_sys();
     init_psram();
     show_logo(true);

@@ -4,8 +4,23 @@
 #include <stdint.h>
 #include "ff.h"
 
+typedef struct kbd_state {
+    bool bCtrlPressed;
+    bool bAltPressed;
+    bool bDelPressed;
+    bool bLeftShift;
+    bool bRightShift;
+    bool bRus;
+    bool bCapsLock;
+    bool bTabPressed;
+    bool bPlusPressed;
+    bool bMinusPressed;
+    uint32_t input;
+} kbd_state_t;
+
+kbd_state_t* get_kbd_state(void);
+
 bool handleScancode(const uint32_t ps2scancode);
-uint32_t get_last_scancode();
 char __getch(void);
 int __getc(FIL*);
 char getch_now(void);

@@ -137,16 +137,16 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         }
         if (sz == 0) { // replace target
             flash_target_offset = next_flash_target_offset; 
-            //fgoutf(get_stdout(), "Replace targe offset: %ph\n", flash_target_offset);
+            fgoutf(get_stdout(), "Replace targe offset: %ph\n", flash_target_offset);
             continue;
         }
         //подмена загрузчика boot2 прошивки на записанный ранее
         if (flash_target_offset == 0) {
             boot_replaced = true;
             memcpy(buffer, (uint8_t *)XIP_BASE, 256);
-            //fgoutf(get_stdout(), "Replace loader @ offset 0\n");
+            fgoutf(get_stdout(), "Replace loader @ offset 0\n");
         }
-        //fgoutf(get_stdout(), "Erase and write to flash, offset: %ph\n", flash_target_offset);
+        fgoutf(get_stdout(), "Erase and write to flash, offset: %ph\n", flash_target_offset);
         flash_block(buffer, flash_target_offset);
         flash_target_offset = next_flash_target_offset;
     }
@@ -154,11 +154,13 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     f_close(&file);
     if (boot_replaced) {
         f_open(&file, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
-        fgoutf(&file, "%s", pathname);
+        fgoutf(&file, "FIRMWARE_MARKER_FN: %s", pathname);
         f_close(&file);
 
         f_close(get_stdout());
         f_close(get_stderr());
+
+        vTaskSuspendAll();
 
         watchdog_enable(100, true);
     }

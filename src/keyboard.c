@@ -6,20 +6,10 @@
 #include "cmd.h"
 #include "overclock.h"
 
-static bool bCtrlPressed = false;
-static bool bAltPressed = false;
-static bool bDelPressed = false;
-static bool bLeftShift = false;
-static bool bRightShift = false;
-static bool bRus = false;
-static bool bCapsLock = false;
-static bool bTabPressed = false;
-static bool bPlusPressed = false;
-static bool bMinusPressed = false;
-static uint32_t input = 0;
+static kbd_state_t ks = { 0 };
 
-uint32_t get_last_scancode() {
-    return input;
+kbd_state_t* get_kbd_state(void) {
+    return &ks;
 }
 
 static char scan_code_2_cp866_a[] = {
@@ -126,15 +116,15 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
     static char tricode[4] = {0};
     size_t s;
     char c = 0;
-    input = ps2scancode;
+    ks.input = ps2scancode;
     if (ps2scancode == 0xE048 || ps2scancode == 0x48 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
-        input = 0;
+        ks.input = 0;
         if (cp866_handler) cp866_handler(17 /*up*/, ps2scancode);
         __c = 17;
         return true;
     }
     if (ps2scancode == 0xE050 || ps2scancode == 0x50 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
-        input = 0;
+        ks.input = 0;
         if (cp866_handler) cp866_handler(18 /*down*/, ps2scancode);
         __c = 18;
         return true;
@@ -144,23 +134,23 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
         __c = '\n';
         return true;
     }
-    switch ((uint8_t)input & 0xFF) {
+    switch ((uint8_t)ks.input & 0xFF) {
         case 0x81: // ESC
             if (cp866_handler) cp866_handler(0x1B /*ESC*/, ps2scancode);
             __c = 0x1B;
             return true;
         case 0x1D:
-            bCtrlPressed = true;
-            if (bRightShift || bLeftShift) bRus = !bRus;
+            ks.bCtrlPressed = true;
+            if (ks.bRightShift || ks.bLeftShift) ks.bRus = !ks.bRus;
             break;
         case 0x9D:
-            bCtrlPressed = false;
+            ks.bCtrlPressed = false;
             break;
         case 0x38:
-            bAltPressed = true;
+            ks.bAltPressed = true;
             break;
         case 0xB8:
-            bAltPressed = false;
+            ks.bAltPressed = false;
             s = strlen(tricode);
             if (s) {
                 c = tricode2c(tricode, s);
@@ -169,86 +159,86 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             }
             break;
         case 0x53:
-            bDelPressed = true;
+            ks.bDelPressed = true;
             break;
         case 0xD3:
-            bDelPressed = false;
+            ks.bDelPressed = false;
             break;
         case 0x2A:
-            bLeftShift = true;
-            if (bCtrlPressed) bRus = !bRus;
+            ks.bLeftShift = true;
+            if (ks.bCtrlPressed) ks.bRus = !ks.bRus;
             break;
         case 0xAA:
-            bLeftShift = false;
+            ks.bLeftShift = false;
             break;
         case 0x36:
-            bRightShift = true;
-            if (bCtrlPressed) bRus = !bRus;
+            ks.bRightShift = true;
+            if (ks.bCtrlPressed) ks.bRus = !ks.bRus;
             break;
         case 0xB6:
-            bRightShift = false;
+            ks.bRightShift = false;
             break;
         case 0x3A:
-            bCapsLock = !bCapsLock;
+            ks.bCapsLock = !ks.bCapsLock;
             break;
         case 0x0E:
             if (cp866_handler) cp866_handler(8 /*BS*/, ps2scancode);
             __c = 8;
             return true;
         case 0x0F:
-            bTabPressed = true;
+            ks.bTabPressed = true;
             break;
         case 0x8F:
-            bTabPressed = false;
+            ks.bTabPressed = false;
             break;
         case 0x0C: // -
         case 0x4A: // numpad -
-            bMinusPressed = true;
+            ks.bMinusPressed = true;
             break;
         case 0x8C: // -
         case 0xCA: // numpad 
-            bMinusPressed = false;
+            ks.bMinusPressed = false;
             break;
         case 0x0D: // +=
         case 0x4E: // numpad +
-            bPlusPressed = true;
+            ks.bPlusPressed = true;
             break;
         case 0x8D: // += 82?
         case 0xCE: // numpad +
-            bPlusPressed = false;
+            ks.bPlusPressed = false;
             break;
         default:
             break;
     }
-    if (bCtrlPressed && bAltPressed && bDelPressed) {
+    if (ks.bCtrlPressed && ks.bAltPressed && ks.bDelPressed) {
         watchdog_enable(100, true);
         return true;
     }
-    if (bTabPressed && bCtrlPressed) {
-        if (bPlusPressed) {
+    if (ks.bTabPressed && ks.bCtrlPressed) {
+        if (ks.bPlusPressed) {
             set_overclocking(get_overclocking_khz() + 1000);
             overclocking();
         }
-        if (bMinusPressed) {
+        if (ks.bMinusPressed) {
             set_overclocking(get_overclocking_khz() - 1000);
             overclocking();
         }
     }
-    if (c || input < 86) {
+    if (c || ks.input < 86) {
         if (!c) {
-            c = (bRus ?
+            c = (ks.bRus ?
             (
-                !bCapsLock ?
-                ((bRightShift || bLeftShift) ? scan_code_2_cp866_rA : scan_code_2_cp866_ra) :
-                ((bRightShift || bLeftShift) ? scan_code_2_cp866_raCL : scan_code_2_cp866_rACL)
+                !ks.bCapsLock ?
+                ((ks.bRightShift || ks.bLeftShift) ? scan_code_2_cp866_rA : scan_code_2_cp866_ra) :
+                ((ks.bRightShift || ks.bLeftShift) ? scan_code_2_cp866_raCL : scan_code_2_cp866_rACL)
             ) : (
-                !bCapsLock ?
-                ((bRightShift || bLeftShift) ? scan_code_2_cp866_A : scan_code_2_cp866_a) :
-                ((bRightShift || bLeftShift) ? scan_code_2_cp866_aCL : scan_code_2_cp866_ACL)
-            ))[input];
+                !ks.bCapsLock ?
+                ((ks.bRightShift || ks.bLeftShift) ? scan_code_2_cp866_A : scan_code_2_cp866_a) :
+                ((ks.bRightShift || ks.bLeftShift) ? scan_code_2_cp866_aCL : scan_code_2_cp866_ACL)
+            ))[ks.input];
         }
         if (c) {
-            if (bAltPressed && c >= '0' && c <= '9') {
+            if (ks.bAltPressed && c >= '0' && c <= '9') {
                 s = strlen(tricode);
                 if (s == 3) {
                     c = tricode2c(tricode, s);
@@ -260,7 +250,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             }
         }
         if (cp866_handler) cp866_handler(c, ps2scancode);
-        if (bCtrlPressed && ps2scancode == 0x2E) {
+        if (ks.bCtrlPressed && ps2scancode == 0x2E) {
             __c = -1; // EOF
         } else {
             __c = c;

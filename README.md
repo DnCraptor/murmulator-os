@@ -120,9 +120,14 @@ mcedit [file] - Murmulator Commander Editor<br/>
 [ALT]+[0-9]+[0-9]+[0-9] - manual enter some character by its decimal code (CP-866 codepage)<br/>
 
 # M-OS system variables
-BASE - base directory with commands implementations
-SWAP - swap settings
-COMSPEC - a path to command interpretator
-PATH - list of directories to lookup for applications
-GMODE - set initial graphics mode
-TEMP - specify a folder with temporary files
+BASE - base directory with commands implementations<br/>
+SWAP - swap settings<br/>
+COMSPEC - a path to command interpretator<br/>
+PATH - list of directories to lookup for applications<br/>
+GMODE - set initial graphics mode<br/>
+TEMP - specify a folder with temporary files<br/>
+
+# Boot-loader mode
+If uf2 application was started from M-OS, and such application is not designed for M-OS, it is possible to return to M-OS only via reboot:<br/>
+Press F11 (or DPAD SELECT) and hold on the Murmulator reset or power-on, in this case uf2 application startup wil be skip and you will return to the M-OS<br/>
+Press F12 (or DPAD START) and hold on the Murmulator reset or power-on, in case you want to start USB-drive mode without starting M-OS.<br/>
