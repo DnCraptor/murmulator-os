@@ -1,6 +1,7 @@
 #include "app.h"
 #include <pico/platform.h>
 #include <hardware/flash.h>
+#include <pico/bootrom.h>
 #include <pico/stdlib.h>
 #include "FreeRTOS.h"
 #include "task.h"
@@ -92,25 +93,45 @@ bool restore_tbl(char* fn) {
         return false;
     }
     f_close(&file);
+    // goutf("Read '%s' file to restore OS API - PASSED. Bytes read: %d\n", fn, rb);
     uint8_t* b = buffer;
     uint8_t* fl = (uint8_t*)M_OS_API_TABLE_BASE;
     for (int i = 0; i < 400; ++i) { // it is enough to test first 100 addresses
         if (*b++ != *fl++) {
             b--; fl--;
-            goutf("Restoring OS API functions table, because [%p]:%02X <> %02X\n", fl, *fl, *b);
-            goutf("Flash [%p] -> [%p]. Press ENTER to confirm or ESC to skip it...\n", buffer, M_OS_API_TABLE_BASE);
+            /*
+            goutf("It is required to restore OS API functions table, because %02Xh @%ph <> %02Xh (saved)\n", *fl, fl, *b);
+            goutf("Flash [%p]->[%p].\n"
+                  "Press ENTER to confirm,\n"
+                  "TAB to USB boot,\n"
+                  "'U' to unlink '%s'\n"
+                  "or ESC to skip it...\n",
+                   buffer, M_OS_API_TABLE_BASE, fn
+            );
             while(1) {
                 char c = __getch();
-                if(c == '\n') {
+                if (c == '\n') {
                     break;
                 }
-                if (c == 0x1B/*ESC*/) {
+                if (c == 'u' || c == 'U') {
+                    f_unlink(fn);
+                    vPortFree(alloc);
+                    return false;
+                }
+                if (c == '\t') {
+                    vPortFree(alloc);
+                    reset_usb_boot(0, 0);
+                    while(1);
+                }
+                if (c == 0x1B/*ESC* /) {
                     vPortFree(alloc);
                     return false;
                 }
             }
-            flash_block(buffer, M_OS_API_TABLE_BASE - XIP_BASE);
+            */
+            flash_block(buffer, (uint32_t)(M_OS_API_TABLE_BASE) - XIP_BASE);
             vPortFree(alloc);
+            f_unlink(fn);
             return true;
         }
     }
@@ -120,7 +141,8 @@ bool restore_tbl(char* fn) {
 
 
 bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
-    if (FR_OK != f_open(&file, pathname, FA_READ)) {
+    FILINFO fi;
+    if (FR_OK != f_stat(pathname, &fi) || FR_OK != f_open(&file, pathname, FA_READ)) {
         return false;
     }
     UF2_Block_t* uf2 = (UF2_Block_t*)pvPortMalloc(sizeof(UF2_Block_t));
@@ -129,6 +151,8 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
 
     uint32_t flash_target_offset = 0;
     bool boot_replaced = false;
+    uint32_t expected_to_write_size = fi.fsize >> 1;
+    uint32_t already_written = 0;
     while(true) {
         size_t sz = 0;
         uint32_t next_flash_target_offset = read_flash_block(&file, buffer, flash_target_offset, uf2, &sz);
@@ -146,27 +170,30 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
             memcpy(buffer, (uint8_t *)XIP_BASE, 256);
             fgoutf(get_stdout(), "Replace loader @ offset 0\n");
         }
-        fgoutf(get_stdout(), "Erase and write to flash, offset: %ph\n", flash_target_offset);
+        already_written += FLASH_SECTOR_SIZE;
+        fgoutf(get_stdout(), "Erase and write to flash, offset: %ph (%d%%)\n", flash_target_offset, already_written * 100 / expected_to_write_size);
         flash_block(buffer, flash_target_offset);
         flash_target_offset = next_flash_target_offset;
     }
     vPortFree(alloc);
     f_close(&file);
     if (boot_replaced) {
+        fgoutf(get_stdout(), "Write FIRMWARE MARKER to '%s'\n", pathname);
         f_open(&file, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
-        fgoutf(&file, "FIRMWARE_MARKER_FN: %s", pathname);
+        fgoutf(&file, "%s\n", pathname);
         f_close(&file);
+        fgoutf(get_stdout(), "Reboot is required!\n");
 
         f_close(get_stdout());
         f_close(get_stderr());
+        f_unmount("SD");
 
-        vTaskSuspendAll();
-
-        watchdog_enable(100, true);
+        while (1) {
+            watchdog_enable(100, true);
+            sleep_ms(100);
+        }
     }
     vPortFree(uf2);
-
-    while(boot_replaced);
     return !boot_replaced;
 }
 

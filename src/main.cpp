@@ -240,7 +240,7 @@ static void load_config_sys() {
 static inline void try_to_restore_api_tbl(cmd_ctx_t* ctx) {
     char* t = get_ctx_var(ctx, TEMP);
     t = concat(t ? t : "", OS_TABLE_BACKUP_FN);
-    restore_tbl(t); // TODO: error handling
+    restore_tbl(t);
     vPortFree(t);
 }
 
@@ -353,6 +353,40 @@ static void startup_vga(void) {
     clrScr(0);
 }
 
+static void info(bool with_sd) {
+    uint32_t ram32 = 264 << 10;// get_cpu_ram_size();
+    uint8_t rx[4];
+    get_cpu_flash_jedec_id(rx);
+    goutf("CPU %d MHz\n"
+          "SRAM %d KB\n"
+          "FLASH %d MB; JEDEC ID: %02x-%02x-%02x-%02x\n",
+          get_overclocking_khz() / 1000,
+          ram32 >> 10,
+          (1 << rx[3]) >> 20, rx[0], rx[1], rx[2], rx[3]
+    );
+    uint32_t psram32 = psram_size();
+    uint8_t rx8[8];
+    psram_id(rx8);
+    goutf("PSRAM %d MB; MF ID: %02x; KGD: %02x; EID: %02x%02x-%02x%02x-%02x%02x\n",
+          psram32 >> 20, rx8[0], rx8[1], rx8[2], rx8[3], rx8[4], rx8[5], rx8[6], rx8[7]
+    );
+    if (!with_sd) {
+        goutf("\n");
+        return;
+    }
+    FATFS* fs = get_mount_fs();
+    goutf("SDCARD %d FATs; %d free clusters; cluster size: %d KB\n",
+          fs->n_fats, f_getfree32(fs), fs->csize >> 1
+    );
+    goutf("SWAP %d MB; RAM: %d KB; pages index: %d x %d KB\n",
+          swap_size() >> 20, swap_base_size() >> 10, swap_pages(), swap_page_size() >> 10
+    );
+    goutf("VRAM %d KB; video mode: %d x %d x %d bit\n"
+          "\n",
+          get_buffer_size() >> 10, get_console_width(), get_console_height(), get_console_bitness()
+    );
+}
+
 static void init(void) {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -378,31 +412,35 @@ static void init(void) {
     f_close(&f);
 #endif
     kbd_state_t* ks = get_kbd_state();
-    if (mount_res) {
-        for (int a = 0; a < 5; ++a) {
-            // F12 Boot to USB FIRMWARE UPDATE mode
-            if ((nespad_state & DPAD_START) || (ks->input == 0x58) /*F12*/) {
-                unlink_firmware();
-                reset_usb_boot(0, 0);
-                while(1);
-            }
-            // F11 unlink prev uf2 firmware
-            if ((nespad_state & DPAD_SELECT) || (ks->input == 0x57) /*F11*/) {
-                unlink_firmware(); // return to OS
-            }
-            sleep_ms(50);
-            nespad_read();
+    for (int a = 0; a < 5; ++a) {
+        // F12 Boot to USB FIRMWARE UPDATE mode
+        if ((nespad_state & DPAD_START) || ((ks->input & 0xFF) == 0x58) /*F12*/) {
+            if(mount_res) unlink_firmware();
+            reset_usb_boot(0, 0);
+            while(1);
         }
+        // F11 unlink prev uf2 firmware
+        if ((nespad_state & DPAD_SELECT) || ((ks->input & 0xFF) == 0x57) /*F11*/) {
+            if(mount_res) unlink_firmware(); // return to OS
+        }
+        sleep_ms(10);
+        nespad_read();
+    }
+    if (mount_res) {
         check_firmware();
     } else {
         startup_vga();
         graphics_set_mode(0);
+        graphics_set_con_pos(0, 1);
+        show_logo(true);
+        init_psram();
+        info(false);
         graphics_set_con_color(12, 0);
         gouta("SD Card not inserted or SD Card error! Pls. insert it and reboot...\n");
         while (true) {
             goutf("Scancode tester: %xh   \n", ks->input);
             sleep_ms(50);
-            graphics_set_con_pos(0, 1);
+            graphics_set_con_pos(0, 7);
         }
     }
 
@@ -416,37 +454,9 @@ static void init(void) {
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
-static void info() {
-    uint32_t ram32 = get_cpu_ram_size();
-    uint8_t rx[4];
-    get_cpu_flash_jedec_id(rx);
-    uint32_t psram32 = psram_size();
-    FATFS* fs = get_mount_fs();
-    uint8_t rx8[8];
-    psram_id(rx8);
-    goutf("CPU %d MHz\n"
-          "SRAM %d KB\n"
-          "FLASH %d MB; JEDEC ID: %02x-%02x-%02x-%02x\n" // UniqueID: ?
-          "PSRAM %d MB; MF ID: %02x; KGD: %02x; EID: %02x%02x-%02x%02x-%02x%02x\n"
-          "SDCARD %d FATs; %d free clusters; cluster size: %d KB\n"
-          "SWAP %d MB; RAM: %d KB; pages index: %d x %d KB\n"
-          "VRAM %d KB; video mode: %d x %d x %d bit\n"
-          "\n",
-          get_overclocking_khz() / 1000,
-          ram32 >> 10,
-          (1 << rx[3]) >> 20, rx[0], rx[1], rx[2], rx[3],
-          psram32 >> 20, rx8[0], rx8[1], rx8[2], rx8[3], rx8[4], rx8[5], rx8[6], rx8[7],
-          fs->n_fats, 
-          f_getfree32(fs),
-          fs->csize >> 1,
-          swap_size() >> 20, swap_base_size() >> 10, swap_pages(), swap_page_size() >> 10,
-          get_buffer_size() >> 10, get_console_width(), get_console_height(), get_console_bitness()
-    );
-}
-
 int main() {
     init();
-    info();
+    info(true);
 
     xTaskCreate(vCmdTask, "cmd", 1024/*x4=4096k*/, NULL, configMAX_PRIORITIES - 1, NULL);
 
