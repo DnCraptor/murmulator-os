@@ -939,6 +939,9 @@ inline string_t* string_split_at(string_t* s, size_t idx) {
 inline static const char* c_str(const string_t* s) {
     return s->p;
 }
+inline static size_t c_strlen(const string_t* s) {
+    return s->size;
+}
 
 typedef struct node {
     struct node* prev;

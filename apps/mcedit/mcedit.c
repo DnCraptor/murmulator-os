@@ -424,9 +424,28 @@ static void m_info(uint8_t cmd) {
     redraw_window();
 }
 
+static void m_save(uint8_t cmd) {
+    cmd_ctx_t* ctx = get_cmd_ctx();
+    FIL* f = malloc(sizeof(FIL));
+    if (FR_OK != f_open(f, ctx->argv[1], FA_WRITE)) {
+        free(f);
+        // TODO: err
+        return;
+    }
+    UINT bw;
+    node_t* i = lst->first;
+    while (i) {
+        f_write(f, c_str(i->data), c_strlen(i->data), &bw);
+        f_write(f, "\n", 1, &bw);
+        i = i->next;
+    }
+    f_close(f);
+    free(f);
+}
+
 static fn_1_12_tbl_t fn_1_12_tbl = {
     ' ', '1', " Info ", m_info,
-    ' ', '2', "      ", do_nothing,
+    ' ', '2', " Save ", m_save,
     ' ', '3', "      ", do_nothing,
     ' ', '4', "      ", do_nothing,
     ' ', '5', "      ", do_nothing,
