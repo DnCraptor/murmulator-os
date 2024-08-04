@@ -17,7 +17,7 @@ static const unsigned long * const _sys_table_ptrs = (const unsigned long * cons
 #include "m-os-api-tasks.h"
 #include "m-os-api-ff.h"
 
-// TODO: #define __in_boota(group) __attribute__((section(".boota" group)))
+#define __in_boota(group) __attribute__((section(".boota" group)))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 
 #define _snprintfPtrIdx 29

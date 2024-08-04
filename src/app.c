@@ -9,7 +9,7 @@
 #include "graphics.h"
 #include "keyboard.h"
 
-#define M_OS_APP_TABLE_BASE ((size_t*)0x10002000ul) // TODO:
+#define M_OS_APP_TABLE_BASE ((size_t*)0x10001000ul) // TODO:
 typedef int (*boota_ptr_t)( void *argv );
 
 typedef struct {
@@ -139,7 +139,7 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
 
 bool load_firmware(char* pathname) {
     f_stat(pathname, &fileinfo);
-    if (flash_size - (100 << 10) < (fileinfo.fsize >> 1)) {
+    if ((flash_size - (100 << 10)) < (fileinfo.fsize >> 1)) { // TODO: free, ...
         fgoutf(get_stdout(), "ERROR: Firmware too large (%dK)! Canceled!\n", fileinfo.fsize >> 11);
         return false;
     }
@@ -150,7 +150,7 @@ bool load_firmware(char* pathname) {
 }
 
 void vAppTask(void *pv) {
-    int res = ((boota_ptr_t)M_OS_APP_TABLE_BASE[0])(pv); // TODO:
+    int res = ((boota_ptr_t)M_OS_APP_TABLE_BASE[0])(pv); // TODO: 0 - 2nd page, what exactly page used by app?
     goutf("RET_CODE: %d\n", res);
     vTaskDelete( NULL );
     // TODO: ?? return res;

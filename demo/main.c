@@ -75,8 +75,13 @@ int boota(void* pv) {
     return 0;
 }
 
-unsigned long __aligned(4096) __in_boota() boota_tbl[] = { boota };
-
+unsigned long __aligned(4096) __in_boota() boota_tbl[] = { // mark pages used by program
+    boota, // 2-nd page 10002000-10003000
+    boota, // 3-nd page 10003000-10004000
+    boota, // 4-nd page 10004000-10005000
+    boota, // 5-nd page 10005000-10006000
+    0
+};
 
 // just for std linker
 void main() {
