@@ -5,10 +5,10 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 13
+#define M_API_VERSION 14
 #endif
 
-#define M_OS_API_SYS_TABLE_BASE ((void*)0x10001000ul)
+#define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
 static const unsigned long * const _sys_table_ptrs = (const unsigned long * const)M_OS_API_SYS_TABLE_BASE;
 
 #include <stdint.h>
@@ -17,7 +17,7 @@ static const unsigned long * const _sys_table_ptrs = (const unsigned long * cons
 #include "m-os-api-tasks.h"
 #include "m-os-api-ff.h"
 
-#define __in_boota(group) __attribute__((section(".boota" group)))
+// TODO: #define __in_boota(group) __attribute__((section(".boota" group)))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 
 #define _snprintfPtrIdx 29

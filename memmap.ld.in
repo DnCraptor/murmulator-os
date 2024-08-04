@@ -24,10 +24,9 @@
 MEMORY
 {
     BOOT(rx) : ORIGIN = 0x10000000, LENGTH = 4k
-    SYS_TABLE(rw) : ORIGIN = 0x10000000 + 4k, LENGTH = 4k
-    BOOTA : ORIGIN = 0x10000000 + 8k, LENGTH = 4k
     /* @FLASH_SIZE@Kb */
-    FLASH(rx) : ORIGIN = 0x10000000+(@FLASH_SIZE@k-96k), LENGTH = 96k
+    FLASH(rx) : ORIGIN = 0x10000000+(@FLASH_SIZE@k-100k), LENGTH = 96k
+    SYS_TABLE(rw) : ORIGIN = 0x10000000+(@FLASH_SIZE@k-4k), LENGTH = 4k
     RAM(rwx) : ORIGIN =  0x20000000, LENGTH = 256k
     SCRATCH_X(rwx) : ORIGIN = 0x20040000, LENGTH = 4k
     SCRATCH_Y(rwx) : ORIGIN = 0x20041000, LENGTH = 4k
@@ -59,15 +58,6 @@ SECTIONS
         KEEP (*(.sys_table))
         __sys_table_end__ = .;
     } > SYS_TABLE
-
-
-    .boota : {
-        __boota_start__ = .;
-        KEEP (*(.boota))
-        __boota_end__ = .;
-    } > BOOTA
-
-
 
     /* The second stage will always enter the image at the start of .text.
        The debugger will use the ELF entry point, which is the _entry_point

@@ -21,7 +21,6 @@ bool run_new_app(cmd_ctx_t* ctx);
 bool load_app(cmd_ctx_t* ctx);
 void exec(cmd_ctx_t* ctx);
 void cleanup_bootb_ctx(cmd_ctx_t* ctx);
-bool restore_tbl(char* fn);
 void flash_block_wrapper(uint8_t* buffer, size_t flash_target_offset);
 
 #ifdef __cplusplus

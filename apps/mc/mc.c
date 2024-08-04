@@ -853,26 +853,15 @@ static void bottom_line() {
             fn_1_12_tbl_alt[9].action = turn_usb_off;
         }
     }
-    for (int i = 0; i < BTNS_COUNT && (i + 1) * BTN_WIDTH < MAX_WIDTH; ++i) {
+    int i = 0;
+    for (; i < BTNS_COUNT && (i + 1) * BTN_WIDTH < MAX_WIDTH; ++i) {
         const fn_1_12_tbl_rec_t* rec = &(*actual_fn_1_12_tbl())[i];
         draw_fn_btn(rec, i * BTN_WIDTH, F_BTN_Y_POS);
     }
-//    draw_text( // TODO: move to pico-vision
-//        bk_mode_lns[g_conf.bk0010mode].txt,
-//        BTN_WIDTH * 13 + 3,
-//        F_BTN_Y_POS,
-//        get_color_schema()->FOREGROUND_FIELD_COLOR,
-//        get_color_schema()->BACKGROUND_FIELD_COLOR
-//    );
-//    char buf[4];
-//    snprintf(buf, 4, "%s%s", g_conf.is_AY_on ? "A" : " ", g_conf.is_covox_on ? "C" : " ");
-//    draw_text( // TODO: move to pico-vision
-//        buf,
-//        BTN_WIDTH * 13,
-//        F_BTN_Y_POS,
-//        5, // red
-//        0  // black
-//    );
+    i = i * BTN_WIDTH;
+    for (; i < MAX_WIDTH; ++i) {
+        draw_text(" ", i, F_BTN_Y_POS, pcs->FOREGROUND_F1_12_COLOR, pcs->BACKGROUND_F1_12_COLOR);
+    }
     draw_cmd_line(0, CMD_Y_POS);
 }
 

@@ -22,7 +22,7 @@ if(NOT FLASH_SIZE)
 set(FLASH_SIZE 16384)
 endif ()
 
-set(MOS_VERSION 0.1.6.1)
+set(MOS_VERSION 0.1.7)
 
 SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
 
@@ -176,7 +176,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #DEBUG_APP_LOAD=1
         #CFG_TUSB_DEBUG=3
 
-        M_API_VERSION=13
+        M_API_VERSION=14
+        MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
         #FLASH_SIZE_STR="${FLASH_SIZE}"
 
@@ -185,7 +186,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 
 pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
-math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 96) + 0x10000000")
+math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 100) + 0x10000000")
 message(STATUS "${CUSTOM_XIP_BASE}")
 target_compile_definitions(slower_boot2 PRIVATE CUSTOM_XIP_BASE=${CUSTOM_XIP_BASE})
 target_compile_definitions(slower_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)

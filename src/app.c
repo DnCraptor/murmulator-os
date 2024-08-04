@@ -9,8 +9,7 @@
 #include "graphics.h"
 #include "keyboard.h"
 
-#define M_OS_API_TABLE_BASE ((size_t*)0x10001000ul)
-#define M_OS_APP_TABLE_BASE ((size_t*)0x10002000ul)
+#define M_OS_APP_TABLE_BASE ((size_t*)0x10002000ul) // TODO:
 typedef int (*boota_ptr_t)( void *argv );
 
 typedef struct {
@@ -81,67 +80,6 @@ void flash_block_wrapper(uint8_t* buffer, size_t flash_target_offset) {
     flash_block(buffer, flash_target_offset);
 }
 
-bool restore_tbl(char* fn) {
-    if (f_open(&file, fn, FA_READ) != FR_OK) {
-        return false;
-    }
-    UINT rb;
-    char* alloc = (char*)pvPortMalloc(FLASH_SECTOR_SIZE << 1);
-    char* buffer = (char*)((uint32_t)(alloc + FLASH_SECTOR_SIZE - 1) & 0xFFFFFE00); // align 512
-    if (f_read(&file, buffer, FLASH_SECTOR_SIZE, &rb) != FR_OK || rb != FLASH_SECTOR_SIZE) {
-        vPortFree(alloc);
-        goutf("Failed to read '%s' file to restore OS API\n", fn);
-        f_close(&file);
-        return false;
-    }
-    f_close(&file);
-    // goutf("Read '%s' file to restore OS API - PASSED. Bytes read: %d\n", fn, rb);
-    uint8_t* b = buffer;
-    uint8_t* fl = (uint8_t*)M_OS_API_TABLE_BASE;
-    for (int i = 0; i < 400; ++i) { // it is enough to test first 100 addresses
-        if (*b++ != *fl++) {
-            b--; fl--;
-            /*
-            goutf("It is required to restore OS API functions table, because %02Xh @%ph <> %02Xh (saved)\n", *fl, fl, *b);
-            goutf("Flash [%p]->[%p].\n"
-                  "Press ENTER to confirm,\n"
-                  "TAB to USB boot,\n"
-                  "'U' to unlink '%s'\n"
-                  "or ESC to skip it...\n",
-                   buffer, M_OS_API_TABLE_BASE, fn
-            );
-            while(1) {
-                char c = __getch();
-                if (c == '\n') {
-                    break;
-                }
-                if (c == 'u' || c == 'U') {
-                    f_unlink(fn);
-                    vPortFree(alloc);
-                    return false;
-                }
-                if (c == '\t') {
-                    vPortFree(alloc);
-                    reset_usb_boot(0, 0);
-                    while(1);
-                }
-                if (c == 0x1B/*ESC* /) {
-                    vPortFree(alloc);
-                    return false;
-                }
-            }
-            */
-            flash_block(buffer, (uint32_t)(M_OS_API_TABLE_BASE) - XIP_BASE);
-            vPortFree(alloc);
-            f_unlink(fn);
-            return true;
-        }
-    }
-    vPortFree(alloc);
-    return true;
-}
-
-
 bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     FILINFO fi;
     if (FR_OK != f_stat(pathname, &fi) || FR_OK != f_open(&file, pathname, FA_READ)) {
@@ -180,7 +118,7 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     vPortFree(alloc);
     f_close(&file);
     if (boot_replaced) {
-        fgoutf(get_stdout(), "Write FIRMWARE MARKER to '%s'\n", pathname);
+        fgoutf(get_stdout(), "Write FIRMWARE MARKER '%s' to '%s'\n", pathname, FIRMWARE_MARKER_FN);
         f_open(&file, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
         fgoutf(&file, "%s\n", pathname);
         f_close(&file);
@@ -201,26 +139,10 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
 
 bool load_firmware(char* pathname) {
     f_stat(pathname, &fileinfo);
-    if (flash_size - (96 << 10) < (fileinfo.fsize >> 1)) {
+    if (flash_size - (100 << 10) < (fileinfo.fsize >> 1)) {
         fgoutf(get_stdout(), "ERROR: Firmware too large (%dK)! Canceled!\n", fileinfo.fsize >> 11);
         return false;
     }
-    char* t = get_ctx_var(get_cmd_startup_ctx(), "TEMP");
-    t = concat(t ? t : "", OS_TABLE_BACKUP_FN);
-    fgoutf(get_stdout(), "Backup OS API functions table to '%s'\n", t);
-    if (FR_OK != f_open(&file, t, FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_WRITE) ) {
-        fgoutf(get_stdout(), "ERROR: Unable to open backup file: '%s'!\n", t);
-        vPortFree(t);
-        return false;
-    }
-    UINT wb = 0;
-    if (FR_OK != f_write(&file, M_OS_API_TABLE_BASE, FLASH_SECTOR_SIZE, &wb) || wb != FLASH_SECTOR_SIZE)  {
-        fgoutf(get_stdout(), "ERROR: Unable to write to backup file: '%s'!\n", t);
-        vPortFree(t);
-        f_close(&file);
-        return false;
-    }
-    vPortFree(t);
     f_close(&file);
 
     fgoutf(get_stdout(), "Loading firmware: '%s'\n", pathname);
@@ -742,17 +664,17 @@ static void exec_sync(cmd_ctx_t* ctx) {
     #if DEBUG_APP_LOAD
     goutf("__required_m_api_verion: [%p]\n", bootb_ctx->bootb[0]);
     #endif
-    int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : 5;
+    int rav = bootb_ctx->bootb[0] ? bootb_ctx->bootb[0]() : MIN_API_VERSION;
     #if DEBUG_APP_LOAD
     goutf("rav: %d\n", rav);
     #endif
     if (rav > M_API_VERSION) {
-        goutf("Required by application '%s' M-API version %d is grater than provided )%d)\n",  ctx->argv[0], rav, M_API_VERSION);
+        goutf("Required by application '%s' M-API version %d is grater than provided (%d)\n",  ctx->argv[0], rav, M_API_VERSION);
         ctx->ret_code = -2;
         return;
     }
-    if (rav < 5) { // unsupported earliest versions
-        goutf("Application '%s' uses M-API version %d, that less than minimal required version %d\n", ctx->argv[0], rav, 5);
+    if (rav < MIN_API_VERSION) { // unsupported earliest versions
+        goutf("Application '%s' uses M-API version %d, that less than minimal required version: %d\n", ctx->argv[0], rav, MIN_API_VERSION);
         ctx->ret_code = -3;
         return;
     }

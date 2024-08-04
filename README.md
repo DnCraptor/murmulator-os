@@ -60,11 +60,11 @@ Other types of<br/>
 to be supported later.<br/>
 <br/>
 M-OS is installed as bootable application for RP2040 on Rasperry Pi Pico FLASH ROM.<br/>
-Addresses map:<br/>
-10000000..10001000h - .boot2       - contains startup block<br/>
-10001000..10002000h - .sys_table   - contains a table of pointers to functions, M-OS provides for application level<br/>
-10002000..10003000h - .boota       - contains a table of pointers to functions, application provides for M-OS (for now only launcher)<br/>
-10003000..(depends on FLASH size)  - M-OS managed place, that may be provided to or shared with application level<br/>
+Addresses map (16MB flash):<br/>
+10000000..10001000h - .boot2       - contains 4k startup block<br/>
+10001000..10FE7000h - 4070 M-OS managed 4k pages, that may be provided to or shared with application level<br/>
+10FE7000..10FFF000h - .text        - contains 96k of M-OS core<br/>
+10FFF000..11000000h - .sys_table   - contains 4k table of pointers to functions, M-OS provides for application level<br/> 
 (memmap.ld to be provided)<br/>
 <br/>
 M-OS application should try to reuse functions from OS instead of linking other libraries.<br/>

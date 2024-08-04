@@ -239,18 +239,9 @@ static void load_config_sys() {
    // overclocking();
 }
 
-static inline void try_to_restore_api_tbl(cmd_ctx_t* ctx) {
-    char* t = get_ctx_var(ctx, TEMP);
-    t = concat(t ? t : "", OS_TABLE_BACKUP_FN);
-    restore_tbl(t);
-    vPortFree(t);
-}
-
 extern "C" void vCmdTask(void *pv) {
     const TaskHandle_t th = xTaskGetCurrentTaskHandle();
     cmd_ctx_t* ctx = get_cmd_startup_ctx();
-    try_to_restore_api_tbl(ctx);
-
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     while(1) {
         if (!ctx->argc && !ctx->argv) {
