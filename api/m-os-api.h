@@ -533,6 +533,14 @@ inline static uint32_t get_console_height() {
     typedef uint32_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[147])();
 }
+inline static uint32_t get_screen_width() {
+    typedef uint32_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[158])();
+}
+inline static uint32_t get_screen_height() {
+    typedef uint32_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[159])();
+}
 typedef FIL FILE;
 inline static int getc(FILE* in) { // return -1 for EOF
     typedef int (*fn_ptr_t)(FILE* in);
@@ -547,13 +555,17 @@ inline static size_t get_buffer_size() {
     typedef size_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[153])();
 }
-inline static uint8_t get_console_bitness() {
+inline static uint8_t get_screen_bitness() {
     typedef uint8_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[154])();
 }
 inline static void cleanup_graphics() {
     typedef void (*fn_ptr_t)();
     ((fn_ptr_t)_sys_table_ptrs[155])();
+}
+inline static uint8_t get_console_bitness() {
+    typedef uint8_t (*fn_ptr_t)();
+    return ((fn_ptr_t)_sys_table_ptrs[157])();
 }
 
 typedef void (*vv_fn)(void);

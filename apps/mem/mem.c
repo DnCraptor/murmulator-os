@@ -5,12 +5,13 @@ int main(void) {
     uint32_t flash32 = get_cpu_flash_size();
     uint32_t ram32 = get_cpu_ram_size();
     uint32_t sz = psram_size();
+    size_t free_sz = xPortGetFreeHeapSize();
     fprintf(ctx->std_out,
-            "SRAM size : %d (%dK) bytes\n"
-            "FLASH size: %d (%dK) bytes\n"
-            "PSRAM size: %d (%dK) bytes\n",
-            ram32, ram32 >> 10,
-            flash32, flash32 >> 10,
+            "SRAM size : %d (%dK) bytes (%dK free)\n"
+            "FLASH size: %d (%dK) bytes (%dK free)\n"
+            "PSRAM size: %d (%dK) bytes\n", // TODO: <-- psram table
+            ram32, ram32 >> 10, free_sz >> 10,
+            flash32, flash32 >> 10, (flash32 >> 10) - 96, // TODO: <-- flash_table
             sz, sz >> 10);
     sz = swap_size();
     fprintf(ctx->std_out,
@@ -21,7 +22,7 @@ int main(void) {
     size_t vsz = get_buffer_size();
     fprintf(ctx->std_out, "VRAM in heap  : %d (%dK); video mode: %d x %d x %d bit\n",
             vsz, vsz >> 10,
-            get_screen_width(), get_screen_height(), get_screen_buffer_bitness()
+            get_screen_width(), get_screen_height(), get_screen_bitness()
     );
     HeapStats_t* stat = malloc(sizeof(HeapStats_t));
     vPortGetHeapStats(stat);

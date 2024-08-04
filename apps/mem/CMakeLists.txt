@@ -38,7 +38,7 @@ add_executable(${PROJECT_NAME} mem.c)
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../api
-    )
+)
 
 configure_file(memmap.ld.in memmap.ld @ONLY)
 pico_set_linker_script(${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/memmap.ld)
@@ -49,7 +49,6 @@ pico_set_program_version(${PROJECT_NAME} "test")
 target_link_libraries(${PROJECT_NAME} PRIVATE
     pico_runtime
     pico_stdlib
-        
 )
 
 #family_configure_device_example(${PROJECT_NAME} noos)
