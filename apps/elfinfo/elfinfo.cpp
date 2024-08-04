@@ -397,7 +397,7 @@ extern "C" int main(void) {
             } else {                
                 f_lseek(f, symtab_off);
                 elf32_sym sym;
-                fgoutf(f2, "### st_value st_info_type st_info_bind st_name (st_size)) -> st_shndx .spec\n");
+                fgoutf(f2, "### st_value st_info_type st_info_bind st_name (st_size) -> st_shndx .spec\n");
                 for(int i = 0; i < symtab_len / sizeof(sym); ++i) {
                     if(f_read(f, &sym, sizeof(sym), &rb) != FR_OK || rb != sizeof(sym)) {
                         fgoutf(ctx->std_err, "Unable to read .symtab section #%d\n", i);
@@ -417,7 +417,7 @@ extern "C" int main(void) {
         if (dyntab_off < 0) {
             fgoutf(f2, "No .dynsym section header found\n");            
         } else if (dynstr_off < 0) {
-            fgoutf(ctx->std_err, "Unable to find .dynstr section header\n");            
+            fgoutf(f2, "No .dynstr section header found\n");            
         } else {
             fgoutf(f2, "DYNTAB:\n");
             char* strtab = (char*)pvPortMalloc(dynstr_len);
