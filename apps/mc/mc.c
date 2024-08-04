@@ -364,14 +364,6 @@ static file_info_t* selected_file() {
     return 0; // ?? what a case?
 }
 
-// TODO:
-#define save_snap do_nothing
-#define swap_drives do_nothing
-#define switch_mode do_nothing
-#define switch_color do_nothing
-#define conf_it do_nothing
-#define restore_snap do_nothing
-
 static FRESULT m_unlink_recursive(char * path) {
     DIR dir;
     FRESULT res = f_opendir(&dir, path);
@@ -763,47 +755,47 @@ void m_edit(uint8_t nu) {
 
 static fn_1_12_tbl_t fn_1_12_tbl = {
     ' ', '1', " Help ", m_info,
-    ' ', '2', " Snap ", save_snap,
+    ' ', '2', "      ", do_nothing,
     ' ', '3', " View ", m_view,
     ' ', '4', " Edit ", m_edit,
     ' ', '5', " Copy ", m_copy_file,
     ' ', '6', " Move ", m_move_file,
     ' ', '7', "MkDir ", m_mk_dir,
     ' ', '8', " Del  ", m_delete_file,
-    ' ', '9', " Swap ", swap_drives,
+    ' ', '9', "      ", do_nothing,
     '1', '0', " Exit ", mark_to_exit,
-    '1', '1', "EmMODE", switch_mode,
-    '1', '2', " B/W  ", switch_color
+    '1', '1', "      ", do_nothing,
+    '1', '2', "      ", do_nothing
 };
 
 static fn_1_12_tbl_t fn_1_12_tbl_alt = {
-    ' ', '1', "Right ", do_nothing,
-    ' ', '2', " Conf ", conf_it,
+    ' ', '1', "      ", do_nothing,
+    ' ', '2', "      ", do_nothing,
     ' ', '3', " View ", m_view,
     ' ', '4', " Edit ", m_edit,
     ' ', '5', " Copy ", m_copy_file,
     ' ', '6', " Move ", m_move_file,
-    ' ', '7', " Find ", do_nothing,
+    ' ', '7', "      ", do_nothing,
     ' ', '8', " Del  ", m_delete_file,
-    ' ', '9', " UpMn ", do_nothing,
+    ' ', '9', "      ", do_nothing,
     '1', '0', " USB  ", turn_usb_on,
-    '1', '1', "EmMODE", switch_mode,
-    '1', '2', " B/W  ", switch_color
+    '1', '1', "      ", do_nothing,
+    '1', '2', "      ", do_nothing
 };
 
 static fn_1_12_tbl_t fn_1_12_tbl_ctrl = {
-    ' ', '1', "Eject ", do_nothing,
-    ' ', '2', "ReSnap", restore_snap,
-    ' ', '3', "Debug ", do_nothing,
+    ' ', '1', "      ", do_nothing,
+    ' ', '2', "      ", do_nothing,
+    ' ', '3', "      ", do_nothing,
     ' ', '4', " Edit ", m_edit,
     ' ', '5', " Copy ", m_copy_file,
     ' ', '6', " Move ", m_move_file,
-    ' ', '7', " Find ", do_nothing,
+    ' ', '7', "      ", do_nothing,
     ' ', '8', " Del  ", m_delete_file,
-    ' ', '9', " Swap ", swap_drives,
+    ' ', '9', "      ", do_nothing,
     '1', '0', " Exit ", mark_to_exit,
-    '1', '1', "EmMODE", switch_mode,
-    '1', '2', " B/W  ", switch_color
+    '1', '1', "      ", do_nothing,
+    '1', '2', "      ", do_nothing
 };
 
 static void turn_usb_off(uint8_t cmd) {
@@ -2019,7 +2011,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
                 } else if ((nespad_state & DPAD_LEFT) || (nespad_state & DPAD_RIGHT)) {
                     handle_tab_pressed();
                 } else if ((nespad_state & DPAD_A) && (nespad_state & DPAD_SELECT)) {
-                    conf_it(0);
+            //        conf_it(0);
                 } else if ((nespad_state & DPAD_B) && (nespad_state & DPAD_START)) {
                     free(cmd);
                     reset(0);
