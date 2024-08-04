@@ -12,10 +12,11 @@ void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz) {
 }
 
 enum graphics_mode_t {
-    TEXTMODE_80x30,
-    TEXTMODE_128x48,
-    BK_256x256x2,
-    BK_512x256x1,
+    TEXTMODE_80x30, // 640*480
+    TEXTMODE_100x37, // 800*600
+    TEXTMODE_128x48, // 1024*768
+    BK_256x256x2, // 1024*768 3-lines->1 4-pixels->1
+    BK_512x256x1, // 1024*768 3-lines->1 2-pixels->1
 };
 
 static volatile uint32_t frame_number;
@@ -155,38 +156,8 @@ static uint8_t* dma_handler_VGA_impl() {
             prev_output_buffer = output_buffer;
             y = line_number - graphics_buffer_shift_y;
             break;
-        case TEXTMODE_80x30: {
-            uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
-            output_buffer_16bit += shift_picture / 2;
-            // "слой" символа
-            uint32_t glyph_line = screen_line & 0xF; // % font_height;
-            // указатель откуда начать считывать символы
-            register uint8_t* text_buffer_line = &input_buffer[(screen_line >> 4) * text_buffer_width * 2];
-            uint16_t* txt_palette_fast = vga_context->txt_palette_fast;
-            for (int x = 0; x < text_buffer_width; x++) {
-                // из таблицы символов получаем "срез" текущего символа
-                uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
-                    // считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
-                uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
-                if (cursor_blink_state && (screen_line >> 4) == pos_y && x == pos_x && glyph_line >= 13) { // TODO: cur height
-                    color = &txt_palette_fast[0];
-                    uint16_t c = color[cursor_color];
-                    *output_buffer_16bit++ = c;
-                    *output_buffer_16bit++ = c;
-                    *output_buffer_16bit++ = c;
-                    *output_buffer_16bit++ = c;
-                } else {
-                    *output_buffer_16bit++ = color[glyph_pixels & 3];
-                    glyph_pixels >>= 2;
-                    *output_buffer_16bit++ = color[glyph_pixels & 3];
-                    glyph_pixels >>= 2;
-                    *output_buffer_16bit++ = color[glyph_pixels & 3];
-                    glyph_pixels >>= 2;
-                    *output_buffer_16bit++ = color[glyph_pixels & 3];
-                }
-            }
-            return output_buffer;
-        }
+        case TEXTMODE_80x30:
+        case TEXTMODE_100x37:
         case TEXTMODE_128x48: {
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture / 2;
@@ -349,6 +320,11 @@ bool vga_set_mode(int mode) {
             text_buffer_height = 30;
             bitness = 16;
             break;
+        case TEXTMODE_100x37:
+            text_buffer_width = 100;
+            text_buffer_height = 37;
+            bitness = 16;
+            break;
         case TEXTMODE_128x48:
             text_buffer_width = 128;
             text_buffer_height = 48;
@@ -393,6 +369,20 @@ bool vga_set_mode(int mode) {
             line_VS_end = 491;
             set_graphics_clkdiv(25175000, line_size); // частота пиксельклока
             break;
+        case TEXTMODE_100x37:
+            TMPL_LINE8 = 0b11000000;
+            // SVGA Signal 800 x 600 @ 60 Hz timing
+            HS_SHIFT = 800 + 40; // Front porch + Visible area
+            HS_SIZE = 88; // Back porch
+            line_size = 1056;
+            shift_picture = line_size - HS_SHIFT;
+            visible_line_size = 800 / 2;
+            N_lines_visible = 16 * 37; // 592 < 600
+            line_VS_begin = 600 + 1; // + Front porch
+            line_VS_end = 600 + 3 + 4; // ++ Sync pulse 2?
+            N_lines_total = 628; // Whole frame
+            set_graphics_clkdiv(40000000, line_size); // частота пиксельклока 40.0 MHz
+            break;
         case TEXTMODE_128x48:
         case BK_256x256x2:
         case BK_512x256x1:
@@ -412,53 +402,29 @@ bool vga_set_mode(int mode) {
     }
 
     //инициализация шаблонов строк и синхросигнала
-    if (mode == TEXTMODE_80x30) {
-        context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));
-        for (int i = 0; i < 4; i++) {
-            lines_pattern[i] = &context->lines_pattern_data[i * (line_size >> 2)];
-        }
-        TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
-        TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
-        TMPL_HS8 = TMPL_LINE8 ^ 0b01000000;
-        uint8_t* base_ptr = (uint8_t *)lines_pattern[0];
-        //пустая строка
-        memset(base_ptr, TMPL_LINE8, line_size);
-        //выровненная синхра вначале
-        memset(base_ptr, TMPL_HS8, HS_SIZE);
-        // кадровая синхра
-        base_ptr = (uint8_t *)lines_pattern[1];
-        memset(base_ptr, TMPL_VS8, line_size);
-        //выровненная синхра вначале
-        memset(base_ptr, TMPL_VHS8, HS_SIZE);
-        //заготовки для строк с изображением
-        base_ptr = (uint8_t *)lines_pattern[2];
-        memcpy(base_ptr, lines_pattern[0], line_size);
-        base_ptr = (uint8_t *)lines_pattern[3];
-        memcpy(base_ptr, lines_pattern[0], line_size);
-    } else {
-        context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
-        for (int i = 0; i < 4; i++) {
-            lines_pattern[i] = &context->lines_pattern_data[i * (line_size >> 2)];
-        }
-        TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
-        TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
-        TMPL_HS8 = TMPL_LINE8 ^ 0b01000000;
-        uint8_t* base_ptr = (uint8_t *)lines_pattern[0];
-        //пустая строка
-        memset(base_ptr, TMPL_LINE8, line_size);
-        //выровненная синхра вначале
-        memset(base_ptr, TMPL_HS8, HS_SIZE);
-        // кадровая синхра
-        base_ptr = (uint8_t *)lines_pattern[1];
-        memset(base_ptr, TMPL_VS8, line_size);
-        //выровненная синхра вначале
-        memset(base_ptr, TMPL_VHS8, HS_SIZE);
-        //заготовки для строк с изображением
-        base_ptr = (uint8_t *)lines_pattern[2];
-        memcpy(base_ptr, lines_pattern[0], line_size);
-        base_ptr = (uint8_t *)lines_pattern[3];
-        memcpy(base_ptr, lines_pattern[0], line_size);
+    context->lines_pattern_data = (uint32_t *)pvPortCalloc(line_size, sizeof(uint32_t));;
+    for (int i = 0; i < 4; i++) {
+        lines_pattern[i] = &context->lines_pattern_data[i * (line_size >> 2)];
     }
+    TMPL_VHS8 = TMPL_LINE8 ^ 0b11000000;
+    TMPL_VS8 = TMPL_LINE8 ^ 0b10000000;
+    TMPL_HS8 = TMPL_LINE8 ^ 0b01000000;
+    uint8_t* base_ptr = (uint8_t *)lines_pattern[0];
+    // пустая строка
+    memset(base_ptr, TMPL_LINE8, line_size);
+    // выровненная синхра вначале
+    memset(base_ptr, TMPL_HS8, HS_SIZE);
+    // кадровая синхра
+    base_ptr = (uint8_t *)lines_pattern[1];
+    memset(base_ptr, TMPL_VS8, line_size);
+    // выровненная синхра вначале
+    memset(base_ptr, TMPL_VHS8, HS_SIZE);
+    // заготовки для строк с изображением
+    base_ptr = (uint8_t *)lines_pattern[2];
+    memcpy(base_ptr, lines_pattern[0], line_size);
+    base_ptr = (uint8_t *)lines_pattern[3];
+    memcpy(base_ptr, lines_pattern[0], line_size);
+
     frame_number = 0;
     screen_line = 0;
     input_buffer = NULL;
@@ -467,6 +433,7 @@ bool vga_set_mode(int mode) {
     vga_context_t* cleanup = vga_context;
     switch (mode) {
         case TEXTMODE_80x30:
+        case TEXTMODE_100x37:
         case TEXTMODE_128x48:
             context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(text_buffer_width * text_buffer_height, 2);
             context->txt_palette_fast = (uint16_t *)pvPortCalloc(256 * 4, sizeof(uint16_t));
@@ -528,6 +495,7 @@ static void set_vga_buffer(uint8_t* buffer) {
 static size_t vga_buffer_size() {
     switch (graphics_mode) {
         case TEXTMODE_80x30:
+        case TEXTMODE_100x37:
         case TEXTMODE_128x48:
             return (lock_buffer ? 0 : text_buffer_height * text_buffer_width * 2)
                 + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
