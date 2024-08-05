@@ -13,15 +13,17 @@ extern "C" {
 #endif
 #ifdef HDMI
 #include "hdmi.h"
+#define HDMI_DRV 1
 #endif
 #ifdef VGA
 #include "vga.h"
+#define VGA_DRV 2
 #endif
 #ifdef TV
 #include "tv.h"
 #endif
 
-void graphics_init();
+void graphics_init(int drv_type);
 void graphics_set_buffer(uint8_t* buffer);
 void graphics_set_offset(int x, int y);
 void graphics_set_bgcolor(uint32_t color888);

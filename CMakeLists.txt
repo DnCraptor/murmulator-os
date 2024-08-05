@@ -11,16 +11,13 @@ pico_sdk_init()
 SET(VGA ON)
 
 option(VGA "Enable VGA" ON)
-option(TFT "Enable TFT display" OFF)
-option(ILI9341 "Enable TFT ILI9341 display" OFF)
-option(FLASH_SIZE "Target Flash Size" 16384)
+#option(TFT "Enable TFT display" OFF)
+#option(ILI9341 "Enable TFT ILI9341 display" OFF)
+#option(FLASH_SIZE "Target Flash Size" 16384)
 
 set(VGA ON)
-set(HDMI ON)
 
 if(NOT FLASH_SIZE)
-#set(FLASH_SIZE 2048)
-#set(FLASH_SIZE 4096)
 set(FLASH_SIZE 16384)
 endif ()
 

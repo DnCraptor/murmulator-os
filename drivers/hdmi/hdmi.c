@@ -1,7 +1,6 @@
 #include "graphics.h"
 #include <stdio.h>
 #include <string.h>
-#include "malloc.h"
 #include <stdalign.h>
 #include "hardware/dma.h"
 #include "hardware/pio.h"
@@ -30,7 +29,6 @@ static enum graphics_mode_t graphics_mode = TEXTMODE_80x30;
 //буфер  палитры 256 цветов в формате R8G8B8
 static uint32_t palette[256];
 
-
 #define SCREEN_WIDTH (320)
 #define SCREEN_HEIGHT (240)
 //графический буфер
@@ -39,6 +37,13 @@ static int graphics_buffer_width = 0;
 static int graphics_buffer_height = 0;
 static int graphics_buffer_shift_x = 0;
 static int graphics_buffer_shift_y = 0;
+static uint8_t bitness = 16;
+static volatile int __scratch_y("hdmi_driver_text") pos_x = 0;
+static volatile int __scratch_y("hdmi_driver_text") pos_y = 0;
+static volatile uint8_t __scratch_y("hdmi_driver_text") con_color = 7;
+static volatile uint8_t __scratch_y("hdmi_driver_text") con_bgcolor = 0;
+static volatile uint8_t __scratch_y("hdmi_driver_text") _cursor_color = 7;
+static volatile bool lock_buffer = false;
 
 //текстовый буфер
 uint8_t* text_buffer = NULL;
@@ -622,4 +627,152 @@ void hdmi_set_textbuffer(uint8_t* buffer) {
 void hdmi_clr_scr(const uint8_t color) {
     if (text_buffer)
         memset(text_buffer, color, TEXTMODE_COLS * TEXTMODE_ROWS * 2);
+}
+
+void hdmi_driver_init(void) {
+ // TODO:   set_vga_dma_handler_impl(dma_handler_VGA_impl);
+    hdmi_set_bgcolor(0x000000);
+  // ??  init_palette();
+}
+
+void hdmi_cleanup(void) {
+    /* TODO:
+    vga_context_t* cleanup = vga_context;
+    vga_context = 0;
+    if (cleanup) {
+        if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
+        if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
+        if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
+        vPortFree(cleanup);
+    }
+    */
+}
+
+bool hdmi_is_mode_text(int mode) {
+    return mode <= TEXTMODE_80x30;
+}
+
+bool hdmi_is_text_mode() {
+    return hdmi_is_mode_text(graphics_mode);
+}
+
+int hdmi_get_mode(void) {
+    return graphics_mode;
+}
+
+uint32_t hdmi_console_width(void) {
+    return graphics_buffer_width;
+}
+uint32_t hdmi_console_height(void) {
+    return graphics_buffer_height;
+}
+uint8_t* get_hdmi_buffer(void) {
+    return graphics_buffer;
+}
+void set_hdmi_buffer(uint8_t* b) {
+    graphics_buffer = b;
+}
+
+void hdmi_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
+    if (!graphics_buffer) return;
+    uint8_t* t_buf = graphics_buffer + graphics_buffer_width * 2 * y + 2 * x;
+    uint8_t c = (bgcolor << 4) | (color & 0xF);
+    for (int xi = x; xi < graphics_buffer_width * 2; ++xi) {
+        if (!(*string)) break;
+        *t_buf++ = *string++;
+        *t_buf++ = c;
+    }
+}
+uint8_t get_hdmi_buffer_bitness(void) {
+    return bitness;
+}
+
+size_t hdmi_buffer_size() {
+    switch (graphics_mode) {
+        case TEXTMODE_80x30:
+        // TODO:
+        default:
+            return 0;
+    }
+}
+
+void hdmi_set_con_pos(int x, int y) {
+    pos_x = x;
+    pos_y = y;
+}
+int hdmi_con_x(void) {
+    return pos_x;
+}
+int hdmi_con_y(void) {
+    return pos_y;
+}
+
+void hdmi_set_con_color(uint8_t color, uint8_t bgcolor) {
+    con_color = color;
+    con_bgcolor = bgcolor;
+}
+
+static char* _rollup(char* t_buf) {
+    char* b = graphics_buffer;
+    if (pos_y >= graphics_buffer_height - 1) {
+        memcpy(b, b + graphics_buffer_width * 2, graphics_buffer_width * (graphics_buffer_height - 2) * 2);
+        t_buf = b + graphics_buffer_width * (graphics_buffer_height - 2) * 2;
+        for(int i = 0; i < graphics_buffer_width; ++i) {
+            *t_buf++ = ' ';
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+        pos_y = graphics_buffer_height - 2;
+    }
+    return b + graphics_buffer_width * 2 * pos_y + 2 * pos_x;
+}
+
+void hdmi_print(char* buf) {
+    if (!graphics_buffer) return;
+    uint8_t* t_buf = graphics_buffer + graphics_buffer_width * 2 * pos_y + 2 * pos_x;
+    char c;
+    while (c = *buf++) {
+        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
+        if (c == '\n') {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            continue;
+        }
+        pos_x++;
+        if (pos_x >= graphics_buffer_width) {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+            pos_x++;
+        } else {
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+    }
+}
+
+void hdmi_backspace(void) {
+    if (!graphics_buffer) return;
+    uint8_t* t_buf;
+    pos_x--;
+    if (pos_x < 0) {
+        pos_x = graphics_buffer_width - 2;
+        pos_y--;
+        if (pos_y < 0) {
+            pos_y = 0;
+        }
+    }
+    t_buf = graphics_buffer + graphics_buffer_width * 2 * pos_y + 2 * pos_x;
+    *t_buf++ = ' ';
+    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+}
+
+void hdmi_lock_buffer(bool b) {
+    lock_buffer = b;
+}
+
+void hdmi_set_cursor_color(uint8_t color) {
+    _cursor_color = color;
 }

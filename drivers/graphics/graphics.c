@@ -15,7 +15,7 @@ char vga_dbg_msg[1024] = { 0 };
 
 #endif
 
-static graphics_driver_t internal_driver = {
+static graphics_driver_t internal_vga_driver = {
     0, //ctx
     vga_driver_init,
     vga_cleanup,
@@ -46,16 +46,50 @@ static graphics_driver_t internal_driver = {
     vga_set_cursor_color
 };
 
-static volatile graphics_driver_t* graphics_driver = &internal_driver;
+static graphics_driver_t internal_hdmi_driver = {
+    0, //ctx
+    hdmi_driver_init,
+    hdmi_cleanup,
+    hdmi_set_mode, // set_mode
+    hdmi_is_text_mode, // is_text
+    hdmi_console_width,
+    hdmi_console_height,
+    hdmi_console_width,
+    hdmi_console_height,
+    get_hdmi_buffer,
+    set_hdmi_buffer,
+    hdmi_clr_scr,
+    hdmi_draw_text,
+    get_hdmi_buffer_bitness,
+    get_hdmi_buffer_bitness,
+    hdmi_set_offset, // set_offsets
+    hdmi_set_bgcolor,
+    hdmi_buffer_size,
+    hdmi_set_con_pos,
+    hdmi_con_x,
+    hdmi_con_y,
+    hdmi_set_con_color,
+    hdmi_print,
+    hdmi_backspace,
+    hdmi_lock_buffer,
+    hdmi_get_mode,
+    hdmi_is_mode_text,
+    hdmi_set_cursor_color
+};
 
-void graphics_init() {
+static volatile graphics_driver_t* graphics_driver = 0;
+
+void graphics_init(int drv_type) {
+    if (graphics_driver == 0) {
+        graphics_driver = drv_type == HDMI_DRV ?  &internal_hdmi_driver : &internal_vga_driver;
+    }
     DBG_PRINT("graphics_init %ph\n", graphics_driver);
     if(graphics_driver && graphics_driver->init) {
-       DBG_PRINT("graphics_init->init %ph\n", graphics_driver->init);
+        DBG_PRINT("graphics_init->init %ph\n", graphics_driver->init);
         graphics_driver->init();
     }
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
-    vga_init(); // TODO: HDMI, etc...
+    drv_type == HDMI_DRV ? hdmi_init() : vga_init(); // TODO: etc...
 }
 
 void set_cursor_color(uint8_t color) {
@@ -197,7 +231,7 @@ void install_graphics_driver(graphics_driver_t* gd) {
     }
     graphics_driver = gd;
     DBG_PRINT("install_graphics_driver to init %ph\n", gd);
-    graphics_init();
+    graphics_init(VGA_DRV); // TODO: detect type and reject!!
     DBG_PRINT("install_graphics_driver exit\n");
 }
 
