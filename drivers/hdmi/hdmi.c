@@ -60,9 +60,7 @@ static uint32_t* __scratch_y("hdmi_ptr_4") DMA_BUF_ADDR[2];
 
 //ДМА палитра для конвертации
 //в хвосте этой памяти выделяется dma_data
-static alignas(4096)
-uint32_t conv_color[1224];
-
+static alignas(4096) uint32_t conv_color[1224];
 
 //индекс, проверяющий зависание
 static uint32_t irq_inx = 0;
@@ -233,23 +231,36 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
 
                 break;
             }
-            case TEXTMODE_80x30:
             case TEXTMODE_53x30: {
                 int y = line / 2;
                 *output_buffer++ = 255;
-                int duplicated_bits = 320 / graphics_buffer_width;
-
                 for (int x = 0; x < graphics_buffer_width; x++) {
                     const uint16_t offset = (y / 8) * (graphics_buffer_width * 2) + x * 2;
                     const uint8_t c = graphics_buffer[offset];
                     const uint8_t colorIndex = graphics_buffer[offset + 1];
                     uint8_t glyph_row = font_6x8[c * 8 + y % 8];
-
-                    for (int bit = duplicated_bits; bit--;) {
+                    for (int bit = 6; bit--;) {
                         *output_buffer++ = glyph_row & 1
                                                ? textmode_palette[colorIndex & 0xf] //цвет шрифта
                                                : textmode_palette[colorIndex >> 4]; //цвет фона
-
+                        glyph_row >>= 1;
+                    }
+                }
+                *output_buffer = 255;
+                break;
+            }
+            case TEXTMODE_80x30: { // TODO: some other flow
+                int y = line / 2;
+                *output_buffer++ = 255;
+                for (int x = 0; x < graphics_buffer_width; x++) {
+                    const uint16_t offset = (y / 8) * (graphics_buffer_width * 2) + x * 2;
+                    const uint8_t c = graphics_buffer[offset];
+                    const uint8_t colorIndex = graphics_buffer[offset + 1];
+                    uint8_t glyph_row = font_6x8[c * 8 + y % 8];
+                    for (int bit = 4; bit--;) {
+                        *output_buffer++ = glyph_row & 1
+                                               ? textmode_palette[colorIndex & 0xf] //цвет шрифта
+                                               : textmode_palette[colorIndex >> 4]; //цвет фона
                         glyph_row >>= 1;
                     }
                 }

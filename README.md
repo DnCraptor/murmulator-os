@@ -3,7 +3,7 @@ ZX Murmulator OS<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
-Sources are "in-progress" state and testing now only on ZX Murmulator devboard with VGA output.<br/>
+Sources are "in-progress" state and testing now only on ZX Murmulator devboard with VGA/HDMI output.<br/>
 Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme<br/>
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
 
@@ -13,7 +13,7 @@ Let use translate from russian on site https://murmulator.ru/types, for case it 
 
 # Current state
 RP2040 core 0: starts FreeRTOS (based on https://github.com/FreeRTOS/FreeRTOS-Community-Supported-Demos/tree/3d475bddf7ac8af425da67cdaa2485e90a57a881/CORTEX_M0%2B_RP2040) <br/>
-RP2040 core 1: starts VGA driver (based on ZX Murmulator comunity version last used before it in https://github.com/xrip/pico-launcher)
+RP2040 core 1: starts VGA/HDMI driver (based on ZX Murmulator comunity version last used before it in https://github.com/xrip/pico-launcher)
 
 # MOS build hints:
  - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
@@ -48,7 +48,7 @@ M-OS manages access to<br/>
  - PSRAM (4-8MB installed on ZX Murmulator board since v.1.3),<br/>
  - FLASH ROM (2-16MB installed on Rasperry Pi Pico),<br/>
  - SD-CARD (FAT32, connected to ZX Murmulator board),<br/>
- - VGA adapter (222-color schema, installed on ZX Murmulator board),<br/>
+ - VGA/HDMI adapter (222-color schema, installed on ZX Murmulator board),<br/>
  - PS/2 keyboard (connected to ZX Murmulator board),<br/>
  - Kempston (Dendy 8-bit) Joystick (connected to ZX Murmulator board),<br/>
  - Sound devices (PWM 12-bit stereo + "speaker")<br/>
@@ -80,7 +80,7 @@ typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint
 #define _draw_text_ptr_idx 25<br/>
 #define draw_text ((draw_text_ptr_t)_sys_table_ptrs[_draw_text_ptr_idx])<br/>
 <br/>
-So it will be possible to call draw_text the same way as for case graphics.h and VGA driver exists, but without 'em.<br/>
+So it will be possible to call draw_text the same way as for case graphics.h and VGA/HDMI driver exists, but without 'em.<br/>
 
 # M-OS commands
 cls - clear screen<br/>
@@ -100,7 +100,7 @@ cpu [NNN] - change freq. to NNN MHz (it may hang on such action)<br/>
 mem - show current memory state<br/>
 set - show or set environment variables<br/>
 export - put variable into system context<br/>
-mode [#] - set video-mode (for now it is supported 0 - 80x30, 1 - 100x37 and 2 - 128x48)<br/>
+mode [#] - set video-mode (for now it is supported 0 - 80x30, 1 - 100x37 and 2 - 128x48 - for VGA, and 0 - 53x30 and 1 - 80x30 for HDMI)<br/>
 less - show not more than one page of other command in pipe, like ls | less<br/>
 hex [file] - show file as hexidecimal dump<br/>
 tail [-n #] [file] - show specified (or 10) last lines from the file<br/>
@@ -129,5 +129,6 @@ TEMP - specify a folder with temporary files<br/>
 
 # Boot-loader mode
 If uf2 application was started from M-OS, and such application is not designed for M-OS, it is possible to return to M-OS only via reboot:<br/>
-Press F11 (or DPAD SELECT) and hold on the Murmulator reset or power-on, in this case uf2 application startup wil be skip and you will return to the M-OS<br/>
-Press F12 (or DPAD START) and hold on the Murmulator reset or power-on, in case you want to start USB-drive mode without starting M-OS.<br/>
+Press [F11] or [SPACE] (DPAD [SELECT]) and hold on the Murmulator reset or power-on, in this case uf2 application startup wil be skip and you will return to the M-OS<br/>
+Press [F12] or [ENTER] (DPAD [START]) and hold on the Murmulator reset or power-on, in case you want to start USB-drive mode without starting M-OS.<br/>
+Press [TAM] (DPAD [A]) and hold on the Murmulator reset or power-on, in case you want to switch default output from VGA to HDMI or vice versa.<br/>
