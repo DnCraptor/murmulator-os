@@ -45,9 +45,6 @@ static volatile uint8_t __scratch_y("hdmi_driver_text") con_bgcolor = 0;
 static volatile uint8_t __scratch_y("hdmi_driver_text") _cursor_color = 7;
 static volatile bool lock_buffer = false;
 
-//текстовый буфер
-uint8_t* text_buffer = NULL;
-
 //DMA каналы
 //каналы работы с первичным графическим буфером
 static int dma_chan_ctrl;
@@ -243,8 +240,8 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
 
                 for (int x = 0; x < TEXTMODE_COLS; x++) {
                     const uint16_t offset = (y / 8) * (TEXTMODE_COLS * 2) + x * 2;
-                    const uint8_t c = text_buffer[offset];
-                    const uint8_t colorIndex = text_buffer[offset + 1];
+                    const uint8_t c = graphics_buffer[offset];
+                    const uint8_t colorIndex = graphics_buffer[offset + 1];
                     uint8_t glyph_row = font_6x8[c * 8 + y % 8];
 
                     for (int bit = 6; bit--;) {
@@ -643,13 +640,11 @@ void hdmi_set_offset(int x, int y) {
     graphics_buffer_shift_y = y;
 };
 
-void hdmi_set_textbuffer(uint8_t* buffer) {
-    text_buffer = buffer;
-};
 
 void hdmi_clr_scr(const uint8_t color) {
-    if (text_buffer)
-        memset(text_buffer, color, TEXTMODE_COLS * TEXTMODE_ROWS * 2);
+    if (graphics_buffer) {
+        memset(graphics_buffer, color, graphics_buffer_height * graphics_buffer_width * (bitness >> 3));
+    }
 }
 
 void hdmi_driver_init(void) {
@@ -711,18 +706,15 @@ uint8_t get_hdmi_buffer_bitness(void) {
 }
 
 size_t hdmi_buffer_size() {
-    switch (graphics_mode) {
-        case TEXTMODE_80x30:
-        // TODO:
-        default:
-            return 0;
-    }
+    if (!graphics_buffer) return 0;
+    return graphics_buffer_height * graphics_buffer_width * (bitness >> 3);
 }
 
 void hdmi_set_con_pos(int x, int y) {
     pos_x = x;
     pos_y = y;
 }
+
 int hdmi_con_x(void) {
     return pos_x;
 }
