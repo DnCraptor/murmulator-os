@@ -40,10 +40,11 @@ extern "C" FATFS* get_mount_fs() { // only one FS is supported for now
     return &fs;
 }
 semaphore vga_start_semaphore;
+static int drv = DEFAULT_VIDEO_DRIVER;
 
 void __time_critical_func(render_core)() {
     multicore_lockout_victim_init();
-    graphics_init(VGA_DRV);
+    graphics_init(drv);
 
     // graphics_driver_t* gd = get_graphics_driver();
     // install_graphics_driver(gd);
@@ -407,15 +408,20 @@ static void init(void) {
 #endif
     kbd_state_t* ks = get_kbd_state();
     for (int a = 0; a < 5; ++a) {
-        // F12 Boot to USB FIRMWARE UPDATE mode
-        if ((nespad_state & DPAD_START) || ((ks->input & 0xFF) == 0x58) /*F12*/) {
+        uint8_t sc = ks->input & 0xFF;
+        // F12 or ENTER or START Boot to USB FIRMWARE UPDATE mode
+        if ((nespad_state & DPAD_START) || (sc == 0x58) /*F12*/ || (sc == 0x1C) /*ENTER*/) {
             if(mount_res) unlink_firmware();
             reset_usb_boot(0, 0);
             while(1);
         }
-        // F11 unlink prev uf2 firmware
-        if ((nespad_state & DPAD_SELECT) || ((ks->input & 0xFF) == 0x57) /*F11*/) {
+        // F11 or SPACE or SELECT unlink prev uf2 firmware
+        if ((nespad_state & DPAD_SELECT) || (sc == 0x57) /*F11*/  || (sc == 0x39) /*SPACE*/) {
             if(mount_res) unlink_firmware(); // return to OS
+        }
+        // DPAD A/TAB start with HDMI
+        if ((nespad_state & DPAD_A) || (sc == 0x0F) /*TAB*/) {
+            drv = DEFAULT_VIDEO_DRIVER == VGA_DRV ? HDMI_DRV : VGA_DRV;
         }
         sleep_ms(10);
         nespad_read();
@@ -424,7 +430,7 @@ static void init(void) {
         check_firmware();
     } else {
         startup_vga();
-        graphics_set_mode(0);
+        graphics_set_mode(0); // TODO: get default
         graphics_set_con_pos(0, 1);
         show_logo(true);
         init_psram();

@@ -127,7 +127,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC
 endif ()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
-        OVERCLOCKING=366
+        OVERCLOCKING=378
         PICO_FLASH_SIZE_BYTES=16777216
 
         # VGA 8 pins starts from pin:
@@ -178,7 +178,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         M_API_VERSION=14
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
-        #FLASH_SIZE_STR="${FLASH_SIZE}"
+        #DEFAULT_VIDEO_DRIVER=VGA_DRV
+        DEFAULT_VIDEO_DRIVER=HDMI_DRV
 
         TESTS=0
 )

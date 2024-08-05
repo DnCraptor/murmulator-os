@@ -48,7 +48,6 @@ static volatile bool lock_buffer = false;
 //текстовый буфер
 uint8_t* text_buffer = NULL;
 
-
 //DMA каналы
 //каналы работы с первичным графическим буфером
 static int dma_chan_ctrl;
@@ -552,8 +551,32 @@ static inline bool inner_init() {
 
 //выбор видеорежима
 void hdmi_set_mode(int mode) {
+    switch (mode) {
+        case TEXTMODE_53x30:
+            graphics_buffer_width = 53;
+            graphics_buffer_height = 30;
+            bitness = 16;
+            break;
+        case TEXTMODE_80x30:
+            graphics_buffer_width = 80;
+            graphics_buffer_height = 30;
+            bitness = 16;
+            break;
+        case VGA_320x240x256:
+            graphics_buffer_width = 320;
+            graphics_buffer_height = 240;
+            bitness = 8;
+            break;
+        default:
+            return false;
+    }
     graphics_mode = mode;
-    clrScr(0);
+    pos_x = 0;
+    pos_y = 0;
+    if (!lock_buffer) {
+        if (graphics_buffer) vPortFree(graphics_buffer);
+        graphics_buffer = pvPortCalloc(graphics_buffer_width * graphics_buffer_height, bitness >> 3);
+    }
 };
 
 void hdmi_set_palette(uint8_t i, uint32_t color888) {
