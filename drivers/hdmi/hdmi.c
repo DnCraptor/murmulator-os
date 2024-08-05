@@ -237,14 +237,15 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
             case TEXTMODE_53x30: {
                 int y = line / 2;
                 *output_buffer++ = 255;
+                int duplicated_bits = 320 / graphics_buffer_width;
 
-                for (int x = 0; x < TEXTMODE_COLS; x++) {
-                    const uint16_t offset = (y / 8) * (TEXTMODE_COLS * 2) + x * 2;
+                for (int x = 0; x < graphics_buffer_width; x++) {
+                    const uint16_t offset = (y / 8) * (graphics_buffer_width * 2) + x * 2;
                     const uint8_t c = graphics_buffer[offset];
                     const uint8_t colorIndex = graphics_buffer[offset + 1];
                     uint8_t glyph_row = font_6x8[c * 8 + y % 8];
 
-                    for (int bit = 6; bit--;) {
+                    for (int bit = duplicated_bits; bit--;) {
                         *output_buffer++ = glyph_row & 1
                                                ? textmode_palette[colorIndex & 0xf] //цвет шрифта
                                                : textmode_palette[colorIndex >> 4]; //цвет фона
