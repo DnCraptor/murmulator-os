@@ -53,12 +53,13 @@ static int line_size = 0;
 
 static uint16_t __scratch_y("vga_driver") txt_palette[16];
 
-volatile int __scratch_y("vga_driver_text") pos_x = 0;
-volatile int __scratch_y("vga_driver_text") pos_y = 0;
+extern volatile int pos_x;
+extern volatile int pos_y;
 volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 
-volatile uint8_t __scratch_y("vga_driver_text") con_color = 7;
-volatile uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
+extern volatile uint8_t con_color;
+extern volatile uint8_t con_bgcolor;
+
 volatile uint8_t __scratch_y("vga_driver_text") _cursor_color = 7;
 volatile bool lock_buffer = false;
 static volatile int graphics_mode = -1;
@@ -113,16 +114,6 @@ int vga_con_y(void) {
 void vga_set_con_pos(int x, int y) {
     pos_x = x;
     pos_y = y;
-}
-void vga_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    if (!vga_context || !vga_context->graphics_buffer) return;
-    uint8_t* t_buf = vga_context->graphics_buffer + text_buffer_width * 2 * y + 2 * x;
-    uint8_t c = (bgcolor << 4) | (color & 0xF);
-    for (int xi = x; xi < text_buffer_width * 2; ++xi) {
-        if (!(*string)) break;
-        *t_buf++ = *string++;
-        *t_buf++ = c;
-    }
 }
 size_t vga_buffer_size() {
     switch (graphics_mode) {
@@ -687,63 +678,6 @@ static void init_palette() {
     for (int i = 0; i < 16*4; i++) {
         palette[i] = (palette[i] & 0x3f3f) | palette16_mask;
     }
-}
-
-static char* _rollup(char* t_buf) {
-    char* b = vga_context->graphics_buffer;
-    if (pos_y >= text_buffer_height - 1) {
-        memcpy(b, b + text_buffer_width * 2, text_buffer_width * (text_buffer_height - 2) * 2);
-        t_buf = b + text_buffer_width * (text_buffer_height - 2) * 2;
-        for(int i = 0; i < text_buffer_width; ++i) {
-            *t_buf++ = ' ';
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-        }
-        pos_y = text_buffer_height - 2;
-    }
-    return b + text_buffer_width * 2 * pos_y + 2 * pos_x;
-}
-
-void vga_print(char* buf) {
-    if (!vga_context || !vga_context->graphics_buffer) return;
-    uint8_t* t_buf = vga_context->graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
-    char c;
-    while (c = *buf++) {
-        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
-        if (c == '\n') {
-            pos_x = 0;
-            pos_y++;
-            t_buf = _rollup(t_buf);
-            continue;
-        }
-        pos_x++;
-        if (pos_x >= text_buffer_width) {
-            pos_x = 0;
-            pos_y++;
-            t_buf = _rollup(t_buf);
-            *t_buf++ = c;
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-            pos_x++;
-        } else {
-            *t_buf++ = c;
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-        }
-    }
-}
-
-void vga_backspace(void) {
-    if (!vga_context || !vga_context->graphics_buffer) return;
-    uint8_t* t_buf;
-    pos_x--;
-    if (pos_x < 0) {
-        pos_x = text_buffer_width - 2;
-        pos_y--;
-        if (pos_y < 0) {
-            pos_y = 0;
-        }
-    }
-    t_buf = vga_context->graphics_buffer + text_buffer_width * 2 * pos_y + 2 * pos_x;
-    *t_buf++ = ' ';
-    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }
 
 void vga_set_bgcolor(const uint32_t color888) {

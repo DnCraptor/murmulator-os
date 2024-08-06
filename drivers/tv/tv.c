@@ -453,7 +453,7 @@ static void __scratch_x("tv_main_loop") main_video_loopTV() {
                         }
                         break;
                     }
-                    case TEXTMODE_DEFAULT: {
+                    case TEXTMODE_DEFAULT: { // TODO: 80*30
                         uint8_t* text_buffer = graphics_buffer.data;
                         *output_buffer++ = 200;
                         for (int x = 0; x < graphics_buffer.width; x++) {
@@ -778,16 +778,6 @@ void set_tv_buffer(uint8_t* b) {
     graphics_buffer.data = b;
 }
 
-void tv_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    if (!graphics_buffer.data) return;
-    uint8_t* t_buf = graphics_buffer.data + graphics_buffer.width * 2 * y + 2 * x;
-    uint8_t c = (bgcolor << 4) | (color & 0xF);
-    for (int xi = x; xi < graphics_buffer.width * 2; ++xi) {
-        if (!(*string)) break;
-        *t_buf++ = *string++;
-        *t_buf++ = c;
-    }
-}
 uint8_t get_tv_buffer_bitness(void) {
     return graphics_buffer.bitness;
 }
@@ -795,80 +785,6 @@ uint8_t get_tv_buffer_bitness(void) {
 size_t tv_buffer_size() {
     if (!graphics_buffer.data) return 0;
     return graphics_buffer.height * graphics_buffer.width * (graphics_buffer.bitness >> 3);
-}
-
-void tv_set_con_pos(int x, int y) {
-    pos_x = x;
-    pos_y = y;
-}
-
-int tv_con_x(void) {
-    return pos_x;
-}
-int tv_con_y(void) {
-    return pos_y;
-}
-
-void tv_set_con_color(uint8_t color, uint8_t bgcolor) {
-    con_color = color;
-    con_bgcolor = bgcolor;
-}
-
-static char* _rollup(char* t_buf) {
-    char* b = graphics_buffer.data;
-    if (pos_y >= graphics_buffer.height - 1) {
-        memcpy(b, b + graphics_buffer.width * 2, graphics_buffer.width * (graphics_buffer.height - 2) * 2);
-        t_buf = b + graphics_buffer.width * (graphics_buffer.height - 2) * 2;
-        for(int i = 0; i < graphics_buffer.width; ++i) {
-            *t_buf++ = ' ';
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-        }
-        pos_y = graphics_buffer.height - 2;
-    }
-    return b + graphics_buffer.width * 2 * pos_y + 2 * pos_x;
-}
-
-void tv_print(char* buf) {
-    if (!graphics_buffer.data) return;
-    uint8_t* t_buf = graphics_buffer.data + graphics_buffer.width * 2 * pos_y + 2 * pos_x;
-    char c;
-    while (c = *buf++) {
-        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
-        if (c == '\n') {
-            pos_x = 0;
-            pos_y++;
-            t_buf = _rollup(t_buf);
-            continue;
-        }
-        pos_x++;
-        if (pos_x >= graphics_buffer.width) {
-            pos_x = 0;
-            pos_y++;
-            t_buf = _rollup(t_buf);
-            *t_buf++ = c;
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-            pos_x++;
-        } else {
-            *t_buf++ = c;
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-        }
-    }
-}
-
-void tv_backspace(void) {
-    if (!graphics_buffer.data) return;
-    uint8_t* t_buf;
-    pos_x--;
-    if (pos_x < 0) {
-        pos_x = graphics_buffer.width - 2;
-        pos_y--;
-        if (pos_y < 0) {
-            pos_y = 0;
-        }
-    }
-    t_buf = graphics_buffer.data + graphics_buffer.width * 2 * pos_y + 2 * pos_x;
-    *t_buf++ = ' ';
-    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }
 
 void tv_lock_buffer(bool b) {

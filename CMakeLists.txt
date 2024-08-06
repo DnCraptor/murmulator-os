@@ -176,15 +176,16 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         M_API_VERSION=14
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
-        DEFAULT_VIDEO_DRIVER=VGA_DRV
+        #DEFAULT_VIDEO_DRIVER=VGA_DRV
         #DEFAULT_VIDEO_DRIVER=HDMI_DRV
+        DEFAULT_VIDEO_DRIVER=TV_DRV
 
         TESTS=0
 )
 
 
 pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
-math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 100) + 0x10000000")
+math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 128) + 0x10000000")
 message(STATUS "${CUSTOM_XIP_BASE}")
 target_compile_definitions(slower_boot2 PRIVATE CUSTOM_XIP_BASE=${CUSTOM_XIP_BASE})
 target_compile_definitions(slower_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)
@@ -204,10 +205,10 @@ IF (TFT)
         SET(BUILD_NAME "${BUILD_NAME}-ST7789")
     ENDIF ()
 ELSE ()
-#    target_compile_definitions(${PROJECT_NAME} PRIVATE TV)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE TV)
     target_compile_definitions(${PROJECT_NAME} PRIVATE VGA)
     target_compile_definitions(${PROJECT_NAME} PRIVATE HDMI)
-#    target_link_libraries(${PROJECT_NAME} PRIVATE tv)
+    target_link_libraries(${PROJECT_NAME} PRIVATE tv)
     target_link_libraries(${PROJECT_NAME} PRIVATE hdmi)
     target_link_libraries(${PROJECT_NAME} PRIVATE vga-nextgen)
     SET(BUILD_NAME "${BUILD_NAME}-VGA-HDMI-TV")

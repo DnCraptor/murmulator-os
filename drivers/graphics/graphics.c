@@ -15,6 +15,14 @@ char vga_dbg_msg[1024] = { 0 };
 
 #endif
 
+void common_set_con_pos(int x, int y);
+int common_con_x(void);
+int common_con_y(void);
+void common_set_con_color(uint8_t color, uint8_t bgcolor);
+void common_print(char* buf);
+void common_backspace(void);
+void common_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor);
+
 static graphics_driver_t internal_vga_driver = {
     0, //ctx
     vga_driver_init,
@@ -28,18 +36,18 @@ static graphics_driver_t internal_vga_driver = {
     get_vga_buffer,
     set_vga_buffer,
     vga_clr_scr,
-    vga_draw_text,
+    common_draw_text,
     get_vga_buffer_bitness,
     get_vga_buffer_bitness,
     0, // set_offsets
     vga_set_bgcolor,
     vga_buffer_size,
-    vga_set_con_pos,
-    vga_con_x,
-    vga_con_y,
-    vga_set_con_color,
-    vga_print,
-    vga_backspace,
+    common_set_con_pos,
+    common_con_x,
+    common_con_y,
+    common_set_con_color,
+    common_print,
+    common_backspace,
     vga_lock_buffer,
     vga_get_mode,
     vga_is_mode_text,
@@ -59,18 +67,18 @@ static graphics_driver_t internal_hdmi_driver = {
     get_hdmi_buffer,
     set_hdmi_buffer,
     hdmi_clr_scr,
-    hdmi_draw_text,
+    common_draw_text,
     get_hdmi_buffer_bitness,
     get_hdmi_buffer_bitness,
     hdmi_set_offset, // set_offsets
     hdmi_set_bgcolor,
     hdmi_buffer_size,
-    hdmi_set_con_pos,
-    hdmi_con_x,
-    hdmi_con_y,
-    hdmi_set_con_color,
-    hdmi_print,
-    hdmi_backspace,
+    common_set_con_pos,
+    common_con_x,
+    common_con_y,
+    common_set_con_color,
+    common_print,
+    common_backspace,
     hdmi_lock_buffer,
     hdmi_get_mode,
     hdmi_is_mode_text,
@@ -91,18 +99,18 @@ static graphics_driver_t internal_tv_driver = {
     get_tv_buffer,
     set_tv_buffer,
     tv_clr_scr,
-    tv_draw_text,
+    common_draw_text,
     get_tv_buffer_bitness,
     get_tv_buffer_bitness,
     tv_set_offset, // set_offsets
     tv_set_bgcolor,
     tv_buffer_size,
-    tv_set_con_pos,
-    tv_con_x,
-    tv_con_y,
-    tv_set_con_color,
-    tv_print,
-    tv_backspace,
+    common_set_con_pos,
+    common_con_x,
+    common_con_y,
+    common_set_con_color,
+    common_print,
+    common_backspace,
     tv_lock_buffer,
     tv_get_mode,
     tv_is_mode_text,
@@ -390,5 +398,104 @@ void gouta(char* buf) {
 void gbackspace() {
     if(graphics_driver && graphics_driver->backspace) {
         graphics_driver->backspace();
+    }
+}
+
+// common
+volatile int __scratch_y("_driver_text") pos_x = 0;
+volatile int __scratch_y("_driver_text") pos_y = 0;
+volatile uint8_t __scratch_y("_driver_text") con_color = 7;
+volatile uint8_t __scratch_y("_driver_text") con_bgcolor = 0;
+
+void common_set_con_pos(int x, int y) {
+    pos_x = x;
+    pos_y = y;
+}
+
+int common_con_x(void) {
+    return pos_x;
+}
+int common_con_y(void) {
+    return pos_y;
+}
+
+void common_set_con_color(uint8_t color, uint8_t bgcolor) {
+    con_color = color;
+    con_bgcolor = bgcolor;
+}
+
+static char* common_rollup(char* t_buf) {
+    char* b = get_buffer();
+    uint32_t width = get_console_width();
+    uint32_t height = get_console_height();
+    if (pos_y >= height - 1) {
+        memcpy(b, b + width * 2, width * (height - 2) * 2);
+        t_buf = b + width * (height - 2) * 2;
+        for(int i = 0; i < width; ++i) {
+            *t_buf++ = ' ';
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+        pos_y = height - 2;
+    }
+    return b + width * 2 * pos_y + 2 * pos_x;
+}
+
+void common_print(char* buf) {
+    char* graphics_buffer = get_buffer();
+    if (!graphics_buffer) return;
+    uint32_t width = get_console_width();
+    uint8_t* t_buf = graphics_buffer + width * 2 * pos_y + 2 * pos_x;
+    char c;
+    while (c = *buf++) {
+        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
+        if (c == '\n') {
+            pos_x = 0;
+            pos_y++;
+            t_buf = common_rollup(t_buf);
+            continue;
+        }
+        pos_x++;
+        if (pos_x >= width) {
+            pos_x = 0;
+            pos_y++;
+            t_buf = common_rollup(t_buf);
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+            pos_x++;
+        } else {
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+    }
+}
+
+void common_backspace(void) {
+    char* graphics_buffer = get_buffer();
+    if (!graphics_buffer) return;
+    uint32_t width = get_console_width();
+    uint8_t* t_buf;
+    pos_x--;
+    if (pos_x < 0) {
+        pos_x = width - 2;
+        pos_y--;
+        if (pos_y < 0) {
+            pos_y = 0;
+        }
+    }
+    t_buf = graphics_buffer + width * 2 * pos_y + 2 * pos_x;
+    *t_buf++ = ' ';
+    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+}
+
+void common_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
+    char* graphics_buffer = get_buffer();
+    if (!graphics_buffer) return;
+    uint32_t width = get_console_width();
+    uint8_t* t_buf = graphics_buffer + width * 2 * y + 2 * x;
+    uint8_t c = (bgcolor << 4) | (color & 0xF);
+    for (int xi = x; xi < width * 2; ++xi) {
+        if (!(*string)) break;
+        *t_buf++ = *string++;
+        *t_buf++ = c;
     }
 }

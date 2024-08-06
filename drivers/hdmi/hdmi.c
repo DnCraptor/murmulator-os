@@ -174,7 +174,6 @@ static void pio_set_x(PIO pio, const int sm, uint32_t v) {
     pio_sm_exec(pio, sm, instr_mov);
 }
 
-
 static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
     static uint32_t inx_buf_dma;
     static uint line = 0;
@@ -281,9 +280,6 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 }*/
                 break;
         }
-
-
-        // memset(activ_buf,2,320);//test
 
         //ССИ
         //для выравнивания синхры
@@ -596,10 +592,8 @@ void hdmi_set_mode(int mode) {
 
 void hdmi_set_palette(uint8_t i, uint32_t color888) {
     palette[i] = color888 & 0x00ffffff;
-
-
-    if ((i >= BASE_HDMI_CTRL_INX) && (i != 255)) return; //не записываем "служебные" цвета
-
+    if ((i >= BASE_HDMI_CTRL_INX) && (i != 255))
+        return; //не записываем "служебные" цвета
     uint64_t* conv_color64 = (uint64_t *)hdmi_conv_color;
     const uint8_t R = (color888 >> 16) & 0xff;
     const uint8_t G = (color888 >> 8) & 0xff;
@@ -607,13 +601,6 @@ void hdmi_set_palette(uint8_t i, uint32_t color888) {
     conv_color64[i * 2] = get_ser_diff_data(tmds_encoder(R), tmds_encoder(G), tmds_encoder(B));
     conv_color64[i * 2 + 1] = conv_color64[i * 2] ^ 0x0003ffffffffffffl;
 };
-
-void hdmi_set_buffer(uint8_t* buffer, uint16_t width, uint16_t height) {
-    graphics_buffer = buffer;
-    graphics_buffer_width = width;
-    graphics_buffer_height = height;
-};
-
 
 //выделение и настройка общих ресурсов - 4 DMA канала, PIO программ и 2 SM
 void hdmi_init() {
@@ -709,16 +696,6 @@ void set_hdmi_buffer(uint8_t* b) {
     graphics_buffer = b;
 }
 
-void hdmi_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    if (!graphics_buffer) return;
-    uint8_t* t_buf = graphics_buffer + graphics_buffer_width * 2 * y + 2 * x;
-    uint8_t c = (bgcolor << 4) | (color & 0xF);
-    for (int xi = x; xi < graphics_buffer_width * 2; ++xi) {
-        if (!(*string)) break;
-        *t_buf++ = *string++;
-        *t_buf++ = c;
-    }
-}
 uint8_t get_hdmi_buffer_bitness(void) {
     return bitness;
 }
@@ -726,80 +703,6 @@ uint8_t get_hdmi_buffer_bitness(void) {
 size_t hdmi_buffer_size() {
     if (!graphics_buffer) return 0;
     return graphics_buffer_height * graphics_buffer_width * (bitness >> 3);
-}
-
-void hdmi_set_con_pos(int x, int y) {
-    pos_x = x;
-    pos_y = y;
-}
-
-int hdmi_con_x(void) {
-    return pos_x;
-}
-int hdmi_con_y(void) {
-    return pos_y;
-}
-
-void hdmi_set_con_color(uint8_t color, uint8_t bgcolor) {
-    con_color = color;
-    con_bgcolor = bgcolor;
-}
-
-static char* _rollup(char* t_buf) {
-    char* b = graphics_buffer;
-    if (pos_y >= graphics_buffer_height - 1) {
-        memcpy(b, b + graphics_buffer_width * 2, graphics_buffer_width * (graphics_buffer_height - 2) * 2);
-        t_buf = b + graphics_buffer_width * (graphics_buffer_height - 2) * 2;
-        for(int i = 0; i < graphics_buffer_width; ++i) {
-            *t_buf++ = ' ';
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-        }
-        pos_y = graphics_buffer_height - 2;
-    }
-    return b + graphics_buffer_width * 2 * pos_y + 2 * pos_x;
-}
-
-void hdmi_print(char* buf) {
-    if (!graphics_buffer) return;
-    uint8_t* t_buf = graphics_buffer + graphics_buffer_width * 2 * pos_y + 2 * pos_x;
-    char c;
-    while (c = *buf++) {
-        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
-        if (c == '\n') {
-            pos_x = 0;
-            pos_y++;
-            t_buf = _rollup(t_buf);
-            continue;
-        }
-        pos_x++;
-        if (pos_x >= graphics_buffer_width) {
-            pos_x = 0;
-            pos_y++;
-            t_buf = _rollup(t_buf);
-            *t_buf++ = c;
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-            pos_x++;
-        } else {
-            *t_buf++ = c;
-            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
-        }
-    }
-}
-
-void hdmi_backspace(void) {
-    if (!graphics_buffer) return;
-    uint8_t* t_buf;
-    pos_x--;
-    if (pos_x < 0) {
-        pos_x = graphics_buffer_width - 2;
-        pos_y--;
-        if (pos_y < 0) {
-            pos_y = 0;
-        }
-    }
-    t_buf = graphics_buffer + graphics_buffer_width * 2 * pos_y + 2 * pos_x;
-    *t_buf++ = ' ';
-    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }
 
 void hdmi_lock_buffer(bool b) {

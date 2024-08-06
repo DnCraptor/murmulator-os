@@ -419,9 +419,33 @@ static void init(void) {
         if ((nespad_state & DPAD_SELECT) || (sc == 0x57) /*F11*/  || (sc == 0x39) /*SPACE*/) {
             if(mount_res) unlink_firmware(); // return to OS
         }
-        // DPAD A/TAB start with HDMI
+        // DPAD A/TAB start with HDMI, if default is VGA, and vice versa
         if ((nespad_state & DPAD_A) || (sc == 0x0F) /*TAB*/) {
-            drv = DEFAULT_VIDEO_DRIVER == VGA_DRV ? HDMI_DRV : VGA_DRV;
+            switch(DEFAULT_VIDEO_DRIVER) {
+                case VGA_DRV:
+                    drv = HDMI_DRV;
+                    break;
+                case HDMI_DRV:
+                    drv = VGA_DRV;
+                    break;
+                case TV_DRV:
+                    drv = VGA_DRV;
+                    break;
+            }
+        }
+        // DPAD B start with VGA, if default is TV
+        if ((nespad_state & DPAD_B)) {
+            switch(DEFAULT_VIDEO_DRIVER) {
+                case VGA_DRV:
+                    drv = HDMI_DRV;
+                    break;
+                case HDMI_DRV:
+                    drv = VGA_DRV;
+                    break;
+                case TV_DRV:
+                    drv = HDMI_DRV;
+                    break;
+            }
         }
         sleep_ms(10);
         nespad_read();

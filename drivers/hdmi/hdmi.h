@@ -41,17 +41,10 @@ uint32_t hdmi_console_height(void);
 uint8_t* get_hdmi_buffer(void);
 void set_hdmi_buffer(uint8_t*);
 void hdmi_clr_scr(const uint8_t color);
-void hdmi_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor);
 uint8_t get_hdmi_buffer_bitness(void);
 void hdmi_set_offset(int x, int y);
 void hdmi_set_bgcolor(uint32_t color888); //определяем зарезервированный цвет в палитре
 size_t hdmi_buffer_size();
-void hdmi_set_con_pos(int x, int y);
-int hdmi_con_x(void);
-int hdmi_con_y(void);
-void hdmi_set_con_color(uint8_t color, uint8_t bgcolor);
-void hdmi_print(char* buf);
-void hdmi_backspace(void);
 void hdmi_lock_buffer(bool b);
 void hdmi_set_cursor_color(uint8_t color);
 
