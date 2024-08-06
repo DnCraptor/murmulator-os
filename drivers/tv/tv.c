@@ -1,0 +1,880 @@
+#include <string.h>
+
+#include "graphics.h"
+#include "pico/stdlib.h"
+#include "hardware/clocks.h"
+#include "hardware/dma.h"
+#include "hardware/pio.h"
+#include "font6x8.h"
+
+#define SCREEN_WIDTH (320)
+#define SCREEN_HEIGHT (240)
+
+//программы PIO
+
+//программа конвертации адреса для TV_OUT
+uint16_t pio_program_instructions_conv_TV[] = {
+    //	 .wrap_target
+    0x80a0, //  0: pull   block
+    0x40e8, //  1: in	 osr, 8
+    0x4037, //  2: in	 x, 23
+    0x8020, //  3: push   block
+    //	 .wrap
+};
+
+const struct pio_program pio_program_conv_addr_TV = {
+    .instructions = pio_program_instructions_conv_TV,
+    .length = 4,
+    .origin = -1,
+};
+
+//программа видеовывода VGA
+static uint16_t pio_program_TV_instructions[] = {
+    //	 .wrap_target
+    0x6008, //  0: out	pins, 8
+    //	 .wrap
+};
+
+static const struct pio_program program_pio_TV = {
+    .instructions = pio_program_TV_instructions,
+    .length = 1,
+    .origin = -1,
+};
+
+extern volatile int pos_x;
+extern volatile int pos_y;
+extern volatile uint8_t con_color;
+extern volatile uint8_t con_bgcolor;
+extern volatile uint8_t _cursor_color;
+extern volatile bool lock_buffer;
+
+typedef struct {
+    int H_len;
+    int begin_img_shx;
+    int img_size_x;
+    int N_lines;
+    int sync_size;
+    uint8_t SYNC_TMPL;
+    uint8_t NO_SYNC_TMPL;
+    double CLK_SPD;
+} TV_MODE;
+
+typedef struct {
+    uint width;
+    uint height;
+    int shift_x;
+    int shift_y;
+    uint8_t* data;
+    uint8_t bitness;
+} graphics_buffer_t;
+
+
+//режим видеовыхода
+static TV_MODE v_mode = {
+    .H_len = 512,
+    .N_lines = 525,
+    .SYNC_TMPL = 241,
+    .NO_SYNC_TMPL = 240,
+    .CLK_SPD = 31500000.0
+};
+
+static graphics_buffer_t graphics_buffer = {
+    .data = NULL,
+    .shift_x = 0,
+    .shift_y = 0,
+    .width = SCREEN_WIDTH,
+    .height = SCREEN_HEIGHT,
+};
+
+//буферы строк
+//количество буферов задавать кратно степени двойки
+//
+#define N_LINE_BUF_log2 (2)
+#define N_LINE_BUF_DMA (1<<N_LINE_BUF_log2)
+#define N_LINE_BUF (N_LINE_BUF_DMA)
+
+//максимальный размер строки
+#define LINE_SIZE_MAX (512)
+
+//указатели на буферы строк
+//выравнивание нужно для кольцевого буфера
+static uint32_t rd_addr_DMA_CTRL[N_LINE_BUF * 2]__attribute__ ((aligned (4*N_LINE_BUF_DMA)));
+//непосредственно буферы строк
+
+extern uint32_t hdmi_conv_color[1224];
+static uint32_t* lines_buf = hdmi_conv_color; // [N_LINE_BUF][LINE_SIZE_MAX / 4] = reinterpert_cast<>conv_color;
+
+static int SM_video = -1;
+static int SM_conv = -1;
+
+//DMA каналы
+//каналы работы с первичным графическим буфером
+static int dma_chan_ctrl = -1;
+static int dma_chan = -1;
+//каналы работы с конвертацией палитры
+static int dma_chan_pal_conv_ctrl = -1;
+static int dma_chan_pal_conv = -1;
+
+//ДМА палитра для конвертации
+static __aligned(512) __scratch_x("palette_conv") uint32_t conv_color[128];
+
+enum graphics_mode_t {
+    TEXTMODE_DEFAULT,
+    GRAPHICSMODE_DEFAULT
+};
+
+static enum graphics_mode_t graphics_mode;
+static output_format_e active_output_format;
+static repeating_timer_t video_timer;
+
+//программа установки начального адреса массива-конвертора
+static void pio_set_x(PIO pio, const int sm, const uint32_t v) {
+    const uint instr_shift = pio_encode_in(pio_x, 4);
+    const uint instr_mov = pio_encode_mov(pio_x, pio_isr);
+    for (int i = 0; i < 8; i++) {
+        const uint32_t nibble = v >> i * 4 & 0xf;
+        pio_sm_exec(pio, sm, pio_encode_set(pio_x, nibble));
+        pio_sm_exec(pio, sm, instr_shift);
+    }
+    pio_sm_exec(pio, sm, instr_mov);
+}
+
+//определение палитры
+void tv_set_palette(uint8_t i, uint32_t color888) {
+    if (i >= 240) return;
+    uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
+    uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };
+    uint8_t B = (color888 & 0xff) / 42;
+    uint8_t G = (color888 >> 8 & 0xff) / 42;
+    uint8_t R = (color888 >> 16 & 0xff) / 42;
+    uint8_t c_hi = conv0[R] << 4 | conv0[G] << 2 | conv0[B];
+    uint8_t c_lo = conv1[R] << 4 | conv1[G] << 2 | conv1[B];
+    uint16_t palette16_mask = 0xc0 << 8 | 0xc0;
+    uint16_t* conv_color16 = (uint16_t *)conv_color;
+    conv_color16[i] = (c_hi << 8 | c_lo) & 0x3f3f | palette16_mask;
+}
+
+//основная функция заполнения буферов видеоданных
+static void __scratch_x("tv_main_loop") main_video_loopTV() {
+    static uint dma_inx_out = 0;
+    static uint lines_buf_inx = 0;
+    if (dma_chan_ctrl == -1) return; //не определен дма канал
+    //получаем индекс выводимой строки
+    uint dma_inx = (N_LINE_BUF_DMA - 2 + (dma_channel_hw_addr(dma_chan_ctrl)->read_addr - (uint32_t)rd_addr_DMA_CTRL) /
+                    4) % (N_LINE_BUF_DMA);
+    static uint32_t line_active = 0;
+    static uint8_t* input_buffer = NULL;
+    static uint32_t frame_i = 0;
+    //while(n_loop--)
+    while (dma_inx_out != dma_inx) {
+        //режим VGA
+        line_active++;
+        if (line_active == v_mode.N_lines) {
+            line_active = 0;
+            frame_i++;
+            input_buffer = graphics_buffer.data;
+        }
+        lines_buf_inx = (lines_buf_inx + 1) % N_LINE_BUF;
+        uint8_t* output_buffer = lines_buf + lines_buf_inx * LINE_SIZE_MAX / 4;
+        bool is_line_visible = true;
+        // if (false)
+        switch (active_output_format) {
+            case TV_OUT_PAL:
+                switch (line_active) {
+                    case 0:
+                    case 1:
+                        //|___|--|___|--| type=1
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        output_buffer += v_mode.sync_size;
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        is_line_visible = false;
+                        break;
+                    case 2:
+                        // ____|--|_|----type=2
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        output_buffer += v_mode.sync_size;
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 3:
+                    case 4: //|_|----|_|---- type=0
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size / 2);
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 5:
+                        break; //шаблон как у видимой строки, но без изображения
+                    case 310:
+                    case 311:
+                        //|_|----|_|---- type=0
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size / 2);
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 312:
+                        //|_|---|____|--| type=3
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size / 2);
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        is_line_visible = false;
+                        break;
+                    case 313:
+                    case 314:
+                        //|___|--|___|--| type=1
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        output_buffer += v_mode.sync_size;
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        is_line_visible = false;
+                        break;
+                    case 315:
+                    case 316:
+                        //|_|----|_|---- type=0
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size / 2);
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 317:
+                        //|_|---------type=4
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 622:
+                        //|__|---|_|----type=5
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size);
+                        output_buffer += v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size);
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                }
+                break;
+            case TV_OUT_NTSC:
+                switch (line_active) {
+                    case 0:
+                    case 1:
+                    case 2:
+                        //|_|----|_|---- type=0
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size / 2);
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 3:
+                    case 4:
+                    case 5:
+                        //|___|--|___|--| type=1
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        output_buffer += v_mode.sync_size;
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        is_line_visible = false;
+                        break;
+                    case 6:
+                    case 7:
+                    case 8:
+                        //|_|----|_|---- type=0
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size / 2);
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 262:
+                        //|__|---|_|----type=5
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size);
+                        output_buffer += v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size);
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 263:
+                    case 264:
+                        //|_|----|_|---- type=0
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size / 2);
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 265:
+                        //|_|---|____|--| type=3
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size / 2);
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        is_line_visible = false;
+                        break;
+                    case 266:
+                    case 267:
+                        //|___|--|___|--| type=1
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        output_buffer += v_mode.sync_size;
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        is_line_visible = false;
+                        break;
+                    case 268:
+                        // ____|--|_|----type=2
+                        memset(output_buffer, v_mode.SYNC_TMPL, (v_mode.H_len / 2) - v_mode.sync_size);
+                        output_buffer += (v_mode.H_len / 2) - v_mode.sync_size;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.sync_size);
+                        output_buffer += v_mode.sync_size;
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 269:
+                    case 270:
+                        //|_|----|_|---- type=0
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        output_buffer += (v_mode.H_len / 2) - (v_mode.sync_size / 2);
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len / 2) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    case 271:
+                        //|_|---------type=4
+                        memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size / 2);
+                        output_buffer += v_mode.sync_size / 2;
+                        memset(output_buffer, v_mode.NO_SYNC_TMPL, (v_mode.H_len) - (v_mode.sync_size / 2));
+                        is_line_visible = false;
+                        break;
+                    default:
+                        break;
+                }
+                break;
+        }
+        //ТВ строка с изображением
+        if (is_line_visible) {
+            memset(output_buffer, v_mode.SYNC_TMPL, v_mode.sync_size);
+            memset(output_buffer + v_mode.sync_size, v_mode.NO_SYNC_TMPL, v_mode.begin_img_shx - v_mode.sync_size);
+            int post_img_clear = 32;
+            memset(output_buffer + (v_mode.H_len - post_img_clear), v_mode.NO_SYNC_TMPL, post_img_clear);
+            output_buffer += v_mode.begin_img_shx;
+            int y = -1;
+            switch (active_output_format) {
+                case TV_OUT_PAL:
+                    if ((line_active > 4) && (line_active < 310)) { y = line_active - 23; };
+                    if ((line_active > 317) && (line_active < 622)) { y = line_active - 335; };
+                    y -= 24;
+                    break;
+                case TV_OUT_NTSC:
+                    if ((line_active > 8) && (line_active < 262)) { y = line_active - 20; };
+                    if ((line_active > 271)) { y = line_active - 282; };
+                    break;
+            }
+            if (y >= 240 || y < 0 || input_buffer == NULL) {
+                //вне изображения
+                memset(output_buffer, v_mode.NO_SYNC_TMPL, v_mode.H_len - v_mode.begin_img_shx);
+            }
+            else {
+                //зона изображения
+                if (active_output_format == TV_OUT_PAL) output_buffer += 33;
+                if (graphics_buffer.data)
+                switch (graphics_mode) {
+                    default:
+                    case GRAPHICSMODE_DEFAULT: {
+                        //для 8-битного буфера
+                        uint8_t* input_buffer8 = input_buffer + y * graphics_buffer.width;
+                        if (input_buffer != NULL) {
+                            // TODO: shift_y, background_color
+                            for (uint x = graphics_buffer.shift_x; x--;) {
+                                *output_buffer++ = 200;
+                            }
+                            for (uint x = graphics_buffer.width; x--;) {
+                                *output_buffer++ = *input_buffer8 < 240 ? *input_buffer8 : 0;
+                                input_buffer8++;
+                            }
+                            for (uint x = graphics_buffer.shift_x; x--;) {
+                                *output_buffer++ = 200;
+                            }
+                        }
+                        break;
+                    }
+                    case TEXTMODE_DEFAULT: {
+                        uint8_t* text_buffer = graphics_buffer.data;
+                        *output_buffer++ = 200;
+                        for (int x = 0; x < graphics_buffer.width; x++) {
+                            const uint16_t offset = y / 8 * (graphics_buffer.width * 2) + x * 2;
+                            const uint8_t c = text_buffer[offset];
+                            const uint8_t colorIndex = text_buffer[offset + 1];
+                            uint8_t glyph_row = font_6x8[c * 8 + y % 8];
+                            for (int bit = 6; bit--;) {
+                                *output_buffer++ = glyph_row & 1
+                                                       ? textmode_palette[colorIndex & 0xf] //цвет шрифта
+                                                       : textmode_palette[colorIndex >> 4]; //цвет фона
+                                glyph_row >>= 1;
+                            }
+                        }
+                        *output_buffer = 200;
+                        break;
+                    }
+                }
+            }
+        }
+        rd_addr_DMA_CTRL[dma_inx_out] = lines_buf + lines_buf_inx * LINE_SIZE_MAX / 4;
+        //включаем заполненный буфер в данные для вывода
+        dma_inx_out = (dma_inx_out + 1) % (N_LINE_BUF_DMA);
+        dma_inx = (N_LINE_BUF_DMA - 2 + (dma_channel_hw_addr(dma_chan_ctrl)->read_addr - (uint32_t)rd_addr_DMA_CTRL) /
+                   4) % (N_LINE_BUF_DMA);
+    }
+}
+
+void tv_set_offset(const int x, const int y) {
+    graphics_buffer.shift_x = x;
+    graphics_buffer.shift_y = y;
+};
+
+static bool __not_in_flash_func(video_timer_callbackTV(repeating_timer_t *rt)) {
+    main_video_loopTV();
+    return true;
+}
+
+//выделение и настройка общих ресурсов - 4 DMA канала, PIO программ и 2 SM
+void tv_init_inner(const output_format_e output_format) {
+    active_output_format = output_format;
+    switch (active_output_format) {
+        case TV_OUT_NTSC:
+            v_mode.CLK_SPD = 2 * 3.1 * 1e6;
+            v_mode.N_lines = 525;
+            v_mode.H_len = v_mode.CLK_SPD / 1e6 * 63.9;
+            v_mode.H_len &= 0xfffffffc;
+            v_mode.sync_size = 4.7 * v_mode.H_len / 64;
+            v_mode.begin_img_shx = 10.5 * v_mode.H_len / 64;
+            v_mode.img_size_x = v_mode.H_len - 12 * v_mode.H_len / 64;
+            v_mode.img_size_x &= 0xfffffffc;
+            break;
+        case TV_OUT_PAL:
+            v_mode.CLK_SPD = 2 * 3.733333333 * 1e6;
+            v_mode.N_lines = 625;
+            v_mode.H_len = v_mode.CLK_SPD / 1e6 * 63.9;
+            v_mode.H_len &= 0xfffffffc;
+            v_mode.sync_size = 4.7 * v_mode.H_len / 64;
+            v_mode.begin_img_shx = 10.5 * v_mode.H_len / 64;
+            v_mode.img_size_x = v_mode.H_len - 12 * v_mode.H_len / 64;
+            v_mode.img_size_x &= 0xfffffffc;
+            break;
+    }
+    //настройка PIO
+    SM_video = pio_claim_unused_sm(PIO_VIDEO, true);
+    SM_conv = pio_claim_unused_sm(PIO_VIDEO_ADDR, true);
+    //выделение  DMA каналов
+    dma_chan_ctrl = dma_claim_unused_channel(true);
+    dma_chan = dma_claim_unused_channel(true);
+    dma_chan_pal_conv_ctrl = dma_claim_unused_channel(true);
+    dma_chan_pal_conv = dma_claim_unused_channel(true);
+
+    //заполнение палитры по умолчанию(ч.б.)
+    for (int ci = 0; ci < 240; ci++) tv_set_palette(ci, (ci << 16) | (ci << 8) | ci); //
+
+    //---------------
+
+    uint offs_prg0 = 0;
+    uint offs_prg1 = 0;
+    const int base_inx = 240;
+
+    offs_prg1 = pio_add_program(PIO_VIDEO_ADDR, &pio_program_conv_addr_TV);
+    offs_prg0 = pio_add_program(PIO_VIDEO, &program_pio_TV);
+    pio_set_x(PIO_VIDEO_ADDR, SM_conv, (uint32_t)conv_color >> 9);
+    uint16_t* conv_color16 = (uint16_t *)conv_color;
+
+    conv_color16[base_inx] = 0b1100000011000000; //нет синхры
+    conv_color16[base_inx + 1] = 0b1000000010000000; //есть синхра
+
+
+    //настройка PIO SM для конвертации
+
+    pio_sm_config c_c = pio_get_default_sm_config();
+
+    sm_config_set_wrap(&c_c, offs_prg1, offs_prg1 + (pio_program_conv_addr_TV.length - 1));
+    sm_config_set_in_shift(&c_c, true, false, 32);
+
+    pio_sm_init(PIO_VIDEO_ADDR, SM_conv, offs_prg1, &c_c);
+    pio_sm_set_enabled(PIO_VIDEO_ADDR, SM_conv, true);
+
+    //настройка PIO SM для вывода данных
+    c_c = pio_get_default_sm_config();
+
+
+    //настройка рабочей SM TV
+    sm_config_set_wrap(&c_c, offs_prg0, offs_prg0 + (program_pio_TV.length - 1));
+    for (int i = 0; i < 8; i++) {
+        gpio_set_slew_rate(TV_BASE_PIN + i, GPIO_SLEW_RATE_FAST);
+        pio_gpio_init(PIO_VIDEO, TV_BASE_PIN + i);
+        gpio_set_drive_strength(TV_BASE_PIN + i, GPIO_DRIVE_STRENGTH_12MA);
+        gpio_set_slew_rate(TV_BASE_PIN + i, GPIO_SLEW_RATE_FAST);
+    }
+    pio_sm_set_consecutive_pindirs(PIO_VIDEO, SM_video, TV_BASE_PIN, 8, true); //конфигурация пинов на выход
+    sm_config_set_out_pins(&c_c, TV_BASE_PIN, 8);
+
+    sm_config_set_out_shift(&c_c, true, true, 16);
+    sm_config_set_fifo_join(&c_c, PIO_FIFO_JOIN_TX);
+
+    sm_config_set_clkdiv(&c_c, clock_get_hz(clk_sys) / (2 * v_mode.CLK_SPD));
+    pio_sm_init(PIO_VIDEO, SM_video, offs_prg0, &c_c);
+    pio_sm_set_enabled(PIO_VIDEO, SM_video, true);
+
+    //настройки DMA
+
+    //основной рабочий канал
+    dma_channel_config cfg_dma = dma_channel_get_default_config(dma_chan);
+    channel_config_set_transfer_data_size(&cfg_dma, DMA_SIZE_8);
+    channel_config_set_chain_to(&cfg_dma, dma_chan_ctrl); // chain to other channel
+
+    channel_config_set_read_increment(&cfg_dma, true);
+    channel_config_set_write_increment(&cfg_dma, false);
+
+
+    uint dreq = DREQ_PIO1_TX0 + SM_conv;
+    if (PIO_VIDEO_ADDR == pio0) dreq = DREQ_PIO0_TX0 + SM_conv;
+    channel_config_set_dreq(&cfg_dma, dreq);
+
+    dma_channel_configure(
+        dma_chan,
+        &cfg_dma,
+        &PIO_VIDEO_ADDR->txf[SM_conv], // Write address
+        lines_buf, // read address
+        v_mode.H_len / 1, //
+        false // Don't start yet
+    );
+
+    //контрольный канал для основного
+    cfg_dma = dma_channel_get_default_config(dma_chan_ctrl);
+    channel_config_set_transfer_data_size(&cfg_dma, DMA_SIZE_32);
+    channel_config_set_chain_to(&cfg_dma, dma_chan); // chain to other channel
+
+    channel_config_set_read_increment(&cfg_dma, true);
+    channel_config_set_write_increment(&cfg_dma, false);
+    channel_config_set_ring(&cfg_dma,false, 2 + N_LINE_BUF_log2);
+
+
+    dma_channel_configure(
+        dma_chan_ctrl,
+        &cfg_dma,
+        &dma_hw->ch[dma_chan].read_addr, // Write address
+        rd_addr_DMA_CTRL, // read address
+        1, //
+        false // Don't start yet
+    );
+
+    //канал - конвертер палитры
+    cfg_dma = dma_channel_get_default_config(dma_chan_pal_conv);
+
+    const int n_trans_data = 1;
+
+    channel_config_set_transfer_data_size(&cfg_dma, DMA_SIZE_16);
+
+
+    channel_config_set_chain_to(&cfg_dma, dma_chan_pal_conv_ctrl); // chain to other channel
+
+    channel_config_set_read_increment(&cfg_dma, false);
+    channel_config_set_write_increment(&cfg_dma, false);
+
+    dreq = DREQ_PIO1_TX0 + SM_video;
+    if (PIO_VIDEO == pio0) dreq = DREQ_PIO0_TX0 + SM_video;
+    channel_config_set_dreq(&cfg_dma, dreq);
+
+    dma_channel_configure(
+        dma_chan_pal_conv,
+        &cfg_dma,
+        &PIO_VIDEO->txf[SM_video], // Write address
+        &conv_color[0], // read address
+        n_trans_data, //
+        false // Don't start yet
+    );
+
+    //канал управления конвертером палитры
+
+    cfg_dma = dma_channel_get_default_config(dma_chan_pal_conv_ctrl);
+    channel_config_set_transfer_data_size(&cfg_dma, DMA_SIZE_32);
+    channel_config_set_chain_to(&cfg_dma, dma_chan_pal_conv); // chain to other channel
+
+    channel_config_set_read_increment(&cfg_dma, false);
+    channel_config_set_write_increment(&cfg_dma, false);
+
+    dreq = DREQ_PIO1_RX0 + SM_conv;
+    if (PIO_VIDEO_ADDR == pio0) dreq = DREQ_PIO0_RX0 + SM_conv;
+
+    channel_config_set_dreq(&cfg_dma, dreq);
+
+    dma_channel_configure(
+        dma_chan_pal_conv_ctrl,
+        &cfg_dma,
+        &dma_hw->ch[dma_chan_pal_conv].read_addr, // Write address
+        &PIO_VIDEO_ADDR->rxf[SM_conv], // read address
+        1, //
+        true // start yet
+    );
+
+
+    dma_start_channel_mask(1u << dma_chan_ctrl);
+
+    int hz = 50000;
+    if (!add_repeating_timer_us(1000000 / hz, video_timer_callbackTV, NULL, &video_timer)) {
+        return;
+    }
+};
+
+void tv_init() {
+    tv_init_inner(TV_OUT_PAL);
+    // FIXME сделать конфигурацию пользователем
+    tv_set_palette(200, RGB888(0x00, 0x00, 0x00)); //black
+    tv_set_palette(201, RGB888(0x00, 0x00, 0xC4)); //blue
+    tv_set_palette(202, RGB888(0x00, 0xC4, 0x00)); //green
+    tv_set_palette(203, RGB888(0x00, 0xC4, 0xC4)); //cyan
+    tv_set_palette(204, RGB888(0xC4, 0x00, 0x00)); //red
+    tv_set_palette(205, RGB888(0xC4, 0x00, 0xC4)); //magenta
+    tv_set_palette(206, RGB888(0xC4, 0x7E, 0x00)); //brown
+    tv_set_palette(207, RGB888(0xC4, 0xC4, 0xC4)); //light gray
+    tv_set_palette(208, RGB888(0x4E, 0x4E, 0x4E)); //dark gray
+    tv_set_palette(209, RGB888(0x4E, 0x4E, 0xDC)); //light blue
+    tv_set_palette(210, RGB888(0x4E, 0xDC, 0x4E)); //light green
+    tv_set_palette(211, RGB888(0x4E, 0xF3, 0xF3)); //light cyan
+    tv_set_palette(212, RGB888(0xDC, 0x4E, 0x4E)); //light red
+    tv_set_palette(213, RGB888(0xF3, 0x4E, 0xF3)); //light magenta
+    tv_set_palette(214, RGB888(0xF3, 0xF3, 0x4E)); //yellow
+    tv_set_palette(215, RGB888(0xFF, 0xFF, 0xFF)); //white
+}
+
+void tv_clr_scr(const uint8_t color) {
+    if (graphics_buffer.data) {
+        memset(graphics_buffer.data, color, graphics_buffer.height * graphics_buffer.width * (graphics_buffer.bitness >> 3));
+    }
+}
+
+
+void tv_set_mode(int mode) {
+    switch (mode) {
+        case TEXTMODE_DEFAULT:
+            graphics_buffer.width = 53;
+            graphics_buffer.height = 30;
+            graphics_buffer.bitness = 16;
+            break;
+        default:
+            graphics_buffer.width = 320;
+            graphics_buffer.height = 240;
+            graphics_buffer.bitness = 8;
+            break;
+    }
+    graphics_mode = mode;
+    pos_x = 0;
+    pos_y = 0;
+    if (!lock_buffer) {
+        if (graphics_buffer.data) vPortFree(graphics_buffer.data);
+        graphics_buffer.data = pvPortCalloc(graphics_buffer.width * graphics_buffer.height, graphics_buffer.bitness >> 3);
+    }
+}
+
+
+void tv_set_bgcolor(uint32_t color888) //определяем зарезервированный цвет в палитре
+{
+    tv_set_palette(255, color888);
+};
+
+
+void tv_driver_init(void) {
+ // TODO:   set_vga_dma_handler_impl(dma_handler_VGA_impl);
+    tv_set_bgcolor(0x000000);
+  // ??  init_palette();
+}
+
+void tv_cleanup(void) {
+    /* TODO:
+    vga_context_t* cleanup = vga_context;
+    vga_context = 0;
+    if (cleanup) {
+        if (!lock_buffer && cleanup->graphics_buffer) vPortFree(cleanup->graphics_buffer);
+        if (cleanup->lines_pattern_data) vPortFree(cleanup->lines_pattern_data);
+        if (cleanup->txt_palette_fast) vPortFree(cleanup->txt_palette_fast);
+        vPortFree(cleanup);
+    }
+    */
+}
+
+bool tv_is_mode_text(int mode) {
+    return mode <= TEXTMODE_DEFAULT;
+}
+
+bool tv_is_text_mode() {
+    return tv_is_mode_text(graphics_mode);
+}
+
+int tv_get_mode(void) {
+    return graphics_mode;
+}
+
+uint32_t tv_console_width(void) {
+    return graphics_buffer.width;
+}
+uint32_t tv_console_height(void) {
+    return graphics_buffer.height;
+}
+uint8_t* get_tv_buffer(void) {
+    return graphics_buffer.data;
+}
+void set_tv_buffer(uint8_t* b) {
+    graphics_buffer.data = b;
+}
+
+void tv_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
+    if (!graphics_buffer.data) return;
+    uint8_t* t_buf = graphics_buffer.data + graphics_buffer.width * 2 * y + 2 * x;
+    uint8_t c = (bgcolor << 4) | (color & 0xF);
+    for (int xi = x; xi < graphics_buffer.width * 2; ++xi) {
+        if (!(*string)) break;
+        *t_buf++ = *string++;
+        *t_buf++ = c;
+    }
+}
+uint8_t get_tv_buffer_bitness(void) {
+    return graphics_buffer.bitness;
+}
+
+size_t tv_buffer_size() {
+    if (!graphics_buffer.data) return 0;
+    return graphics_buffer.height * graphics_buffer.width * (graphics_buffer.bitness >> 3);
+}
+
+void tv_set_con_pos(int x, int y) {
+    pos_x = x;
+    pos_y = y;
+}
+
+int tv_con_x(void) {
+    return pos_x;
+}
+int tv_con_y(void) {
+    return pos_y;
+}
+
+void tv_set_con_color(uint8_t color, uint8_t bgcolor) {
+    con_color = color;
+    con_bgcolor = bgcolor;
+}
+
+static char* _rollup(char* t_buf) {
+    char* b = graphics_buffer.data;
+    if (pos_y >= graphics_buffer.height - 1) {
+        memcpy(b, b + graphics_buffer.width * 2, graphics_buffer.width * (graphics_buffer.height - 2) * 2);
+        t_buf = b + graphics_buffer.width * (graphics_buffer.height - 2) * 2;
+        for(int i = 0; i < graphics_buffer.width; ++i) {
+            *t_buf++ = ' ';
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+        pos_y = graphics_buffer.height - 2;
+    }
+    return b + graphics_buffer.width * 2 * pos_y + 2 * pos_x;
+}
+
+void tv_print(char* buf) {
+    if (!graphics_buffer.data) return;
+    uint8_t* t_buf = graphics_buffer.data + graphics_buffer.width * 2 * pos_y + 2 * pos_x;
+    char c;
+    while (c = *buf++) {
+        if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
+        if (c == '\n') {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            continue;
+        }
+        pos_x++;
+        if (pos_x >= graphics_buffer.width) {
+            pos_x = 0;
+            pos_y++;
+            t_buf = _rollup(t_buf);
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+            pos_x++;
+        } else {
+            *t_buf++ = c;
+            *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+        }
+    }
+}
+
+void tv_backspace(void) {
+    if (!graphics_buffer.data) return;
+    uint8_t* t_buf;
+    pos_x--;
+    if (pos_x < 0) {
+        pos_x = graphics_buffer.width - 2;
+        pos_y--;
+        if (pos_y < 0) {
+            pos_y = 0;
+        }
+    }
+    t_buf = graphics_buffer.data + graphics_buffer.width * 2 * pos_y + 2 * pos_x;
+    *t_buf++ = ' ';
+    *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
+}
+
+void tv_lock_buffer(bool b) {
+    lock_buffer = b;
+}
+
+void tv_set_cursor_color(uint8_t color) {
+    _cursor_color = color;
+}

@@ -53,14 +53,14 @@ static int line_size = 0;
 
 static uint16_t __scratch_y("vga_driver") txt_palette[16];
 
-static volatile int __scratch_y("vga_driver_text") pos_x = 0;
-static volatile int __scratch_y("vga_driver_text") pos_y = 0;
-static volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
+volatile int __scratch_y("vga_driver_text") pos_x = 0;
+volatile int __scratch_y("vga_driver_text") pos_y = 0;
+volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 
-static volatile uint8_t __scratch_y("vga_driver_text") con_color = 7;
-static volatile uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
-static volatile uint8_t __scratch_y("vga_driver_text") _cursor_color = 7;
-static volatile bool lock_buffer = false;
+volatile uint8_t __scratch_y("vga_driver_text") con_color = 7;
+volatile uint8_t __scratch_y("vga_driver_text") con_bgcolor = 0;
+volatile uint8_t __scratch_y("vga_driver_text") _cursor_color = 7;
+volatile bool lock_buffer = false;
 static volatile int graphics_mode = -1;
 
 // TODO: separate header for sound mixer

@@ -9,6 +9,11 @@
 #include "hardware/clocks.h"
 #include "font6x8.h"
 
+// TODO: Сделать настраиваемо
+const uint8_t textmode_palette[16] = {
+    200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215
+};
+
 //PIO параметры
 static uint offs_prg0 = 0;
 static uint offs_prg1 = 0;
@@ -38,12 +43,13 @@ static int graphics_buffer_height = 0;
 static int graphics_buffer_shift_x = 0;
 static int graphics_buffer_shift_y = 0;
 static uint8_t bitness = 16;
-static volatile int __scratch_y("hdmi_driver_text") pos_x = 0;
-static volatile int __scratch_y("hdmi_driver_text") pos_y = 0;
-static volatile uint8_t __scratch_y("hdmi_driver_text") con_color = 7;
-static volatile uint8_t __scratch_y("hdmi_driver_text") con_bgcolor = 0;
-static volatile uint8_t __scratch_y("hdmi_driver_text") _cursor_color = 7;
-static volatile bool lock_buffer = false;
+
+extern volatile int pos_x;
+extern volatile int pos_y;
+extern volatile uint8_t con_color;
+extern volatile uint8_t con_bgcolor;
+extern volatile uint8_t _cursor_color;
+extern volatile bool lock_buffer;
 
 //DMA каналы
 //каналы работы с первичным графическим буфером
@@ -60,7 +66,7 @@ static uint32_t* __scratch_y("hdmi_ptr_4") DMA_BUF_ADDR[2];
 
 //ДМА палитра для конвертации
 //в хвосте этой памяти выделяется dma_data
-static alignas(4096) uint32_t conv_color[1224];
+alignas(4096) uint32_t hdmi_conv_color[1224];
 
 //индекс, проверяющий зависание
 static uint32_t irq_inx = 0;
@@ -375,7 +381,7 @@ static inline bool inner_init() {
 
     offs_prg1 = pio_add_program(PIO_VIDEO_ADDR, &pio_program_conv_addr_HDMI);
     offs_prg0 = pio_add_program(PIO_VIDEO, &program_PIO_HDMI);
-    pio_set_x(PIO_VIDEO_ADDR, SM_conv, ((uint32_t)conv_color >> 12));
+    pio_set_x(PIO_VIDEO_ADDR, SM_conv, ((uint32_t)hdmi_conv_color >> 12));
 
     //заполнение палитры
     for (int ci = 0; ci < 240; ci++) hdmi_set_palette(ci, palette[ci]); //
@@ -385,7 +391,7 @@ static inline bool inner_init() {
 
 
     //240-243 служебные данные(синхра) напрямую вносим в массив -конвертер
-    uint64_t* conv_color64 = (uint64_t *)conv_color;
+    uint64_t* conv_color64 = (uint64_t *)hdmi_conv_color;
     const uint16_t b0 = 0b1101010100;
     const uint16_t b1 = 0b0010101011;
     const uint16_t b2 = 0b0101010100;
@@ -449,8 +455,8 @@ static inline bool inner_init() {
     pio_sm_set_enabled(PIO_VIDEO, SM_video, true);
 
     //настройки DMA
-    dma_lines[0] = &conv_color[1024];
-    dma_lines[1] = &conv_color[1124];
+    dma_lines[0] = &hdmi_conv_color[1024];
+    dma_lines[1] = &hdmi_conv_color[1124];
 
     //основной рабочий канал
     dma_channel_config cfg_dma = dma_channel_get_default_config(dma_chan);
@@ -513,7 +519,7 @@ static inline bool inner_init() {
         dma_chan_pal_conv,
         &cfg_dma,
         &PIO_VIDEO->txf[SM_video], // Write address
-        &conv_color[0], // read address
+        &hdmi_conv_color[0], // read address
         4, //
         false // Don't start yet
     );
@@ -594,7 +600,7 @@ void hdmi_set_palette(uint8_t i, uint32_t color888) {
 
     if ((i >= BASE_HDMI_CTRL_INX) && (i != 255)) return; //не записываем "служебные" цвета
 
-    uint64_t* conv_color64 = (uint64_t *)conv_color;
+    uint64_t* conv_color64 = (uint64_t *)hdmi_conv_color;
     const uint8_t R = (color888 >> 16) & 0xff;
     const uint8_t G = (color888 >> 8) & 0xff;
     const uint8_t B = (color888 >> 0) & 0xff;

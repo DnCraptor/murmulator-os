@@ -77,11 +77,56 @@ static graphics_driver_t internal_hdmi_driver = {
     hdmi_set_cursor_color
 };
 
+#ifdef TV
+static graphics_driver_t internal_tv_driver = {
+    0, //ctx
+    tv_driver_init,
+    tv_cleanup,
+    tv_set_mode, // set_mode
+    tv_is_text_mode, // is_text
+    tv_console_width,
+    tv_console_height,
+    tv_console_width,
+    tv_console_height,
+    get_tv_buffer,
+    set_tv_buffer,
+    tv_clr_scr,
+    tv_draw_text,
+    get_tv_buffer_bitness,
+    get_tv_buffer_bitness,
+    tv_set_offset, // set_offsets
+    tv_set_bgcolor,
+    tv_buffer_size,
+    tv_set_con_pos,
+    tv_con_x,
+    tv_con_y,
+    tv_set_con_color,
+    tv_print,
+    tv_backspace,
+    tv_lock_buffer,
+    tv_get_mode,
+    tv_is_mode_text,
+    tv_set_cursor_color
+};
+#endif
+
 static volatile graphics_driver_t* graphics_driver = 0;
 
 void graphics_init(int drv_type) {
     if (graphics_driver == 0) {
-        graphics_driver = drv_type == HDMI_DRV ?  &internal_hdmi_driver : &internal_vga_driver;
+        switch(drv_type) {
+            case HDMI_DRV:
+                graphics_driver = &internal_hdmi_driver;
+                break;
+#ifdef TV
+            case TV_DRV:
+                graphics_driver = &internal_tv_driver;
+                break;
+#endif
+            default:
+                graphics_driver = &internal_vga_driver;
+                break;
+        }
     }
     DBG_PRINT("graphics_init %ph\n", graphics_driver);
     if(graphics_driver && graphics_driver->init) {
@@ -89,7 +134,19 @@ void graphics_init(int drv_type) {
         graphics_driver->init();
     }
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
-    drv_type == HDMI_DRV ? hdmi_init() : vga_init(); // TODO: etc...
+    switch(drv_type) {
+        case HDMI_DRV:
+            hdmi_init();
+            break;
+#ifdef TV
+        case TV_DRV:
+            tv_init();
+            break;
+#endif
+        default:
+            vga_init();
+            break;
+    }
 }
 
 void set_cursor_color(uint8_t color) {

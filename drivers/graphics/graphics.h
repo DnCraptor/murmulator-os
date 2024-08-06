@@ -21,6 +21,7 @@ extern "C" {
 #endif
 #ifdef TV
 #include "tv.h"
+#define TV_DRV 3
 #endif
 
 void graphics_init(int drv_type);

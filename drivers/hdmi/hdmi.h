@@ -28,9 +28,7 @@ extern "C" {
 #define RGB888(r, g, b) ((r<<16) | (g << 8 ) | b )
 
 // TODO: Сделать настраиваемо
-static const uint8_t textmode_palette[16] = {
-    200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215
-};
+extern const uint8_t textmode_palette[16];
 
 void hdmi_driver_init(void);
 void hdmi_cleanup(void);
