@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "m-os-api.h": "c",
+        "timer.h": "c",
+        "m-os-api-tasks.h": "c"
+    }
+}
