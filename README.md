@@ -3,7 +3,7 @@ ZX Murmulator OS<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
-Sources are "in-progress" state and testing now only on ZX Murmulator devboard with VGA/HDMI output.<br/>
+Sources are "in-progress" state and testing now only on ZX Murmulator devboard with VGA/HDMI/TV output.<br/>
 Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme<br/>
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
 
@@ -13,7 +13,7 @@ Let use translate from russian on site https://murmulator.ru/types, for case it 
 
 # Current state
 RP2040 core 0: starts FreeRTOS (based on https://github.com/FreeRTOS/FreeRTOS-Community-Supported-Demos/tree/3d475bddf7ac8af425da67cdaa2485e90a57a881/CORTEX_M0%2B_RP2040) <br/>
-RP2040 core 1: starts VGA/HDMI driver (based on ZX Murmulator comunity version last used before it in https://github.com/xrip/pico-launcher)
+RP2040 core 1: starts VGA/HDMI/TV driver (based on ZX Murmulator comunity version last used before it in https://github.com/xrip/pico-launcher)
 
 # MOS build hints:
  - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
@@ -48,13 +48,13 @@ M-OS manages access to<br/>
  - PSRAM (4-8MB installed on ZX Murmulator board since v.1.3),<br/>
  - FLASH ROM (2-16MB installed on Rasperry Pi Pico),<br/>
  - SD-CARD (FAT32, connected to ZX Murmulator board),<br/>
- - VGA/HDMI adapter (222-color schema, installed on ZX Murmulator board),<br/>
+ - VGA/HDMI/TV adapter (222-color schema, installed on ZX Murmulator board),<br/>
  - PS/2 keyboard (connected to ZX Murmulator board),<br/>
  - Kempston (Dendy 8-bit) Joystick (connected to ZX Murmulator board),<br/>
  - Sound devices (PWM 12-bit stereo + "speaker")<br/>
 <br/>
 Other types of<br/>
- - video outputs: HDMI/TV/...;<br/>
+ - video outputs: TFT/ILI9341/...;<br/>
  - inputs: USB HUD devices, PS/2 and other mouse types, Wii Joystick...;<br/>
  - sound outputs: TDA...<br/>
 to be supported later.<br/>
@@ -62,8 +62,8 @@ to be supported later.<br/>
 M-OS is installed as bootable application for RP2040 on Rasperry Pi Pico FLASH ROM.<br/>
 Addresses map (16MB flash):<br/>
 10000000..10001000h - .boot2       - contains 4k startup block<br/>
-10001000..10FE7000h - 4070 M-OS managed 4k pages, that may be provided to or shared with application level<br/>
-10FE7000..10FFF000h - .text        - contains 96k of M-OS core<br/>
+10001000..10FE0000h - 4063 M-OS managed 4k pages, that may be provided to or shared with application level<br/>
+10FE0000..10FFF000h - .text        - contains 124k of M-OS core<br/>
 10FFF000..11000000h - .sys_table   - contains 4k table of pointers to functions, M-OS provides for application level<br/> 
 (memmap.ld to be provided)<br/>
 <br/>
@@ -100,9 +100,9 @@ cpu [NNN] - change freq. to NNN MHz (it may hang on such action)<br/>
 mem - show current memory state<br/>
 set - show or set environment variables<br/>
 export - put variable into system context<br/>
-mode [#] - set video-mode (for now it is supported 0 - 80x30, 1 - 100x37 and 2 - 128x48 - for VGA, and 0 - 53x30 and 1 - 80x30 for HDMI)<br/>
+mode [#] - set video-mode (for now it is supported 0 - 80x30, 1 - 100x37 and 2 - 128x48 - for VGA, 0 - 53x30 and 1 - 80x30 for HDMI, and only 0 - 53x30 for TV)<br/>
 less - show not more than one page of other command in pipe, like ls | less<br/>
-hex [file] - show file as hexidecimal dump<br/>
+hex [file]/[@addr] - show file or RAM as hexidecimal dump<br/>
 tail [-n #] [file] - show specified (or 10) last lines from the file<br/>
 usb [on/off] - start a process to mount murmulator CD-card as USB-drive. Use `usb on&` to start it as driver.<br/>
 mc - Murmulator Commander, use [CTRL]+[O] to show console, and [CTRL]+[Enter] for fast type current file path<br/>

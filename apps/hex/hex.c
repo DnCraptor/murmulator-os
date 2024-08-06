@@ -37,6 +37,23 @@ int main() {
         fprintf(ctx->std_err, "Unable to hex more than one file\n");
         return 1;
     }
+    uint32_t off = 0;
+    if (ctx->argv[1][0] == '@') {
+        size_t sz = strlen(ctx->argv[1]);
+        if (sz <= 1) {
+            fprintf(ctx->std_err, "Unsupported argument: %s\n", ctx->argv[1]);
+            return 1;
+        }
+        size_t n = 0;
+        for (int idx = sz - 1; idx > 0; --idx) {
+            char c = ctx->argv[1][idx];
+            off += (c - ((c >= 'a' ? 'a' - 0xA : (c >= 'A' ? 'A' - 0xA : '0'))) & 0xF) << n;
+            n += 4;
+        }
+        printf("Hex for addresses: %ph - %ph\n", off, off + 512);
+        hex(off, (char*)0, 512); // TODO:
+        return 0;
+    }
     char* fn = ctx->argv[1];
     FIL* f = (FIL*)pvPortMalloc(sizeof(FIL));
     if (f_open(f, fn, FA_READ) != FR_OK) {
@@ -46,7 +63,6 @@ int main() {
     }
     UINT rb;
     char* buf = (char*)pvPortMalloc(512);
-    uint32_t off = 0;
     while(f_read(f, buf, 512, &rb) == FR_OK && rb > 0) {
         hex(off, buf, rb);
         off += rb;
