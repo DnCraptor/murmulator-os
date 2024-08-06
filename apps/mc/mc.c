@@ -1501,7 +1501,7 @@ static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd) {
     } else {
         goto r2;
     }
-
+    char* ccmd = copy_str(cmd);
     char* tc = cmd;
     char* ts = cmd;
     bool exit = false;
@@ -1539,6 +1539,8 @@ static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd) {
         }
         tc++;
     }
+    strncpy(cmd, ccmd, 512);
+    free(ccmd);
     if (exit) { // prepared ctx
         return true;
     }

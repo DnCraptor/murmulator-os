@@ -104,7 +104,7 @@ mode [#] - set video-mode (for now it is supported 0 - 80x30, 1 - 100x37 and 2 -
 less - show not more than one page of other command in pipe, like ls | less<br/>
 hex [file]/[@addr] - show file or RAM as hexidecimal dump<br/>
 tail [-n #] [file] - show specified (or 10) last lines from the file<br/>
-usb [on/off] - start a process to mount murmulator CD-card as USB-drive. Use `usb on&` to start it as driver.<br/>
+usb [on/off] - start a process to mount murmulator CD-card as USB-drive.<br/>
 mc - Murmulator Commander, use [CTRL]+[O] to show console, and [CTRL]+[Enter] for fast type current file path<br/>
 mcview [file] - Murmulator Commander Viewer<br/>
 mcedit [file] - Murmulator Commander Editor<br/>
