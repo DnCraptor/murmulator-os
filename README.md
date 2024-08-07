@@ -104,17 +104,18 @@ mode [#] - set video-mode (for now it is supported 0 - 80x30, 1 - 100x37 and 2 -
 less - show not more than one page of other command in pipe, like ls | less<br/>
 hex [file]/[@addr] - show file or RAM as hexidecimal dump<br/>
 tail [-n #] [file] - show specified (or 10) last lines from the file<br/>
-usb [on/off] - start a process to mount murmulator CD-card as USB-drive.<br/>
+usb [on/off] - start a process to mount murmulator CD-card as USB-drive (NESPAD [B] button in mc)<br/>
 mc - Murmulator Commander, use [CTRL]+[O] to show console, and [CTRL]+[Enter] for fast type current file path<br/>
 mcview [file] - Murmulator Commander Viewer<br/>
 mcedit [file] - Murmulator Commander Editor<br/>
+gmode [#] - simple graphics mode test<br/>
 
 [cmd] &gt; [file] - output redirection to file<br/>
-[ENTER] - start command / flash and run .uf2 file in "demo" format<br/>
+[ENTER] - start command / flash and run .uf2 file in "demo" format (NESPAD [A] button in mc)<br/>
 [TAB] - autocomplete<br/>
 [BACKSPACE] - remove last character<br/>
 [CTRL]+[SHIFT] - rus/lat<br/>
-[CTRL]+[ALT]+[DEL] - reset<br/>
+[CTRL]+[ALT]+[DEL] - reset (NESPAD [SELECT]+[B])<br/>
 [CTRL]+[TAB]+[+] - increase CPU freq.</br>
 [CTRL]+[TAB]+[-] - decrease CPU freq.</br>
 [ALT]+[0-9]+[0-9]+[0-9] - manual enter some character by its decimal code (CP-866 codepage)<br/>
