@@ -80,8 +80,6 @@ volatile uint16_t covox_mix = 0x0F;
 typedef struct config_em {
     uint8_t graphics_pallette_idx;
     uint8_t shift_y;
-    uint16_t graphics_buffer_height;
-   // size_t v_buff_offset;
 } config_em_t;
 
 volatile config_em_t g_conf = { 0 };
@@ -264,7 +262,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
     if (y < 0) {
         return &lines_pattern[0];
     }
-    uint graphics_buffer_height = g_conf.graphics_buffer_height;
+    uint graphics_buffer_height = text_buffer_height;
     if (y >= graphics_buffer_height) {
         // заполнение линии цветом фона
         if ((y == graphics_buffer_height) | (y == (graphics_buffer_height + 1)) |
@@ -534,14 +532,6 @@ void graphics_set_page(uint8_t* buffer, uint8_t pallette_idx) {
 void graphics_set_pallette_idx(uint8_t pallette_idx) {
     g_conf.graphics_pallette_idx = pallette_idx;
 };
-
-void graphics_shift_screen(uint16_t Word) {
-    g_conf.shift_y = Word & 0b11111111;
-    // Разряд 9 - при записи “1” в этот разряд на экране отображается весь буфер экрана (256 телевизионных строк).
-    // При нулевом значении в верхней части растра отображается 1/4 часть (старшие адреса) экранного ОЗУ,
-    // нижняя часть экрана не отображается. Данный режим не используется базовой операционной системой.
-    g_conf.graphics_buffer_height = (Word & 0b01000000000) ? 256 : 256 / 4;
-}
 
 void vga_set_offset(int x, int y) {
     graphics_buffer_shift_x = x;
