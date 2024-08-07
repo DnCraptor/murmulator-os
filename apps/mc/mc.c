@@ -2005,19 +2005,18 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
                     handle_up_pressed();
                 } else if(nespad_state & DPAD_DOWN) {
                     handle_down_pressed();
-                } else if (nespad_state & DPAD_START) {
+                } else if (nespad_state & DPAD_B) {
+                    if (nespad_state & DPAD_SELECT) {
+                        turn_usb_on(0);
+                    } else {
+                        reset(0);
+                        return;
+                    }
+                } else if (nespad_state & DPAD_A) {
+                    ctrlPressed = nespad_state & DPAD_SELECT;
                     enter_pressed();
-                } else if ((nespad_state & DPAD_A) && (nespad_state & DPAD_START)) {
-                    turn_usb_on(0);
-                } else if ((nespad_state & DPAD_B) && (nespad_state & DPAD_SELECT)) {
-                    mark_to_exit(0);
                 } else if ((nespad_state & DPAD_LEFT) || (nespad_state & DPAD_RIGHT)) {
                     handle_tab_pressed();
-                } else if ((nespad_state & DPAD_A) && (nespad_state & DPAD_SELECT)) {
-            //        conf_it(0);
-                } else if ((nespad_state & DPAD_B) && (nespad_state & DPAD_START)) {
-                    reset(0);
-                    return;
                 }
             }
         }
