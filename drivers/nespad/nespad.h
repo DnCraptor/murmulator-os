@@ -17,3 +17,4 @@ extern bool nespad_begin(uint32_t cpu_khz, uint8_t clkPin, uint8_t dataPin,
 
 
 extern void nespad_read();
+extern void nespad_stat(uint8_t* pad1, uint8_t* pad2);

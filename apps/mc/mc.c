@@ -1983,6 +1983,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
     uint8_t repeat_cnt = 0;
     for(;;) {
         char c = getch_now();
+        nespad_stat(&nespad_state, &nespad_state2);
         if (c) {
             if (c == 8) cmd_backspace();
             else if (c == 17) handle_up_pressed();

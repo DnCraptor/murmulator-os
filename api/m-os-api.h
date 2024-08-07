@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 14
+#define M_API_VERSION 15
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
@@ -731,6 +731,11 @@ inline static void usb_driver(bool on) {
 inline static void set_cursor_color(uint8_t c) {
     typedef void (*fn_ptr_t)(uint8_t);
     ((fn_ptr_t)_sys_table_ptrs[186])(c);
+}
+
+inline static void nespad_stat(uint8_t* pad1, uint8_t* pad2) {
+    typedef void (*fn_ptr_t)(uint8_t*, uint8_t*);
+    ((fn_ptr_t)_sys_table_ptrs[187])(pad1, pad2);
 }
 
 #ifdef __cplusplus

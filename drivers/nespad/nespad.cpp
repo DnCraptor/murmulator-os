@@ -123,4 +123,8 @@ void nespad_read()
   nespad_state2 = temp16 >> 8;          // 00000000.87654321 Joy2
 }
 
-
+extern "C" void nespad_stat(uint8_t* pad1, uint8_t* pad2) {
+    nespad_read();
+    *pad1 = nespad_state;
+    *pad2 = nespad_state2;
+}

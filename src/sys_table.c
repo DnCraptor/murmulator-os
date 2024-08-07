@@ -22,6 +22,7 @@
 #include "hardfault.h"
 #include "keyboard.h"
 #include "usb.h"
+#include "nespad.h"
 
 FATFS* get_mount_fs(); // only one FS is supported foe now
 
@@ -254,6 +255,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     usb_driver, // 185
     set_cursor_color, // 186
+    //
+    nespad_stat, // 187
     // TODO:
     0
 };
