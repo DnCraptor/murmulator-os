@@ -70,8 +70,7 @@ static bool mark_to_exit_flag = false;
 static char* cmd = 0;
 
 inline static void nespad_read() {
-    // TODO:
-    nespad_state = nespad_state2 = 0;
+    nespad_stat(&nespad_state, &nespad_state2);
 }
 
 inline static void scan_code_processed() {
