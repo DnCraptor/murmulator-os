@@ -128,10 +128,8 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         f_close(get_stderr());
         f_unmount("SD");
 
-        while (1) {
-            watchdog_enable(100, true);
-            sleep_ms(100);
-        }
+        watchdog_enable(1, true);
+        while (true) ;
     }
     vPortFree(uf2);
     return !boot_replaced;

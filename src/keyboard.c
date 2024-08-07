@@ -211,7 +211,7 @@ bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
             break;
     }
     if (ks.bCtrlPressed && ks.bAltPressed && ks.bDelPressed) {
-        watchdog_enable(100, true);
+        watchdog_enable(1, true);
         return true;
     }
     if (ks.bTabPressed && ks.bCtrlPressed) {

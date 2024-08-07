@@ -1605,7 +1605,8 @@ static void enter_pressed() {
     }
     construct_full_name(path, psp->path, fp->pname);
     printf(path);
-    mark_to_exit_flag = cmd_enter(get_cmd_ctx(), path); // TODO: support "no exit" mode
+    strncpy(cmd, path, 256);
+    mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
 }
 
 inline static void handle_pagedown_pressed() {
@@ -2015,7 +2016,6 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
                 } else if ((nespad_state & DPAD_A) && (nespad_state & DPAD_SELECT)) {
             //        conf_it(0);
                 } else if ((nespad_state & DPAD_B) && (nespad_state & DPAD_START)) {
-                    free(cmd);
                     reset(0);
                     return;
                 }
@@ -2124,16 +2124,16 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             break;
           case 0xCD: // right
             break;
-        //  case 0x1C: // Enter down
-        //    scan_code_processed();
-        //    break;
-        //  case 0x9C: // Enter up
+          case 0x1C: // Enter down
+            scan_code_processed();
+            break;
+          case 0x9C: // Enter up
         //    if (lastSavedScanCode != 0x1C) {
         //        break;
         //    }
         //    enter_pressed();
-        //    scan_code_processed();
-        //    break;
+            scan_code_processed();
+            break;
         }
         /*
         if (usb_started && tud_msc_ejected()) {
@@ -2148,7 +2148,6 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             restore_console(ctx);
             draw_cmd_line(0, CMD_Y_POS);
             putc('\n');
-            free(cmd);
             return;
         }
         // static char tt[] = "cleanable scan-code: %02Xh / saved scan-code: %02Xh";
