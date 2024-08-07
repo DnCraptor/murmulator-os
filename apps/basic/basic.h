@@ -328,13 +328,13 @@ typedef struct {
  * stringlength_t is the maximum length of a string, currently only 2 bytes is really tested.
  *      one byte lengthes may work, will be fixed soon to arbitrary types
  *
- * string_t says where we can find a string. It is either in BASIC memory and has a valid BASIC memory
+ * bstring_t says where we can find a string. It is either in BASIC memory and has a valid BASIC memory
  *      address a, or it is in C memory outside mem[]. Then ir says where the string can be found.
  *      This is necessary because BASIC can handle different memory layouts, EEPROM models and serial
  *      memory chips. We cannot simply rely on data to be found in BASIC memory like in old 8 bit
  *      computers or all in C memory like on modern Linux/Windows/Mac systems. 
  *      
- *      Components of the string_t:
+ *      Components of the bstring_t:
  *          - the address of the string in BASIC memory
  *          - the C memory pointer ir to the string location, if this is 0, the string is somewhere outside C memory
  *          - the length of the entire string 
@@ -350,7 +350,7 @@ typedef struct {
     stringlength_t length;
     address_t strdim; 
     address_t arraydim;
-} string_t;
+} bstring_t;
 
 /* 
  * Two types for identifiying objects and lefthandsides.
@@ -505,7 +505,7 @@ void zeroheap(heap_t*);
 address_t createarray(name_t*, address_t, address_t);
 void array(lhsobject_t*, mem_t, number_t*);
 address_t createstring(name_t*, address_t, address_t);
-void getstring(string_t*, name_t*, address_t, address_t);
+void getstring(bstring_t*, name_t*, address_t, address_t);
 void setstringlength(name_t*, address_t, address_t);
 
 /* the user defined extension functions */
@@ -631,8 +631,8 @@ void xpow();
 number_t bpow(number_t, number_t);
 
 /* string values and string evaluation */
-void parsestringvar(string_t*, lhsobject_t*);
-char stringvalue(string_t*);
+void parsestringvar(bstring_t*, lhsobject_t*);
+char stringvalue(bstring_t*);
 void streval();
 
 /* floating point functions */
@@ -664,10 +664,10 @@ void rtcmkstr();
 
 /* basic commands of the core language set */
 void xprint();
-void getstringtobuffer(string_t*, char*, stringlength_t);
+void getstringtobuffer(bstring_t*, char*, stringlength_t);
 void lefthandside(lhsobject_t*);
 void assignnumber(lhsobject_t, number_t);
-void assignstring(string_t*, string_t*, stringlength_t);
+void assignstring(bstring_t*, bstring_t*, stringlength_t);
 void assignment();
 void showprompt();
 void xinput();
@@ -706,7 +706,7 @@ void dumpmem(address_t, address_t, char);
 void xlocate();
 
 /* file access and other i/o */
-void stringtobuffer(char*, string_t*);
+void stringtobuffer(char*, bstring_t*);
 void getfilename(char*, char);
 void xsave();
 void xload(const char*);

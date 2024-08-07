@@ -1,3 +1,4 @@
+#include "m-os-api.h"
 /*
  *
  * $Id: hardware.h,v 1.1 2024/02/25 04:43:16 stefan Exp stefan $
@@ -127,7 +128,7 @@ typedef unsigned short uint16_t;
 typedef signed short int16_t;
 typedef unsigned char byte;
 typedef unsigned long long uint64_t;
-typedef unsigned int uint32_t;
+//typedef unsigned int uint32_t;
 
 /*
  * additional prototypes in an non Arduino world 
@@ -135,8 +136,8 @@ typedef unsigned int uint32_t;
 unsigned long millis();
 
 /* the ususal suspects */
-#include <stdio.h>
-#include <stdlib.h>
+//#include <stdio.h>
+//#include <stdlib.h>
 
 /* floating point maths only needed if HASFLOAT*/
 #include <math.h>
@@ -149,7 +150,7 @@ unsigned long millis();
 
 /* directories and files */
 #ifndef MSDOS
-#include <dirent.h>
+//#include <dirent.h>
 #include <unistd.h>
 #else
 #include <dir.h>
