@@ -17,6 +17,7 @@ typedef enum {
     TV_OUT_NTSC
 } output_format_e;
 
+int tv_get_default_mode(void);
 void tv_driver_init(void);
 void tv_cleanup(void);
 void tv_set_mode(int mode);

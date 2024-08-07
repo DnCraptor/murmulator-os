@@ -10,12 +10,17 @@
 int pallete_mask = 3; // 11 - 2 bits
 
 enum graphics_mode_t {
+    TEXTMODE_53x30, // 640*480 (320*200) tba
     TEXTMODE_80x30, // 640*480
     TEXTMODE_100x37, // 800*600
     TEXTMODE_128x48, // 1024*768
     BK_256x256x2, // 1024*768 3-lines->1 4-pixels->1
     BK_512x256x1, // 1024*768 3-lines->1 2-pixels->1
 };
+
+int vga_get_default_mode(void) {
+    return TEXTMODE_100x37;
+}
 
 typedef struct {
     uint8_t* graphics_buffer;
@@ -117,6 +122,7 @@ void vga_set_con_pos(int x, int y) {
 }
 size_t vga_buffer_size() {
     switch (graphics_mode) {
+        case TEXTMODE_53x30:
         case TEXTMODE_80x30:
         case TEXTMODE_100x37:
         case TEXTMODE_128x48:
@@ -199,6 +205,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             prev_output_buffer = output_buffer;
             y = line_number - graphics_buffer_shift_y;
             break;
+        case TEXTMODE_53x30:
         case TEXTMODE_80x30:
         case TEXTMODE_100x37:
         case TEXTMODE_128x48: {
@@ -362,6 +369,11 @@ bool vga_set_mode(int mode) {
     if (graphics_mode == mode) return true;
     vga_context_t* context = pvPortCalloc(1, sizeof(vga_context_t));
     switch (mode) {
+        case TEXTMODE_53x30:
+            text_buffer_width = 53;
+            text_buffer_height = 30;
+            bitness = 16;
+            break;
         case TEXTMODE_80x30:
             text_buffer_width = 80;
             text_buffer_height = 30;
@@ -404,6 +416,7 @@ bool vga_set_mode(int mode) {
     int HS_SHIFT = 100;
 
     switch (graphics_mode) {
+        case TEXTMODE_53x30:
         case TEXTMODE_80x30:
             TMPL_LINE8 = 0b11000000;
             HS_SHIFT = 328 * 2;
@@ -480,6 +493,7 @@ bool vga_set_mode(int mode) {
 
     vga_context_t* cleanup = vga_context;
     switch (mode) {
+        case TEXTMODE_53x30:
         case TEXTMODE_80x30:
         case TEXTMODE_100x37:
         case TEXTMODE_128x48:

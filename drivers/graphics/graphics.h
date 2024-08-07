@@ -24,6 +24,7 @@ extern "C" {
 #define TV_DRV 3
 #endif
 
+int graphics_get_default_mode(void);
 void graphics_init(int drv_type);
 void graphics_set_buffer(uint8_t* buffer);
 void graphics_set_offset(int x, int y);
@@ -98,6 +99,7 @@ typedef struct graphics_driver {
     iv_fn get_mode;
     bi_fn is_mode_text;
     vu8_fn set_cursor_color;
+    iv_fn get_default_mode;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();

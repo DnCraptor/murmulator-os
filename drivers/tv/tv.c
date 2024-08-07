@@ -123,6 +123,10 @@ enum graphics_mode_t {
     GRAPHICSMODE_DEFAULT
 };
 
+int tv_get_default_mode(void) {
+    return TEXTMODE_DEFAULT;
+}
+
 static enum graphics_mode_t graphics_mode;
 static output_format_e active_output_format;
 static repeating_timer_t video_timer;

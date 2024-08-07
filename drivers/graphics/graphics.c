@@ -51,7 +51,8 @@ static graphics_driver_t internal_vga_driver = {
     vga_lock_buffer,
     vga_get_mode,
     vga_is_mode_text,
-    vga_set_cursor_color
+    vga_set_cursor_color,
+    vga_get_default_mode
 };
 
 static graphics_driver_t internal_hdmi_driver = {
@@ -82,7 +83,8 @@ static graphics_driver_t internal_hdmi_driver = {
     hdmi_lock_buffer,
     hdmi_get_mode,
     hdmi_is_mode_text,
-    hdmi_set_cursor_color
+    hdmi_set_cursor_color,
+    hdmi_get_default_mode
 };
 
 #ifdef TV
@@ -114,11 +116,20 @@ static graphics_driver_t internal_tv_driver = {
     tv_lock_buffer,
     tv_get_mode,
     tv_is_mode_text,
-    tv_set_cursor_color
+    tv_set_cursor_color,
+    tv_get_default_mode
 };
 #endif
 
 static volatile graphics_driver_t* graphics_driver = 0;
+
+int graphics_get_default_mode(void) {
+    if (graphics_driver != 0  && graphics_driver->get_default_mode) {
+        return graphics_driver->get_default_mode();
+    }
+    return 0;
+}
+
 
 void graphics_init(int drv_type) {
     if (graphics_driver == 0) {

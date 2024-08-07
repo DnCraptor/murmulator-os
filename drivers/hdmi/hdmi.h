@@ -30,6 +30,7 @@ extern "C" {
 // TODO: Сделать настраиваемо
 extern const uint8_t textmode_palette[16];
 
+int hdmi_get_default_mode(void);
 void hdmi_driver_init(void);
 void hdmi_cleanup(void);
 void hdmi_set_mode(int mode);

@@ -257,6 +257,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     set_cursor_color, // 186
     //
     nespad_stat, // 187
+    graphics_get_default_mode, // 188
     // TODO:
     0
 };

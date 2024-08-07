@@ -19,6 +19,7 @@ void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size);
 void vga_dma_channel_set_read_addr(const volatile void* addr);
 
 // Default Driver
+int vga_get_default_mode(void);
 void vga_driver_init(void);
 void vga_cleanup(void);
 uint32_t get_vga_console_width(void);

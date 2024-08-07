@@ -454,7 +454,7 @@ static void init(void) {
         check_firmware();
     } else {
         startup_vga();
-        graphics_set_mode(0); // TODO: get default
+        graphics_set_mode(graphics_get_default_mode());
         graphics_set_con_pos(0, 1);
         show_logo(true);
         init_psram();
@@ -462,13 +462,16 @@ static void init(void) {
         graphics_set_con_color(12, 0);
         gouta("SD Card not inserted or SD Card error! Pls. insert it and reboot...\n");
         while (true) {
-            goutf("Scancode tester: %xh   \n", ks->input);
+            nespad_read();
+            goutf("Scancode tester: %Xh   \n", ks->input);
+            goutf("Joysticks' states: %02Xh %02Xh\n", nespad_state, nespad_state2);
             sleep_ms(50);
             graphics_set_con_pos(0, 7);
         }
     }
 
     startup_vga();
+    graphics_set_mode(graphics_get_default_mode());
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
    
     load_config_sys();

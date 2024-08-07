@@ -28,6 +28,10 @@ enum graphics_mode_t {
     VGA_320x240x256
 };
 
+int hdmi_get_default_mode(void) {
+    return TEXTMODE_53x30;
+}
+
 //активный видеорежим
 static enum graphics_mode_t graphics_mode = TEXTMODE_80x30;
 
