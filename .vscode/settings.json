@@ -12,6 +12,7 @@
         "stdio.h": "c",
         "string.h": "c",
         "hardfault.h": "c",
-        "keyboard.h": "c"
+        "keyboard.h": "c",
+        "fnt8x16.h": "c"
     }
 }
