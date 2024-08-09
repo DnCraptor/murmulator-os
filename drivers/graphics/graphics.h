@@ -23,6 +23,10 @@ extern "C" {
 #include "tv.h"
 #define TV_DRV 3
 #endif
+#ifdef SOFTTV
+#include "tv-software.h"
+#define SOFTTV_DRV 4
+#endif
 
 int graphics_get_default_mode(void);
 void graphics_init(int drv_type);

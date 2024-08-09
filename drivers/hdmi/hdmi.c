@@ -38,17 +38,17 @@ int hdmi_get_default_mode(void) {
 static enum graphics_mode_t graphics_mode = TEXTMODE_80x30;
 
 //буфер  палитры 256 цветов в формате R8G8B8
-static uint32_t palette[256];
+static uint32_t* __scratch_y("_driver_text") palette = NULL; // [256];
 
 #define SCREEN_WIDTH (320)
 #define SCREEN_HEIGHT (240)
 //графический буфер
 static uint8_t* __scratch_y("hdmi_ptr_1") graphics_buffer = NULL;
-static int graphics_buffer_width = 0;
-static int graphics_buffer_height = 0;
-static int graphics_buffer_shift_x = 0;
-static int graphics_buffer_shift_y = 0;
-static uint8_t bitness = 16;
+static int __scratch_y("_driver_text") graphics_buffer_width = 0;
+static int __scratch_y("_driver_text") graphics_buffer_height = 0;
+static int __scratch_y("_driver_text") graphics_buffer_shift_x = 0;
+static int __scratch_y("_driver_text") graphics_buffer_shift_y = 0;
+static uint8_t __scratch_y("_driver_text") bitness = 16;
 
 extern volatile int pos_x;
 extern volatile int pos_y;
@@ -687,6 +687,7 @@ void hdmi_clr_scr(const uint8_t color) {
 }
 
 void hdmi_driver_init(void) {
+    palette = pvPortCalloc(sizeof(uint32_t), 256);
  // TODO:   set_vga_dma_handler_impl(dma_handler_VGA_impl);
     hdmi_set_bgcolor(0x000000);
   // ??  init_palette();

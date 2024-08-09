@@ -428,9 +428,16 @@ static void init(void) {
                 case HDMI_DRV:
                     drv = VGA_DRV;
                     break;
+#ifdef TV
                 case TV_DRV:
                     drv = VGA_DRV;
                     break;
+#endif
+#ifdef SOFTTV
+                case SOFTTV_DRV:
+                    drv = VGA_DRV;
+                    break;
+#endif
             }
         }
         // DPAD B start with VGA, if default is TV
@@ -442,9 +449,16 @@ static void init(void) {
                 case HDMI_DRV:
                     drv = VGA_DRV;
                     break;
+#ifdef TV
                 case TV_DRV:
                     drv = HDMI_DRV;
                     break;
+#endif
+#ifdef SOFTTV
+                case SOFTTV_DRV:
+                    drv = HDMI_DRV;
+                    break;
+#endif
             }
         }
         sleep_ms(10);

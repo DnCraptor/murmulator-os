@@ -70,7 +70,7 @@ typedef struct {
 
 
 //режим видеовыхода
-static TV_MODE v_mode = {
+static TV_MODE __scratch_y("_driver_text") v_mode = {
     .H_len = 512,
     .N_lines = 525,
     .SYNC_TMPL = 241,
@@ -78,7 +78,7 @@ static TV_MODE v_mode = {
     .CLK_SPD = 31500000.0
 };
 
-static graphics_buffer_t graphics_buffer = {
+static graphics_buffer_t __scratch_y("_driver_text") graphics_buffer = {
     .data = NULL,
     .shift_x = 0,
     .shift_y = 0,
@@ -98,7 +98,7 @@ static graphics_buffer_t graphics_buffer = {
 
 //указатели на буферы строк
 //выравнивание нужно для кольцевого буфера
-static uint32_t rd_addr_DMA_CTRL[N_LINE_BUF * 2]__attribute__ ((aligned (4*N_LINE_BUF_DMA)));
+static uint32_t __scratch_y("_driver_text") rd_addr_DMA_CTRL[N_LINE_BUF * 2]__attribute__ ((aligned (4*N_LINE_BUF_DMA)));
 //непосредственно буферы строк
 
 extern uint32_t hdmi_conv_color[1224];
@@ -116,7 +116,7 @@ static int dma_chan_pal_conv_ctrl = -1;
 static int dma_chan_pal_conv = -1;
 
 //ДМА палитра для конвертации
-static __aligned(512) __scratch_x("palette_conv") uint32_t conv_color[128];
+static __aligned(512) __scratch_y("palette_conv") uint32_t conv_color[128];
 
 enum graphics_mode_t {
     TEXTMODE_DEFAULT,
@@ -127,9 +127,9 @@ int tv_get_default_mode(void) {
     return TEXTMODE_DEFAULT;
 }
 
-static enum graphics_mode_t graphics_mode;
-static output_format_e active_output_format;
-static repeating_timer_t video_timer;
+static enum graphics_mode_t __scratch_y("_driver_text") graphics_mode;
+static output_format_e __scratch_y("_driver_text") active_output_format;
+static repeating_timer_t __scratch_y("_driver_text") video_timer;
 
 //программа установки начального адреса массива-конвертора
 static void pio_set_x(PIO pio, const int sm, const uint32_t v) {
@@ -159,7 +159,7 @@ void tv_set_palette(uint8_t i, uint32_t color888) {
 }
 
 //основная функция заполнения буферов видеоданных
-static void __scratch_x("tv_main_loop") main_video_loopTV() {
+static void __scratch_y("tv_main_loop") main_video_loopTV() {
     static uint dma_inx_out = 0;
     static uint lines_buf_inx = 0;
     if (dma_chan_ctrl == -1) return; //не определен дма канал
@@ -731,12 +731,10 @@ void tv_set_mode(int mode) {
     }
 }
 
-
 void tv_set_bgcolor(uint32_t color888) //определяем зарезервированный цвет в палитре
 {
     tv_set_palette(255, color888);
 };
-
 
 void tv_driver_init(void) {
  // TODO:   set_vga_dma_handler_impl(dma_handler_VGA_impl);

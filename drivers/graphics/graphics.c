@@ -23,7 +23,7 @@ void common_print(char* buf);
 void common_backspace(void);
 void common_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor);
 
-static graphics_driver_t internal_vga_driver = {
+const static graphics_driver_t internal_vga_driver = {
     0, //ctx
     vga_driver_init,
     vga_cleanup,
@@ -55,7 +55,7 @@ static graphics_driver_t internal_vga_driver = {
     vga_get_default_mode
 };
 
-static graphics_driver_t internal_hdmi_driver = {
+const static graphics_driver_t internal_hdmi_driver = {
     0, //ctx
     hdmi_driver_init,
     hdmi_cleanup,
@@ -88,7 +88,7 @@ static graphics_driver_t internal_hdmi_driver = {
 };
 
 #ifdef TV
-static graphics_driver_t internal_tv_driver = {
+const static graphics_driver_t internal_tv_driver = {
     0, //ctx
     tv_driver_init,
     tv_cleanup,
@@ -121,7 +121,41 @@ static graphics_driver_t internal_tv_driver = {
 };
 #endif
 
-static volatile graphics_driver_t* graphics_driver = 0;
+#ifdef SOFTTV
+const static graphics_driver_t internal_stv_driver = {
+    0, //ctx
+    stv_driver_init,
+    0, // stv_cleanup,
+    stv_set_mode, // set_mode
+    stv_is_text_mode, // is_text
+    stv_console_width,
+    stv_console_height,
+    stv_console_width,
+    stv_console_height,
+    get_stv_buffer,
+    set_stv_buffer,
+    stv_clr_scr,
+    common_draw_text,
+    get_stv_buffer_bitness,
+    get_stv_buffer_bitness,
+    stv_set_offset, // set_offsets
+    stv_set_bgcolor,
+    stv_buffer_size,
+    common_set_con_pos,
+    common_con_x,
+    common_con_y,
+    common_set_con_color,
+    common_print,
+    common_backspace,
+    stv_lock_buffer,
+    stv_get_mode,
+    stv_is_mode_text,
+    stv_set_cursor_color,
+    stv_get_default_mode
+};
+#endif
+
+static volatile graphics_driver_t* __scratch_y("_driver_text") graphics_driver = 0;
 
 int graphics_get_default_mode(void) {
     if (graphics_driver != 0  && graphics_driver->get_default_mode) {
@@ -129,7 +163,6 @@ int graphics_get_default_mode(void) {
     }
     return 0;
 }
-
 
 void graphics_init(int drv_type) {
     if (graphics_driver == 0) {
@@ -140,6 +173,11 @@ void graphics_init(int drv_type) {
 #ifdef TV
             case TV_DRV:
                 graphics_driver = &internal_tv_driver;
+                break;
+#endif
+#ifdef SOFTTV
+            case SOFTTV_DRV:
+                graphics_driver = &internal_stv_driver;
                 break;
 #endif
             default:
@@ -160,6 +198,11 @@ void graphics_init(int drv_type) {
 #ifdef TV
         case TV_DRV:
             tv_init();
+            break;
+#endif
+#ifdef SOFTTV
+        case SOFTTV_DRV:
+            stv_init();
             break;
 #endif
         default:
