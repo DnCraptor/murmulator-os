@@ -20,7 +20,7 @@ if(NOT FLASH_SIZE)
 set(FLASH_SIZE 16384)
 endif ()
 
-set(MOS_VERSION 0.1.8)
+set(MOS_VERSION 0.1.8.1)
 
 SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
 
@@ -179,8 +179,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
         #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV
-        DEFAULT_VIDEO_DRIVER=VGA_DRV
-        #DEFAULT_VIDEO_DRIVER=HDMI_DRV
+        #DEFAULT_VIDEO_DRIVER=VGA_DRV
+        DEFAULT_VIDEO_DRIVER=HDMI_DRV
         #DEFAULT_VIDEO_DRIVER=TV_DRV
 
         TESTS=0
@@ -211,8 +211,8 @@ ELSE ()
    # target_compile_definitions(${PROJECT_NAME} PRIVATE TV)
     target_compile_definitions(${PROJECT_NAME} PRIVATE VGA)
     target_compile_definitions(${PROJECT_NAME} PRIVATE HDMI)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE SOFTTV)
-    target_link_libraries(${PROJECT_NAME} PRIVATE tv-software)
+   # target_compile_definitions(${PROJECT_NAME} PRIVATE SOFTTV)
+   # target_link_libraries(${PROJECT_NAME} PRIVATE tv-software)
    # target_link_libraries(${PROJECT_NAME} PRIVATE tv)
     target_link_libraries(${PROJECT_NAME} PRIVATE hdmi)
     target_link_libraries(${PROJECT_NAME} PRIVATE vga-nextgen)

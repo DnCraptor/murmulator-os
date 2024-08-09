@@ -236,12 +236,14 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 break;
             }
             case TEXTMODE_53x30: {
-                int y = line / 2;
+                int y = line >> 1;
+                int cur_line = (pos_y << 3) + 7;
                 *output_buffer++ = 255;
                 for (int x = 0; x < graphics_buffer_width; x++) {
-                    if (pos_y == y && pos_x == x) {
+                    if (cur_line == y && pos_x == x) {
+                        uint8_t c = textmode_palette[_cursor_color & 0xf];
                         for (int bit = 6; bit--;) {
-                            *output_buffer++ = textmode_palette[_cursor_color & 0xf];
+                            *output_buffer++ = c;
                         }
                     } else {
                         const uint16_t offset = (y / 8) * (graphics_buffer_width * 2) + x * 2;
@@ -261,11 +263,13 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
             }
             case TEXTMODE_53x60: {
                 int y = line;
+                int cur_line = (pos_y << 3) + 7;
                 *output_buffer++ = 255;
                 for (int x = 0; x < graphics_buffer_width; x++) {
-                    if (pos_y == y && pos_x == x) {
+                    if (cur_line == y && pos_x == x) {
+                        uint8_t c = textmode_palette[_cursor_color & 0xf];
                         for (int bit = 6; bit--;) {
-                            *output_buffer++ = textmode_palette[_cursor_color & 0xf];
+                            *output_buffer++ = c;
                         }
                     } else {
                         const uint16_t offset = (y / 8) * (graphics_buffer_width * 2) + x * 2;
@@ -285,13 +289,22 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
             }
             case TEXTMODE_80x30: { // TODO: some other flow
                 int y = line / 2;
+                int cur_line = (pos_y << 3) + 7;
                 *output_buffer++ = 255;
                 for (int x = 0; x < graphics_buffer_width; x++) {
+                    if (cur_line == y && pos_x == x) {
+                        uint8_t c = textmode_palette[_cursor_color & 0xf];
+                        for (int bit = 4; bit--;) {
+                            *output_buffer++ = c;
+                        }
+                        continue;
+                    }
                     const uint16_t offset = (y / 8) * (graphics_buffer_width * 2) + x * 2;
                     const uint8_t c = graphics_buffer[offset];
                     const uint8_t colorIndex = graphics_buffer[offset + 1];
-                    uint8_t glyph_row = font_6x8[c * 8 + y % 8];
-                    for (int bit = 4; bit--;) {
+                    uint8_t glyph_row = font_6x8[c * 8 + y % 8]; // TODO: font_4x8
+                    for (int bit = 5; bit--;) {
+                        if (bit == 1) continue;
                         *output_buffer++ = glyph_row & 1
                                                ? textmode_palette[colorIndex & 0xf] //цвет шрифта
                                                : textmode_palette[colorIndex >> 4]; //цвет фона
