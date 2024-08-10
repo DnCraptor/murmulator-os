@@ -878,6 +878,16 @@ inline static string_t* new_string_v(void) {
     return res;
 }
 
+inline static string_t* string_subsrt(string_t* s, size_t start, size_t len) {
+    if (s->size < start) return NULL;
+    string_t* res = malloc(sizeof(string_t));
+    res->alloc = len + 1;
+    res->p = malloc(len + 1);
+    strncpy(res->p, s->p + start, len);
+    res->size = strlen(res->p);
+    return res;
+}
+
 inline static void delete_string(string_t* s) {
     free(s->p);
     free(s);

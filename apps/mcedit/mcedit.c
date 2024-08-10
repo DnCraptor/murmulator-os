@@ -72,7 +72,9 @@ static uint8_t nespad_state, nespad_state2;
 static bool mark_to_exit_flag = false;
 
 static size_t line_s = 0;
-static size_t line_n, col_n = 0;
+static size_t col_s = 0;
+static size_t line_n = 0;
+static size_t col_n = 0;
 static size_t f_sz;
 static list_t* lst;
 
@@ -179,6 +181,7 @@ int _init(void) {
     nespad_state = nespad_state2 = 0;
     mark_to_exit_flag = false;
     line_s = 0;
+    col_s = 0;
     line_n = 0;
     col_n = 0;
     scan_code_cleanup();
@@ -538,7 +541,11 @@ static void m_window() {
     node_t* i = lst->first;
     while(i) {
         if (line >= line_s) {
-            draw_text(c_str(i->data), 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+            string_t* s = string_subsrt(i->data, col_s, MAX_WIDTH - 2);
+            if (s) {
+                draw_text(s->p, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+                delete_string(s);
+            }
             y++;
             if (y > MAX_HEIGHT - 3) break;
         }
