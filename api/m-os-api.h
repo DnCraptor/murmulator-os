@@ -885,6 +885,7 @@ inline static string_t* string_subsrt(string_t* s, size_t start, size_t len) {
     res->p = malloc(len + 1);
     strncpy(res->p, s->p + start, len);
     res->size = strlen(res->p);
+    res->p[len] = 0;
     return res;
 }
 

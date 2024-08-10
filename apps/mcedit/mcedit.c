@@ -539,12 +539,18 @@ static void m_window() {
     size_t y = 1;
     size_t line = 0;
     node_t* i = lst->first;
+    string_t* s = new_string_v();
     while(i) {
         if (line >= line_s) {
-            string_t* s = string_subsrt(i->data, col_s, MAX_WIDTH - 2);
-            if (s) {
+            if (c_strlen(i->data) >= col_s) {
+                string_replace_cs(s, c_str(i->data) + col_s);
+                if (s->size > MAX_WIDTH - 2) {
+                    s->size = MAX_WIDTH - 2;
+                    s->p[s->size] = '>';
+                    string_reseve(s, s->size + 2);
+                    s->p[s->size + 1] = 0;
+                }
                 draw_text(s->p, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-                delete_string(s);
             }
             y++;
             if (y > MAX_HEIGHT - 3) break;
@@ -552,12 +558,13 @@ static void m_window() {
         i = i->next;
         ++line;
     }
+    delete_string(s);
 
     size_t free_sz = xPortGetFreeHeapSize();
     if (f_sz > 10000) {
-        snprintf(buff, 64, " [%d:%d] %dK of %dK ", line_n, col_n, f_sz >> 10, free_sz >> 10);
+        snprintf(buff, 64, " [%d:%d] %dK (%dK free) ", line_n, col_n, f_sz >> 10, free_sz >> 10);
     } else {
-        snprintf(buff, 64, " [%d:%d] %d of %dK ", line_n, col_n, f_sz, free_sz >> 10);
+        snprintf(buff, 64, " [%d:%d] %d (%dK free) ", line_n, col_n, f_sz, free_sz >> 10);
     }
     draw_text(
         buff,
@@ -566,7 +573,7 @@ static void m_window() {
         pcs->FOREGROUND_FIELD_COLOR,
         pcs->BACKGROUND_FIELD_COLOR
     );
-    graphics_set_con_pos(col_n + 1, line_n - line_s + 1);
+    graphics_set_con_pos(col_n - col_s + 1, line_n - line_s + 1);
 }
 
 inline static void handleJoystickEmulation(uint8_t sc) { // core 1
@@ -939,6 +946,7 @@ inline static void enter_pressed() {
         list_inset_data_after(lst, n, s);
     }
     col_n = 0;
+    col_s = 0;
     handle_down_pressed();
 }
 
@@ -954,6 +962,9 @@ inline static void push_char(char c) {
     }
     string_insert_c(s, c, col_n);
     ++col_n;
+    if (col_n > col_s + MAX_WIDTH - 3) {
+        ++col_s;
+    }
     m_window();
 }
 
@@ -970,6 +981,9 @@ inline static void cmd_backspace() {
         }
         string_t* s1 = n->prev->data;
         col_n = s1->size;
+        while (col_n > col_s + MAX_WIDTH - 3) {
+            ++col_s;
+        }
         string_push_back_cs(s1, n->data);
         list_erase_node(lst, n);
         --line_n;
@@ -982,6 +996,9 @@ inline static void cmd_backspace() {
         s = list_inject_till(lst, line_n)->data;
     }
     if (s->size > 0 && col_n > 0) {
+        if (col_n == col_s) {
+            --col_s;
+        }
         --col_n;
         string_clip(s, col_n);
     } else if (line_n > 0) {
@@ -1016,12 +1033,18 @@ inline static void handle_right_pressed(void) {
         return;
     }
     ++col_n;
+    if (col_n > col_s + MAX_WIDTH - 3) {
+        ++col_s;
+    }
     m_window();
 }
 
 inline static void handle_left_pressed(void) {
-    if (hidePannels || !col_n) {
+    if (hidePannels || col_n == 0) {
         return;
+    }
+    if (col_s == col_n) {
+        --col_s;
     }
     --col_n;
     m_window();
@@ -1043,6 +1066,9 @@ inline static void handle_tab_pressed(void) {
     ++col_n;
     string_insert_c(s, ' ', col_n);
     ++col_n;
+    while (col_n > col_s + MAX_WIDTH - 3) {
+        ++col_s;
+    }
     m_window();
 }
 
