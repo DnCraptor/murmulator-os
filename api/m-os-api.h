@@ -927,6 +927,14 @@ inline void string_clip(string_t* s, size_t idx) {
     if (s->size) --s->size;
 }
 
+inline void string_resize(string_t* s, size_t sz) {
+    if (sz >= s->alloc) {
+        string_reseve(s, sz + 1);
+    }
+    s->p[sz] = 0;
+    s->size = sz;
+}
+
 inline void string_insert_c(string_t* s, char c, size_t idx) {
     string_reseve(s, idx + 1);
     if (idx >= s->size) {

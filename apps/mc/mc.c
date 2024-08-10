@@ -972,7 +972,7 @@ static void fill_panel(file_panel_desc_t* p) {
         file_info_t* fp = &files_info[fn];
         if (start_file_offset <= p->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
             char* filename = fp->pname;
-            snprintf(line, MAX_WIDTH, "%s/%s", p->s_path->p, fp->pname);
+            snprintf(line, MAX_WIDTH >> 1, "%s/%s", p->s_path->p, fp->pname);
             bool selected = p == psp && selected_file_idx == y;
             draw_label(p->left + 1, y, p->width - 2, filename, selected, fp->fattrib & AM_DIR);
             y++;
@@ -1005,7 +1005,7 @@ static void m_window() {
     snprintf(line, (MAX_WIDTH >> 1) - 4, "SD:%s", left_panel->s_path->p);
     draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH >> 1, PANEL_LAST_Y + 1, line, 0);
     snprintf(line, (MAX_WIDTH >> 1) - 4, "SD:%s", right_panel->s_path->p);
-    draw_panel(MAX_WIDTH / 2, PANEL_TOP_Y, MAX_WIDTH >> 1, PANEL_LAST_Y + 1, line, 0);
+    draw_panel(MAX_WIDTH >> 1, PANEL_TOP_Y, MAX_WIDTH - (MAX_WIDTH >> 1), PANEL_LAST_Y + 1, line, 0);
 }
 
 inline static void handleJoystickEmulation(uint8_t sc) { // core 1
@@ -1567,7 +1567,7 @@ static void enter_pressed() {
         while(--i > 0) {
             char c = psp->s_path->p[i];
             if (c == '\\' || c == '/') {
-                string_clip(psp->s_path, i);
+                string_resize(psp->s_path, i);
                 psp->level--;
                 redraw_current_panel();
                 return;
@@ -1931,11 +1931,11 @@ inline static void save_rc() {
     size_t sz0 = left_panel->s_path->size + 1;
     f_write(pfh, left_panel, sizeof(file_panel_desc_t), &wb);
     f_write(pfh, &sz0, sizeof(size_t), &wb);
-    f_write(pfh, left_panel->s_path->p, left_panel->s_path->size + 1, &wb);
+    f_write(pfh, left_panel->s_path->p, sz0, &wb);
     f_write(pfh, right_panel, sizeof(file_panel_desc_t), &wb);
     sz0 = right_panel->s_path->size + 1;
     f_write(pfh, &sz0, sizeof(size_t), &wb);
-    f_write(pfh, right_panel->s_path->p, left_panel->s_path->size + 1, &wb);
+    f_write(pfh, right_panel->s_path->p, sz0, &wb);
     bool left_selected = (psp == left_panel);
     f_write(pfh, &left_selected, sizeof(left_selected), &wb);
     f_write(pfh, &hidePannels, sizeof(hidePannels), &wb);
@@ -2182,7 +2182,6 @@ inline static void start_manager(cmd_ctx_t* ctx) {
     fill_panel(left_panel);
     fill_panel(right_panel);
     update_menu_color();
-//        m_info(0); // F1 TODO: ensure it is not too aggressive
     work_cycle(ctx);
 }
 
@@ -2207,7 +2206,7 @@ int main(void) {
     left_panel = calloc(1, sizeof(file_panel_desc_t));
     left_panel->s_path = new_string_cc("/");
     right_panel = calloc(1, sizeof(file_panel_desc_t));
-    right_panel->s_path = new_string_cc("/MOS");
+    right_panel->s_path = new_string_cc("/");
     psp = left_panel;
 
     if (!initi_from_rc(ctx)) {
