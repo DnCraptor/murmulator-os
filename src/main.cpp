@@ -434,7 +434,7 @@ static void init(void) {
                     drv = VGA_DRV;
                     break;
 #ifdef TV
-                case TV_DRV:
+                case RGB_DRV:
                     drv = VGA_DRV;
                     break;
 #endif
@@ -455,7 +455,7 @@ static void init(void) {
                     drv = VGA_DRV;
                     break;
 #ifdef TV
-                case TV_DRV:
+                case RGB_DRV:
                     drv = HDMI_DRV;
                     break;
 #endif

@@ -178,10 +178,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         M_API_VERSION=15
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
-        #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV
-        DEFAULT_VIDEO_DRIVER=VGA_DRV
+        DEFAULT_VIDEO_DRIVER=SOFTTV_DRV
+        #DEFAULT_VIDEO_DRIVER=VGA_DRV
         #DEFAULT_VIDEO_DRIVER=HDMI_DRV
-        #DEFAULT_VIDEO_DRIVER=TV_DRV
+        #DEFAULT_VIDEO_DRIVER=RGB_DRV
 
         TESTS=0
 )
@@ -208,12 +208,12 @@ IF (TFT)
         SET(BUILD_NAME "${BUILD_NAME}-ST7789")
     ENDIF ()
 ELSE ()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE TV)
+   # target_compile_definitions(${PROJECT_NAME} PRIVATE TV)
     target_compile_definitions(${PROJECT_NAME} PRIVATE VGA)
     target_compile_definitions(${PROJECT_NAME} PRIVATE HDMI)
-   # target_compile_definitions(${PROJECT_NAME} PRIVATE SOFTTV)
-   # target_link_libraries(${PROJECT_NAME} PRIVATE tv-software)
-    target_link_libraries(${PROJECT_NAME} PRIVATE tv)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE SOFTTV)
+    target_link_libraries(${PROJECT_NAME} PRIVATE tv-software)
+   # target_link_libraries(${PROJECT_NAME} PRIVATE tv)
     target_link_libraries(${PROJECT_NAME} PRIVATE hdmi)
     target_link_libraries(${PROJECT_NAME} PRIVATE vga-nextgen)
     SET(BUILD_NAME "${BUILD_NAME}-VGA-HDMI-TV")

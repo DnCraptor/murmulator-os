@@ -171,7 +171,7 @@ void graphics_init(int drv_type) {
                 graphics_driver = &internal_hdmi_driver;
                 break;
 #ifdef TV
-            case TV_DRV:
+            case RGB_DRV:
                 graphics_driver = &internal_tv_driver;
                 break;
 #endif
@@ -196,7 +196,7 @@ void graphics_init(int drv_type) {
             hdmi_init();
             break;
 #ifdef TV
-        case TV_DRV:
+        case RGB_DRV:
             tv_init();
             break;
 #endif
