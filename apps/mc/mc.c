@@ -155,7 +155,7 @@ typedef struct {
     WORD    fdate;   /* Modified date */
     WORD    ftime;   /* Modified time */
     BYTE    fattrib; /* File attribute */
-    char*   pname; //[MAX_WIDTH >> 1];
+    string_t* s_name; //[MAX_WIDTH >> 1];
     int     dir_num;
 } file_info_t;
 static file_info_t* selected_file();
@@ -395,9 +395,9 @@ static void m_delete_file(uint8_t cmd) {
        return;
     }
     char path[256];
-    snprintf(path, 256, "Remove %s %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file");
+    snprintf(path, 256, "Remove %s %s?", fp->s_name->p, fp->fattrib & AM_DIR ? "folder" : "file");
     if (m_prompt(path)) {
-        construct_full_name(path, psp->s_path->p, fp->pname);
+        construct_full_name(path, psp->s_path->p, fp->s_name->p);
         FRESULT result = fp->fattrib & AM_DIR ? m_unlink_recursive(path) : f_unlink(path);
         if (result != FR_OK) {
             snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
@@ -572,11 +572,11 @@ static void m_copy_file(uint8_t cmd) {
     }
     char path[256];
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
-    snprintf(path, 256, "Copy %s %s to %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file", dsp->s_path->p);
+    snprintf(path, 256, "Copy %s %s to %s?", fp->s_name->p, fp->fattrib & AM_DIR ? "folder" : "file", dsp->s_path->p);
     if (m_prompt(path)) { // TODO: ask name
-        construct_full_name(path, psp->s_path->p, fp->pname);
+        construct_full_name(path, psp->s_path->p, fp->s_name->p);
         char dest[256];
-        construct_full_name(dest, dsp->s_path->p, fp->pname);
+        construct_full_name(dest, dsp->s_path->p, fp->s_name->p);
         FRESULT result = fp->fattrib & AM_DIR ? m_copy_recursive(path, dest) : m_copy(path, dest);
         if (result != FR_OK) {
             snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
@@ -692,11 +692,11 @@ static void m_move_file(uint8_t cmd) {
     }
     char path[256];
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
-    snprintf(path, 256, "Move %s %s to %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file", dsp->s_path->p);
+    snprintf(path, 256, "Move %s %s to %s?", fp->s_name->p, fp->fattrib & AM_DIR ? "folder" : "file", dsp->s_path->p);
     if (m_prompt(path)) { // TODO: ask name
-        construct_full_name(path, psp->s_path->p, fp->pname);
+        construct_full_name(path, psp->s_path->p, fp->s_name->p);
         char dest[256];
-        construct_full_name(dest, dsp->s_path->p, fp->pname);
+        construct_full_name(dest, dsp->s_path->p, fp->s_name->p);
         FRESULT result = f_rename(path, dest);
         if (result != FR_OK) {
             snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
@@ -724,7 +724,7 @@ void m_view(uint8_t nu) {
     }
     static const char cstr[] = "mcview \"";
     strncpy(cmd, cstr, 512);
-    construct_full_name(cmd + sizeof(cstr) - 1, psp->s_path->p, fp->pname);
+    construct_full_name(cmd + sizeof(cstr) - 1, psp->s_path->p, fp->s_name->p);
     size_t sz = strlen(cmd);
     cmd[sz++] = '\"';
     cmd[sz] = 0;
@@ -742,7 +742,7 @@ void m_edit(uint8_t nu) {
     }
     static const char cstr[] = "mcedit \"";
     strncpy(cmd, cstr, 512);
-    construct_full_name(cmd + sizeof(cstr) - 1, psp->s_path->p, fp->pname);
+    construct_full_name(cmd + sizeof(cstr) - 1, psp->s_path->p, fp->s_name->p);
     size_t sz = strlen(cmd);
     cmd[sz++] = '\"';
     cmd[sz] = 0;
@@ -890,7 +890,7 @@ inline static bool m_opendir(
 static int m_comp(const file_info_t * e1, const file_info_t * e2) {
     if ((e1->fattrib & AM_DIR) && !(e2->fattrib & AM_DIR)) return -1;
     if (!(e1->fattrib & AM_DIR) && (e2->fattrib & AM_DIR)) return 1;
-    return strncmp(e1->pname, e2->pname, MAX_WIDTH >> 1);
+    return strcmp(e1->s_name->p, e2->s_name->p);
 }
 
 inline static void m_add_file(FILINFO* fi) {
@@ -903,11 +903,11 @@ inline static void m_add_file(FILINFO* fi) {
     fp->fdate   = fi->fdate;
     fp->ftime   = fi->ftime;
     fp->fsize   = fi->fsize;
-    if (fp->pname) free(fp->pname);
-    size_t sz = MAX_WIDTH >> 1; // strlen(fi->fname);
-    // if (sz > (MAX_WIDTH >> 1)) sz = MAX_WIDTH >> 1;
-    fp->pname = calloc(sz, 1);
-    strncpy(fp->pname, fi->fname, sz);
+    if (!fp->s_name) {
+        fp->s_name = new_string_cc(fi->fname);
+    } else {
+        string_replace_cs(fp->s_name, fi->fname);
+    }
 }
 
 static void draw_cmd_line(int left, int top) {
@@ -971,8 +971,8 @@ static void fill_panel(file_panel_desc_t* p) {
     for(int fn = 0; fn < files_count; ++ fn) {
         file_info_t* fp = &files_info[fn];
         if (start_file_offset <= p->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
-            char* filename = fp->pname;
-            snprintf(line, MAX_WIDTH >> 1, "%s/%s", p->s_path->p, fp->pname);
+            char* filename = fp->s_name->p;
+            snprintf(line, MAX_WIDTH >> 1, "%s/%s", p->s_path->p, filename);
             bool selected = p == psp && selected_file_idx == y;
             draw_label(p->left + 1, y, p->width - 2, filename, selected, fp->fattrib & AM_DIR);
             y++;
@@ -1583,7 +1583,7 @@ static void enter_pressed() {
     }
     char path[256];
     if (fp->fattrib & AM_DIR) {
-        construct_full_name(path, psp->s_path->p, fp->pname);
+        construct_full_name(path, psp->s_path->p, fp->s_name->p);
         string_replace_cs(psp->s_path, path);
         psp->level++;
         if (psp->level >= 16) {
@@ -1596,11 +1596,11 @@ static void enter_pressed() {
         return;
     }
     if (ctrlPressed) {
-        construct_full_name(cmd + cmd_pos, psp->s_path->p, fp->pname);
+        construct_full_name(cmd + cmd_pos, psp->s_path->p, fp->s_name->p);
         draw_cmd_line(0, CMD_Y_POS);
         return;
     }
-    construct_full_name(path, psp->s_path->p, fp->pname);
+    construct_full_name(path, psp->s_path->p, fp->s_name->p);
     printf(path);
     strncpy(cmd, path, 256);
     mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
@@ -2247,7 +2247,7 @@ int main(void) {
     free(left_panel);
     free(pcs);
     for (int i = 0; i < MAX_FILES; ++i) {
-        if (files_info[i].pname) free(files_info[i].pname); 
+        if (files_info[i].s_name) delete_string(files_info[i].s_name); 
     }
     free(files_info);
     free(cmd);
