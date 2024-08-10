@@ -16,7 +16,6 @@ static uint32_t MAX_HEIGHT, MAX_WIDTH;
 static uint8_t PANEL_LAST_Y, F_BTN_Y_POS, CMD_Y_POS, LAST_FILE_LINE_ON_PANEL_Y;
 #define TOTAL_SCREEN_LINES MAX_HEIGHT
 static char* line;
-static char selected_file_path[260]; // TODO: ctx->
 
 static volatile uint32_t lastCleanableScanCode;
 static volatile uint32_t lastSavedScanCode;
@@ -109,7 +108,7 @@ typedef struct file_panel_desc {
     int left;
     int width;
     int files_number;
-    char path[256];
+    string_t* s_path;
     indexes_t indexes[16]; // TODO: some ext. limit logic
     int level;
 #if EXT_DRIVES_MOUNT
@@ -178,7 +177,6 @@ void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz) {
 
 int _init(void) {
     files_count = 0;
-    selected_file_path[0] = 0;
     hidePannels = false;
 
     backspacePressed = false;
@@ -340,13 +338,13 @@ static void reset(uint8_t cmd) {
 static file_info_t* selected_file() {
     int start_file_offset = psp->indexes[psp->level].start_file_offset;
     int selected_file_idx = psp->indexes[psp->level].selected_file_idx;
-    if (selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && start_file_offset == 0 && strlen(psp->path) > 1) {
+    if (selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && start_file_offset == 0 && psp->s_path->size > 1) {
         return 0;
     }
     collect_files(psp);
     int y = 1;
     int files_number = 0;
-    if (start_file_offset == 0 && strlen(psp->path) > 1) {
+    if (start_file_offset == 0 && psp->s_path->size > 1) {
         y++;
         files_number++;
     }
@@ -399,7 +397,7 @@ static void m_delete_file(uint8_t cmd) {
     char path[256];
     snprintf(path, 256, "Remove %s %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file");
     if (m_prompt(path)) {
-        construct_full_name(path, psp->path, fp->pname);
+        construct_full_name(path, psp->s_path->p, fp->pname);
         FRESULT result = fp->fattrib & AM_DIR ? m_unlink_recursive(path) : f_unlink(path);
         if (result != FR_OK) {
             snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
@@ -574,11 +572,11 @@ static void m_copy_file(uint8_t cmd) {
     }
     char path[256];
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
-    snprintf(path, 256, "Copy %s %s to %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file", dsp->path);
+    snprintf(path, 256, "Copy %s %s to %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file", dsp->s_path->p);
     if (m_prompt(path)) { // TODO: ask name
-        construct_full_name(path, psp->path, fp->pname);
+        construct_full_name(path, psp->s_path->p, fp->pname);
         char dest[256];
-        construct_full_name(dest, dsp->path, fp->pname);
+        construct_full_name(dest, dsp->s_path->p, fp->pname);
         FRESULT result = fp->fattrib & AM_DIR ? m_copy_recursive(path, dest) : m_copy(path, dest);
         if (result != FR_OK) {
             snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
@@ -635,7 +633,7 @@ static void m_mk_dir(uint8_t cmd) {
     }
 #endif
     char dir[256];
-    construct_full_name(dir, psp->path, "_");
+    construct_full_name(dir, psp->s_path->p, "_");
     size_t len = strnlen(dir, 256) - 1;
     draw_panel(20, MAX_HEIGHT / 2 - 3, MAX_WIDTH - 40, 5, "DIR NAME", 0);
     draw_label(22, MAX_HEIGHT / 2 - 1, MAX_WIDTH - 44, dir, true, true);
@@ -694,11 +692,11 @@ static void m_move_file(uint8_t cmd) {
     }
     char path[256];
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
-    snprintf(path, 256, "Move %s %s to %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file", dsp->path);
+    snprintf(path, 256, "Move %s %s to %s?", fp->pname, fp->fattrib & AM_DIR ? "folder" : "file", dsp->s_path->p);
     if (m_prompt(path)) { // TODO: ask name
-        construct_full_name(path, psp->path, fp->pname);
+        construct_full_name(path, psp->s_path->p, fp->pname);
         char dest[256];
-        construct_full_name(dest, dsp->path, fp->pname);
+        construct_full_name(dest, dsp->s_path->p, fp->pname);
         FRESULT result = f_rename(path, dest);
         if (result != FR_OK) {
             snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
@@ -726,7 +724,7 @@ void m_view(uint8_t nu) {
     }
     static const char cstr[] = "mcview \"";
     strncpy(cmd, cstr, 512);
-    construct_full_name(cmd + sizeof(cstr) - 1, psp->path, fp->pname);
+    construct_full_name(cmd + sizeof(cstr) - 1, psp->s_path->p, fp->pname);
     size_t sz = strlen(cmd);
     cmd[sz++] = '\"';
     cmd[sz] = 0;
@@ -744,7 +742,7 @@ void m_edit(uint8_t nu) {
     }
     static const char cstr[] = "mcedit \"";
     strncpy(cmd, cstr, 512);
-    construct_full_name(cmd + sizeof(cstr) - 1, psp->path, fp->pname);
+    construct_full_name(cmd + sizeof(cstr) - 1, psp->s_path->p, fp->pname);
     size_t sz = strlen(cmd);
     cmd[sz++] = '\"';
     cmd[sz] = 0;
@@ -936,7 +934,7 @@ static void collect_files(file_panel_desc_t* p) {
     }
 #endif
     DIR dir;
-    if (!m_opendir(&dir, p->path)) return;
+    if (!m_opendir(&dir, p->s_path->p)) return;
     FILINFO fileInfo;
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
         m_add_file(&fileInfo);
@@ -947,9 +945,9 @@ static void collect_files(file_panel_desc_t* p) {
 
 static void construct_full_name(char* dst, const char* folder, const char* file) {
     if (strlen(folder) > 1) {
-        snprintf(dst, 256, "%s\\%s", folder, file);
+        snprintf(dst, 256, "%s/%s", folder, file);
     } else {
-        snprintf(dst, 256, "\\%s", file);
+        snprintf(dst, 256, "/%s", file);
     }
 }
 
@@ -965,7 +963,7 @@ static void fill_panel(file_panel_desc_t* p) {
     p->files_number = 0;
     int start_file_offset = pp->start_file_offset;
     int selected_file_idx = pp->selected_file_idx;
-    if (start_file_offset == 0 && strlen(p->path) > 1) {
+    if (start_file_offset == 0 && p->s_path->size > 1) {
         draw_label(p->left + 1, y, p->width - 2, "..", p == psp && selected_file_idx == y, true);
         y++;
         p->files_number++;
@@ -974,7 +972,7 @@ static void fill_panel(file_panel_desc_t* p) {
         file_info_t* fp = &files_info[fn];
         if (start_file_offset <= p->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
             char* filename = fp->pname;
-            snprintf(line, MAX_WIDTH, "%s\\%s", p->path, fp->pname);
+            snprintf(line, MAX_WIDTH, "%s/%s", p->s_path->p, fp->pname);
             bool selected = p == psp && selected_file_idx == y;
             draw_label(p->left + 1, y, p->width - 2, filename, selected, fp->fattrib & AM_DIR);
             y++;
@@ -985,7 +983,7 @@ static void fill_panel(file_panel_desc_t* p) {
         draw_label(p->left + 1, y, p->width - 2, "", false, false);
     }
     if (p == psp) {
-        set_ctx_var(get_cmd_ctx(), "CD", psp->path);
+        set_ctx_var(get_cmd_ctx(), "CD", psp->s_path->p);
         draw_cmd_line(0, CMD_Y_POS);
     }
 }
@@ -1004,10 +1002,10 @@ inline static void select_left_panel() {
 
 static void m_window() {
     if (hidePannels) return;
-    snprintf(line, MAX_WIDTH, "SD:%s", left_panel->path);
-    draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH / 2, PANEL_LAST_Y + 1, line, 0);
-    snprintf(line, MAX_WIDTH, "SD:%s", right_panel->path);
-    draw_panel(MAX_WIDTH / 2, PANEL_TOP_Y, MAX_WIDTH / 2, PANEL_LAST_Y + 1, line, 0);
+    snprintf(line, (MAX_WIDTH >> 1) - 4, "SD:%s", left_panel->s_path->p);
+    draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH >> 1, PANEL_LAST_Y + 1, line, 0);
+    snprintf(line, (MAX_WIDTH >> 1) - 4, "SD:%s", right_panel->s_path->p);
+    draw_panel(MAX_WIDTH / 2, PANEL_TOP_Y, MAX_WIDTH >> 1, PANEL_LAST_Y + 1, line, 0);
 }
 
 inline static void handleJoystickEmulation(uint8_t sc) { // core 1
@@ -1330,10 +1328,10 @@ r:
 
 static inline void redraw_current_panel() {
     if (!hidePannels) {
-        snprintf(line, MAX_WIDTH >> 1, "SD:%s", psp->path);
+        snprintf(line, (MAX_WIDTH >> 1) - 4, "SD:%s", psp->s_path->p);
         draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
         fill_panel(psp);
-        set_ctx_var(get_cmd_ctx(), "CD", psp->path);
+        set_ctx_var(get_cmd_ctx(), "CD", psp->s_path->p);
     }
     draw_cmd_line(0, CMD_Y_POS);
 }
@@ -1565,17 +1563,17 @@ static void enter_pressed() {
     if (hidePannels) return;
     file_info_t* fp = selected_file();
     if (!fp) { // up to parent dir
-        int i = strlen(psp->path);
+        int i = psp->s_path->size;
         while(--i > 0) {
-            if (psp->path[i] == '\\') {
-                psp->path[i] = 0;
+            char c = psp->s_path->p[i];
+            if (c == '\\' || c == '/') {
+                string_clip(psp->s_path, i);
                 psp->level--;
                 redraw_current_panel();
                 return;
             }
         }
-        psp->path[0] = '\\';
-        psp->path[1] = 0;
+        string_replace_cs(psp->s_path, "/");
 #if EXT_DRIVES_MOUNT
         psp->in_dos = false;
 #endif
@@ -1585,8 +1583,8 @@ static void enter_pressed() {
     }
     char path[256];
     if (fp->fattrib & AM_DIR) {
-        construct_full_name(path, psp->path, fp->pname);
-        strncpy(psp->path, path, 256);
+        construct_full_name(path, psp->s_path->p, fp->pname);
+        string_replace_cs(psp->s_path, path);
         psp->level++;
         if (psp->level >= 16) {
             psp->level = 15;
@@ -1598,11 +1596,11 @@ static void enter_pressed() {
         return;
     }
     if (ctrlPressed) {
-        construct_full_name(cmd + cmd_pos, psp->path, fp->pname);
+        construct_full_name(cmd + cmd_pos, psp->s_path->p, fp->pname);
         draw_cmd_line(0, CMD_Y_POS);
         return;
     }
-    construct_full_name(path, psp->path, fp->pname);
+    construct_full_name(path, psp->s_path->p, fp->pname);
     printf(path);
     strncpy(cmd, path, 256);
     mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
@@ -1924,14 +1922,20 @@ inline static void save_rc() {
     char* tmp = get_ctx_var(ctx, "TEMP");
     if(!tmp) tmp = "";
     size_t cdl = strlen(tmp);
-    char * mc_rc_file = concat(tmp, ".mc.rc");
+    char * mc_rc_file = concat(tmp, ".mc.rc2");
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
     if (FR_OK != f_open(pfh, mc_rc_file, FA_CREATE_ALWAYS | FA_WRITE)) {
         goto r;
     }
     UINT wb;
+    size_t sz0 = left_panel->s_path->size + 1;
     f_write(pfh, left_panel, sizeof(file_panel_desc_t), &wb);
+    f_write(pfh, &sz0, sizeof(size_t), &wb);
+    f_write(pfh, left_panel->s_path->p, left_panel->s_path->size + 1, &wb);
     f_write(pfh, right_panel, sizeof(file_panel_desc_t), &wb);
+    sz0 = right_panel->s_path->size + 1;
+    f_write(pfh, &sz0, sizeof(size_t), &wb);
+    f_write(pfh, right_panel->s_path->p, left_panel->s_path->size + 1, &wb);
     bool left_selected = (psp == left_panel);
     f_write(pfh, &left_selected, sizeof(left_selected), &wb);
     f_write(pfh, &hidePannels, sizeof(hidePannels), &wb);
@@ -1946,18 +1950,35 @@ inline static bool initi_from_rc(cmd_ctx_t* ctx) {
     char* tmp = get_ctx_var(ctx, "TEMP");
     if(!tmp) tmp = "";
     size_t cdl = strlen(tmp);
-    char * mc_rc_file = concat(tmp, ".mc.rc");
+    char * mc_rc_file = concat(tmp, ".mc.rc2");
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
     if (FR_OK != f_open(pfh, mc_rc_file, FA_READ)) {
         goto r1;
     }
     UINT rb;
+    string_t* preserv_string = left_panel->s_path;
     if(FR_OK != f_read(pfh, left_panel, sizeof(file_panel_desc_t), &rb)) {
         goto r2;
     }
+    size_t panel_path_sz;
+
+    f_read(pfh, &panel_path_sz, sizeof(size_t), &rb);
+    left_panel->s_path = preserv_string;
+    string_reseve(left_panel->s_path, panel_path_sz);
+    f_read(pfh, left_panel->s_path->p, panel_path_sz, &rb);
+    left_panel->s_path->size = panel_path_sz - 1;
+
+    preserv_string = right_panel->s_path;
     if(FR_OK != f_read(pfh, right_panel, sizeof(file_panel_desc_t), &rb)) {
         goto r2;
     }
+
+    f_read(pfh, &panel_path_sz, sizeof(size_t), &rb);
+    right_panel->s_path = preserv_string;
+    string_reseve(right_panel->s_path, panel_path_sz);
+    f_read(pfh, right_panel->s_path->p, panel_path_sz, &rb);
+    right_panel->s_path->size = panel_path_sz - 1;
+
     bool left_selected;
     if(FR_OK != f_read(pfh, &left_selected, sizeof(left_selected), &rb)) {
         goto r2;
@@ -2184,19 +2205,19 @@ int main(void) {
     cmd[0] = 0;
 
     left_panel = calloc(1, sizeof(file_panel_desc_t));
+    left_panel->s_path = new_string_cc("/");
     right_panel = calloc(1, sizeof(file_panel_desc_t));
+    right_panel->s_path = new_string_cc("/MOS");
     psp = left_panel;
 
     if (!initi_from_rc(ctx)) {
-        strncpy(left_panel->path, "/", 256);
         left_panel->indexes[0].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
-        strncpy(right_panel->path, "/MOS", 256);
         right_panel->indexes[0].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
     }
     // TODO: in case other mode, dynamic size, etc...
     left_panel->width = MAX_WIDTH >> 1;
     right_panel->left = MAX_WIDTH >> 1;
-    right_panel->width = MAX_WIDTH >> 1;
+    right_panel->width = MAX_WIDTH - right_panel->left;
 
     pcs = calloc(1, sizeof(color_schema_t));
     pcs->BACKGROUND_FIELD_COLOR = 1, // Blue
@@ -2221,7 +2242,9 @@ int main(void) {
 
     set_scancode_handler(scancode_handler);
     free(line);
+    delete_string(right_panel->s_path);
     free(right_panel);
+    delete_string(left_panel->s_path);
     free(left_panel);
     free(pcs);
     for (int i = 0; i < MAX_FILES; ++i) {

@@ -130,6 +130,6 @@ TEMP - specify a folder with temporary files<br/>
 
 # Boot-loader mode
 If uf2 application was started from M-OS, and such application is not designed for M-OS, it is possible to return to M-OS only via reboot:<br/>
-Press [F11] or [SPACE] (DPAD [SELECT]) and hold on the Murmulator reset or power-on, in this case uf2 application startup wil be skip and you will return to the M-OS<br/>
+Press [F11] or [SPACE] (DPAD [SELECT]) and hold on the Murmulator reset or power-on, in this case uf2 application startup wil be skip and you will return to the M-OS. And in case DPAD [B] button is also hold, it automounts SD-Cart as USB-drive.<br/>
 Press [F12] or [ENTER] (DPAD [START]) and hold on the Murmulator reset or power-on, in case you want to start USB-drive mode without starting M-OS.<br/>
 Press [TAM] (DPAD [A]) and hold on the Murmulator reset or power-on, in case you want to switch default output from VGA to HDMI or vice versa.<br/>

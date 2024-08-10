@@ -953,6 +953,26 @@ inline string_t* string_split_at(string_t* s, size_t idx) {
     return res;
 }
 
+inline void string_replace_cs(string_t* s, const char* cs) {
+    size_t sz = strlen(cs);
+    if (sz >= s->alloc) {
+        string_reseve(s, sz + 1);
+    }
+    memcpy(s->p, cs, sz);
+    s->p[sz] = 0;
+    s->size = sz;
+}
+
+inline void string_replace_ss(string_t* s, const string_t* ss) {
+    size_t sz = ss->size;
+    if (sz >= s->alloc) {
+        string_reseve(s, sz + 1);
+    }
+    memcpy(s->p, ss->p, sz);
+    s->p[sz] = 0;
+    s->size = sz;
+}
+
 inline static const char* c_str(const string_t* s) {
     return s->p;
 }

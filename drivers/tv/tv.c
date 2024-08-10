@@ -458,9 +458,17 @@ static void __scratch_y("tv_main_loop") main_video_loopTV() {
                         break;
                     }
                     case TEXTMODE_DEFAULT: { // TODO: 80*30
+                        int cur_line = (pos_y << 3) + 7;
                         uint8_t* text_buffer = graphics_buffer.data;
                         *output_buffer++ = 200;
                         for (int x = 0; x < graphics_buffer.width; x++) {
+                            if (cur_line == y && pos_x == x) {
+                                uint8_t c = textmode_palette[_cursor_color & 0xf];
+                                for (int bit = 4; bit--;) {
+                                    *output_buffer++ = c;
+                                }
+                                continue;
+                            }
                             const uint16_t offset = y / 8 * (graphics_buffer.width * 2) + x * 2;
                             const uint8_t c = text_buffer[offset];
                             const uint8_t colorIndex = text_buffer[offset + 1];

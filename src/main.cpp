@@ -13,7 +13,7 @@
 extern "C" {
 #include "ps2.h"
 #include "ff.h"
-//#include "usb.h"
+#include "usb.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "hooks.h"
@@ -417,7 +417,10 @@ static void init(void) {
         }
         // F11 or SPACE or SELECT unlink prev uf2 firmware
         if ((nespad_state & DPAD_SELECT) || (sc == 0x57) /*F11*/  || (sc == 0x39) /*SPACE*/) {
-            if(mount_res) unlink_firmware(); // return to OS
+            if (mount_res) {
+                if (nespad_state & DPAD_B) usb_driver(true);
+                unlink_firmware(); // return to M-OS
+            }
         }
         // DPAD A/TAB start with HDMI, if default is VGA, and vice versa
         if ((nespad_state & DPAD_A) || (sc == 0x0F) /*TAB*/) {
