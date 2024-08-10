@@ -362,9 +362,11 @@ static void info(bool with_sd) {
     uint32_t psram32 = psram_size();
     uint8_t rx8[8];
     psram_id(rx8);
-    goutf("PSRAM %d MB; MF ID: %02x; KGD: %02x; EID: %02X%02X-%02X%02X-%02X%02X\n",
-          psram32 >> 20, rx8[0], rx8[1], rx8[2], rx8[3], rx8[4], rx8[5], rx8[6], rx8[7]
-    );
+    if (psram32) {
+        goutf("PSRAM %d MB; MF ID: %02x; KGD: %02x; EID: %02X%02X-%02X%02X-%02X%02X\n",
+              psram32 >> 20, rx8[0], rx8[1], rx8[2], rx8[3], rx8[4], rx8[5], rx8[6], rx8[7]
+        );
+    }
     if (!with_sd) {
         goutf("\n");
         return;

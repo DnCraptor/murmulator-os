@@ -478,12 +478,11 @@ void common_set_con_color(uint8_t color, uint8_t bgcolor) {
     con_bgcolor = bgcolor;
 }
 
-static char* common_rollup(char* t_buf) {
+static char* common_rollup(char* t_buf, uint32_t width) {
     char* b = get_buffer();
-    uint32_t width = get_console_width();
     uint32_t height = get_console_height();
     if (pos_y >= height - 1) {
-        memcpy(b, b + width * 2, width * (height - 2) * 2);
+        memmove(b, b + width * 2, width * (height - 2) * 2);
         t_buf = b + width * (height - 2) * 2;
         for(int i = 0; i < width; ++i) {
             *t_buf++ = ' ';
@@ -505,14 +504,14 @@ void common_print(char* buf) {
         if (c == '\n') {
             pos_x = 0;
             pos_y++;
-            t_buf = common_rollup(t_buf);
+            t_buf = common_rollup(t_buf, width);
             continue;
         }
         pos_x++;
         if (pos_x >= width) {
             pos_x = 0;
             pos_y++;
-            t_buf = common_rollup(t_buf);
+            t_buf = common_rollup(t_buf, width);
             *t_buf++ = c;
             *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
             pos_x++;
