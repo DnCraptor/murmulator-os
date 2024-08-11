@@ -430,7 +430,7 @@ static void m_info(uint8_t cmd) {
 static void m_save(uint8_t cmd) {
     cmd_ctx_t* ctx = get_cmd_ctx();
     FIL* f = malloc(sizeof(FIL));
-    if (FR_OK != f_open(f, ctx->argv[1], FA_WRITE)) {
+    if (FR_OK != f_open(f, ctx->argv[1], FA_CREATE_ALWAYS | FA_WRITE)) {
         free(f);
         // TODO: err
         return;
@@ -551,6 +551,11 @@ static void m_window() {
                     s->p[s->size + 1] = 0;
                 }
                 draw_text(s->p, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+                /*
+                char buf[40];
+                snprintf(buf, 40, "[%p][%p]", i, i->next);
+                draw_text(buf, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+                */
             }
             y++;
             if (y > MAX_HEIGHT - 3) break;
