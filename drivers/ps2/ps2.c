@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include "string.h"
 #include "hardware/irq.h"
-
+#include "graphics.h"
 
 volatile int bitcount;
 static uint8_t ps2bufsize = 0;

@@ -428,11 +428,17 @@ static void init(void) {
         if ((nespad_state & DPAD_A) || (sc == 0x0F) /*TAB*/) {
             switch(DEFAULT_VIDEO_DRIVER) {
                 case VGA_DRV:
+#ifdef HDMI
                     drv = HDMI_DRV;
+#else
+                    drv = RGB_DRV;
+#endif
                     break;
+#ifdef HDMI
                 case HDMI_DRV:
                     drv = VGA_DRV;
                     break;
+#endif
 #ifdef TV
                 case RGB_DRV:
                     drv = VGA_DRV;
@@ -449,14 +455,24 @@ static void init(void) {
         if ((nespad_state & DPAD_B)) {
             switch(DEFAULT_VIDEO_DRIVER) {
                 case VGA_DRV:
+#ifdef HDMI
                     drv = HDMI_DRV;
+#else
+                    drv = RGB_DRV;
+#endif
                     break;
+#ifdef HDMI
                 case HDMI_DRV:
                     drv = VGA_DRV;
                     break;
+#endif
 #ifdef TV
                 case RGB_DRV:
+#ifdef HDMI
                     drv = HDMI_DRV;
+#else
+                    drv = VGA_DRV;
+#endif
                     break;
 #endif
 #ifdef SOFTTV
@@ -482,13 +498,14 @@ static void init(void) {
         init_psram();
         info(false);
         graphics_set_con_color(12, 0);
-        gouta("SD Card not inserted or SD Card error! Pls. insert it and reboot...\n");
+        gouta("SD Card not inserted or SD Card error!\nPls. insert it and reboot...\n");
         while (true) {
             nespad_read();
-            goutf("Scancode tester: %Xh   \n", ks->input);
+            int y = graphics_con_y();
+            goutf("Scancodes tester: %Xh   \n", ks->input);
             goutf("Joysticks' states: %02Xh %02Xh\n", nespad_state, nespad_state2);
             sleep_ms(50);
-            graphics_set_con_pos(0, 7);
+            graphics_set_con_pos(0, y);
         }
     }
 

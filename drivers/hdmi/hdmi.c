@@ -10,11 +10,6 @@
 #include "font6x8.h"
 #include "fnt8x16.h"
 
-// TODO: Сделать настраиваемо
-const uint8_t textmode_palette[16] = {
-    200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215
-};
-
 //PIO параметры
 static uint offs_prg0 = 0;
 static uint offs_prg1 = 0;

@@ -10,6 +10,8 @@
 #define SCREEN_WIDTH (320)
 #define SCREEN_HEIGHT (240)
 
+extern const uint8_t textmode_palette[16];
+
 //программы PIO
 
 //программа конвертации адреса для TV_OUT
@@ -101,8 +103,12 @@ static graphics_buffer_t __scratch_y("_driver_text") graphics_buffer = {
 static uint32_t __scratch_y("_driver_text") rd_addr_DMA_CTRL[N_LINE_BUF * 2]__attribute__ ((aligned (4*N_LINE_BUF_DMA)));
 //непосредственно буферы строк
 
+#ifdef HDMI
 extern uint32_t hdmi_conv_color[1224];
 static uint32_t* lines_buf = hdmi_conv_color; // [N_LINE_BUF][LINE_SIZE_MAX / 4] = reinterpert_cast<>conv_color;
+#else
+static uint32_t* lines_buf = NULL; // [N_LINE_BUF][LINE_SIZE_MAX / 4] = reinterpert_cast<>conv_color;
+#endif
 
 static int SM_video = -1;
 static int SM_conv = -1;
@@ -745,9 +751,8 @@ void tv_set_bgcolor(uint32_t color888) //определяем зарезерви
 };
 
 void tv_driver_init(void) {
- // TODO:   set_vga_dma_handler_impl(dma_handler_VGA_impl);
+    lines_buf = pvPortCalloc(N_LINE_BUF * LINE_SIZE_MAX >> 2, sizeof(uint32_t));
     tv_set_bgcolor(0x000000);
-  // ??  init_palette();
 }
 
 void tv_cleanup(void) {

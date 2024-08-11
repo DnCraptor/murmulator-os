@@ -55,6 +55,7 @@ const static graphics_driver_t internal_vga_driver = {
     vga_get_default_mode
 };
 
+#ifdef HDMI
 const static graphics_driver_t internal_hdmi_driver = {
     0, //ctx
     hdmi_driver_init,
@@ -86,6 +87,7 @@ const static graphics_driver_t internal_hdmi_driver = {
     hdmi_set_cursor_color,
     hdmi_get_default_mode
 };
+#endif
 
 #ifdef TV
 const static graphics_driver_t internal_tv_driver = {
@@ -167,9 +169,11 @@ int graphics_get_default_mode(void) {
 void graphics_init(int drv_type) {
     if (graphics_driver == 0) {
         switch(drv_type) {
+#ifdef HDMI
             case HDMI_DRV:
                 graphics_driver = &internal_hdmi_driver;
                 break;
+#endif
 #ifdef TV
             case RGB_DRV:
                 graphics_driver = &internal_tv_driver;
@@ -192,9 +196,11 @@ void graphics_init(int drv_type) {
     }
     DBG_PRINT("graphics_init %ph exit\n", graphics_driver);
     switch(drv_type) {
+#ifdef HDMI
         case HDMI_DRV:
             hdmi_init();
             break;
+#endif
 #ifdef TV
         case RGB_DRV:
             tv_init();
@@ -552,3 +558,8 @@ void common_draw_text(const char* string, int x, int y, uint8_t color, uint8_t b
         *t_buf++ = c;
     }
 }
+
+// TODO: Сделать настраиваемо
+const uint8_t textmode_palette[16] = {
+    200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215
+};
