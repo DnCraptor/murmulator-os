@@ -1256,8 +1256,8 @@ void stv_clr_scr(const uint8_t color) {
 void stv_set_mode(int mode) {
     switch (mode) {
         case TEXTMODE_DEFAULT:
-            graphics_buffer.width = 53;
-            graphics_buffer.height = 30;
+            graphics_buffer.width = TEXTMODE_COLS;
+            graphics_buffer.height = TEXTMODE_ROWS;
             graphics_buffer.bitness = 16;
             break;
         default:
