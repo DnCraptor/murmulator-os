@@ -561,10 +561,12 @@ static void m_window() {
     delete_string(s);
 
     size_t free_sz = xPortGetFreeHeapSize();
+    size_t cnt = list_count(lst);
+    f_sz = list_data_bytes(lst);
     if (f_sz > 10000) {
-        snprintf(buff, 64, " [%d:%d] %dK (%dK free) ", line_n, col_n, f_sz >> 10, free_sz >> 10);
+        snprintf(buff, 64, " [%d:%d] %dK lns: %d (%dK free) ", line_n, col_n, f_sz >> 10, cnt, free_sz >> 10);
     } else {
-        snprintf(buff, 64, " [%d:%d] %d (%dK free) ", line_n, col_n, f_sz, free_sz >> 10);
+        snprintf(buff, 64, " [%d:%d] %dB lns: %d (%dK free) ", line_n, col_n, f_sz, cnt, free_sz >> 10);
     }
     draw_text(
         buff,
@@ -1009,11 +1011,14 @@ inline static void cmd_backspace() {
 
 inline static void cmd_del() {
     node_t* n = list_get_node_at(lst, line_n);
-    if (!n || !n->next) {
+    if (!n) {
         return;
     }
     string_t* s = n->data;
     if (col_n >= s->size) {
+        if (!n->next) {
+            return;
+        }
         while (col_n != s->size) { // todo: memset
             string_push_back_c(s, ' ');
         }
@@ -1261,8 +1266,12 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
     }
 }
 
+static size_t string_size_bytes(string_t* s) {
+    return s ? s->size + 1 : 0;
+}
+
 inline static void start_editor(cmd_ctx_t* ctx) {
-    lst = new_list_v(new_string_v, delete_string); // list of string_t*
+    lst = new_list_v(new_string_v, delete_string, string_size_bytes); // list of string_t*
     f_sz = 0;
     {
         FILINFO* fno = malloc(sizeof(FILINFO));
