@@ -52,6 +52,8 @@ static volatile bool leftPressed = false;
 static volatile bool rightPressed = false;
 static volatile bool upPressed = false;
 static volatile bool downPressed = false;
+static volatile bool homePressed = false;
+static volatile bool endPressed = false;
 static volatile bool aPressed = false;
 static volatile bool cPressed = false;
 static volatile bool gPressed = false;
@@ -164,6 +166,8 @@ int _init(void) {
     rightPressed = false;
     upPressed = false;
     downPressed = false;
+    homePressed = false;
+    endPressed = false;
     aPressed = false;
     cPressed = false;
     gPressed = false;
@@ -706,6 +710,18 @@ static bool scancode_handler_impl(const uint32_t ps2scancode) { // core ?
     } else if (ps2scancode == 0xE0D0 || (ps2scancode == 0xD0 && !numlock)) {
         downPressed = false;
         goto r;
+    } else if (ps2scancode == 0xE047 || (ps2scancode == 0x47 && !numlock)) {
+        homePressed = true;
+        goto r;
+    } else if (ps2scancode == 0xE0C7 || (ps2scancode == 0xC7 && !numlock)) {
+        homePressed = false;
+        goto r;
+    } else if (ps2scancode == 0xE04F || (ps2scancode == 0x4F && !numlock)) {
+        endPressed = true;
+        goto r;
+    } else if (ps2scancode == 0xE0CF || (ps2scancode == 0xCF && !numlock)) {
+        endPressed = false;
+        goto r;
     } else if (ps2scancode == 0xE01C) {
         enterPressed = true;
         goto r;
@@ -1060,6 +1076,26 @@ inline static void handle_left_pressed(void) {
     m_window();
 }
 
+inline static void handle_home_pressed(void) {
+    col_s = 0;
+    col_n = 0;
+    m_window();
+}
+
+inline static void handle_end_pressed(void) {
+    string_t* s = list_get_data_at(lst, line_n);
+    if (!s) {
+        col_s = 0;
+        col_n = 0;
+    } else {
+        col_n = s->size;
+        if (col_n > col_s + MAX_WIDTH - 3) {
+            col_s = col_n - MAX_WIDTH + 3;
+        }
+    }
+    m_window();
+}
+
 inline static void handle_tab_pressed(void) {
     if (hidePannels) {
         return;
@@ -1076,8 +1112,8 @@ inline static void handle_tab_pressed(void) {
     ++col_n;
     string_insert_c(s, ' ', col_n);
     ++col_n;
-    while (col_n > col_s + MAX_WIDTH - 3) {
-        ++col_s;
+    if (col_n > col_s + MAX_WIDTH - 3) {
+        col_s = col_n - MAX_WIDTH + 3;
     }
     m_window();
 }
@@ -1162,6 +1198,18 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
         if (leftPressed) {
             leftPressed = false;
             handle_left_pressed();
+            scan_code_processed();
+            continue;
+        }
+        if (homePressed) {
+            homePressed = false;
+            handle_home_pressed();
+            scan_code_processed();
+            continue;
+        }
+        if (endPressed) {
+            endPressed = false;
+            handle_end_pressed();
             scan_code_processed();
             continue;
         }
@@ -1282,7 +1330,8 @@ inline static void start_editor(cmd_ctx_t* ctx) {
         FILINFO* fno = malloc(sizeof(FILINFO));
         if (FR_OK != f_stat(ctx->argv[1], fno) || (fno->fattrib & AM_DIR)) {
             free(fno);
-            return false;
+            list_push_back(lst, new_string_v());
+            goto nw; // assumed new file creation
         }
         f_sz = fno->fsize;
         free(fno);
@@ -1305,6 +1354,7 @@ inline static void start_editor(cmd_ctx_t* ctx) {
         FIL* f = malloc(sizeof(FIL));
         if (FR_OK != f_open(f, ctx->argv[1], FA_READ)) {
             free(f);
+            delete_list(lst);
             return false;
         }
         buff = malloc(f_sz); // TODO: dynamic
@@ -1312,6 +1362,7 @@ inline static void start_editor(cmd_ctx_t* ctx) {
         if (FR_OK != f_read(f, buff, f_sz, &br) || br != f_sz) {
             free(buff);
             free(f);
+            delete_list(lst);
             return false;
         }
         f_close(f);
@@ -1329,13 +1380,13 @@ inline static void start_editor(cmd_ctx_t* ctx) {
         }
     }
     free(buff);
-
+nw:
     m_window();
     bottom_line();
 
     work_cycle(ctx);
 
-// TODO: save?
+// TODO: ask for save?
     delete_list(lst);
 }
 
