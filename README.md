@@ -1,11 +1,14 @@
 # murmulator-os
-ZX Murmulator OS<br/>
+ZX Murmulator OS v.0.1.8.2<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
 Sources are "in-progress" state and testing now only on ZX Murmulator devboard with VGA/HDMI/TV output.<br/>
 Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme<br/>
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
+
+# This Archive
+Extract MOS folder to your SD-Card to /MOS folder.
 
 # Optional
 There are several features to be supported, like external PSRAM and DAC, are availbel on more featured murmulator versions.<br/>
@@ -131,5 +134,7 @@ TEMP - specify a folder with temporary files<br/>
 # Boot-loader mode
 If uf2 application was started from M-OS, and such application is not designed for M-OS, it is possible to return to M-OS only via reboot:<br/>
 Press [F11] or [SPACE] (DPAD [SELECT]) and hold on the Murmulator reset or power-on, in this case uf2 application startup will be skip and you will return to the M-OS. And in case DPAD [B] button is also hold, it automounts SD-Cart as USB-drive.<br/>
-Press [F12] or [ENTER] (DPAD [START]) and hold on the Murmulator reset or power-on, in case you want to start USB-drive mode without starting M-OS.<br/>
-Press [TAB] (DPAD [A]) and hold on the Murmulator reset or power-on, in case you want to switch default output from VGA to HDMI or vice versa.<br/>
+Press [F12] or [ENTER] (DPAD [START]) and hold on the Murmulator reset or power-on, in case you want to start USB-drive mode prior starting M-OS.<br/>
+Press [TAB] (DPAD [A]) and hold on the Murmulator reset or power-on, in case you want to replace default output by seconday driver.<br/>
+Press DPAD [B] and hold on the Murmulator reset or power-on, in case you want to switch default output to third output.<br/>
+Press [HOME] and hold on the Murmulator reset or power-on, in case you want  start USB-drive mode prior starting M-OS.<br/>
