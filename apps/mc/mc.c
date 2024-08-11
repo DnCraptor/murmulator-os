@@ -5,6 +5,7 @@ static void redraw_window();
 static void draw_cmd_line(int left, int top);
 static void bottom_line();
 static void construct_full_name(char* dst, const char* folder, const char* file);
+static void construct_full_name_s(string_t* dst, const string_t* folder, const string_t* file);
 static bool m_prompt(const char* txt);
 static void no_selected_file();
 static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd);
@@ -377,6 +378,7 @@ static FRESULT m_unlink_recursive(char * path) {
         if (res != FR_OK) break;
     }
     f_closedir(&dir);
+    res = f_unlink(path);
     return res;
 }
 
@@ -394,16 +396,17 @@ static void m_delete_file(uint8_t cmd) {
        no_selected_file();
        return;
     }
-    char path[256];
-    snprintf(path, 256, "Remove %s %s?", fp->s_name->p, fp->fattrib & AM_DIR ? "folder" : "file");
-    if (m_prompt(path)) {
-        construct_full_name(path, psp->s_path->p, fp->s_name->p);
-        FRESULT result = fp->fattrib & AM_DIR ? m_unlink_recursive(path) : f_unlink(path);
+    string_t* s_path = new_string_cc("Remove '");
+    string_push_back_cs(s_path, fp->s_name);
+    string_push_back_cc(s_path, fp->fattrib & AM_DIR ? "' folder?" : "' file?");
+    if (m_prompt(s_path->p)) {
+        construct_full_name_s(s_path, psp->s_path, fp->s_name);
+        FRESULT result = fp->fattrib & AM_DIR ? m_unlink_recursive(s_path->p) : f_unlink(s_path->p);
         if (result != FR_OK) {
             snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
             const line_t lns[3] = {
                 { -1, "Unable to delete selected item!" },
-                { -1, path },
+                { -1, s_path->p },
                 { -1, line }
             };
             const lines_t lines = { 3, 2, lns };
@@ -413,6 +416,7 @@ static void m_delete_file(uint8_t cmd) {
             psp->indexes[psp->level].selected_file_idx--;
         }
     }
+    delete_string(s_path);
 //    gpio_put(PICO_DEFAULT_LED_PIN, false);
     redraw_window();    
 }
@@ -496,10 +500,13 @@ static bool m_prompt(const char* txt) {
         { -1, txt },
     };
     const lines_t lines = { 1, 2, lns };
-    draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Are you sure?", &lines);
+    size_t width = MAX_WIDTH > 60 ? 60 : 40;
+    size_t shift = MAX_WIDTH > 60 ? 10 : 0;
+    size_t x = (MAX_WIDTH - width) / 2;
+    draw_box(x, 7, width, 10, "Are you sure?", &lines);
     bool yes = true;
-    draw_button((MAX_WIDTH - 60) / 2 + 16, 12, 11, "Yes", yes);
-    draw_button((MAX_WIDTH - 60) / 2 + 35, 12, 10, "No", !yes);
+    draw_button(x + shift + 6, 12, 11, "Yes", yes);
+    draw_button(x + shift + 25, 12, 10, "No", !yes);
     while(1) {
         if (is_dendy_joystick || is_kbd_joystick) {
             if (is_dendy_joystick) nespad_read();
@@ -533,8 +540,8 @@ static bool m_prompt(const char* txt) {
         }
         if (tabPressed || leftPressed || rightPressed) { // TODO: own msgs cycle
             yes = !yes;
-            draw_button((MAX_WIDTH - 60) / 2 + 16, 12, 11, "Yes", yes);
-            draw_button((MAX_WIDTH - 60) / 2 + 35, 12, 10, "No", !yes);
+            draw_button(x + shift + 6, 12, 11, "Yes", yes);
+            draw_button(x + shift + 25, 12, 10, "No", !yes);
             tabPressed = leftPressed = rightPressed = false;
             scan_code_cleanup();
         }
@@ -941,6 +948,16 @@ static void collect_files(file_panel_desc_t* p) {
     }
     f_closedir(&dir);
     qsort(files_info, files_count, sizeof(file_info_t), m_comp);
+}
+
+static void construct_full_name_s(string_t* dst, const string_t* folder, const string_t* file) {
+    if (folder->size > 1) {
+        string_replace_ss(dst, folder);
+    } else {
+        string_resize(dst, 0);
+    }
+    string_push_back_c(dst, '/');
+    string_push_back_cs(dst, file);
 }
 
 static void construct_full_name(char* dst, const char* folder, const char* file) {

@@ -920,6 +920,17 @@ inline static void string_push_back_c(string_t* s, const char c) {
     s->p[++s->size] = 0;
 }
 
+inline static void string_push_back_cc(string_t* s, const char* cs) {
+    size_t cs_sz = strlen(cs);
+    size_t sz = s->size + cs_sz;
+    if (sz >= s->alloc) {
+        string_reseve(s, sz + 1);
+    }
+    memcpy(s->p + s->size, cs, cs_sz);
+    s->p[sz] = 0;
+    s->size = sz;
+}
+
 inline static void string_push_back_cs(string_t* s, const string_t* cs) {
     size_t sz = s->size + cs->size;
     if (sz >= s->alloc) {
