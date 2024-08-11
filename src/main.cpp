@@ -393,7 +393,6 @@ static void init(void) {
     set_sys_clock_khz(get_overclocking_khz(), true);
 
     keyboard_init();
-    keyboard_send(0xFF);
     nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     nespad_read();
     sleep_ms(50);
@@ -424,6 +423,7 @@ static void init(void) {
                 unlink_firmware(); // return to M-OS
             }
         }
+        if (sc == 0x47 /*HOME*/) usb_driver(true);
         // DPAD A/TAB start with HDMI, if default is VGA, and vice versa
         if ((nespad_state & DPAD_A) || (sc == 0x0F) /*TAB*/) {
             switch(DEFAULT_VIDEO_DRIVER) {
@@ -469,6 +469,9 @@ static void init(void) {
         sleep_ms(10);
         nespad_read();
     }
+    // send kbd reset only after initial process passed
+    keyboard_send(0xFF);
+
     if (mount_res) {
         check_firmware();
     } else {

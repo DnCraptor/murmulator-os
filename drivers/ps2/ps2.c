@@ -184,7 +184,7 @@ int16_t keyboard_send(uint8_t data) {
     int_on();
     return ps2_recv_response();
 ERROR:
-    printf("KBD error %02X \r\n", ps2_error);
+    goutf("\nKBD error %02X\n", ps2_error);
     ps2_error = 0;
     idle();
     int_on();
