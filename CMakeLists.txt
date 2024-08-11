@@ -216,7 +216,7 @@ ELSE ()
    # target_link_libraries(${PROJECT_NAME} PRIVATE tv)
     target_link_libraries(${PROJECT_NAME} PRIVATE hdmi)
     target_link_libraries(${PROJECT_NAME} PRIVATE vga-nextgen)
-    SET(BUILD_NAME "${BUILD_NAME}-VGA-HDMI-TV")
+    SET(BUILD_NAME "${BUILD_NAME}-VGA-HDMI-RGB")
 ENDIF ()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${BUILD_NAME}")

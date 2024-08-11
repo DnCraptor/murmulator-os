@@ -105,7 +105,7 @@ void set_cp866_handler(cp866_handler_t h) {
 }
 
 static volatile int __c = 0;
-bool __time_critical_func(handleScancode)(const uint32_t ps2scancode) {
+bool __scratch_y("kbd_driver_text") handleScancode(const uint32_t ps2scancode) {
     if (scancode_handler) {
         if (scancode_handler(ps2scancode)) {
             return true;

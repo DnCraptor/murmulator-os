@@ -1,3 +1,4 @@
+#
 //программный композит
 #include <stdio.h>
 #include "graphics.h"
@@ -14,9 +15,6 @@
 #include "pico/stdlib.h"
 #include "stdlib.h"
 
-#include <FreeRTOS.h>
-#include <task.h>
-
 #include "font6x8.h"
 
 #include "tv-software.h"
@@ -32,7 +30,7 @@ typedef struct tv_out_mode_t {
     // double color_freq;
     float color_index;
     COLOR_FREQ_t c_freq;
-    enum graphics_mode_t mode_bpp;
+    graphics_mode_t mode_bpp;
     g_out_TV_t tv_system;
     NUM_TV_LINES_t N_lines;
     bool cb_sync_PI_shift_lines;
@@ -40,7 +38,7 @@ typedef struct tv_out_mode_t {
 } tv_out_mode_t;
 
 //параметры по умолчанию
-static tv_out_mode_t __scratch_y("stv_bss") tv_out_mode = {
+static tv_out_mode_t __scratch_y("_driver_text") tv_out_mode = {
     .tv_system = g_TV_OUT_NTSC,
     .N_lines = _525_lines,
     .mode_bpp = GRAPHICSMODE_DEFAULT,
@@ -94,12 +92,9 @@ typedef struct G_BUFFER {
     bool lock;
 } G_BUFFER;
 
-extern volatile int pos_x;
-extern volatile int pos_y;
-extern volatile uint8_t _cursor_color;
 
 //режим видеовыхода
-static TV_MODE __scratch_y("stv_bss") video_mode = {
+static TV_MODE __scratch_y("_driver_text") video_mode = {
     .H_len = 512,
     .N_lines = 525,
     .SYNC_TMPL = 0,
@@ -109,15 +104,17 @@ static TV_MODE __scratch_y("stv_bss") video_mode = {
     .LVL_Y_MAX = 0,
 };
 
-static G_BUFFER __scratch_y("stv_bss") graphics_buffer = {
+
+static G_BUFFER __scratch_y("_driver_text") graphics_buffer = {
     .data = NULL,
     .shift_x = 0,
     .shift_y = 0,
     .height = 240,
     .width = 320,
-    .bitness = 8,
-    .lock = false
+    .bitness = 1,
+    .lock = false,
 };
+
 
 //пины
 //пин синхросигнала(для совместимости с RGB по ч.б.) 0-7
@@ -140,14 +137,13 @@ static G_BUFFER __scratch_y("stv_bss") graphics_buffer = {
 #define LINE_SIZE_MAX (1152)
 //указатели на буферы строк
 //выравнивание нужно для кольцевого буфера
-static uint32_t __scratch_y("stv_bss")  rd_addr_DMA_CTRL[N_LINE_BUF * 2]__attribute__ ((aligned (4*N_LINE_BUF_DMA)));
-static uint32_t __scratch_y("stv_bss")  transfer_count_DMA_CTRL[N_LINE_BUF * 2]__attribute__ ((aligned (4*N_LINE_BUF_DMA)));
+static uint32_t __scratch_y("_driver_text") rd_addr_DMA_CTRL[N_LINE_BUF * 2]__attribute__ ((aligned (4*N_LINE_BUF_DMA)));
+static uint32_t __scratch_y("_driver_text") transfer_count_DMA_CTRL[N_LINE_BUF * 2]__attribute__ ((aligned (4*N_LINE_BUF_DMA)));
 //непосредственно буферы строк
 
 extern uint32_t hdmi_conv_color[1224];
-typedef uint32_t lines_buf_t[N_LINE_BUF][LINE_SIZE_MAX / 4]; 
-static lines_buf_t* __scratch_y("stv_bss") plines_buf = &hdmi_conv_color;
-#define lines_buf (*plines_buf)
+//static uint32_t lines_buf[N_LINE_BUF][LINE_SIZE_MAX / 4];
+static uint32_t* lines_buf = hdmi_conv_color; // [N_LINE_BUF][LINE_SIZE_MAX / 4] = reinterpert_cast<>conv_color;
 
 static int SM_video = -1;
 
@@ -159,25 +155,25 @@ static int dma_chan = -1;
 
 
 //ДМА палитра для конвертации(256 знач)
-
-typedef uint32_t conv_color_t[2][256]; //2к
-static conv_color_t* __scratch_y("stv_bss") pconv_colorNORM = NULL;
-static conv_color_t* __scratch_y("stv_bss") pconv_colorINV = NULL;
-#define conv_colorNORM (*pconv_colorNORM)
-#define conv_colorINV (*pconv_colorINV)
-static uint32_t* __scratch_y("stv_bss") conv_color[2] = { NULL, NULL };
+static uint32_t* __scratch_y("_driver_text") _colorNORM[2] = { NULL, NULL }; // [2][256]; //2к
+static uint32_t* __scratch_y("_driver_text") _colorINV[2] = { NULL, NULL }; // [2][256]; //2к
+static uint32_t* __scratch_y("_driver_text") conv_color[2] = { NULL, NULL };
 
 //палитра сохранённая
-static uint8_t __scratch_y("stv_bss") paletteRGB[3][256]; //768 байт
+static uint8_t __scratch_y("_driver_text") paletteRGB[3][256]; //768 байт
 
-static repeating_timer_t __scratch_y("stv_bss") video_timer;
+static repeating_timer_t __scratch_y("_driver_text") video_timer;
 
-void graphics_set_modeTV(tv_out_mode_t mode) {
+extern volatile int pos_x;
+extern volatile int pos_y;
+extern volatile uint8_t _cursor_color;
+
+void stv_set_modeTV(tv_out_mode_t mode) {
     if (SM_video == -1) return;
     //можно добавить проверку на валидность данных, но пока так
     tv_out_mode = mode;
     for (int i = 0; i < 256; i++) {
-        graphics_set_palette(i, (paletteRGB[2][i] << 16) | (paletteRGB[1][i] << 8) | (paletteRGB[0][i] << 0));
+        stv_set_palette(i, (paletteRGB[2][i] << 16) | (paletteRGB[1][i] << 8) | (paletteRGB[0][i] << 0));
     };
 
     switch (tv_out_mode.N_lines) {
@@ -231,13 +227,15 @@ void graphics_set_modeTV(tv_out_mode_t mode) {
 
 };
 
-static uint32_t __scratch_y("stv_bss") cbNORM[2][10]; //цветовая вспышка 80байт
-static uint32_t __scratch_y("stv_bss") cbINV[2][10]; //цветовая вспышка	инвертированная 80 байт
-static uint32_t* __scratch_y("stv_bss") cb[2]; //цветовая вспышка
+
+static uint32_t __scratch_y("_driver_text") cbNORM[2][10]; //цветовая вспышка 80байт
+static uint32_t __scratch_y("_driver_text") cbINV[2][10]; //цветовая вспышка	инвертированная 80 байт
+
+static uint32_t* cb[2]; //цветовая вспышка
 //определение палитры(переделать)
-void graphics_set_palette(uint8_t i, uint32_t color888) {
-    conv_color[0] = conv_colorNORM[0];
-    conv_color[1] = conv_colorNORM[1];
+void stv_set_palette(uint8_t i, uint32_t color888) {
+    conv_color[0] = _colorNORM[0];
+    conv_color[1] = _colorNORM[1];
     cb[0] = cbNORM[0];
     cb[1] = cbNORM[1];
 
@@ -440,9 +438,9 @@ void graphics_set_palette(uint8_t i, uint32_t color888) {
 
     //цвет со сдвигом фазы
     uint32_t c32 = conv_color[0][i];
-    conv_colorINV[0][i] = (c32 >> 16) | ((c32 & 0xffff) << 16);
+    _colorINV[0][i] = (c32 >> 16) | ((c32 & 0xffff) << 16);
     c32 = conv_color[1][i];
-    conv_colorINV[1][i] = (c32 >> 16) | ((c32 & 0xffff) << 16);
+    _colorINV[1][i] = (c32 >> 16) | ((c32 & 0xffff) << 16);
 }
 
 
@@ -479,7 +477,7 @@ static bool __time_critical_func(video_timer_callbackTV)(repeating_timer_t* rt) 
         }
 
         lines_buf_inx = (lines_buf_inx + 1) % N_LINE_BUF;
-        uint8_t* output_buffer8 = (uint8_t *)lines_buf[lines_buf_inx];
+        uint8_t* output_buffer8 = (uint8_t *)lines_buf + lines_buf_inx * LINE_SIZE_MAX / 4;
 
         bool is_line_visible = true;
         // if (false)
@@ -772,16 +770,16 @@ static bool __time_critical_func(video_timer_callbackTV)(repeating_timer_t* rt) 
                         static bool is_inv;
                         if (is_inv) {
                             cb[0] = cbINV[0];
-                            conv_color[0] = conv_colorINV[0];
+                            conv_color[0] = _colorINV[0];
 
                             cb[1] = cbINV[1];
-                            conv_color[1] = conv_colorINV[1];
+                            conv_color[1] = _colorINV[1];
                         }
                         else {
                             cb[0] = cbNORM[0];
-                            conv_color[0] = conv_colorNORM[0];
+                            conv_color[0] = _colorNORM[0];
                             cb[1] = cbNORM[1];
-                            conv_color[1] = conv_colorNORM[1];
+                            conv_color[1] = _colorNORM[1];
                         }
                         is_inv = !is_inv;
                     } //нейтрализация сдвига фазы "лишней строки"(не кратной 4)
@@ -807,19 +805,19 @@ static bool __time_critical_func(video_timer_callbackTV)(repeating_timer_t* rt) 
                 switch (g_str_index & 3) {
                     case 0:
                         cb[0] = cbNORM[0];
-                        conv_color[0] = conv_colorNORM[0];
+                        conv_color[0] = _colorNORM[0];
                         break;
                     case 3:
                         cb[1] = cbNORM[1];
-                        conv_color[1] = conv_colorNORM[1];
+                        conv_color[1] = _colorNORM[1];
                         break;
                     case 2:
                         cb[0] = cbINV[0];
-                        conv_color[0] = conv_colorINV[0];
+                        conv_color[0] = _colorINV[0];
                         break;
                     case 1:
                         cb[1] = cbINV[1];
-                        conv_color[1] = conv_colorINV[1];
+                        conv_color[1] = _colorINV[1];
 
 
                     default:
@@ -926,7 +924,7 @@ static bool __time_critical_func(video_timer_callbackTV)(repeating_timer_t* rt) 
                 // uint16_t* out_buf16=(uint16_t*)lines_buf[lines_buf_inx];//(((uint32_t)out_buf8)&0xfffffffe);
                 // out_buf16+=v_mode.begin_img_shx/2;
 
-                uint32_t* out_buf32 = (uint32_t *)lines_buf[lines_buf_inx];
+                uint32_t* out_buf32 = (uint32_t *)lines_buf + lines_buf_inx * LINE_SIZE_MAX / 4;
                 out_buf32 += video_mode.begin_img_shx / 4;
 
                 /*
@@ -1008,20 +1006,8 @@ static bool __time_critical_func(video_timer_callbackTV)(repeating_timer_t* rt) 
                 if (graphics_buffer.data != NULL)
                     switch (tv_out_mode.mode_bpp) {
                         case TEXTMODE_DEFAULT: {
-                            int cur_line = (pos_y << 3) + 7;
                             output_buffer8 += 8;
                             for (int x = 0; x < TEXTMODE_COLS; x++) {
-                                if (cur_line == y && pos_x == x) {
-                                    uint8_t c = textmode_palette[_cursor_color & 0xf];
-                                    for (int bit = 6; bit--;) {
-                                        uint32_t cout32 = conv_color[li][c];
-                                        uint8_t* c_4 = &cout32;
-                                        *output_buffer8++ = c_4[bit % 4];
-                                        *output_buffer8++ = c_4[bit % 4];
-                                        *output_buffer8++ = c_4[bit % 4];
-                                    }
-                                    continue;
-                                }
                                 const uint16_t offset = y / 8 * (TEXTMODE_COLS * 2) + x * 2;
                                 const uint8_t c = graphics_buffer.data[offset];
                                 const uint8_t colorIndex = graphics_buffer.data[offset + 1];
@@ -1084,7 +1070,7 @@ static bool __time_critical_func(video_timer_callbackTV)(repeating_timer_t* rt) 
 
         //управление длиной строки
         transfer_count_DMA_CTRL[dma_inx_out] = video_mode.H_len - dec_str;
-        rd_addr_DMA_CTRL[dma_inx_out] = (uint32_t)&lines_buf[lines_buf_inx];
+        rd_addr_DMA_CTRL[dma_inx_out] = (uint32_t)lines_buf + lines_buf_inx * LINE_SIZE_MAX / 4;
         //включаем заполненный буфер в данные для вывода
         dma_inx_out = (dma_inx_out + 1) % (N_LINE_BUF_DMA);
         dma_inx = (N_LINE_BUF_DMA - 2 + ((dma_channel_hw_addr(dma_chan_ctrl)->read_addr - (uint32_t)rd_addr_DMA_CTRL) /
@@ -1094,15 +1080,12 @@ static bool __time_critical_func(video_timer_callbackTV)(repeating_timer_t* rt) 
     return true;
 }
 
-void stv_set_buffer(uint8_t* buffer) {
-    graphics_buffer.data = buffer;
-}
-
 //выделение и настройка общих ресурсов - 4 DMA канала, PIO программ и 2 SM
 void stv_init() {
-
-    pconv_colorNORM = pvPortCalloc(2 * 256, sizeof(uint32_t));
-    pconv_colorINV = pvPortCalloc(2 * 256, sizeof(uint32_t));
+    _colorNORM[0] = pvPortCalloc(sizeof(uint32_t), 256);
+    _colorNORM[1] = pvPortCalloc(sizeof(uint32_t), 256);
+    _colorINV[0] = pvPortCalloc(sizeof(uint32_t), 256);
+    _colorINV[1] = pvPortCalloc(sizeof(uint32_t), 256);
 
     //настройка PIO
     SM_video = pio_claim_unused_sm(PIO_VIDEO, true);
@@ -1115,7 +1098,7 @@ void stv_init() {
     //---------------
 
     //заполнение палитры по умолчанию(ч.б.)
-    for (int ci = 0; ci < 256; ci++) graphics_set_palette(ci, (ci << 16) | (ci << 8) | ci); //
+    for (int ci = 0; ci < 256; ci++) stv_set_palette(ci, (ci << 16) | (ci << 8) | ci); //
 
 
     //настройка рабочей SM TV
@@ -1143,7 +1126,7 @@ void stv_init() {
     pio_sm_set_enabled(PIO_VIDEO, SM_video, true);
 
     //установка параметров по умолчанию
-    graphics_set_modeTV(tv_out_mode);
+    stv_set_modeTV(tv_out_mode);
 
     //настройки DMA
 
@@ -1221,25 +1204,28 @@ void stv_init() {
                                            &video_timer)) {
         return;
     }
-    // graphics_get_default_modeTV();
-    graphics_set_modeTV(tv_out_mode);
+    stv_set_modeTV(tv_out_mode);
     // FIXME сделать конфигурацию пользователем
-    graphics_set_palette(200, RGB888(0x00, 0x00, 0x00)); //black
-    graphics_set_palette(201, RGB888(0x00, 0x00, 0xC4)); //blue
-    graphics_set_palette(202, RGB888(0x00, 0xC4, 0x00)); //green
-    graphics_set_palette(203, RGB888(0x00, 0xC4, 0xC4)); //cyan
-    graphics_set_palette(204, RGB888(0xC4, 0x00, 0x00)); //red
-    graphics_set_palette(205, RGB888(0xC4, 0x00, 0xC4)); //magenta
-    graphics_set_palette(206, RGB888(0xC4, 0x7E, 0x00)); //brown
-    graphics_set_palette(207, RGB888(0xC4, 0xC4, 0xC4)); //light gray
-    graphics_set_palette(208, RGB888(0x4E, 0x4E, 0x4E)); //dark gray
-    graphics_set_palette(209, RGB888(0x4E, 0x4E, 0xDC)); //light blue
-    graphics_set_palette(210, RGB888(0x4E, 0xDC, 0x4E)); //light green
-    graphics_set_palette(211, RGB888(0x4E, 0xF3, 0xF3)); //light cyan
-    graphics_set_palette(212, RGB888(0xDC, 0x4E, 0x4E)); //light red
-    graphics_set_palette(213, RGB888(0xF3, 0x4E, 0xF3)); //light magenta
-    graphics_set_palette(214, RGB888(0xF3, 0xF3, 0x4E)); //yellow
-    graphics_set_palette(215, RGB888(0xFF, 0xFF, 0xFF)); //white
+    stv_set_palette(200, RGB888(0x00, 0x00, 0x00)); //black
+    stv_set_palette(201, RGB888(0x00, 0x00, 0xC4)); //blue
+    stv_set_palette(202, RGB888(0x00, 0xC4, 0x00)); //green
+    stv_set_palette(203, RGB888(0x00, 0xC4, 0xC4)); //cyan
+    stv_set_palette(204, RGB888(0xC4, 0x00, 0x00)); //red
+    stv_set_palette(205, RGB888(0xC4, 0x00, 0xC4)); //magenta
+    stv_set_palette(206, RGB888(0xC4, 0x7E, 0x00)); //brown
+    stv_set_palette(207, RGB888(0xC4, 0xC4, 0xC4)); //light gray
+    stv_set_palette(208, RGB888(0x4E, 0x4E, 0x4E)); //dark gray
+    stv_set_palette(209, RGB888(0x4E, 0x4E, 0xDC)); //light blue
+    stv_set_palette(210, RGB888(0x4E, 0xDC, 0x4E)); //light green
+    stv_set_palette(211, RGB888(0x4E, 0xF3, 0xF3)); //light cyan
+    stv_set_palette(212, RGB888(0xDC, 0x4E, 0x4E)); //light red
+    stv_set_palette(213, RGB888(0xF3, 0x4E, 0xF3)); //light magenta
+    stv_set_palette(214, RGB888(0xF3, 0xF3, 0x4E)); //yellow
+    stv_set_palette(215, RGB888(0xFF, 0xFF, 0xFF)); //white
+};
+
+void stv_set_buffer(uint8_t* buffer) {
+    graphics_buffer.data = buffer;
 };
 
 void stv_set_offset(const int x, const int y) {
@@ -1248,9 +1234,8 @@ void stv_set_offset(const int x, const int y) {
 };
 
 void stv_clr_scr(const uint8_t color) {
-    if (graphics_buffer.data) {
-        memset(graphics_buffer.data, 0, stv_buffer_size());
-    }
+    if (graphics_buffer.data)
+        memset(graphics_buffer.data, 0, TEXTMODE_COLS * TEXTMODE_ROWS * 2);
 }
 
 void stv_set_mode(int mode) {
@@ -1275,16 +1260,10 @@ void stv_set_mode(int mode) {
         if (graphics_buffer.data) vPortFree(graphics_buffer.data);
         graphics_buffer.data = pvPortCalloc(graphics_buffer.width * graphics_buffer.height, graphics_buffer.bitness >> 3);
     }
-    graphics_set_modeTV(tv_out_mode);
+    stv_set_modeTV(tv_out_mode);
     stv_clr_scr(0);
 }
 
-void stv_driver_init(void) {
-    if (!graphics_buffer.lock) {
-        if (graphics_buffer.data) vPortFree(graphics_buffer.data);
-        graphics_buffer.data = pvPortCalloc(graphics_buffer.width * graphics_buffer.height, graphics_buffer.bitness >> 3);
-    }
-}
 
 bool stv_is_mode_text(int mode) {
     return tv_out_mode.mode_bpp <= TEXTMODE_DEFAULT;
@@ -1332,7 +1311,13 @@ int stv_get_default_mode(void) {
     return TEXTMODE_DEFAULT;
 }
 
-void stv_set_bgcolor(uint32_t color888) { // определяем зарезервированный цвет в палитре
-    // TODO: ensure
-    // stv_set_palette(255, color888);
+void stv_set_bgcolor(uint32_t color888) //определяем зарезервированный цвет в палитре
+{
+    stv_set_palette(255, color888);
 };
+
+void stv_driver_init(void) {
+ // TODO:   set_vga_dma_handler_impl(dma_handler_VGA_impl);
+    stv_set_bgcolor(0x000000);
+  // ??  init_palette();
+}

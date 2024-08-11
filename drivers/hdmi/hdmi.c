@@ -67,7 +67,7 @@ static int dma_chan_pal_conv;
 
 //DMA буферы
 //основные строчные данные
-static uint32_t* __scratch_y("hdmi_ptr_3") dma_lines[2] = { NULL,NULL };
+static uint32_t* __scratch_y("hdmi_ptr_3") dma_lines[2] = { NULL, NULL };
 static uint32_t* __scratch_y("hdmi_ptr_4") DMA_BUF_ADDR[2];
 
 //ДМА палитра для конвертации

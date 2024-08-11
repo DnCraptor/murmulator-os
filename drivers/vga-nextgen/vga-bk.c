@@ -65,7 +65,7 @@ volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 extern volatile uint8_t con_color;
 extern volatile uint8_t con_bgcolor;
 
-volatile uint8_t __scratch_y("vga_driver_text") _cursor_color = 7;
+volatile uint8_t __scratch_y("driver_text") _cursor_color = 7;
 volatile bool lock_buffer = false;
 static volatile int graphics_mode = -1;
 

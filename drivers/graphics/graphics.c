@@ -155,7 +155,7 @@ const static graphics_driver_t internal_stv_driver = {
 };
 #endif
 
-static volatile graphics_driver_t* __scratch_y("_driver_text") graphics_driver = 0;
+static volatile graphics_driver_t* __scratch_y("_driver_bss") graphics_driver = 0;
 
 int graphics_get_default_mode(void) {
     if (graphics_driver != 0  && graphics_driver->get_default_mode) {
