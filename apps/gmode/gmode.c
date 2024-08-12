@@ -49,12 +49,18 @@ int main(void) {
         }
     } else {
         vTaskDelay(5000);
+        /*/
         for (uint8_t c = 0; c < 256; ++c) {
-            __memset(buff, c, w * h * (bit >> 3));
+            __memset(buff, c, );
             vTaskDelay(100);
         }
+        */
+        size_t sz = w * h * (bit >> 3);
+        for (size_t off = 0; off < sz; ++off) {
+            buff[off] = off & 0xFF;
+        }
     }
-    vTaskDelay(10000); // TODO: action
+    getch();
     graphics_set_mode(prev);
     return 0;
 }
