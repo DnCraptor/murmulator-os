@@ -48,7 +48,11 @@ int main(void) {
             }
         }
     } else {
-    // TODO:
+        vTaskDelay(5000);
+        for (uint8_t c = 0; c < 256; ++c) {
+            __memset(buff, c, w * h * (bit >> 3));
+            vTaskDelay(100);
+        }
     }
     vTaskDelay(10000); // TODO: action
     graphics_set_mode(prev);

@@ -486,12 +486,12 @@ inline static void* malloc(size_t xWantedSize) {
     typedef void* (*pvPortMalloc_ptr_t)( size_t xWantedSize );
     return ((pvPortMalloc_ptr_t)_sys_table_ptrs[32])(xWantedSize);
 }
-/*
-inline static void* memset(void* p, int v, size_t sz) {
+
+inline static void* __memset(void* p, int v, size_t sz) {
     typedef void* (*fn)(void *, int, size_t);
     return ((fn)_sys_table_ptrs[142])(p, v, sz);
 }
-*/
+
 inline static void* calloc(size_t cnt, size_t sz) {
     typedef char* (*pvPortCalloc_ptr_t)( size_t cnt, size_t sz );
     return ((pvPortCalloc_ptr_t)_sys_table_ptrs[166])(cnt, sz);
