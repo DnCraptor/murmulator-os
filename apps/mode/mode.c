@@ -7,10 +7,10 @@ int main(void) {
         return 1;
     }
     int mode = atoi(ctx->argv[1]);
-    if (!graphics_is_mode_text(mode)) {
-        fprintf(ctx->std_err, "mode #%d is not ready for text output\n", mode);
-        return -2;
-    }
+//    if (!graphics_is_mode_text(mode)) {
+//        fprintf(ctx->std_err, "mode #%d is not ready for text output\n", mode);
+//        return -2;
+//    }
     if (!graphics_set_mode(mode)) {
         fprintf(ctx->std_err, "Unsupported mode #%d\n", mode);
         return -1;

@@ -111,6 +111,7 @@ usb [on/off] - start a process to mount murmulator CD-card as USB-drive (NESPAD 
 mc - Murmulator Commander, use [CTRL]+[O] to show console, and [CTRL]+[Enter] for fast type current file path<br/>
 mcview [file] - Murmulator Commander Viewer<br/>
 mcedit [file] - Murmulator Commander Editor<br/>
+mv [from_file_name] [to_file_name] - move/rename the file<br/>
 gmode [#] - simple graphics mode test<br/>
 
 [cmd] &gt; [file] - output redirection to file<br/>

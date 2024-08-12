@@ -403,14 +403,16 @@ static void m_delete_file(uint8_t cmd) {
         construct_full_name_s(s_path, psp->s_path, fp->s_name);
         FRESULT result = fp->fattrib & AM_DIR ? m_unlink_recursive(s_path->p) : f_unlink(s_path->p);
         if (result != FR_OK) {
-            snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
+            size_t width = MAX_WIDTH > 60 ? 60 : 40;
+            size_t x = (MAX_WIDTH - width) >> 1;
+            snprintf(line, width - 2, "FRESULT: %d", result);
             const line_t lns[3] = {
                 { -1, "Unable to delete selected item!" },
                 { -1, s_path->p },
                 { -1, line }
             };
             const lines_t lines = { 3, 2, lns };
-            draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+            draw_box(x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         } else {
             psp->indexes[psp->level].selected_file_idx--;
@@ -502,7 +504,7 @@ static bool m_prompt(const char* txt) {
     const lines_t lines = { 1, 2, lns };
     size_t width = MAX_WIDTH > 60 ? 60 : 40;
     size_t shift = MAX_WIDTH > 60 ? 10 : 0;
-    size_t x = (MAX_WIDTH - width) / 2;
+    size_t x = (MAX_WIDTH - width) >> 1;
     draw_box(x, 7, width, 10, "Are you sure?", &lines);
     bool yes = true;
     draw_button(x + shift + 6, 12, 11, "Yes", yes);
@@ -586,14 +588,16 @@ static void m_copy_file(uint8_t cmd) {
         construct_full_name(dest, dsp->s_path->p, fp->s_name->p);
         FRESULT result = fp->fattrib & AM_DIR ? m_copy_recursive(path, dest) : m_copy(path, dest);
         if (result != FR_OK) {
-            snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
+            size_t width = MAX_WIDTH > 60 ? 60 : 40;
+            size_t x = (MAX_WIDTH - width) >> 1;
+            snprintf(line, width - 2, "FRESULT: %d", result);
             const line_t lns[3] = {
                 { -1, "Unable to copy selected item!" },
                 { -1, path },
                 { -1, line }
             };
             const lines_t lines = { 3, 2, lns };
-            draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+            draw_box(x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         }
     }
@@ -706,14 +710,16 @@ static void m_move_file(uint8_t cmd) {
         construct_full_name(dest, dsp->s_path->p, fp->s_name->p);
         FRESULT result = f_rename(path, dest);
         if (result != FR_OK) {
-            snprintf(line, MAX_WIDTH, "FRESULT: %d", result);
+            size_t width = MAX_WIDTH > 60 ? 60 : 40;
+            size_t x = (MAX_WIDTH - width) >> 1;
+            snprintf(line, width - 2, "FRESULT: %d", result);
             const line_t lns[3] = {
                 { -1, "Unable to move selected item!" },
                 { -1, path },
                 { -1, line }
             };
             const lines_t lines = { 3, 2, lns };
-            draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+            draw_box(x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         }
     }

@@ -501,7 +501,9 @@ static char* common_rollup(char* t_buf, uint32_t width) {
 
 void common_print(char* buf) {
     char* graphics_buffer = get_buffer();
-    if (!graphics_buffer) return;
+    if (!graphics_buffer) {
+        return;
+    }
     uint32_t width = get_console_width();
     uint8_t* t_buf = graphics_buffer + width * 2 * pos_y + 2 * pos_x;
     char c;

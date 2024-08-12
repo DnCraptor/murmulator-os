@@ -49,9 +49,10 @@ int main(void) {
         }
     } else {
         vTaskDelay(5000);
-        /*/
+        /*
+        size_t sz = w * h * (bit >> 3);
         for (uint8_t c = 0; c < 256; ++c) {
-            __memset(buff, c, );
+            __memset(buff, c, sz);
             vTaskDelay(100);
         }
         */

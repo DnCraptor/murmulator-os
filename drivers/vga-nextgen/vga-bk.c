@@ -25,6 +25,9 @@ enum graphics_mode_t {
 //    GRAPHICS_800x600x1, // 800*600 60k for 1-bit
 };
 
+const static uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
+const static uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };
+
 int vga_get_default_mode(void) {
     return TEXTMODE_100x37;
 }
@@ -370,9 +373,16 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
         }
         case GRAPHICS_320x240x256: {
             for (register int x = 320; x--;) {
-                register uint8_t t = 0xc0 | *input_buffer_8bit++;
-                *output_buffer_8bit++ = t;
-                *output_buffer_8bit++ = t;
+                register uint8_t t = *input_buffer_8bit++; // t - "реальный" 8-битный цвет
+                /*
+                register uint8_t r = t >> 5; // старшие 3 бита - красный
+                register uint8_t g = (t >> 2) & 7; // средние 3 бита - зелёный
+                register uint8_t b = t & 3; // младшие 2 бита - синий
+                *output_buffer_8bit++ = 0xc0 | (conv0[r] << 4) | (conv0[g] << 2) | b; // пробуем представить в виде двух точек 6-битного цвета
+                *output_buffer_8bit++ = 0xc0 | (conv1[r] << 4) | (conv1[g] << 2) | b; // путём некоторых манипуляций
+                */
+                *output_buffer_8bit++ = 0xc0 | t;
+                *output_buffer_8bit++ = 0xc0 | t;
             }
             break;
         }
@@ -730,14 +740,9 @@ static void init_palette() {
 }
 
 void vga_set_bgcolor(const uint32_t color888) {
-    const uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
-    const uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };
-
     const uint8_t b = (color888 & 0xff) / 42;
-
     const uint8_t r = (color888 >> 16 & 0xff) / 42;
     const uint8_t g = (color888 >> 8 & 0xff) / 42;
-
     const uint8_t c_hi = conv0[r] << 4 | conv0[g] << 2 | conv0[b];
     const uint8_t c_lo = conv1[r] << 4 | conv1[g] << 2 | conv1[b];
     bg_color[0] = ((c_hi << 8 | c_lo) & 0x3f3f | palette16_mask) << 16 |
