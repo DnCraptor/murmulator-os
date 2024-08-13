@@ -39,6 +39,8 @@ bool hdmi_is_text_mode();
 int hdmi_get_mode(void);
 uint32_t hdmi_console_width(void);
 uint32_t hdmi_console_height(void);
+uint32_t hdmi_screen_width(void);
+uint32_t hdmi_screen_height(void);
 uint8_t* get_hdmi_buffer(void);
 void set_hdmi_buffer(uint8_t*);
 void hdmi_clr_scr(const uint8_t color);

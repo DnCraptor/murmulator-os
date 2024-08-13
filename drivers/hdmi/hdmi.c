@@ -20,7 +20,9 @@ static int SM_conv = -1;
 
 enum graphics_mode_t {
     TEXTMODE_53x30,
+#if TEXTMODE_53x60
     TEXTMODE_53x60,
+#endif
     TEXTMODE_80x30, // 640*480
     VGA_320x240x256
 };
@@ -256,6 +258,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 *output_buffer = 255;
                 break;
             }
+#if TEXTMODE_53x60
             case TEXTMODE_53x60: {
                 int y = line;
                 int cur_line = (pos_y << 3) + 7;
@@ -282,6 +285,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 *output_buffer = 255;
                 break;
             }
+#endif
             case TEXTMODE_80x30: { // TODO: some other flow
                 int y = line / 2;
                 int cur_line = (pos_y << 3) + 7;
@@ -605,11 +609,13 @@ void hdmi_set_mode(int mode) {
             graphics_buffer_height = 30;
             bitness = 16;
             break;
+#if TEXTMODE_53x60
         case TEXTMODE_53x60:
             graphics_buffer_width = 53;
             graphics_buffer_height = 60;
             bitness = 16;
             break;
+#endif
         case TEXTMODE_80x30:
             graphics_buffer_width = 80;
             graphics_buffer_height = 30;
@@ -727,9 +733,21 @@ int hdmi_get_mode(void) {
 }
 
 uint32_t hdmi_console_width(void) {
+    if (graphics_mode == VGA_320x240x256) {
+        return graphics_buffer_width / font_width;
+    }
     return graphics_buffer_width;
 }
 uint32_t hdmi_console_height(void) {
+    if (graphics_mode == VGA_320x240x256) {
+        return graphics_buffer_height / font_height;
+    }
+    return graphics_buffer_height;
+}
+uint32_t hdmi_screen_width(void) {
+    return graphics_buffer_width;
+}
+uint32_t hdmi_screen_height(void) {
     return graphics_buffer_height;
 }
 uint8_t* get_hdmi_buffer(void) {
