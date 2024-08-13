@@ -31,8 +31,8 @@ const static graphics_driver_t internal_vga_driver = {
     vga_is_text_mode, // is_text
     get_vga_console_width,
     get_vga_console_height,
-    get_vga_console_width,
-    get_vga_console_height,
+    get_vga_screen_width,
+    get_vga_screen_height,
     get_vga_buffer,
     set_vga_buffer,
     vga_clr_scr,
@@ -511,8 +511,6 @@ static char* common_rollup(char* t_buf, uint32_t width) {
 }
 
 #include "fnt8x16.h"
-static const size_t font_width = 8;
-static const size_t font_height = 16; // TODO: support multiple fonts
 extern uint16_t txt_palette[16];
 
 static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t x, uint32_t y, uint16_t c) {
@@ -553,7 +551,7 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
 }
 
 static void graphics_rollup(uint8_t* graphics_buffer, uint32_t width) {
-    uint32_t height = get_console_height();
+    uint32_t height = get_screen_height();
     uint8_t bit = get_screen_bitness();
     uint32_t h = height / font_height;
     if (pos_y >= h - 1) {
@@ -569,7 +567,7 @@ void common_print(char* buf) {
     if (!graphics_buffer) {
         return;
     }
-    uint32_t width = get_console_width();
+    uint32_t width = get_screen_width();
     char c;
     if (!is_buffer_text()) {
         while (c = *buf++) {
@@ -619,7 +617,7 @@ void common_print(char* buf) {
 void common_backspace(void) {
     char* graphics_buffer = get_buffer();
     if (!graphics_buffer) return;
-    uint32_t width = get_console_width();
+    uint32_t width = get_screen_width();
     if (!is_buffer_text()) {
      //   common_print_char(graphics_buffer, width, pos_x, pos_y, ' ');
         pos_x--;
@@ -651,7 +649,7 @@ void common_backspace(void) {
 void common_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
     char* graphics_buffer = get_buffer();
     if (!graphics_buffer) return;
-    uint32_t width = get_console_width();
+    uint32_t width = get_screen_width();
     if (!is_buffer_text()) {
         for (int xi = x; xi < width * 2; ++xi) {
             if (!(*string)) break;

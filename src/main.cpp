@@ -321,12 +321,7 @@ extern "C" char vga_dbg_msg[1024];
 
 extern "C" void show_logo(bool with_top) {
     uint32_t w = get_console_width();
-    uint32_t y = get_console_height();
-    if (!is_buffer_text()) {
-        w >>= 3; // TODO: other font size
-        y >>= 4;
-    }
-    --y;
+    uint32_t y = get_console_height() - 1;
     uint32_t sz = strlen(tmp);
     uint32_t sps = (w - sz) / 2;
 

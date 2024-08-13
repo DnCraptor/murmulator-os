@@ -97,17 +97,29 @@ volatile config_em_t g_conf = { 0 };
 void vga_lock_buffer(bool b) {
     lock_buffer = b;
 }
-void vga_set_con_color(uint8_t color, uint8_t bgcolor) {
-    con_color = color;
-    con_bgcolor = bgcolor;
-}
 void vga_set_cursor_color(uint8_t color) {
     _cursor_color = color;
 }
+uint32_t get_vga_screen_width() {
+    return text_buffer_width;
+}
+uint32_t get_vga_screen_height() {
+    return text_buffer_height;
+}
 uint32_t get_vga_console_width() {
+    switch(graphics_mode) {
+        case GRAPHICS_320x240x256:
+        case GRAPHICS_640x480x16:
+            return text_buffer_width / font_width;
+    }
     return text_buffer_width;
 }
 uint32_t get_vga_console_height() {
+    switch(graphics_mode) {
+        case GRAPHICS_320x240x256:
+        case GRAPHICS_640x480x16:
+            return text_buffer_height / font_height;
+    }
     return text_buffer_height;
 }
 uint8_t* get_vga_buffer() {
@@ -644,16 +656,19 @@ void vga_clr_scr(uint8_t color) {
     if (!vga_context || !vga_context->graphics_buffer) return;
     uint8_t* t_buf = vga_context->graphics_buffer;
     if (vga_is_text_mode()) {
-        for (int yi = 0; yi < text_buffer_height; yi++)
+        for (int yi = 0; yi < text_buffer_height; yi++) {
             for (int xi = 0; xi < text_buffer_width * 2; xi++) {
                 *t_buf++ = ' ';
                 *t_buf++ = (color << 4) | (color & 0xF);
             }
-    } else {
-        memset(t_buf, 0, (text_buffer_height * text_buffer_width * bitness) >> 3);
+        }
+    } else if (bitness == 4) {
+        memset(t_buf, color, (text_buffer_height * text_buffer_width) >> 1);
+    } else if (bitness == 8) {
+        memset(t_buf, 0/* TODO: mapping fn */, text_buffer_height * text_buffer_width);
     }
     vga_set_con_pos(0, 0);
-    vga_set_con_color(7, color); // TODO:
+    graphics_set_con_color(7, color); // TODO:
 };
 
 static void init_palette() {

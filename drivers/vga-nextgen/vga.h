@@ -22,6 +22,8 @@ void vga_dma_channel_set_read_addr(const volatile void* addr);
 int vga_get_default_mode(void);
 void vga_driver_init(void);
 void vga_cleanup(void);
+uint32_t get_vga_screen_width(void);
+uint32_t get_vga_screen_height(void);
 uint32_t get_vga_console_width(void);
 uint32_t get_vga_console_height(void);
 uint8_t* get_vga_buffer(void);
