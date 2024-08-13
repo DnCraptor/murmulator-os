@@ -540,18 +540,6 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
         uint8_t* p0 = graphics_buffer + (width * y * font_height >> 1) + (x * font_width >> 1);
         uint8_t cf = con_color & 0x0F;
         uint8_t cb = con_bgcolor & 0x0F;
-        if (x & 1) { // odd / even
-            for (int glyph_line = 0; glyph_line < font_height; ++glyph_line) {
-                uint8_t* p = p0 + (width * glyph_line >> 1);
-                uint8_t glyph_pixels = font_8x16[(c << 4) + glyph_line];
-                *p++ = (*p & 0x0F)                             | ((  (glyph_pixels & 1)       ? cf : cb ) << 4);
-                *p++ = ( ((glyph_pixels >> 1) & 1) ? cf : cb ) | (( ((glyph_pixels >> 2) & 1) ? cf : cb ) << 4);
-                *p++ = ( ((glyph_pixels >> 3) & 1) ? cf : cb ) | (( ((glyph_pixels >> 4) & 1) ? cf : cb ) << 4);
-                *p++ = ( ((glyph_pixels >> 5) & 1) ? cf : cb ) | (( ((glyph_pixels >> 6) & 1) ? cf : cb ) << 4);
-                *p   = (  (glyph_pixels >> 7)      ? cf : cb ) | (*p & 0xF0);
-            }
-            return;
-        }
         for (int glyph_line = 0; glyph_line < font_height; ++glyph_line) {
             uint8_t* p = p0 + (width * glyph_line >> 1);
             uint8_t glyph_pixels = font_8x16[(c << 4) + glyph_line];
