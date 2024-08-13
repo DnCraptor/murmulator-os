@@ -554,9 +554,12 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
 
 static void graphics_rollup(uint8_t* graphics_buffer, uint32_t width) {
     uint32_t height = get_console_height();
-    uint32_t sz = width * (height - 2 * font_height);
-    memmove(graphics_buffer, graphics_buffer + width * font_height, sz);
-    memset(graphics_buffer + sz, 0, width * font_height);
+    uint8_t bit = get_screen_bitness();
+    if (pos_y >= height / font_height - 1) {
+        uint32_t sz = (width * (height - 2 * font_height) * bit) >> 3;
+        memmove(graphics_buffer, graphics_buffer + (width * bit * font_height >> 3), sz);
+        memset(graphics_buffer + sz, 0, width * bit * font_height >> 3);
+    }
 }
 
 void common_print(char* buf) {
@@ -575,16 +578,15 @@ void common_print(char* buf) {
                 graphics_rollup(graphics_buffer, width);
                 continue;
             }
-            pos_x++;
             if (pos_x * font_width >= width) {
                 pos_x = 0;
                 pos_y++;
                 graphics_rollup(graphics_buffer, width);
                 common_print_char(graphics_buffer, width, pos_x, pos_y, c);
-                pos_x++;
             } else {
                 common_print_char(graphics_buffer, width, pos_x, pos_y, c);
             }
+            pos_x++;
         }
         return;
     }
@@ -616,7 +618,21 @@ void common_backspace(void) {
     char* graphics_buffer = get_buffer();
     if (!graphics_buffer) return;
     uint32_t width = get_console_width();
-    uint8_t* t_buf;
+    if (!is_buffer_text()) {
+     //   common_print_char(graphics_buffer, width, pos_x, pos_y, ' ');
+        pos_x--;
+        if (pos_x < 0) {
+            pos_x = width / font_width;
+            common_print_char(graphics_buffer, width, pos_x, pos_y, ' ');
+            --pos_y;
+            --pos_x;
+            if (pos_y < 0) {
+                pos_y = 0;
+            }
+        }
+        common_print_char(graphics_buffer, width, pos_x, pos_y, ' ');
+        return;
+    }
     pos_x--;
     if (pos_x < 0) {
         pos_x = width - 2;
@@ -625,11 +641,7 @@ void common_backspace(void) {
             pos_y = 0;
         }
     }
-    if (!is_buffer_text()) {
-        common_print_char(graphics_buffer, width, pos_x, pos_y, ' ');
-        return;
-    }
-    t_buf = graphics_buffer + width * 2 * pos_y + 2 * pos_x;
+    char* t_buf = graphics_buffer + width * 2 * pos_y + 2 * pos_x;
     *t_buf++ = ' ';
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
 }

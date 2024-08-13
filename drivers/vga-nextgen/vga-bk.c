@@ -137,13 +137,13 @@ size_t vga_buffer_size() {
             return (lock_buffer ? 0 : text_buffer_height * text_buffer_width * 2)
                 + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
         case GRAPHICS_320x240x256:
-            return (lock_buffer ? text_buffer_height * text_buffer_width : 0) + line_size * sizeof(uint32_t);
+            return (lock_buffer ? 0 : 320 * 240) + line_size * sizeof(uint32_t);
         case GRAPHICS_640x480x16:
-            return (lock_buffer ? (text_buffer_height * text_buffer_width) >> 1 : 0) + line_size * sizeof(uint32_t);
+            return (lock_buffer ? 0 : 640 / 2 * 480) + line_size * sizeof(uint32_t);
         case BK_256x256x2:
         case BK_512x256x1:
         default:
-            return (lock_buffer ? 512 / 8 * 256 : 0) + line_size * sizeof(uint32_t);
+            return (lock_buffer ? 0:  512 / 8 * 256) + line_size * sizeof(uint32_t);
     }
 }
 uint8_t get_vga_buffer_bitness(void) {
@@ -228,15 +228,22 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             register uint8_t* input_buffer_8bit = &input_buffer[y * text_buffer_width];
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture >> 1;
+            uint16_t c = txt_palette[cursor_color];
+            register uint32_t glyph_line = line_number & 0xF; // % font_height;
+            if ((line_number >> 4) == pos_y && glyph_line >= 13) {
+                register xc = pos_x;
+                for (register int x = 0; x < 320; ++x) {
+                    register uint16_t t = *input_buffer_8bit++; // t - "реальный" 8-битный цвет
+                    if (x >> 3 == xc) {
+                        *output_buffer_16bit++ = (c << 8) | c;
+                    } else {
+                        *output_buffer_16bit++ = (0xc0 | t) << 8 | 0xc0 | t;
+                    }
+                }
+                return output_buffer;
+            }
             for (register int x = 320; x--;) {
                 register uint16_t t = *input_buffer_8bit++; // t - "реальный" 8-битный цвет
-                /*
-                register uint8_t r = t >> 5; // старшие 3 бита - красный
-                register uint8_t g = (t >> 2) & 7; // средние 3 бита - зелёный
-                register uint8_t b = t & 3; // младшие 2 бита - синий
-                *output_buffer_8bit++ = 0xc0 | (conv0[r] << 4) | (conv0[g] << 2) | b; // пробуем представить в виде двух точек 6-битного цвета
-                *output_buffer_8bit++ = 0xc0 | (conv1[r] << 4) | (conv1[g] << 2) | b; // путём некоторых манипуляций
-                */
                 *output_buffer_16bit++ = (0xc0 | t) << 8 | 0xc0 | t;
             }
             return output_buffer;
@@ -247,8 +254,23 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             register uint8_t* input_buffer_8bit = &input_buffer[y * text_buffer_width >> 1];
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture >> 1;
-            uint16_t* txt_palette_fast = vga_context->txt_palette_fast;
-            for (register int b = 640 / 2; b--;) { // 2 записи на байт
+            uint16_t c = txt_palette[cursor_color];
+            register uint32_t glyph_line = screen_line & 0xF; // % font_height;
+            if ((screen_line >> 4) == pos_y && glyph_line >= 13) {
+                register xc = pos_x;
+                for (register int x = 0; x < 320; ++x) { // 2 записи на байт
+                    register uint16_t t = *input_buffer_8bit++; // t - 2 записи, 4-битный цвет
+                    if (x >> 2 == xc) {
+                        *output_buffer_16bit++ = (c << 8) | c;
+                    } else {
+                        register uint8_t c1 = (t >> 4) & 15;
+                        register uint8_t c2 = (t & 15);
+                        *output_buffer_16bit++ = (txt_palette[c1] << 8) | (txt_palette[c2] & 0xFF);
+                    }
+                }
+                return output_buffer;
+            }
+            for (register int x = 0; x < 320; ++x) { // 2 записи на байт
                 register uint16_t t = *input_buffer_8bit++; // t - 2 записи, 4-битный цвет
                 register uint8_t c1 = (t >> 4) & 15;
                 register uint8_t c2 = (t & 15);
