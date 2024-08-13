@@ -21,7 +21,7 @@ enum graphics_mode_t {
     GRAPHICS_320x240x256, // 640*480 with duplicated points/lines 75k for 256 colors
 //    GRAPHICS_640x480x1, // 640*480 38.4k for 1-bit
 //    GRAPHICS_640x480x4, // 640*480 76.8k for 2-bit
-//    GRAPHICS_640x480x16, // 640*480 153.6k for 4-bit
+    GRAPHICS_640x480x16, // 640*480 153.6k for 4-bit
 //    GRAPHICS_800x600x1, // 800*600 60k for 1-bit
 };
 
@@ -66,7 +66,7 @@ static uint text_buffer_height = 0;
 static uint8_t bitness = 16;
 static int line_size = 0;
 
-static uint16_t __scratch_y("vga_driver") txt_palette[16];
+uint16_t __scratch_y("vga_driver") txt_palette[16];
 
 extern volatile int pos_x;
 extern volatile int pos_y;
@@ -137,7 +137,9 @@ size_t vga_buffer_size() {
             return (lock_buffer ? 0 : text_buffer_height * text_buffer_width * 2)
                 + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
         case GRAPHICS_320x240x256:
-            return (lock_buffer ? 320 * 240 : 0) + line_size * sizeof(uint32_t);
+            return (lock_buffer ? text_buffer_height * text_buffer_width : 0) + line_size * sizeof(uint32_t);
+        case GRAPHICS_640x480x16:
+            return (lock_buffer ? (text_buffer_height * text_buffer_width) >> 1 : 0) + line_size * sizeof(uint32_t);
         case BK_256x256x2:
         case BK_512x256x1:
         default:
@@ -239,6 +241,21 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             }
             return output_buffer;
         }
+        case GRAPHICS_640x480x16: {
+            line_number = screen_line;
+            y = line_number - graphics_buffer_shift_y;
+            register uint8_t* input_buffer_8bit = &input_buffer[y * text_buffer_width >> 1];
+            register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
+            output_buffer_16bit += shift_picture >> 1;
+            uint16_t* txt_palette_fast = vga_context->txt_palette_fast;
+            for (register int b = 640 / 2; b--;) { // 2 записи на байт
+                register uint16_t t = *input_buffer_8bit++; // t - 2 записи, 4-битный цвет
+                register uint8_t c1 = (t >> 4) & 15;
+                register uint8_t c2 = (t & 15);
+                *output_buffer_16bit++ = (txt_palette[c1] << 8) | (txt_palette[c2] & 0xFF);
+            }
+            return output_buffer;
+        }
         case TEXTMODE_53x30:
         case TEXTMODE_80x30:
         case TEXTMODE_100x37:
@@ -327,9 +344,6 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
         case BK_256x256x2:
             graphics_buffer_shift_x &= 0xfffffff2; // 2-bit buf
             break;
-        case GRAPHICS_320x240x256:
-            graphics_buffer_shift_x &= 0xfffffff0; // 8-bit buf
-            break;
     }
     //для div_factor 2
     uint max_width = text_buffer_width;
@@ -340,9 +354,6 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
                 break;
             case BK_256x256x2:
                 input_buffer_8bit -= graphics_buffer_shift_x >> 2; // 2-bit buf
-                break;
-            case GRAPHICS_320x240x256:
-                input_buffer_8bit -= graphics_buffer_shift_x; // 8-bit buf
                 break;
         }
         max_width += graphics_buffer_shift_x;
@@ -383,21 +394,6 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
                     *output_buffer_8bit++ = t;
                     *output_buffer_8bit++ = t;
                 }
-            }
-            break;
-        }
-        case GRAPHICS_320x240x256: {
-            for (register int x = 320; x--;) {
-                register uint8_t t = *input_buffer_8bit++; // t - "реальный" 8-битный цвет
-                /*
-                register uint8_t r = t >> 5; // старшие 3 бита - красный
-                register uint8_t g = (t >> 2) & 7; // средние 3 бита - зелёный
-                register uint8_t b = t & 3; // младшие 2 бита - синий
-                *output_buffer_8bit++ = 0xc0 | (conv0[r] << 4) | (conv0[g] << 2) | b; // пробуем представить в виде двух точек 6-битного цвета
-                *output_buffer_8bit++ = 0xc0 | (conv1[r] << 4) | (conv1[g] << 2) | b; // путём некоторых манипуляций
-                */
-                *output_buffer_8bit++ = 0xc0 | t;
-                *output_buffer_8bit++ = 0xc0 | t;
             }
             break;
         }
@@ -463,6 +459,11 @@ bool vga_set_mode(int mode) {
             text_buffer_height = 240;
             bitness = 8;
             break;
+        case GRAPHICS_640x480x16:
+            text_buffer_width = 640;
+            text_buffer_height = 480;
+            bitness = 4;
+            break;
         default:
             return false;
     }
@@ -483,6 +484,7 @@ bool vga_set_mode(int mode) {
         case TEXTMODE_53x30:
         case TEXTMODE_80x30:
         case GRAPHICS_320x240x256:
+        case GRAPHICS_640x480x16:
             TMPL_LINE8 = 0b11000000;
             HS_SHIFT = 328 * 2;
             HS_SIZE = 48 * 2;
@@ -575,6 +577,9 @@ bool vga_set_mode(int mode) {
             break;
         case GRAPHICS_320x240x256:
             context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(320, 240);
+            break;
+        case GRAPHICS_640x480x16:
+            context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(640 / 2, 480);
             break;
         case BK_256x256x2:
         case BK_512x256x1:

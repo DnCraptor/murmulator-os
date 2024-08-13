@@ -20,7 +20,7 @@ int main(void) {
     uint32_t h = get_screen_height();
     uint8_t bit = get_screen_bitness();
     uint8_t* buff = get_buffer();
-    if (bit < 8) {
+    if (bit < 4) {
         uint32_t wb = bit == 1 ? (w >> 3) : (bit == 2 ? (w >> 2) : (w >> 1));
         if (bit == 1) {
             for(uint32_t x = 0; x < wb; ++x) {
@@ -56,7 +56,7 @@ int main(void) {
             vTaskDelay(100);
         }
         */
-        size_t sz = w * h * (bit >> 3);
+        size_t sz = (w * h * bit) >> 3;
         for (size_t off = 0; off < sz; ++off) {
             buff[off] = off & 0xFF;
         }
