@@ -215,7 +215,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             prev_output_buffer = output_buffer;
             y = line_number - graphics_buffer_shift_y;
             break;
-        case GRAPHICS_320x240x256: 
+        case GRAPHICS_320x240x256: {
             line_number = screen_line >> 1;
             if (screen_line != line_number << 1) { // duplicate lines
                 if (prev_output_buffer) output_buffer = prev_output_buffer;
@@ -223,7 +223,22 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             }
             prev_output_buffer = output_buffer;
             y = line_number - graphics_buffer_shift_y;
-            break;
+            register uint8_t* input_buffer_8bit = &input_buffer[y * text_buffer_width];
+            register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
+            output_buffer_16bit += shift_picture >> 1;
+            for (register int x = 320; x--;) {
+                register uint16_t t = *input_buffer_8bit++; // t - "реальный" 8-битный цвет
+                /*
+                register uint8_t r = t >> 5; // старшие 3 бита - красный
+                register uint8_t g = (t >> 2) & 7; // средние 3 бита - зелёный
+                register uint8_t b = t & 3; // младшие 2 бита - синий
+                *output_buffer_8bit++ = 0xc0 | (conv0[r] << 4) | (conv0[g] << 2) | b; // пробуем представить в виде двух точек 6-битного цвета
+                *output_buffer_8bit++ = 0xc0 | (conv1[r] << 4) | (conv1[g] << 2) | b; // путём некоторых манипуляций
+                */
+                *output_buffer_16bit++ = (0xc0 | t) << 8 | 0xc0 | t;
+            }
+            return output_buffer;
+        }
         case TEXTMODE_53x30:
         case TEXTMODE_80x30:
         case TEXTMODE_100x37:
@@ -601,11 +616,15 @@ void vga_set_flashmode(bool flash_line, bool flash_frame) {
 void vga_clr_scr(uint8_t color) {
     if (!vga_context || !vga_context->graphics_buffer) return;
     uint8_t* t_buf = vga_context->graphics_buffer;
-    for (int yi = 0; yi < text_buffer_height; yi++)
-        for (int xi = 0; xi < text_buffer_width * 2; xi++) {
-            *t_buf++ = ' ';
-            *t_buf++ = (color << 4) | (color & 0xF);
-        }
+    if (vga_is_text_mode()) {
+        for (int yi = 0; yi < text_buffer_height; yi++)
+            for (int xi = 0; xi < text_buffer_width * 2; xi++) {
+                *t_buf++ = ' ';
+                *t_buf++ = (color << 4) | (color & 0xF);
+            }
+    } else {
+        memset(t_buf, 0, (text_buffer_height * text_buffer_width * bitness) >> 3);
+    }
     vga_set_con_pos(0, 0);
     vga_set_con_color(7, color); // TODO:
 };

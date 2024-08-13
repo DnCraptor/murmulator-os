@@ -63,6 +63,8 @@ int main(void) {
     }
     getch();
     graphics_set_mode(prev);
+    graphics_set_con_pos(0, 0);
+    printf("Mode info: %d x %d x %d bits\n", w, h, bit);
     return 0;
 }
 

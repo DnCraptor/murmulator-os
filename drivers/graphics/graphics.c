@@ -466,6 +466,8 @@ volatile int __scratch_y("_driver_text") pos_x = 0;
 volatile int __scratch_y("_driver_text") pos_y = 0;
 volatile uint8_t __scratch_y("_driver_text") con_color = 7;
 volatile uint8_t __scratch_y("_driver_text") con_bgcolor = 0;
+volatile uint8_t __scratch_y("_driver_text") _con_color = 0b111111; // TODO: <-- ?
+volatile uint8_t __scratch_y("_driver_text") _con_bgcolor = 0;
 
 void common_set_con_pos(int x, int y) {
     pos_x = x;
@@ -481,7 +483,16 @@ int common_con_y(void) {
 
 void common_set_con_color(uint8_t color, uint8_t bgcolor) {
     con_color = color;
+    uint8_t b = (color & 1) ? ((color >> 3) ? 3 : 2) : 0;
+    uint8_t r = (color & 4) ? ((color >> 3) ? 3 : 2) : 0;
+    uint8_t g = (color & 2) ? ((color >> 3) ? 3 : 2) : 0;
+    _con_color = (((r << 4) | (g << 2) | b) & 0x3f) | 0xc0;
+
     con_bgcolor = bgcolor;
+    b = (bgcolor & 1) ? ((bgcolor >> 3) ? 3 : 2) : 0;
+    r = (bgcolor & 4) ? ((bgcolor >> 3) ? 3 : 2) : 0;
+    g = (bgcolor & 2) ? ((bgcolor >> 3) ? 3 : 2) : 0;
+    _con_bgcolor = (((r << 4) | (g << 2) | b) & 0x3f) | 0xc0;
 }
 
 static char* common_rollup(char* t_buf, uint32_t width) {
@@ -499,14 +510,66 @@ static char* common_rollup(char* t_buf, uint32_t width) {
     return b + width * 2 * pos_y + 2 * pos_x;
 }
 
+#include "fnt8x16.h"
+static const size_t font_width = 8;
+static const size_t font_height = 16; // TODO: support multiple fonts
+
+static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t x, uint32_t y, uint16_t c) {
+    uint8_t* p0 = graphics_buffer + width * y * font_height + x * font_width;
+    uint8_t cf = _con_color;
+    uint8_t cb = _con_bgcolor;
+    for (int glyph_line = 0; glyph_line < font_height; ++glyph_line) {
+        uint8_t* p = p0 + width * glyph_line;
+        uint8_t glyph_pixels = font_8x16[(c << 4) + glyph_line];
+        //con_bgcolor << 4 | con_color & 0xF
+        *p++ =  (glyph_pixels & 1)       ? cf : cb;
+        *p++ = ((glyph_pixels >> 1) & 1) ? cf : cb;
+        *p++ = ((glyph_pixels >> 2) & 1) ? cf : cb;
+        *p++ = ((glyph_pixels >> 3) & 1) ? cf : cb;
+        *p++ = ((glyph_pixels >> 4) & 1) ? cf : cb;
+        *p++ = ((glyph_pixels >> 5) & 1) ? cf : cb;
+        *p++ = ((glyph_pixels >> 6) & 1) ? cf : cb;
+        *p   =  (glyph_pixels >> 7)      ? cf : cb;
+    }
+}
+
+static void graphics_rollup(uint8_t* graphics_buffer, uint32_t width) {
+    uint32_t height = get_console_height();
+    uint32_t sz = width * (height - 2 * font_height);
+    memmove(graphics_buffer, graphics_buffer + width * font_height, sz);
+    memset(graphics_buffer + sz, 0, width * font_height);
+}
+
 void common_print(char* buf) {
-    char* graphics_buffer = get_buffer();
+    uint8_t* graphics_buffer = get_buffer();
     if (!graphics_buffer) {
         return;
     }
     uint32_t width = get_console_width();
-    uint8_t* t_buf = graphics_buffer + width * 2 * pos_y + 2 * pos_x;
     char c;
+    if (!is_buffer_text()) {
+        while (c = *buf++) {
+            if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
+            if (c == '\n') {
+                pos_x = 0;
+                pos_y++;
+                graphics_rollup(graphics_buffer, width);
+                continue;
+            }
+            pos_x++;
+            if (pos_x * font_width >= width) {
+                pos_x = 0;
+                pos_y++;
+                graphics_rollup(graphics_buffer, width);
+                common_print_char(graphics_buffer, width, pos_x, pos_y, c);
+                pos_x++;
+            } else {
+                common_print_char(graphics_buffer, width, pos_x, pos_y, c);
+            }
+        }
+        return;
+    }
+    uint8_t* t_buf = graphics_buffer + width * 2 * pos_y + 2 * pos_x;
     while (c = *buf++) {
         if (c == '\r') continue; // ignore DOS stile \r\n, only \n to start new line
         if (c == '\n') {
@@ -543,6 +606,10 @@ void common_backspace(void) {
             pos_y = 0;
         }
     }
+    if (!is_buffer_text()) {
+        common_print_char(graphics_buffer, width, pos_x, pos_y, ' ');
+        return;
+    }
     t_buf = graphics_buffer + width * 2 * pos_y + 2 * pos_x;
     *t_buf++ = ' ';
     *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
@@ -552,6 +619,13 @@ void common_draw_text(const char* string, int x, int y, uint8_t color, uint8_t b
     char* graphics_buffer = get_buffer();
     if (!graphics_buffer) return;
     uint32_t width = get_console_width();
+    if (!is_buffer_text()) {
+        for (int xi = x; xi < width * 2; ++xi) {
+            if (!(*string)) break;
+            common_print_char(graphics_buffer, width, xi, y, *string++);
+        }
+        return;
+    }
     uint8_t* t_buf = graphics_buffer + width * 2 * y + 2 * x;
     uint8_t c = (bgcolor << 4) | (color & 0xF);
     for (int xi = x; xi < width * 2; ++xi) {
