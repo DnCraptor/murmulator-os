@@ -49,16 +49,9 @@ int main(void) {
         }
     } else {
         vTaskDelay(5000);
-        /*
-        size_t sz = w * h * (bit >> 3);
-        for (uint8_t c = 0; c < 256; ++c) {
-            __memset(buff, c, sz);
-            vTaskDelay(100);
-        }
-        */
         size_t sz = (w * h * bit) >> 3;
         for (size_t off = 0; off < sz; ++off) {
-            buff[off] = off & 0xFF;
+            buff[off] = (bit == 4 ? ((off & 0x0F) | (off << 4)) : off) & 0xFF;
         }
     }
     getch();
