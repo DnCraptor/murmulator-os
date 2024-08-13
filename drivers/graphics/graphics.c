@@ -555,10 +555,12 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
 static void graphics_rollup(uint8_t* graphics_buffer, uint32_t width) {
     uint32_t height = get_console_height();
     uint8_t bit = get_screen_bitness();
-    if (pos_y >= height / font_height - 1) {
+    uint32_t h = height / font_height;
+    if (pos_y >= h - 1) {
         uint32_t sz = (width * (height - 2 * font_height) * bit) >> 3;
         memmove(graphics_buffer, graphics_buffer + (width * bit * font_height >> 3), sz);
         memset(graphics_buffer + sz, 0, width * bit * font_height >> 3);
+        pos_y = h - 2;
     }
 }
 
