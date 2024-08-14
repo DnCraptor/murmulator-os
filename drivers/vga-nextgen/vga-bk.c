@@ -245,7 +245,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture >> 1;
             uint16_t c = txt_palette[cursor_color];
-            register uint32_t glyph_line = line_number & 0xF; // % font_height;
+            register uint32_t glyph_line = line_number % font_height;
             if ((line_number >> 4) == pos_y && glyph_line >= 13) {
                 register xc = pos_x;
                 for (register int x = 0; x < 320; ++x) {
@@ -271,7 +271,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture >> 1;
             uint16_t c = txt_palette[cursor_color];
-            register uint32_t glyph_line = screen_line & 0xF; // % font_height;
+            register uint32_t glyph_line = screen_line % font_height;
             if ((screen_line >> 4) == pos_y && glyph_line >= 13) {
                 register xc = pos_x;
                 for (register int x = 0; x < 320; ++x) { // 2 записи на байт
