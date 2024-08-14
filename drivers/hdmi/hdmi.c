@@ -196,6 +196,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
 
     if (graphics_buffer && line < 480 ) {
         // область изображения
+        auto cursor_color = _cursor_color;
         uint8_t* output_buffer = activ_buf + 72; //для выравнивания синхры;
         switch (graphics_mode) {
             case VGA_320x240x16: {
@@ -221,6 +222,25 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 uint8_t* input_buffer = &graphics_buffer[(y - graphics_buffer_shift_y) * graphics_buffer_width >> 1];
                 const uint8_t* input_buffer_end = input_buffer + (graphics_buffer_width >> 1);
                 if (graphics_buffer_shift_x < 0) input_buffer -= graphics_buffer_shift_x;
+    
+                if ((y >> 4) == pos_y && (y & 15) >= 13) {
+                    uint8_t c = textmode_palette[cursor_color];
+                    register xc = pos_x;
+                    for (register int x = 0; input_buffer < input_buffer_end && x < 320 / 2; ++x) { // 2 записи на байт
+                        register uint8_t two_points = *input_buffer++; // 4 + 4 bits in input buffer
+                        if (x >> 2 == xc) {
+                            *output_buffer++ = c;
+                            *output_buffer++ = c;
+                        } else {
+                            *output_buffer++ = textmode_palette[ two_points & 0x0F ];
+                            *output_buffer++ = textmode_palette[ two_points >> 4 ];
+                        }
+                    }
+                    while (activ_buf_end > output_buffer) {
+                        *output_buffer++ = 255;
+                    }
+                    break;
+                }
                 while (activ_buf_end > output_buffer) {
                     if (input_buffer < input_buffer_end) {
                         register uint8_t two_points = *input_buffer++; // 4 + 4 bits in input buffer
@@ -238,7 +258,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 *output_buffer++ = 255;
                 for (int x = 0; x < graphics_buffer_width; x++) {
                     if (cur_line == y && pos_x == x) {
-                        uint8_t c = textmode_palette[_cursor_color & 0xf];
+                        uint8_t c = textmode_palette[cursor_color & 0xf];
                         for (int bit = 6; bit--;) {
                             *output_buffer++ = c;
                         }
@@ -265,7 +285,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 *output_buffer++ = 255;
                 for (int x = 0; x < graphics_buffer_width; x++) {
                     if (cur_line == y && pos_x == x) {
-                        uint8_t c = textmode_palette[_cursor_color & 0xf];
+                        uint8_t c = textmode_palette[cursor_color & 0xf];
                         for (int bit = 6; bit--;) {
                             *output_buffer++ = c;
                         }
@@ -292,7 +312,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 *output_buffer++ = 255;
                 for (int x = 0; x < graphics_buffer_width; x++) {
                     if (cur_line == y && pos_x == x) {
-                        uint8_t c = textmode_palette[_cursor_color & 0xf];
+                        uint8_t c = textmode_palette[cursor_color & 0xf];
                         for (int bit = 4; bit--;) {
                             *output_buffer++ = c;
                         }
