@@ -658,20 +658,15 @@ void vga_set_flashmode(bool flash_line, bool flash_frame) {
 
 void vga_clr_scr(uint8_t color) {
     if (!vga_context || !vga_context->graphics_buffer) return;
-    uint8_t* t_buf = vga_context->graphics_buffer;
+    uint16_t* t_buf = vga_context->graphics_buffer;
     if (vga_is_text_mode()) {
-        for (int yi = 0; yi < text_buffer_height; yi++) {
-            for (int xi = 0; xi < text_buffer_width * 2; xi++) {
-                *t_buf++ = ' ';
-                *t_buf++ = (color << 4) | (color & 0xF);
-            }
-        }
+        memset(t_buf, (' ' << 8) | (color << 4) | (color & 0xF), text_buffer_height * text_buffer_width * bitness >> 3);
     } else if (bitness == 4) {
         memset(t_buf, color, (text_buffer_height * text_buffer_width) >> 1);
     } else if (bitness == 8) {
         memset(t_buf, 0/* TODO: mapping fn */, text_buffer_height * text_buffer_width);
     }
-    vga_set_con_pos(0, 0);
+    graphics_set_con_pos(0, 0);
     graphics_set_con_color(7, color); // TODO:
 };
 

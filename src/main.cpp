@@ -197,7 +197,7 @@ static void load_config_sys() {
                 t = next_token(t);
                 init_vram(t);
                 b_swap = true;
-            } else if (strcmp(t, "GMODE") == 0) {
+            } else if (strcmp(t, "GMODE") == 0) { // TODO: FONT
                 t = next_token(t);
                 int mode = atoi(t);
                 graphics_set_mode(mode);
@@ -372,7 +372,7 @@ static void info(bool with_sd) {
         return;
     }
     FATFS* fs = get_mount_fs();
-    goutf("SDCARD %d FATs; %d free clusters; cluster size: %d KB\n",
+    goutf("SDCARD %d FATs; %d free clusters (%d KB each)\n",
           fs->n_fats, f_getfree32(fs), fs->csize >> 1
     );
     goutf("SWAP %d MB; RAM: %d KB; pages index: %d x %d KB\n",
@@ -380,7 +380,7 @@ static void info(bool with_sd) {
     );
     goutf("VRAM %d KB; video mode: %d x %d x %d bit\n"
           "\n",
-          get_buffer_size() >> 10, get_console_width(), get_console_height(), get_console_bitness()
+          get_buffer_size() >> 10, get_screen_width(), get_screen_height(), get_console_bitness()
     );
 }
 
