@@ -419,7 +419,11 @@ static void init(void) {
         // F11 or SPACE or SELECT unlink prev uf2 firmware
         if ((nespad_state & DPAD_SELECT) || (sc == 0x57) /*F11*/  || (sc == 0x39) /*SPACE*/) {
             if (mount_res) {
-                if (nespad_state & DPAD_B) usb_driver(true);
+                if (nespad_state & DPAD_B) {
+                    usb_driver(true);
+                	vTaskStartScheduler();
+                    for(;;) { vTaskDelay(10); }
+                }
                 unlink_firmware(); // return to M-OS
             }
         }

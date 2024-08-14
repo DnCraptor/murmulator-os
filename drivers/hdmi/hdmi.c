@@ -223,13 +223,20 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 uint8_t* input_buffer = &graphics_buffer[(y - graphics_buffer_shift_y) * graphics_buffer_width >> 1];
                 const uint8_t* input_buffer_end = input_buffer + (graphics_buffer_width >> 1);
                 if (graphics_buffer_shift_x < 0) input_buffer -= graphics_buffer_shift_x;
-    
-                if ((y >> 4) == pos_y && (y & 15) >= 13) {
+                auto fh = font_height;
+                auto yfh = y / fh;
+                if (yfh == pos_y && (y - yfh * fh) >= fh - 2) {
                     uint8_t c = textmode_palette[cursor_color];
                     register xc = pos_x;
-                    for (register int x = 0; input_buffer < input_buffer_end && x < 320 / 2; ++x) { // 2 записи на байт
+                    register xi = 0;
+                    register cntr = 0;
+                    auto fw = font_width;
+                    for (register int x = 0; input_buffer < input_buffer_end && x < (320 >> 1); ++x, ++cntr, ++cntr) { // 2 записи на байт
                         register uint8_t two_points = *input_buffer++; // 4 + 4 bits in input buffer
-                        if (x >> 2 == xc) {
+                        if (cntr == fw) {
+                            ++xi; cntr = 0;
+                        }
+                        if (xi == xc) {
                             *output_buffer++ = c;
                             *output_buffer++ = c;
                         } else {

@@ -245,12 +245,19 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture >> 1;
             uint16_t c = txt_palette[cursor_color];
-            register uint32_t glyph_line = line_number % font_height;
-            if ((line_number >> 4) == pos_y && glyph_line >= 13) {
+            auto fh = font_height;
+            auto yfh = y / fh;
+            auto glyph_line = y - yfh * fh;
+            if (yfh == pos_y && glyph_line >= fh - 2) {
                 register xc = pos_x;
-                for (register int x = 0; x < 320; ++x) {
+                register xi = 0;
+                register cntr = 0;
+                for (register int x = 0; x < 320; ++x, ++cntr) {
                     register uint16_t t = *input_buffer_8bit++; // t - "реальный" 8-битный цвет
-                    if (x >> 3 == xc) {
+                    if (cntr == font_width) {
+                        ++xi; cntr = 0;
+                    }
+                    if (xi == xc) {
                         *output_buffer_16bit++ = (c << 8) | c;
                     } else {
                         *output_buffer_16bit++ = (0xc0 | t) << 8 | 0xc0 | t;
@@ -271,12 +278,20 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
             output_buffer_16bit += shift_picture >> 1;
             uint16_t c = txt_palette[cursor_color];
-            register uint32_t glyph_line = screen_line % font_height;
-            if ((screen_line >> 4) == pos_y && glyph_line >= 13) {
+            auto fh = font_height;
+            auto yfh = y / fh;
+            auto glyph_line = y - yfh * fh;
+            if (yfh == pos_y && glyph_line >= fh - 2) {
                 register xc = pos_x;
-                for (register int x = 0; x < 320; ++x) { // 2 записи на байт
+                register xi = 0;
+                register cntr = 0;
+                auto fw = font_width;
+                for (register int x = 0; x < 320; ++x, ++cntr, ++cntr) { // 2 записи на байт
                     register uint16_t t = *input_buffer_8bit++; // t - 2 записи, 4-битный цвет
-                    if (x >> 2 == xc) {
+                    if (cntr == fw) {
+                        ++xi; cntr = 0;
+                    }
+                    if (xi == xc) {
                         *output_buffer_16bit++ = (c << 8) | c;
                     } else {
                         register uint8_t c1 = (t >> 4) & 15;
