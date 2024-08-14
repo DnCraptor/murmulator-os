@@ -24,7 +24,7 @@ enum graphics_mode_t {
     TEXTMODE_53x60,
 #endif
     TEXTMODE_80x30, // 640*480
-    VGA_320x240x256
+    VGA_320x240x16
 };
 
 int hdmi_get_default_mode(void) {
@@ -198,7 +198,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
         // область изображения
         uint8_t* output_buffer = activ_buf + 72; //для выравнивания синхры;
         switch (graphics_mode) {
-            case VGA_320x240x256: {
+            case VGA_320x240x16: {
                 int y = line / 2;
                 // uint8_t* input_buffer = &graphics_buffer[(line / 3) * graphics_buffer_width];
                 // заполняем пространство сверху и снизу графического буфера
@@ -209,7 +209,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                 if (false || (graphics_buffer_shift_y > y) || (y >= (graphics_buffer_shift_y + graphics_buffer_height))
                     || (graphics_buffer_shift_x >= SCREEN_WIDTH) || (
                         (graphics_buffer_shift_x + graphics_buffer_width) < 0)) {
-                    memset(output_buffer, 255,SCREEN_WIDTH);
+                    memset(output_buffer, 255, SCREEN_WIDTH);
                     break;
                 }
                 uint8_t* activ_buf_end = output_buffer + SCREEN_WIDTH;
@@ -218,14 +218,14 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                     *output_buffer++ = 255;
                 }
                 // рисуем сам видеобуфер+пространство справа
-                uint8_t* input_buffer = &graphics_buffer[(y - graphics_buffer_shift_y) * graphics_buffer_width];
-                const uint8_t* input_buffer_end = input_buffer + graphics_buffer_width;
+                uint8_t* input_buffer = &graphics_buffer[(y - graphics_buffer_shift_y) * graphics_buffer_width >> 1];
+                const uint8_t* input_buffer_end = input_buffer + (graphics_buffer_width >> 1);
                 if (graphics_buffer_shift_x < 0) input_buffer -= graphics_buffer_shift_x;
                 while (activ_buf_end > output_buffer) {
                     if (input_buffer < input_buffer_end) {
-                        uint8_t i_color = *input_buffer++;
-                        i_color = ((i_color & 0xf0) == 0xf0) ? 255 : i_color;
-                        *output_buffer++ = i_color;
+                        register uint8_t two_points = *input_buffer++; // 4 + 4 bits in input buffer
+                        *output_buffer++ = textmode_palette[ two_points & 0x0F ];
+                        *output_buffer++ = textmode_palette[ two_points >> 4 ];
                     }
                     else
                         *output_buffer++ = 255;
@@ -621,10 +621,10 @@ void hdmi_set_mode(int mode) {
             graphics_buffer_height = 30;
             bitness = 16;
             break;
-        case VGA_320x240x256:
+        case VGA_320x240x16:
             graphics_buffer_width = 320;
             graphics_buffer_height = 240;
-            bitness = 8;
+            bitness = 4;
             break;
         default:
             return false;
@@ -634,7 +634,7 @@ void hdmi_set_mode(int mode) {
     pos_y = 0;
     if (!lock_buffer) {
         if (graphics_buffer) vPortFree(graphics_buffer);
-        graphics_buffer = pvPortCalloc(graphics_buffer_width * graphics_buffer_height, bitness >> 3);
+        graphics_buffer = pvPortCalloc((graphics_buffer_width * graphics_buffer_height * bitness) >> 5, 4);
     }
 };
 
@@ -696,12 +696,12 @@ void hdmi_set_offset(int x, int y) {
 
 void hdmi_clr_scr(const uint8_t color) {
     if (graphics_buffer) {
-        memset(graphics_buffer, color, graphics_buffer_height * graphics_buffer_width * (bitness >> 3));
+        memset(graphics_buffer, color, (graphics_buffer_height * graphics_buffer_width * bitness) >> 3);
     }
 }
 
 void hdmi_driver_init(void) {
-    palette = pvPortCalloc(sizeof(uint32_t), 256);
+    palette = pvPortCalloc(256, sizeof(uint32_t));
  // TODO:   set_vga_dma_handler_impl(dma_handler_VGA_impl);
     hdmi_set_bgcolor(0x000000);
   // ??  init_palette();
@@ -733,13 +733,13 @@ int hdmi_get_mode(void) {
 }
 
 uint32_t hdmi_console_width(void) {
-    if (graphics_mode == VGA_320x240x256) {
+    if (graphics_mode == VGA_320x240x16) {
         return graphics_buffer_width / font_width;
     }
     return graphics_buffer_width;
 }
 uint32_t hdmi_console_height(void) {
-    if (graphics_mode == VGA_320x240x256) {
+    if (graphics_mode == VGA_320x240x16) {
         return graphics_buffer_height / font_height;
     }
     return graphics_buffer_height;
@@ -763,7 +763,7 @@ uint8_t get_hdmi_buffer_bitness(void) {
 
 size_t hdmi_buffer_size() {
     if (!graphics_buffer) return 0;
-    return graphics_buffer_height * graphics_buffer_width * (bitness >> 3);
+    return (graphics_buffer_height * graphics_buffer_width * bitness) >> 3;
 }
 
 void hdmi_lock_buffer(bool b) {
