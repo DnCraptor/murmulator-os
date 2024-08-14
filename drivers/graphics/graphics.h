@@ -71,6 +71,8 @@ typedef void (*vu8_fn)(uint8_t);
 typedef void (*dt_fn)(const char*, int, int, uint8_t, uint8_t);
 typedef void (*vii_fn)(const int, const int);
 typedef void (*vu8u8_fn)(uint8_t, uint8_t);
+typedef bool (*bpu8u8u8_fn)(uint8_t*, uint8_t, uint8_t);
+typedef bool (*bu8u8_fn)(uint8_t, uint8_t);
 typedef void (*vcu32_fn)(const uint32_t);
 typedef void (*set_dma_handler_impl_fn)(dma_handler_impl_fn impl);
 
@@ -104,6 +106,11 @@ typedef struct graphics_driver {
     bi_fn is_mode_text;
     vu8_fn set_cursor_color;
     iv_fn get_default_mode;
+    bu8u8_fn set_font;
+    u8v_fn get_font_width;
+    u8v_fn get_font_height;
+    bpu8u8u8_fn set_ext_font;
+    pu8v_fn get_font_table;
 } graphics_driver_t;
 void install_graphics_driver(graphics_driver_t*);
 graphics_driver_t* get_graphics_driver();
@@ -112,6 +119,12 @@ bool graphics_set_mode(int mode);
 int graphics_get_mode(void);
 bool graphics_is_mode_text(int mode);
 void set_cursor_color(uint8_t color);
+
+uint8_t* graphics_get_font_table(void);
+uint8_t graphics_get_font_width(void);
+uint8_t graphics_get_font_height(void);
+bool graphics_set_font(uint8_t, uint8_t);
+bool graphics_set_ext_font(uint8_t*, uint8_t, uint8_t);
 
 #ifdef __cplusplus
 }

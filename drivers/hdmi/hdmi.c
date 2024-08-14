@@ -7,8 +7,6 @@
 #include "pico/time.h"
 #include "pico/multicore.h"
 #include "hardware/clocks.h"
-#include "font6x8.h"
-#include "fnt8x16.h"
 
 //PIO параметры
 static uint offs_prg0 = 0;
@@ -49,6 +47,9 @@ static uint8_t __scratch_y("_driver_text") bitness = 16;
 
 extern volatile int pos_x;
 extern volatile int pos_y;
+extern volatile uint8_t font_width;
+extern volatile uint8_t font_height;
+extern volatile uint8_t* font_table;
 extern volatile uint8_t con_color;
 extern volatile uint8_t con_bgcolor;
 extern volatile uint8_t _cursor_color;
@@ -191,7 +192,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
 
     inx_buf_dma++;
 
-
+    uint8_t* pfont_table = font_table;
     uint8_t* activ_buf = (uint8_t *)dma_lines[inx_buf_dma & 1];
 
     if (graphics_buffer && line < 480 ) {
@@ -265,7 +266,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                     } else {
                         const uint16_t offset = (y / 8) * (graphics_buffer_width * 2) + x * 2;
                         const uint8_t c = graphics_buffer[offset];
-                        uint8_t glyph_row = font_6x8[c * 8 + y % 8];
+                        uint8_t glyph_row = pfont_table[c * 8 + y % 8];
                         const uint8_t colorIndex = graphics_buffer[offset + 1];
                         for (int bit = 6; bit--;) {
                             *output_buffer++ = glyph_row & 1
@@ -292,7 +293,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                     } else {
                         const uint16_t offset = (y / 8) * (graphics_buffer_width * 2) + x * 2;
                         const uint8_t c = graphics_buffer[offset];
-                        uint8_t glyph_row = font_6x8[c * 8 + y % 8];
+                        uint8_t glyph_row = font_table[c * 8 + y % 8];
                         const uint8_t colorIndex = graphics_buffer[offset + 1];
                         for (int bit = 6; bit--;) {
                             *output_buffer++ = glyph_row & 1
@@ -321,7 +322,7 @@ static void __scratch_y("hdmi_driver") dma_handler_HDMI() {
                     const uint16_t offset = (y / 8) * (graphics_buffer_width * 2) + x * 2;
                     const uint8_t c = graphics_buffer[offset];
                     const uint8_t colorIndex = graphics_buffer[offset + 1];
-                    uint8_t glyph_row = font_6x8[c * 8 + y % 8]; // TODO: font_4x8
+                    uint8_t glyph_row = pfont_table[c * 8 + y % 8]; // TODO: font_4x8
                     for (int bit = 5; bit--;) {
                         if (bit == 1) continue;
                         *output_buffer++ = glyph_row & 1

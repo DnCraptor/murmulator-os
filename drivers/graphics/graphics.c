@@ -22,6 +22,11 @@ void common_set_con_color(uint8_t color, uint8_t bgcolor);
 void common_print(char* buf);
 void common_backspace(void);
 void common_draw_text(const char* string, int x, int y, uint8_t color, uint8_t bgcolor);
+bool common_set_font(uint8_t width, uint8_t height);
+uint8_t common_get_font_width(void);
+uint8_t common_get_font_height(void);
+bool common_set_ext_font(uint8_t*, uint8_t width, uint8_t height);
+uint8_t* common_get_font_table(void);
 
 const static graphics_driver_t internal_vga_driver = {
     0, //ctx
@@ -52,7 +57,12 @@ const static graphics_driver_t internal_vga_driver = {
     vga_get_mode,
     vga_is_mode_text,
     vga_set_cursor_color,
-    vga_get_default_mode
+    vga_get_default_mode,
+    common_set_font,
+    common_get_font_width,
+    common_get_font_height,
+    common_set_ext_font,
+    common_get_font_table
 };
 
 #ifdef HDMI
@@ -85,7 +95,12 @@ const static graphics_driver_t internal_hdmi_driver = {
     hdmi_get_mode,
     hdmi_is_mode_text,
     hdmi_set_cursor_color,
-    hdmi_get_default_mode
+    hdmi_get_default_mode,
+    common_set_font,
+    common_get_font_width,
+    common_get_font_height,
+    common_set_ext_font,
+    common_get_font_table
 };
 #endif
 
@@ -119,7 +134,12 @@ const static graphics_driver_t internal_tv_driver = {
     tv_get_mode,
     tv_is_mode_text,
     tv_set_cursor_color,
-    tv_get_default_mode
+    tv_get_default_mode,
+    common_set_font,
+    common_get_font_width,
+    common_get_font_height,
+    common_set_ext_font,
+    common_get_font_table
 };
 #endif
 
@@ -153,7 +173,12 @@ const static graphics_driver_t internal_stv_driver = {
     stv_get_mode,
     stv_is_mode_text,
     stv_set_cursor_color,
-    stv_get_default_mode
+    stv_get_default_mode,
+    common_set_font,
+    common_get_font_width,
+    common_get_font_height,
+    common_set_ext_font,
+    common_get_font_table
 };
 #endif
 
@@ -165,6 +190,38 @@ int graphics_get_default_mode(void) {
     }
     return 0;
 }
+
+uint8_t* graphics_get_font_table(void) {
+    if (graphics_driver != 0  && graphics_driver->get_font_table) {
+        return graphics_driver->get_font_table();
+    }
+    return 0;
+}
+uint8_t graphics_get_font_width(void) {
+    if (graphics_driver != 0  && graphics_driver->get_font_width) {
+        return graphics_driver->get_font_width();
+    }
+    return 0;
+}
+uint8_t graphics_get_font_height(void) {
+    if (graphics_driver != 0  && graphics_driver->get_font_height) {
+        return graphics_driver->get_font_height();
+    }
+    return 0;
+}
+bool graphics_set_font(uint8_t w, uint8_t h) {
+    if (graphics_driver != 0  && graphics_driver->set_font) {
+        return graphics_driver->set_font(w, h);
+    }
+    return false;
+}
+bool graphics_set_ext_font(uint8_t* t, uint8_t w, uint8_t h) {
+    if (graphics_driver != 0  && graphics_driver->set_ext_font) {
+        return graphics_driver->set_ext_font(t, w, h);
+    }
+    return false;
+}
+
 
 void graphics_init(int drv_type) {
     if (graphics_driver == 0) {
@@ -462,10 +519,52 @@ void gbackspace() {
 }
 
 // common
+#include "font6x8.h"
+#include "fnt8x16.h"
+
 volatile int __scratch_y("_driver_text") pos_x = 0;
 volatile int __scratch_y("_driver_text") pos_y = 0;
 volatile uint8_t __scratch_y("_driver_text") con_color = 7;
 volatile uint8_t __scratch_y("_driver_text") con_bgcolor = 0;
+volatile uint8_t __scratch_y("_driver_text") font_width = 8;
+volatile uint8_t __scratch_y("_driver_text") font_height = 16;
+volatile uint8_t* __scratch_y("_driver_text") font_table = font_8x16;
+
+uint8_t* common_get_font_table(void) {
+    return font_table;
+}
+
+bool common_set_ext_font(uint8_t* table, uint8_t width, uint8_t height) {
+    if (font_height == 8  || font_height == 6) { // unsupported for now heights
+        return false;
+    }
+    font_width = width;
+    font_height = height;
+    font_table = table;
+    return true;
+}
+
+bool common_set_font(uint8_t width, uint8_t height) {
+    if (width == 8 && height == 16) {
+        font_width = width;
+        font_height = height;
+        font_table = font_8x16;
+        return true;
+    }
+    if (width == 6 && height == 8) {
+        font_width = width;
+        font_height = height;
+        font_table = font_6x8;
+        return true;
+    }
+    return false;
+}
+uint8_t common_get_font_width(void) {
+    return font_width;
+}
+uint8_t common_get_font_height(void) {
+    return font_height;
+}
 
 void common_set_con_pos(int x, int y) {
     pos_x = x;
@@ -499,7 +598,6 @@ static char* common_rollup(char* t_buf, uint32_t width) {
     return b + width * 2 * pos_y + 2 * pos_x;
 }
 
-#include "fnt8x16.h"
 extern uint16_t txt_palette[16];
 
 static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor, uint16_t c) {

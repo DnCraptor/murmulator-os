@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 15
+#define M_API_VERSION 16
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
@@ -568,6 +568,7 @@ inline static uint8_t get_console_bitness() {
     return ((fn_ptr_t)_sys_table_ptrs[157])();
 }
 
+
 typedef void (*vv_fn)(void);
 typedef void (*vb_fn)(bool);
 typedef bool (*bi_fn)(int);
@@ -581,9 +582,10 @@ typedef void (*vu8_fn)(uint8_t);
 typedef void (*dt_fn)(const char*, int, int, uint8_t, uint8_t);
 typedef void (*vii_fn)(const int, const int);
 typedef void (*vu8u8_fn)(uint8_t, uint8_t);
+typedef bool (*bpu8u8u8_fn)(uint8_t*, uint8_t, uint8_t);
+typedef bool (*bu8u8_fn)(uint8_t, uint8_t);
 typedef void (*vcu32_fn)(const uint32_t);
 typedef uint8_t* (*dma_handler_impl_fn)(void);
-typedef void (*vu32u32)(uint32_t, uint32_t);
 
 typedef struct graphics_driver {
     cmd_ctx_t* ctx;
@@ -614,6 +616,12 @@ typedef struct graphics_driver {
     iv_fn get_mode;
     bi_fn is_mode_text;
     vu8_fn set_cursor_color;
+    iv_fn get_default_mode;
+    bu8u8_fn set_font;
+    u8v_fn get_font_width;
+    u8v_fn get_font_height;
+    bpu8u8u8_fn set_ext_font;
+    pu8v_fn get_font_table;
 } graphics_driver_t;
 inline static void install_graphics_driver(graphics_driver_t* gd) {
     typedef void (*fn_ptr_t)(graphics_driver_t* gd);
@@ -736,6 +744,27 @@ inline static void set_cursor_color(uint8_t c) {
 inline static void nespad_stat(uint8_t* pad1, uint8_t* pad2) {
     typedef void (*fn_ptr_t)(uint8_t*, uint8_t*);
     ((fn_ptr_t)_sys_table_ptrs[187])(pad1, pad2);
+}
+
+inline static uint8_t* graphics_get_font_table(void) { // 189
+    typedef uint8_t* (*fn_ptr_t)(void);
+    return ((fn_ptr_t)_sys_table_ptrs[189])();
+}
+inline static uint8_t graphics_get_font_width(void) { // 190
+    typedef uint8_t (*fn_ptr_t)(void);
+    return ((fn_ptr_t)_sys_table_ptrs[190])();
+}
+inline static uint8_t graphics_get_font_height(void) { // 191
+    typedef uint8_t (*fn_ptr_t)(void);
+    return ((fn_ptr_t)_sys_table_ptrs[191])();
+}
+inline static bool graphics_set_font(uint8_t w, uint8_t h) { // 192
+    typedef bool (*fn_ptr_t)(uint8_t, uint8_t);
+    return ((fn_ptr_t)_sys_table_ptrs[192])(w, h);
+}
+inline static bool graphics_set_ext_font(uint8_t* t, uint8_t w, uint8_t h) { // 193
+    typedef bool (*fn_ptr_t)(uint8_t*, uint8_t, uint8_t);
+    return ((fn_ptr_t)_sys_table_ptrs[193])(t, w, h);
 }
 
 #ifdef __cplusplus

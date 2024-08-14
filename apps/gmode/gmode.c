@@ -16,6 +16,7 @@ int main(void) {
         fprintf(ctx->std_err, "Unsupported mode #%d\n", mode);
         return -1;
     }
+    graphics_set_con_pos(-1, -1); // do not show cursor in graphics mode
     uint32_t w = get_screen_width();
     uint32_t h = get_screen_height();
     uint8_t bit = get_screen_bitness();

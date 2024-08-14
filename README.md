@@ -103,7 +103,7 @@ cpu [NNN] - change freq. to NNN MHz (it may hang on such action)<br/>
 mem - show current memory state<br/>
 set - show or set environment variables<br/>
 export - put variable into system context<br/>
-mode [#] - set video-mode (for now it is supported 0 - 80x30, 1 - 100x37 and 2 - 128x48 - for VGA, 0 - 53x30 and 1 - 80x30 for HDMI, and only 0 - 53x30 for TV)<br/>
+mode [#] - set video-mode (for now it is supported 0 - 53x30, 1 - 80x30, 2 - 100x37, 3 - 128x48, (4,5 - graphics modes without font) 4 - 256x256x2-bit, 5 - 512x256x1-bit, 6 - 320x240x8-bit, 7 - 640x480x4-bit - for VGA, 0 - 53x30 and 1 - 80x30, 2 - 320x240x4-bit for HDMI, and only 0 - 53x30 for TV)<br/>
 less - show not more than one page of other command in pipe, like ls | less<br/>
 hex [file]/[@addr] - show file or RAM as hexidecimal dump<br/>
 tail [-n #] [file] - show specified (or 10) last lines from the file<br/>
@@ -113,6 +113,7 @@ mcview [file] - Murmulator Commander Viewer<br/>
 mcedit [file] - Murmulator Commander Editor<br/>
 mv [from_file_name] [to_file_name] - move/rename the file<br/>
 gmode [#] - simple graphics mode test<br/>
+font [width] [height] - show/set font size for graphics modes, like `font 6 8`<br/>
 
 [cmd] &gt; [file] - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format (NESPAD [A] button in mc)<br/>

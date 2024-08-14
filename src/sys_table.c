@@ -258,6 +258,12 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     nespad_stat, // 187
     graphics_get_default_mode, // 188
+    //
+    graphics_get_font_table, // 189
+    graphics_get_font_width, // 190
+    graphics_get_font_height, // 191
+    graphics_set_font, // 192
+    graphics_set_ext_font, // 193
     // TODO:
     0
 };

@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
-#include "fnt8x16.h"
 #include "ram_page.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -70,6 +69,9 @@ uint16_t __scratch_y("vga_driver") txt_palette[16];
 
 extern volatile int pos_x;
 extern volatile int pos_y;
+extern volatile uint8_t font_width;
+extern volatile uint8_t font_height;
+extern volatile uint8_t* font_table;
 volatile bool __scratch_y("vga_driver_text") cursor_blink_state = true;
 
 extern volatile uint8_t con_color;
@@ -215,6 +217,8 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
 
     int y, line_number;
 
+    uint8_t* pfont_table = font_table;
+
     uint32_t* * output_buffer = &lines_pattern[2 + (screen_line & 1)];
     uint div_factor = 2;
     int cursor_color = _cursor_color;
@@ -307,7 +311,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
                 uint16_t c = color[cursor_color];
                 for (register uint32_t x = 0; x < text_buffer_width; x++) {
                     // из таблицы символов получаем "срез" текущего символа
-                    uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
+                    uint8_t glyph_pixels = pfont_table[((*text_buffer_line++) << 4) + glyph_line];
                     // считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                     color = &txt_palette_fast[4 * (*text_buffer_line++)];
                     if (x == xc) { // TODO: cur height
@@ -328,7 +332,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             } else {
               for (register uint32_t x = 0; x < text_buffer_width; x++) {
                     // из таблицы символов получаем "срез" текущего символа
-                    uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
+                    uint8_t glyph_pixels = pfont_table[((*text_buffer_line++) << 4) + glyph_line];
                     // считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                     uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
                     *output_buffer_16bit++ = color[glyph_pixels & 3];
