@@ -23,6 +23,7 @@
 #include "keyboard.h"
 #include "usb.h"
 #include "nespad.h"
+#include "sound.h"
 
 FATFS* get_mount_fs(); // only one FS is supported foe now
 
@@ -264,6 +265,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     graphics_get_font_height, // 191
     graphics_set_font, // 192
     graphics_set_ext_font, // 193
+    //
+    blimp, // 194
     // TODO:
     0
 };

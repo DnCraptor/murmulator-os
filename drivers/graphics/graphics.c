@@ -650,7 +650,7 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
                 uint8_t glyph_pixels = font_table[c * font_height + glyph_line];
                 *p++ = (  (glyph_pixels & 1)       ? cf : cb ) | (( ((glyph_pixels >> 1) & 1) ? cf : cb ) << 4);
                 *p++ = ( ((glyph_pixels >> 2) & 1) ? cf : cb ) | (( ((glyph_pixels >> 3) & 1) ? cf : cb ) << 4);
-                *p   = ( ((glyph_pixels >> 4) & 1) ? cf : cb ) | (*p & 0x0F); //(( ((glyph_pixels >> 5) & 1) ? cf : cb ) << 4);
+                *p   = ( ((glyph_pixels >> 4) & 1) ? cf : cb ) | (( ((glyph_pixels >> 5) & 1) ? cf : cb ) << 4);
             }
         }
         for (int glyph_line = 0; glyph_line < font_height; ++glyph_line) {

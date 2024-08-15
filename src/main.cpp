@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <cstring>
+#include <hardware/pwm.h>
 #include <hardware/clocks.h>
 #include <hardware/structs/vreg_and_chip_reset.h>
 #include <pico/bootrom.h>
@@ -29,6 +30,7 @@ extern "C" {
 #include "ram_page.h"
 #include "overclock.h"
 #include "app.h"
+#include "sound.h"
 }
 
 #include "nespad.h"
@@ -384,29 +386,16 @@ static void info(bool with_sd) {
     );
 }
 
-static void init(void) {
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+static pwm_config config = pwm_get_default_config();
 
-    hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
-    sleep_ms(10);
-    set_sys_clock_khz(get_overclocking_khz(), true);
+static void PWM_init_pin(uint8_t pinN, uint16_t max_lvl) {
+    gpio_set_function(pinN, GPIO_FUNC_PWM);
+    pwm_config_set_clkdiv(&config, 1.0);
+    pwm_config_set_wrap(&config, max_lvl); // MAX PWM value
+    pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
+}
 
-    keyboard_init();
-    nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
-    nespad_read();
-    sleep_ms(50);
-
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    bool mount_res = (FR_OK == f_mount(&fs, "SD", 1));
-
-#ifdef DEBUG_VGA
-    FIL f;
-    f_open(&f, "mos-vga.log", FA_OPEN_APPEND | FA_WRITE);
-    UINT wr;
-    f_write(&f, vga_dbg_msg, strlen(vga_dbg_msg), &wr);
-    f_close(&f);
-#endif
+static kbd_state_t* process_input_on_boot(bool mount_res) {
     kbd_state_t* ks = get_kbd_state();
     for (int a = 0; a < 5; ++a) {
         uint8_t sc = ks->input & 0xFF;
@@ -489,6 +478,33 @@ static void init(void) {
         sleep_ms(10);
         nespad_read();
     }
+    return ks;
+}
+
+static void init(void) {
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+
+    hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
+    sleep_ms(10);
+    set_sys_clock_khz(get_overclocking_khz(), true);
+
+    keyboard_init();
+    nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
+    nespad_read();
+    sleep_ms(50);
+
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    bool mount_res = (FR_OK == f_mount(&fs, "SD", 1));
+
+#ifdef DEBUG_VGA
+    FIL f;
+    f_open(&f, "mos-vga.log", FA_OPEN_APPEND | FA_WRITE);
+    UINT wr;
+    f_write(&f, vga_dbg_msg, strlen(vga_dbg_msg), &wr);
+    f_close(&f);
+#endif
+    kbd_state_t* ks = process_input_on_boot(mount_res);
     // send kbd reset only after initial process passed
     keyboard_send(0xFF);
 
@@ -521,6 +537,8 @@ static void init(void) {
     init_psram();
     show_logo(true);
     graphics_set_con_pos(0, 1);
+    PWM_init_pin(BEEPER_PIN, (1 << 12) - 1);
+    // TODO: other sound sources
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
