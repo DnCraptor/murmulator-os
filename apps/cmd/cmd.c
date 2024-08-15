@@ -1,36 +1,20 @@
 #include "m-os-api.h"
+#include "m-os-api-sdtfn.h"
 
-void* memset(void* p, int v, size_t sz) {
-    typedef void* (*fn)(void *, int, size_t);
-    return ((fn)_sys_table_ptrs[142])(p, v, sz);
-}
-
-void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz) {
-    typedef void* (*fn)(void *, const void*, size_t);
-    return ((fn)_sys_table_ptrs[167])(dst, src, sz);
-}
-
-static char* cmd = 0;
+static string_t* s_cmd = NULL;
 
 inline static void cmd_backspace() {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos == 0) {
-        // TODO: blimp
+    if (s_cmd->size == 0) {
+        blimp(10, 5);
         return;
     }
-    cmd[--cmd_pos] = 0;
+    string_resize(s_cmd, s_cmd->size - 1);
     gbackspace();
 }
 
 inline static void type_char(char c) {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos >= 512) {
-        // TODO: blimp
-        return;
-    }
     putc(c);
-    cmd[cmd_pos++] = c;
-    cmd[cmd_pos] = 0;
+    string_push_back_c(s_cmd, c);
 }
 
 inline static char replace_spaces0(char t) {
@@ -73,16 +57,6 @@ inline static int tokenize_cmd(char* cmdt, cmd_ctx_t* ctx) {
     return inTokenN;
 }
 
-inline static void cmd_push(char c) {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos >= 512) {
-        // TODO: blimp
-    }
-    cmd[cmd_pos++] = c;
-    cmd[cmd_pos] = 0;
-    putc(c);
-}
-
 inline static void cmd_write_history(cmd_ctx_t* ctx) {
     char* tmp = get_ctx_var(ctx, "TEMP");
     if(!tmp) tmp = "";
@@ -91,7 +65,7 @@ inline static void cmd_write_history(cmd_ctx_t* ctx) {
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
     f_open(pfh, cmd_history_file, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
     UINT br;
-    f_write(pfh, cmd, strlen(cmd), &br);
+    f_write(pfh, s_cmd->p, s_cmd->size, &br);
     f_write(pfh, "\n", 1, &br);
     f_close(pfh);
     free(pfh);
@@ -206,15 +180,14 @@ inline static void prompt(cmd_ctx_t* ctx) {
 
 inline static bool cmd_enter(cmd_ctx_t* ctx) {
     putc('\n');
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos) {
+    if (s_cmd->size) {
         cmd_write_history(ctx);
     } else {
         goto r2;
     }
 
-    char* tc = cmd;
-    char* ts = cmd;
+    char* tc = s_cmd->p;
+    char* ts = tc;
     bool exit = false;
     bool in_qutas = false;
     cmd_ctx_t* ctxi = ctx;
@@ -263,7 +236,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     cleanup_ctx(ctx); // base ctx to be there
 r2:
     prompt(ctx);
-    cmd[0] = 0;
+    string_resize(s_cmd, 0);
     return false;
 }
 
@@ -287,8 +260,8 @@ inline static char* next_on(char* l, char *bi, bool in_quotas) {
 }
 
 inline static void cmd_tab(cmd_ctx_t* ctx) {
-    char * p = cmd;
-    char * p2 = cmd;
+    char * p = s_cmd->p;
+    char * p2 = p;
     bool in_quotas = false;
     while (*p) {
         char c = *p++;
@@ -308,30 +281,32 @@ inline static void cmd_tab(cmd_ctx_t* ctx) {
             p2 = p3;
         }
     }
-    char* b = malloc(512);
+    string_t* s_b = NULL;
     if (p != p2) {
-        strncpy(b, p, p2 - p);
-        b[p2 - p] = 0;
+        s_b = new_string_cc(p);
+        string_resize(s_b, p2 - p);
+    } else {
+        new_string_v();
     }
     DIR* pdir = (DIR*)malloc(sizeof(DIR));
-    FILINFO* pfileInfo = malloc(sizeof(FILINFO));
+    FILINFO* pfileInfo = (FILINFO*)malloc(sizeof(FILINFO));
     //goutf("\nDIR: %s\n", p != p2 ? b : curr_dir);
-    if (FR_OK != f_opendir(pdir, p != p2 ? b : get_ctx_var(ctx, "CD"))) {
-        free(b);
+    if (FR_OK != f_opendir(pdir, p != p2 ? s_b->p : get_ctx_var(ctx, "CD"))) {
+        delete_string(s_b);
         return;
     }
     int total_files = 0;
     while (f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
         p3 = next_on(p2, pfileInfo->fname, in_quotas);
         if (p3 != pfileInfo->fname) {
-            strcpy(b, p3);
+            string_replace_cs(s_b, p3);
             total_files++;
             break; // TODO: variants
         }
         //goutf("p3: %s; p2: %s; fn: %s; cmd_t: %s; fls: %d\n", p3, p2, fileInfo.fname, b, total_files);
     }
     if (total_files == 1) {
-        p3 = b;
+        p3 = s_b->p;
         while (*p3) {
             type_char(*p3++);
         }
@@ -339,18 +314,17 @@ inline static void cmd_tab(cmd_ctx_t* ctx) {
             type_char('"');
         }
     } else {
-        // TODO: blimp
+        blimp(10, 5);
     }
-    free(b);
+    delete_string(s_b);
     f_closedir(pdir);
     free(pfileInfo);
     free(pdir);
 }
 
 inline static void cancel_entered() {
-    size_t cmd_pos = strlen(cmd);
-    while(cmd_pos) {
-        cmd[--cmd_pos] = 0;
+    while(s_cmd->size) {
+        string_resize(s_cmd, s_cmd->size - 1);
         gbackspace();
     }
 }
@@ -363,7 +337,6 @@ inline static int history_steps(cmd_ctx_t* ctx) {
     size_t cdl = strlen(tmp);
     char * cmd_history_file = concat(tmp, ".cmd_history");
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
-    size_t j = 0;
     int idx = 0;
     UINT br;
     f_open(pfh, cmd_history_file, FA_READ);
@@ -372,13 +345,12 @@ inline static int history_steps(cmd_ctx_t* ctx) {
         for(size_t i = 0; i < br; ++i) {
             char t = b[i];
             if(t == '\n') { // next line
-                cmd[j] = 0;
-                j = 0;
+                string_resize(s_cmd, 0);
                 if(cmd_history_idx == idx)
                     break;
                 idx++;
             } else {
-                cmd[j++] = t;
+                string_push_back_c(s_cmd, t);
             }
         }
     }
@@ -394,7 +366,7 @@ inline static void cmd_up(cmd_ctx_t* ctx) {
     cmd_history_idx--;
     int idx = history_steps(ctx);
     if (cmd_history_idx < 0) cmd_history_idx = idx;
-    goutf(cmd);
+    gouta(s_cmd->p);
 }
 
 inline static void cmd_down(cmd_ctx_t* ctx) {
@@ -402,15 +374,14 @@ inline static void cmd_down(cmd_ctx_t* ctx) {
     if (cmd_history_idx == -2) cmd_history_idx = -1;
     cmd_history_idx++;
     history_steps(ctx);
-    goutf(cmd);
+    gouta(s_cmd->p);
 }
 
 int main(void) {
     show_logo(false);
     cmd_ctx_t* ctx = get_cmd_ctx();
     cleanup_ctx(ctx);
-    cmd = malloc(512);
-    cmd[0] = 0;
+    s_cmd = new_string_v();
     prompt(ctx);
     while(1) {
         char c = getch();
@@ -421,11 +392,11 @@ int main(void) {
             else if (c == '\t') cmd_tab(ctx);
             else if (c == '\n') {
                 if ( cmd_enter(ctx) ) {
-                    free(cmd);
+                    delete_string(s_cmd);
                     //goutf("[%s]EXIT to exec, stage: %d\n", ctx->curr_dir, ctx->stage);
                     return 0;
                 }
-            } else cmd_push(c);
+            } else type_char(c);
         }
     }
     __unreachable();
