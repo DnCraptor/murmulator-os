@@ -2,7 +2,7 @@
 
 static void m_window();
 static void redraw_window();
-static void draw_cmd_line(int left, int top);
+static void draw_cmd_line(void);
 static void bottom_line();
 static void construct_full_name(string_t* dst, const char* folder, const char* file);
 static void construct_full_name_s(string_t* dst, const string_t* folder, const string_t* file);
@@ -784,7 +784,6 @@ void m_view(uint8_t nu) {
     string_push_back_c(s_cmd, '/');
     string_push_back_cs(s_cmd, fp->s_name);
     string_push_back_c(s_cmd, '"');
-    draw_cmd_line(0, CMD_Y_POS);
     mark_to_exit_flag = cmd_enter(get_cmd_ctx());
 }
 
@@ -802,7 +801,6 @@ void m_edit(uint8_t nu) {
     string_push_back_c(s_cmd, '/');
     string_push_back_cs(s_cmd, fp->s_name);
     string_push_back_c(s_cmd, '"');
-    draw_cmd_line(0, CMD_Y_POS);
     mark_to_exit_flag = cmd_enter(get_cmd_ctx());
 }
 
@@ -907,7 +905,7 @@ static void bottom_line() {
     for (; i < MAX_WIDTH; ++i) {
         draw_text(" ", i, F_BTN_Y_POS, pcs->FOREGROUND_F1_12_COLOR, pcs->BACKGROUND_F1_12_COLOR);
     }
-    draw_cmd_line(0, CMD_Y_POS);
+    draw_cmd_line();
 }
 
 inline static void update_menu_color() {
@@ -922,7 +920,7 @@ static void redraw_window() {
     m_window();
     fill_panel(left_panel);
     fill_panel(right_panel);
-    draw_cmd_line(0, CMD_Y_POS);
+    draw_cmd_line();
     update_menu_color();
 }
 
@@ -966,11 +964,11 @@ inline static void m_add_file(FILINFO* fi) {
     }
 }
 
-static void draw_cmd_line(int left, int top) {
-    for (size_t i = left; i < MAX_WIDTH; ++i) {
-        draw_text(" ", i, top, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
+static void draw_cmd_line(void) {
+    for (size_t i = 0; i < MAX_WIDTH; ++i) {
+        draw_text(" ", i, CMD_Y_POS, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
     }
-    graphics_set_con_pos(left, top);
+    graphics_set_con_pos(0, CMD_Y_POS);
     graphics_set_con_color(13, 0);
     printf("[%s]", get_ctx_var(get_cmd_ctx(), "CD"));
     graphics_set_con_color(7, 0);
@@ -1052,7 +1050,7 @@ static void fill_panel(file_panel_desc_t* p) {
     }
     if (p == psp) {
         set_ctx_var(get_cmd_ctx(), "CD", psp->s_path->p);
-        draw_cmd_line(0, CMD_Y_POS);
+        draw_cmd_line();
     }
 }
 
@@ -1401,7 +1399,7 @@ static inline void redraw_current_panel() {
         fill_panel(psp);
         set_ctx_var(get_cmd_ctx(), "CD", psp->s_path->p);
     }
-    draw_cmd_line(0, CMD_Y_POS);
+    draw_cmd_line();
 }
 
 inline static cmd_ctx_t* new_ctx(cmd_ctx_t* src) {
@@ -1565,11 +1563,12 @@ static bool cmd_enter(cmd_ctx_t* ctx) {
     } else {
         goto r2;
     }
-    char* tc = s_cmd->p;
-    char* ts = tc;
     bool exit = false;
-    bool in_qutas = false;
     cmd_ctx_t* ctxi = ctx;
+    char* tmp = copy_str(s_cmd->p);
+    char* tc = tmp;
+    char* ts = tc;
+    bool in_qutas = false;
     while(1) {
         if (!*tc) {
             //printf("'%s' by end zero\n", ts);
@@ -1602,6 +1601,7 @@ static bool cmd_enter(cmd_ctx_t* ctx) {
         }
         tc++;
     }
+    free(tmp);
     if (exit) { // prepared ctx
         return true;
     }
@@ -1615,7 +1615,7 @@ static bool cmd_enter(cmd_ctx_t* ctx) {
     cleanup_ctx(ctx); // base ctx to be there
 r2:
     string_resize(s_cmd, 0);
-    draw_cmd_line(0, CMD_Y_POS);
+    draw_cmd_line();
     return false;
 }
 
@@ -1667,7 +1667,7 @@ static void enter_pressed() {
             string_push_back_cs(s_cmd, psp->s_path); // quotas?
         string_push_back_c(s_cmd, '/');
         string_push_back_cs(s_cmd, fp->s_name);
-        draw_cmd_line(0, CMD_Y_POS);
+        draw_cmd_line();
         return;
     }
     construct_full_name_s(s_cmd, psp->s_path, fp->s_name);
@@ -2221,7 +2221,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
         if(mark_to_exit_flag) {
             save_rc();
             restore_console(ctx);
-            draw_cmd_line(0, CMD_Y_POS);
+            draw_cmd_line();
             putc('\n');
             return;
         }
