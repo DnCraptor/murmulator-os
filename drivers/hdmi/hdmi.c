@@ -629,8 +629,13 @@ static inline bool inner_init() {
     return true;
 };
 
+#include "font6x8.h"
+
 //выбор видеорежима
 void hdmi_set_mode(int mode) {
+    font_width = 6;
+    font_height = 8;
+    font_table = font_6x8;
     switch (mode) {
         case TEXTMODE_53x30:
             graphics_buffer_width = 53;

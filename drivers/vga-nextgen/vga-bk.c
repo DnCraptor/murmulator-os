@@ -472,10 +472,16 @@ int vga_get_mode(void) {
     return graphics_mode;
 }
 
+#include "font6x8.h"
+#include "fnt8x16.h"
+
 bool vga_set_mode(int mode) {
   //  if (_SM_VGA < 0) return false; // если  VGA не инициализирована -
     if (graphics_mode == mode) return true;
     vga_context_t* context = pvPortCalloc(1, sizeof(vga_context_t));
+    font_width = 8;
+    font_height = 16;
+    font_table = font_8x16;
     switch (mode) {
         case TEXTMODE_53x30:
             text_buffer_width = 53;
@@ -511,11 +517,17 @@ bool vga_set_mode(int mode) {
             text_buffer_width = 320;
             text_buffer_height = 240;
             bitness = 8;
+            font_width = 6;
+            font_height = 8;
+            font_table = font_6x8;
             break;
         case GRAPHICS_640x480x16:
             text_buffer_width = 640;
             text_buffer_height = 480;
             bitness = 4;
+            font_width = 6;
+            font_height = 8;
+            font_table = font_6x8;
             break;
         default:
             return false;

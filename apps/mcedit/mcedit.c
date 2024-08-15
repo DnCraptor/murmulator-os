@@ -81,8 +81,9 @@ static size_t f_sz;
 static list_t* lst;
 
 inline static void nespad_read() {
-    // TODO:
-    nespad_state = nespad_state2 = 0;
+    nespad_state = 0;
+    nespad_state2 = 0;
+//    nespad_stat(&nespad_state, &nespad_state2);
 }
 
 inline static void scan_code_processed() {
