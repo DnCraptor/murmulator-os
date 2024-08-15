@@ -354,11 +354,28 @@ static bool m_prompt(const char* txt) {
         { -1, txt },
     };
     const lines_t lines = { 1, 2, lns };
+    size_t width = MAX_WIDTH > 60 ? 60 : 40;
+    size_t shift = MAX_WIDTH > 60 ? 10 : 0;
+    size_t x = (MAX_WIDTH - width) >> 1;
     draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Are you sure?", &lines);
     bool yes = true;
-    draw_button((MAX_WIDTH - 60) / 2 + 16, 12, 11, "Yes", yes);
-    draw_button((MAX_WIDTH - 60) / 2 + 35, 12, 10, "No", !yes);
+    draw_button(x + shift + 6, 12, 11, "Yes", yes);
+    draw_button(x + shift + 25, 12, 10, "No", !yes);
     while(1) {
+        char c = getch_now();
+        if (c) {
+            if (c == CHAR_CODE_ENTER) {
+                enterPressed = false;
+                scan_code_cleanup();
+                return yes;
+            }
+            if (c == CHAR_CODE_ESC) {
+                escPressed = false;
+                scan_code_cleanup();
+                return false;
+            }
+        }
+
         if (is_dendy_joystick || is_kbd_joystick) {
             if (is_dendy_joystick) nespad_read();
             if (nespad_state_delay > 0) {
@@ -367,14 +384,16 @@ static bool m_prompt(const char* txt) {
             }
             else {
                 nespad_state_delay = DPAD_STATE_DELAY;
+                if (nespad_state & DPAD_A) {
+                    return yes;
+                }
+                if (nespad_state & DPAD_B) {
+                    return false;
+                }
                 if(nespad_state & DPAD_UP) {
                     upPressed = true;
                 } else if(nespad_state & DPAD_DOWN) {
                     downPressed = true;
-                } else if (nespad_state & DPAD_A) {
-                    enterPressed = true;
-                } else if (nespad_state & DPAD_B) {
-                    escPressed = true;
                 } else if (nespad_state & DPAD_LEFT) {
                     leftPressed = true;
                 } else if (nespad_state & DPAD_RIGHT) {
@@ -384,22 +403,12 @@ static bool m_prompt(const char* txt) {
                 }
             }
         }
-        if (enterPressed) {
-            enterPressed = false;
-            scan_code_cleanup();
-            return yes;
-        }
         if (tabPressed || leftPressed || rightPressed) { // TODO: own msgs cycle
             yes = !yes;
-            draw_button((MAX_WIDTH - 60) / 2 + 16, 12, 11, "Yes", yes);
-            draw_button((MAX_WIDTH - 60) / 2 + 35, 12, 10, "No", !yes);
+            draw_button(x + shift + 6, 12, 11, "Yes", yes);
+            draw_button(x + shift + 25, 12, 10, "No", !yes);
             tabPressed = leftPressed = rightPressed = false;
             scan_code_cleanup();
-        }
-        if (escPressed) {
-            escPressed = false;
-            scan_code_cleanup();
-            return false;
         }
     }
 }
@@ -413,7 +422,7 @@ static void mark_to_exit(uint8_t cmd) {
 static void m_info(uint8_t cmd) {
     line_t plns[2] = {
         { 1, " It is ZX Murmulator OS Commander Editor" },
-        { 1, "tba" }
+        { 1, " Let edit this file and do not miss to save it using F2 button." }
     };
     lines_t lines = { 2, 0, plns };
     draw_box(5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
@@ -555,11 +564,6 @@ static void m_window() {
                     s->p[s->size + 1] = 0;
                 }
                 draw_text(s->p, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-                /*
-                char buf[40];
-                snprintf(buf, 40, "[%p][%p]", i, i->next);
-                draw_text(buf, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-                */
             }
             y++;
             if (y > MAX_HEIGHT - 3) break;
@@ -1173,11 +1177,15 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
     for(;;) {
         char c = getch_now();
         if (c) {
-            if (c == 8) cmd_backspace();
-            else if (c == 17) handle_up_pressed();
-            else if (c == 18) handle_down_pressed();
-            else if (c == '\t') handle_tab_pressed();
-            else if (c == '\n') enter_pressed();
+            if (c == CHAR_CODE_BS) cmd_backspace();
+            else if (c == CHAR_CODE_UP) handle_up_pressed();
+            else if (c == CHAR_CODE_DOWN) handle_down_pressed();
+            else if (c == CHAR_CODE_TAB) handle_tab_pressed();
+            else if (c == CHAR_CODE_ENTER) enter_pressed();
+            else if (c == CHAR_CODE_ESC) {
+                mark_to_exit(9);
+                scan_code_processed();
+            }
             else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
             else push_char(c);
             scan_code_processed();

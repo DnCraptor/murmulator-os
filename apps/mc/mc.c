@@ -553,7 +553,7 @@ static bool m_prompt(const char* txt) {
             else {
                 nespad_state_delay = DPAD_STATE_DELAY;
                 if (nespad_state & DPAD_A) {
-                    return true;
+                    return yes;
                 }
                 if (nespad_state & DPAD_B) {
                     return false;
@@ -1663,7 +1663,8 @@ static void enter_pressed() {
         return;
     }
     if (ctrlPressed) {
-        string_push_back_cs(s_cmd, psp->s_path); // quotas?
+        if (psp->s_path->size > 1)
+            string_push_back_cs(s_cmd, psp->s_path); // quotas?
         string_push_back_c(s_cmd, '/');
         string_push_back_cs(s_cmd, fp->s_name);
         draw_cmd_line(0, CMD_Y_POS);

@@ -1,4 +1,5 @@
 #include "m-os-api.h"
+#include "m-os-api-sdtfn.h"
 
 typedef struct line {
    int8_t off;
@@ -120,16 +121,6 @@ typedef struct color_schema {
     uint8_t BACKGROUND_SELECTED_COLOR;
 } color_schema_t;
 static color_schema_t* pcs;
-
-void* memset(void* p, int v, size_t sz) {
-    typedef void* (*fn)(void *, int, size_t);
-    return ((fn)_sys_table_ptrs[142])(p, v, sz);
-}
-
-void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz) {
-    typedef void* (*fn)(void *, const void*, size_t);
-    return ((fn)_sys_table_ptrs[167])(dst, src, sz);
-}
 
 int _init(void) {
     hidePannels = false;
@@ -402,8 +393,8 @@ static void mark_to_exit(uint8_t cmd) {
 
 static void m_info(uint8_t cmd) {
     line_t plns[2] = {
-        { 1, " It is ZX Murmulator OS Commander Editor" },
-        { 1, "tba" }
+        { 1, " It is ZX Murmulator OS Commander Viewer" },
+        { 1, " Lets review the file you opened ;)" }
     };
     lines_t lines = { 2, 0, plns };
     draw_box(5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
@@ -980,13 +971,13 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
     for(;;) {
         char c = getch_now();
         if (c) {
-            if (c == 8) cmd_backspace();
-            else if (c == 17) handle_up_pressed();
-            else if (c == 18) handle_down_pressed();
-            else if (c == '\t') handle_tab_pressed();
-            else if (c == '\n') enter_pressed();
+            if (c == CHAR_CODE_BS) cmd_backspace();
+            else if (c == CHAR_CODE_UP) handle_up_pressed();
+            else if (c == CHAR_CODE_DOWN) handle_down_pressed();
+            else if (c == CHAR_CODE_TAB) handle_tab_pressed();
+            else if (c == CHAR_CODE_ENTER) enter_pressed();
+            else if (c == CHAR_CODE_ESC) mark_to_exit(9);
             else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
-//            else push_char(c);
         }
 
         if (is_dendy_joystick || is_kbd_joystick) {
