@@ -4,11 +4,11 @@ static void m_window();
 static void redraw_window();
 static void draw_cmd_line(int left, int top);
 static void bottom_line();
-static void construct_full_name(char* dst, const char* folder, const char* file);
+static void construct_full_name(string_t* dst, const char* folder, const char* file);
 static void construct_full_name_s(string_t* dst, const string_t* folder, const string_t* file);
 static bool m_prompt(const char* txt);
 static void no_selected_file();
-static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd);
+static bool cmd_enter(cmd_ctx_t* ctx);
 static void enter_pressed();
 
 #define PANEL_TOP_Y 0
@@ -67,7 +67,7 @@ static int nespad_state_delay = DPAD_STATE_DELAY;
 static uint8_t nespad_state, nespad_state2;
 static bool mark_to_exit_flag = false;
 
-static char* cmd = 0;
+static string_t* s_cmd = 0;
 
 inline static void nespad_read() {
     nespad_stat(&nespad_state, &nespad_state2);
@@ -363,21 +363,27 @@ static file_info_t* selected_file() {
 }
 
 static FRESULT m_unlink_recursive(char * path) {
-    DIR dir;
-    FRESULT res = f_opendir(&dir, path);
-    if (res != FR_OK) return res;
-    FILINFO fileInfo;
-    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
-        char path2[256];
-        construct_full_name(path2, path, fileInfo.fname);
-        if (fileInfo.fattrib & AM_DIR) {
-            res = m_unlink_recursive(path2);
+    DIR* pdir = (DIR*)malloc(sizeof(DIR));
+    FRESULT res = f_opendir(pdir, path);
+    if (res != FR_OK) {
+        free(pdir);
+        return res;
+    }
+    FILINFO* pfileInfo = (FILINFO*) malloc(sizeof(FILINFO));
+    string_t* s_path = new_string_v();
+    while(f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
+        construct_full_name(s_path, path, pfileInfo->fname); // TODO: s_name (modify ff)
+        if (pfileInfo->fattrib & AM_DIR) {
+            res = m_unlink_recursive(s_path->p);
         } else {
-            res = f_unlink(path2);
+            res = f_unlink(s_path->p);
         }
         if (res != FR_OK) break;
     }
-    f_closedir(&dir);
+    delete_string(s_path);
+    free(pfileInfo);
+    f_closedir(pdir);
+    free(pdir);
     res = f_unlink(path);
     return res;
 }
@@ -390,7 +396,6 @@ static void m_delete_file(uint8_t cmd) {
         return;
     }
 #endif
-//    gpio_put(PICO_DEFAULT_LED_PIN, true);
     file_info_t* fp = selected_file();
     if (!fp) {
        no_selected_file();
@@ -419,55 +424,69 @@ static void m_delete_file(uint8_t cmd) {
         }
     }
     delete_string(s_path);
-//    gpio_put(PICO_DEFAULT_LED_PIN, false);
     redraw_window();    
 }
 
 inline static FRESULT m_copy(char* path, char* dest) {
-    FIL file1;
-    FRESULT result = f_open(&file1, path, FA_READ);
-    if (result != FR_OK) return result;
-    FIL file2;
-    result = f_open(&file2, dest, FA_WRITE | FA_CREATE_ALWAYS);
+    FIL* pfile1 = (FIL*)malloc(sizeof(FIL));
+    FRESULT result = f_open(pfile1, path, FA_READ);
     if (result != FR_OK) {
-        f_close(&file1);
+        free(pfile1);
+        return result;
+    }
+    FIL* pfile2 = (FIL*)malloc(sizeof(FIL));
+    result = f_open(pfile2, dest, FA_WRITE | FA_CREATE_ALWAYS);
+    if (result != FR_OK) {
+        free(pfile1);
+        free(pfile2);
+        f_close(pfile1);
         return result;
     }
     UINT br;
     do {
-        result = f_read(&file1, files_info, sizeof(files_info), &br);
+        result = f_read(pfile1, files_info, sizeof(files_info), &br);
         if (result != FR_OK || br == 0) break;
         UINT bw;
-        f_write(&file2, files_info, br, &bw);
+        f_write(pfile2, files_info, br, &bw);
         if (result != FR_OK) break;
     } while (br);
-    f_close(&file1);
-    f_close(&file2);
+    free(pfile1);
+    free(pfile2);
+    f_close(pfile1);
+    f_close(pfile2);
     return result;
 }
 
-inline static FRESULT m_copy_recursive(char* path, char* dest) {
- //   gpio_put(PICO_DEFAULT_LED_PIN, true);
-    DIR dir;
-    FRESULT res = f_opendir(&dir, path);
-    if (res != FR_OK) return res;
+inline static FRESULT m_copy_recursive(const char* path, const char* dest) {
+    DIR* pdir = (DIR*)malloc(sizeof(DIR));
+    FRESULT res = f_opendir(pdir, path);
+    if (res != FR_OK) {
+        free(pdir);
+        return res;
+    }
     res = f_mkdir(dest);
-    if (res != FR_OK) return res;
-    FILINFO fileInfo;
-    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
-        char path2[256];
-        construct_full_name(path2, path, fileInfo.fname);
-        char dest2[256];
-        construct_full_name(dest2, dest, fileInfo.fname);
-        if (fileInfo.fattrib & AM_DIR) {
-            res = m_copy_recursive(path2, dest2);
+    if (res != FR_OK) {
+        free(pdir);
+        return res;
+    }
+    FILINFO* pfileInfo = (FILINFO*) malloc(sizeof(FILINFO));
+    string_t* s_path = new_string_v();
+    string_t* s_dest = new_string_v();
+    while(f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
+        construct_full_name(s_path, path, pfileInfo->fname);
+        construct_full_name(s_dest, dest, pfileInfo->fname);
+        if (pfileInfo->fattrib & AM_DIR) {
+            res = m_copy_recursive(s_path->p, s_dest->p);
         } else {
-            res = m_copy(path2, dest2);
+            res = m_copy(s_path->p, s_dest->p);
         }
         if (res != FR_OK) break;
     }
-    f_closedir(&dir);
- //   gpio_put(PICO_DEFAULT_LED_PIN, false);
+    free(s_dest);
+    free(s_path);
+    free(pfileInfo);
+    f_closedir(pdir);
+    free(pdir);
     return res;
 }
 
@@ -510,6 +529,21 @@ static bool m_prompt(const char* txt) {
     draw_button(x + shift + 6, 12, 11, "Yes", yes);
     draw_button(x + shift + 25, 12, 10, "No", !yes);
     while(1) {
+
+        char c = getch_now();
+        if (c) {
+            if (c == CHAR_CODE_ENTER) {
+                enterPressed = false;
+                scan_code_cleanup();
+                return yes;
+            }
+            if (c == CHAR_CODE_ESC) {
+                escPressed = false;
+                scan_code_cleanup();
+                return false;
+            }
+        }
+
         if (is_dendy_joystick || is_kbd_joystick) {
             if (is_dendy_joystick) nespad_read();
             if (nespad_state_delay > 0) {
@@ -518,14 +552,16 @@ static bool m_prompt(const char* txt) {
             }
             else {
                 nespad_state_delay = DPAD_STATE_DELAY;
+                if (nespad_state & DPAD_A) {
+                    return true;
+                }
+                if (nespad_state & DPAD_B) {
+                    return false;
+                }
                 if(nespad_state & DPAD_UP) {
                     upPressed = true;
                 } else if(nespad_state & DPAD_DOWN) {
                     downPressed = true;
-                } else if (nespad_state & DPAD_A) {
-                    enterPressed = true;
-                } else if (nespad_state & DPAD_B) {
-                    escPressed = true;
                 } else if (nespad_state & DPAD_LEFT) {
                     leftPressed = true;
                 } else if (nespad_state & DPAD_RIGHT) {
@@ -535,11 +571,6 @@ static bool m_prompt(const char* txt) {
                 }
             }
         }
-        if (enterPressed) {
-            enterPressed = false;
-            scan_code_cleanup();
-            return yes;
-        }
         if (tabPressed || leftPressed || rightPressed) { // TODO: own msgs cycle
             yes = !yes;
             draw_button(x + shift + 6, 12, 11, "Yes", yes);
@@ -547,12 +578,8 @@ static bool m_prompt(const char* txt) {
             tabPressed = leftPressed = rightPressed = false;
             scan_code_cleanup();
         }
-        if (escPressed) {
-            escPressed = false;
-            scan_code_cleanup();
-            return false;
-        }
     }
+    __builtin_unreachable;
 }
 
 static void no_selected_file() {
@@ -573,36 +600,39 @@ static void m_copy_file(uint8_t cmd) {
         return;
     }
 #endif
-//    gpio_put(PICO_DEFAULT_LED_PIN, true);
     file_info_t* fp = selected_file();
     if (!fp) {
        no_selected_file();
        return;
     }
-    char path[256];
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
-    snprintf(path, 256, "Copy %s %s to %s?", fp->s_name->p, fp->fattrib & AM_DIR ? "folder" : "file", dsp->s_path->p);
-    if (m_prompt(path)) { // TODO: ask name
-        construct_full_name(path, psp->s_path->p, fp->s_name->p);
-        char dest[256];
-        construct_full_name(dest, dsp->s_path->p, fp->s_name->p);
-        FRESULT result = fp->fattrib & AM_DIR ? m_copy_recursive(path, dest) : m_copy(path, dest);
+    string_t* s_path = new_string_cc("Copy '");
+    string_push_back_cs(s_path, fp->s_name);
+    string_push_back_cc(s_path, fp->fattrib & AM_DIR ? "' folder to '" : "' file to '");
+    string_push_back_cs(s_path, dsp->s_path);
+    string_push_back_cc(s_path, "'?");
+    if (m_prompt(s_path->p)) { // TODO: ask name
+        construct_full_name_s(s_path, psp->s_path, fp->s_name);
+        string_t* s_dest = new_string_v();
+        construct_full_name_s(s_dest, dsp->s_path, fp->s_name);
+        FRESULT result = fp->fattrib & AM_DIR ? m_copy_recursive(s_path->p, s_dest->p) : m_copy(s_path->p, s_dest->p);
         if (result != FR_OK) {
             size_t width = MAX_WIDTH > 60 ? 60 : 40;
             size_t x = (MAX_WIDTH - width) >> 1;
             snprintf(line, width - 2, "FRESULT: %d", result);
             const line_t lns[3] = {
                 { -1, "Unable to copy selected item!" },
-                { -1, path },
+                { -1, s_path->p },
                 { -1, line }
             };
             const lines_t lines = { 3, 2, lns };
             draw_box(x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         }
+        delete_string(s_dest);
     }
+    delete_string(s_path);
     redraw_window();
-  //  gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
 static void turn_usb_off(uint8_t cmd);
@@ -643,11 +673,16 @@ static void m_mk_dir(uint8_t cmd) {
         return;
     }
 #endif
-    char dir[256];
-    construct_full_name(dir, psp->s_path->p, "_");
-    size_t len = strnlen(dir, 256) - 1;
-    draw_panel(20, MAX_HEIGHT / 2 - 3, MAX_WIDTH - 40, 5, "DIR NAME", 0);
-    draw_label(22, MAX_HEIGHT / 2 - 1, MAX_WIDTH - 44, dir, true, true);
+    string_t* s_dir = new_string_v();
+    construct_full_name(s_dir, psp->s_path->p, "");
+    int ox = graphics_con_x();
+    int oy = graphics_con_y();
+    int x = 4 + s_dir->size;
+    int y = MAX_HEIGHT / 2 - 1;
+    int width = MAX_WIDTH - 8;
+    graphics_set_con_pos(x, y);
+    draw_panel(2, y - 2, width + 4, 5, "DIR NAME", 0);
+    draw_label(4, y, width, s_dir->p, true, true);
     while(1) {
         char c = getch();
         if (escPressed || c == 0x1B) {
@@ -659,10 +694,13 @@ static void m_mk_dir(uint8_t cmd) {
         if (backspacePressed || c == 8) {
             backspacePressed = false;
             scan_code_cleanup();
-            if (len == 0) continue;
-            dir[len--] = 0;
-            dir[len] = '_';
-            draw_label(22, MAX_HEIGHT / 2 - 1, MAX_WIDTH - 44, dir, true, true);
+            if (!s_dir->size) {
+                blimp(10, 5);
+                continue;
+            }
+            graphics_set_con_pos(--x, y);
+            string_resize(s_dir, s_dir->size - 1);
+            draw_label(4, y, width, s_dir->p, true, true);
         }
         if (enterPressed || c == '\n') {
             enterPressed = false;
@@ -673,16 +711,18 @@ static void m_mk_dir(uint8_t cmd) {
         if (!sc || sc >= 0x80) continue;
        // char c = scan_code_2_cp866[sc]; // TODO: shift, caps lock, alt, rus...
         if (!c) continue;
-        if (len + 2 == MAX_WIDTH - 44) continue;
-        dir[len++] = c;
-        dir[len] = '_';
-        dir[len + 1] = 0;
-        draw_label(22, MAX_HEIGHT / 2 - 1, MAX_WIDTH - 44, dir, true, true);
+        if (s_dir->size >= width) {
+            blimp(10, 5);
+            continue;
+        }
+        string_push_back_c(s_dir, c);
+        graphics_set_con_pos(++x, y);
+        draw_label(4, y, width, s_dir->p, true, true);
     }
-    if (len) {
-        dir[len] = 0;
-        f_mkdir(dir);
+    if (s_dir->size) {
+        f_mkdir(s_dir->p);
     }
+    graphics_set_con_pos(ox, oy);
     scan_code_cleanup();
     redraw_window();
 }
@@ -695,36 +735,39 @@ static void m_move_file(uint8_t cmd) {
         return;
     }
 #endif
-  //  gpio_put(PICO_DEFAULT_LED_PIN, true);
     file_info_t* fp = selected_file();
     if (!fp) {
        no_selected_file();
        return;
     }
-    char path[256];
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
-    snprintf(path, 256, "Move %s %s to %s?", fp->s_name->p, fp->fattrib & AM_DIR ? "folder" : "file", dsp->s_path->p);
-    if (m_prompt(path)) { // TODO: ask name
-        construct_full_name(path, psp->s_path->p, fp->s_name->p);
-        char dest[256];
-        construct_full_name(dest, dsp->s_path->p, fp->s_name->p);
-        FRESULT result = f_rename(path, dest);
+    string_t* s_path = new_string_cc("Move '");
+    string_push_back_cs(s_path, fp->s_name);
+    string_push_back_cc(s_path, fp->fattrib & AM_DIR ? "' folder to '" : "' file to '");
+    string_push_back_cs(s_path, dsp->s_path);
+    string_push_back_cc(s_path, "'?");
+    if (m_prompt(s_path->p)) { // TODO: ask name
+        construct_full_name_s(s_path, psp->s_path, fp->s_name);
+        string_t* s_dest = new_string_v();
+        construct_full_name_s(s_dest, dsp->s_path, fp->s_name);
+        FRESULT result = f_rename(s_path->p, s_dest->p);
         if (result != FR_OK) {
             size_t width = MAX_WIDTH > 60 ? 60 : 40;
             size_t x = (MAX_WIDTH - width) >> 1;
             snprintf(line, width - 2, "FRESULT: %d", result);
             const line_t lns[3] = {
                 { -1, "Unable to move selected item!" },
-                { -1, path },
+                { -1, s_path->p },
                 { -1, line }
             };
             const lines_t lines = { 3, 2, lns };
             draw_box(x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         }
+        delete_string(s_dest);
     }
+    delete_string(s_path);
     redraw_window();
-//    gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
 void m_view(uint8_t nu) {
@@ -735,14 +778,14 @@ void m_view(uint8_t nu) {
         enter_pressed();
         return;
     }
-    static const char cstr[] = "mcview \"";
-    strncpy(cmd, cstr, 512);
-    construct_full_name(cmd + sizeof(cstr) - 1, psp->s_path->p, fp->s_name->p);
-    size_t sz = strlen(cmd);
-    cmd[sz++] = '\"';
-    cmd[sz] = 0;
+    string_replace_cs(s_cmd, "mcview \"");
+    if (psp->s_path->size > 1)
+        string_push_back_cs(s_cmd, psp->s_path);
+    string_push_back_c(s_cmd, '/');
+    string_push_back_cs(s_cmd, fp->s_name);
+    string_push_back_c(s_cmd, '"');
     draw_cmd_line(0, CMD_Y_POS);
-    mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd);
+    mark_to_exit_flag = cmd_enter(get_cmd_ctx());
 }
 
 void m_edit(uint8_t nu) {
@@ -753,14 +796,14 @@ void m_edit(uint8_t nu) {
         enter_pressed();
         return;
     }
-    static const char cstr[] = "mcedit \"";
-    strncpy(cmd, cstr, 512);
-    construct_full_name(cmd + sizeof(cstr) - 1, psp->s_path->p, fp->s_name->p);
-    size_t sz = strlen(cmd);
-    cmd[sz++] = '\"';
-    cmd[sz] = 0;
+    string_replace_cs(s_cmd, "mcedit \"");
+    if (psp->s_path->size > 1)
+        string_push_back_cs(s_cmd, psp->s_path);
+    string_push_back_c(s_cmd, '/');
+    string_push_back_cs(s_cmd, fp->s_name);
+    string_push_back_c(s_cmd, '"');
     draw_cmd_line(0, CMD_Y_POS);
-    mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd);
+    mark_to_exit_flag = cmd_enter(get_cmd_ctx());
 }
 
 static fn_1_12_tbl_t fn_1_12_tbl = {
@@ -931,7 +974,7 @@ static void draw_cmd_line(int left, int top) {
     graphics_set_con_color(13, 0);
     printf("[%s]", get_ctx_var(get_cmd_ctx(), "CD"));
     graphics_set_con_color(7, 0);
-    printf("> %s", cmd);
+    printf("> %s", s_cmd->p);
     graphics_set_con_color(pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
 }
 
@@ -957,7 +1000,7 @@ static void collect_files(file_panel_desc_t* p) {
 }
 
 static void construct_full_name_s(string_t* dst, const string_t* folder, const string_t* file) {
-    if (folder->size > 1) {
+    if (folder && folder->size > 1) {
         string_replace_ss(dst, folder);
     } else {
         string_resize(dst, 0);
@@ -966,12 +1009,14 @@ static void construct_full_name_s(string_t* dst, const string_t* folder, const s
     string_push_back_cs(dst, file);
 }
 
-static void construct_full_name(char* dst, const char* folder, const char* file) {
-    if (strlen(folder) > 1) {
-        snprintf(dst, 256, "%s/%s", folder, file);
+static void construct_full_name(string_t* dst, const char* folder, const char* file) {
+    if (folder && strlen(folder) > 1) {
+        string_replace_cs(dst, folder);
     } else {
-        snprintf(dst, 256, "/%s", file);
+        string_resize(dst, 0);
     }
+    string_push_back_c(dst, '/');
+    string_push_back_cc(dst, file);
 }
 
 static void fill_panel(file_panel_desc_t* p) {
@@ -1506,24 +1551,22 @@ inline static void cmd_write_history(cmd_ctx_t* ctx) {
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
     f_open(pfh, cmd_history_file, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
     UINT br;
-    f_write(pfh, cmd, strlen(cmd), &br);
+    f_write(pfh, s_cmd->p, s_cmd->size, &br);
     f_write(pfh, "\n", 1, &br);
     f_close(pfh);
     free(pfh);
     free(cmd_history_file);
 }
 
-static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd) {
+static bool cmd_enter(cmd_ctx_t* ctx) {
     putc('\n');
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos) {
+    if (s_cmd->size) {
         cmd_write_history(ctx);
     } else {
         goto r2;
     }
-    char* ccmd = copy_str(cmd);
-    char* tc = cmd;
-    char* ts = cmd;
+    char* tc = s_cmd->p;
+    char* ts = tc;
     bool exit = false;
     bool in_qutas = false;
     cmd_ctx_t* ctxi = ctx;
@@ -1559,8 +1602,6 @@ static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd) {
         }
         tc++;
     }
-    strncpy(cmd, ccmd, 512);
-    free(ccmd);
     if (exit) { // prepared ctx
         return true;
     }
@@ -1573,17 +1614,19 @@ static bool cmd_enter(cmd_ctx_t* ctx, const char* cmd) {
     }
     cleanup_ctx(ctx); // base ctx to be there
 r2:
+    string_resize(s_cmd, 0);
     draw_cmd_line(0, CMD_Y_POS);
     return false;
 }
 
 static void enter_pressed() {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos && !ctrlPressed) {
-        mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
+    if (s_cmd->size && !ctrlPressed) {
+        mark_to_exit_flag = cmd_enter(get_cmd_ctx());
         return;
     }
-    if (hidePannels) return;
+    if (hidePannels) {
+        return;
+    }
     file_info_t* fp = selected_file();
     if (!fp) { // up to parent dir
         int i = psp->s_path->size;
@@ -1604,10 +1647,11 @@ static void enter_pressed() {
         redraw_current_panel();
         return;
     }
-    char path[256];
     if (fp->fattrib & AM_DIR) {
-        construct_full_name(path, psp->s_path->p, fp->s_name->p);
-        string_replace_cs(psp->s_path, path);
+        string_t* path = new_string_v();
+        construct_full_name_s(path, psp->s_path, fp->s_name);
+        string_replace_ss(psp->s_path, path);
+        delete_string(path);
         psp->level++;
         if (psp->level >= 16) {
             psp->level = 15;
@@ -1619,14 +1663,15 @@ static void enter_pressed() {
         return;
     }
     if (ctrlPressed) {
-        construct_full_name(cmd + cmd_pos, psp->s_path->p, fp->s_name->p);
+        string_push_back_cs(s_cmd, psp->s_path); // quotas?
+        string_push_back_c(s_cmd, '/');
+        string_push_back_cs(s_cmd, fp->s_name);
         draw_cmd_line(0, CMD_Y_POS);
         return;
     }
-    construct_full_name(path, psp->s_path->p, fp->s_name->p);
-    printf(path);
-    strncpy(cmd, path, 256);
-    mark_to_exit_flag = cmd_enter(get_cmd_ctx(), cmd); // TODO: support "no exit" mode
+    construct_full_name_s(s_cmd, psp->s_path, fp->s_name);
+    gouta(s_cmd->p);
+    mark_to_exit_flag = cmd_enter(get_cmd_ctx());
 }
 
 inline static void handle_pagedown_pressed() {
@@ -1656,7 +1701,6 @@ inline static int history_steps(cmd_ctx_t* ctx) {
     size_t cdl = strlen(tmp);
     char * cmd_history_file = concat(tmp, ".cmd_history");
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
-    size_t j = 0;
     int idx = 0;
     UINT br;
     f_open(pfh, cmd_history_file, FA_READ);
@@ -1665,13 +1709,12 @@ inline static int history_steps(cmd_ctx_t* ctx) {
         for(size_t i = 0; i < br; ++i) {
             char t = b[i];
             if(t == '\n') { // next line
-                cmd[j] = 0;
-                j = 0;
                 if(cmd_history_idx == idx)
                     break;
+                string_resize(s_cmd, 0);
                 idx++;
             } else {
-                cmd[j++] = t;
+                string_push_back_c(s_cmd, t);
             }
         }
     }
@@ -1682,11 +1725,9 @@ inline static int history_steps(cmd_ctx_t* ctx) {
     return idx;
 }
 
-
 inline static void cancel_entered() {
-    size_t cmd_pos = strlen(cmd);
-    while(cmd_pos) {
-        cmd[--cmd_pos] = 0;
+    while(s_cmd->size) {
+        string_resize(s_cmd, s_cmd->size - 1);
         gbackspace();
     }
 }
@@ -1696,7 +1737,7 @@ inline static void cmd_up(cmd_ctx_t* ctx) {
     cmd_history_idx--;
     int idx = history_steps(ctx);
     if (cmd_history_idx < 0) cmd_history_idx = idx;
-    goutf(cmd);
+    gouta(s_cmd->p);
 }
 
 inline static void cmd_down(cmd_ctx_t* ctx) {
@@ -1704,7 +1745,7 @@ inline static void cmd_down(cmd_ctx_t* ctx) {
     if (cmd_history_idx == -2) cmd_history_idx = -1;
     cmd_history_idx++;
     history_steps(ctx);
-    goutf(cmd);
+    gouta(s_cmd->p);
 }
 
 inline static void handle_down_pressed() {
@@ -1766,23 +1807,12 @@ inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
 }
 
 inline static void cmd_backspace() {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos == 0) {
-        // TODO: blimp
+    if (s_cmd->size == 0) {
+        blimp(10, 5);
         return;
     }
-    cmd[--cmd_pos] = 0;
+    string_resize(s_cmd, s_cmd->size - 1);
     gbackspace();
-}
-
-inline static void cmd_push(char c) {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos >= 512) {
-        // TODO: blimp
-    }
-    cmd[cmd_pos++] = c;
-    cmd[cmd_pos] = 0;
-    putc(c);
 }
 
 inline static char* next_on(char* l, char *bi, bool in_quotas) {
@@ -1805,19 +1835,13 @@ inline static char* next_on(char* l, char *bi, bool in_quotas) {
 }
 
 inline static void type_char(char c) {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos >= 512) {
-        // TODO: blimp
-        return;
-    }
     putc(c);
-    cmd[cmd_pos++] = c;
-    cmd[cmd_pos] = 0;
+    string_push_back_c(s_cmd, c);
 }
 
 inline static void cmd_tab(cmd_ctx_t* ctx) {
-    char * p = cmd;
-    char * p2 = cmd;
+    char * p = s_cmd->p;
+    char * p2 = p;
     bool in_quotas = false;
     while (*p) {
         char c = *p++;
@@ -1837,30 +1861,32 @@ inline static void cmd_tab(cmd_ctx_t* ctx) {
             p2 = p3;
         }
     }
-    char* b = malloc(512);
+    string_t* s_b = NULL;
     if (p != p2) {
-        strncpy(b, p, p2 - p);
-        b[p2 - p] = 0;
+        s_b = new_string_cc(p);
+        string_resize(s_b, p2 - p);
+    } else {
+        new_string_v();
     }
     DIR* pdir = (DIR*)malloc(sizeof(DIR));
-    FILINFO* pfileInfo = malloc(sizeof(FILINFO));
+    FILINFO* pfileInfo = (FILINFO*)malloc(sizeof(FILINFO));
     //goutf("\nDIR: %s\n", p != p2 ? b : curr_dir);
-    if (FR_OK != f_opendir(pdir, p != p2 ? b : get_ctx_var(ctx, "CD"))) {
-        free(b);
+    if (FR_OK != f_opendir(pdir, p != p2 ? s_b->p : get_ctx_var(ctx, "CD"))) {
+        delete_string(s_b);
         return;
     }
     int total_files = 0;
     while (f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
         p3 = next_on(p2, pfileInfo->fname, in_quotas);
         if (p3 != pfileInfo->fname) {
-            strcpy(b, p3);
+            string_replace_cs(s_b, p3);
             total_files++;
             break; // TODO: variants
         }
         //goutf("p3: %s; p2: %s; fn: %s; cmd_t: %s; fls: %d\n", p3, p2, fileInfo.fname, b, total_files);
     }
     if (total_files == 1) {
-        p3 = b;
+        p3 = s_b->p;
         while (*p3) {
             type_char(*p3++);
         }
@@ -1868,9 +1894,9 @@ inline static void cmd_tab(cmd_ctx_t* ctx) {
             type_char('"');
         }
     } else {
-        // TODO: blimp
+        blimp(10, 5);
     }
-    free(b);
+    delete_string(s_b);
     f_closedir(pdir);
     free(pfileInfo);
     free(pdir);
@@ -2022,19 +2048,24 @@ r:
     return res;
 }
 
+inline static void esc_pressed(void) {
+    string_resize(s_cmd, 0);
+}
+
 static inline void work_cycle(cmd_ctx_t* ctx) {
     uint8_t repeat_cnt = 0;
     for(;;) {
         char c = getch_now();
         nespad_stat(&nespad_state, &nespad_state2);
         if (c) {
-            if (c == 8) cmd_backspace();
-            else if (c == 17) handle_up_pressed();
-            else if (c == 18) handle_down_pressed();
-            else if (c == '\t') handle_tab_pressed();
-            else if (c == '\n') enter_pressed();
+            if (c == CHAR_CODE_BS) cmd_backspace();
+            else if (c == CHAR_CODE_UP) handle_up_pressed();
+            else if (c == CHAR_CODE_DOWN) handle_down_pressed();
+            else if (c == CHAR_CODE_TAB) handle_tab_pressed();
+            else if (c == CHAR_CODE_ENTER) enter_pressed();
+            else if (c == CHAR_CODE_ESC) esc_pressed();
             else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
-            else cmd_push(c);
+            else type_char(c);
         }
 
         if (is_dendy_joystick || is_kbd_joystick) {
@@ -2223,8 +2254,7 @@ int main(void) {
     LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
     save_console(ctx);
 
-    cmd = malloc(512);
-    cmd[0] = 0;
+    s_cmd = new_string_v();
 
     left_panel = calloc(1, sizeof(file_panel_desc_t));
     left_panel->s_path = new_string_cc("/");
@@ -2273,7 +2303,7 @@ int main(void) {
         if (files_info[i].s_name) delete_string(files_info[i].s_name); 
     }
     free(files_info);
-    free(cmd);
+    delete_string(s_cmd);
 
     return 0;
 }

@@ -267,6 +267,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     graphics_set_ext_font, // 193
     //
     blimp, // 194
+    graphics_con_x, // 195
+    graphics_con_y, // 196
     // TODO:
     0
 };

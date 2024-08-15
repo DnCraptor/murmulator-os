@@ -56,7 +56,9 @@ inline static void string_push_back_c(string_t* s, const char c) {
 }
 
 inline static void string_push_back_cc(string_t* s, const char* cs) {
+    if(!cs) return;
     size_t cs_sz = strlen(cs);
+    if(!cs_sz) return;
     size_t sz = s->size + cs_sz;
     if (sz >= s->alloc) {
         string_reseve(s, sz + 1);
@@ -67,6 +69,7 @@ inline static void string_push_back_cc(string_t* s, const char* cs) {
 }
 
 inline static void string_push_back_cs(string_t* s, const string_t* cs) {
+    if(!cs) return;
     size_t sz = s->size + cs->size;
     if (sz >= s->alloc) {
         string_reseve(s, sz + 1);

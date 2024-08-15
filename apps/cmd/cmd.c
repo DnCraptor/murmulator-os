@@ -329,7 +329,7 @@ inline static void cancel_entered() {
     }
 }
 
-static int cmd_history_idx = -2;
+static int cmd_history_idx;
 
 inline static int history_steps(cmd_ctx_t* ctx) {
     char* tmp = get_ctx_var(ctx, "TEMP");
@@ -345,9 +345,9 @@ inline static int history_steps(cmd_ctx_t* ctx) {
         for(size_t i = 0; i < br; ++i) {
             char t = b[i];
             if(t == '\n') { // next line
-                string_resize(s_cmd, 0);
                 if(cmd_history_idx == idx)
                     break;
+                string_resize(s_cmd, 0);
                 idx++;
             } else {
                 string_push_back_c(s_cmd, t);
@@ -383,6 +383,7 @@ int main(void) {
     cleanup_ctx(ctx);
     s_cmd = new_string_v();
     prompt(ctx);
+    cmd_history_idx = -2;
     while(1) {
         char c = getch();
         if (c) {

@@ -104,6 +104,13 @@ void set_cp866_handler(cp866_handler_t h) {
     cp866_handler = h;
 }
 
+#define CHAR_CODE_BS    8
+#define CHAR_CODE_UP    17
+#define CHAR_CODE_DOWN  18
+#define CHAR_CODE_ENTER '\n'
+#define CHAR_CODE_TAB   '\t'
+#define CHAR_CODE_ESC   0x1B
+
 static volatile int __c = 0;
 bool __scratch_y("kbd_driver_text") handleScancode(const uint32_t ps2scancode) {
     if (scancode_handler) {
@@ -119,25 +126,25 @@ bool __scratch_y("kbd_driver_text") handleScancode(const uint32_t ps2scancode) {
     ks.input = ps2scancode;
     if (ps2scancode == 0xE048 || ps2scancode == 0x48 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
         ks.input = 0;
-        if (cp866_handler) cp866_handler(17 /*up*/, ps2scancode);
-        __c = 17;
+        if (cp866_handler) cp866_handler(CHAR_CODE_UP, ps2scancode);
+        __c = CHAR_CODE_UP;
         return true;
     }
     if (ps2scancode == 0xE050 || ps2scancode == 0x50 && !(get_leds_stat() & PS2_LED_NUM_LOCK)) {
         ks.input = 0;
-        if (cp866_handler) cp866_handler(18 /*down*/, ps2scancode);
-        __c = 18;
+        if (cp866_handler) cp866_handler(CHAR_CODE_DOWN, ps2scancode);
+        __c = CHAR_CODE_DOWN;
         return true;
     }
     if (ps2scancode == 0xE09C) {
-        if (cp866_handler) cp866_handler('\n', ps2scancode);
-        __c = '\n';
+        if (cp866_handler) cp866_handler(CHAR_CODE_ENTER, ps2scancode);
+        __c = CHAR_CODE_ENTER;
         return true;
     }
     switch ((uint8_t)ks.input & 0xFF) {
         case 0x81: // ESC
-            if (cp866_handler) cp866_handler(0x1B /*ESC*/, ps2scancode);
-            __c = 0x1B;
+            if (cp866_handler) cp866_handler(CHAR_CODE_ESC, ps2scancode);
+            __c = CHAR_CODE_ESC;
             return true;
         case 0x1D:
             ks.bCtrlPressed = true;
@@ -182,8 +189,8 @@ bool __scratch_y("kbd_driver_text") handleScancode(const uint32_t ps2scancode) {
             ks.bCapsLock = !ks.bCapsLock;
             break;
         case 0x0E:
-            if (cp866_handler) cp866_handler(8 /*BS*/, ps2scancode);
-            __c = 8;
+            if (cp866_handler) cp866_handler(CHAR_CODE_BS, ps2scancode);
+            __c = CHAR_CODE_BS;
             return true;
         case 0x0F:
             ks.bTabPressed = true;

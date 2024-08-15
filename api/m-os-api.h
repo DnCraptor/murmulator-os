@@ -421,6 +421,13 @@ inline static bool run_new_app(cmd_ctx_t* c) {
     return ((fn_ptr_t)_sys_table_ptrs[121])(c);
 }
 
+#define CHAR_CODE_BS    8
+#define CHAR_CODE_UP    17
+#define CHAR_CODE_DOWN  18
+#define CHAR_CODE_ENTER '\n'
+#define CHAR_CODE_TAB   '\t'
+#define CHAR_CODE_ESC   0x1B
+
 inline static char getch(void) {
     typedef char (*fn_ptr_t)(void);
     return ((fn_ptr_t)_sys_table_ptrs[122])();
@@ -771,6 +778,15 @@ inline static bool graphics_set_ext_font(uint8_t* t, uint8_t w, uint8_t h) { // 
 inline static void blimp(uint32_t cnt, uint32_t ticks_to_delay) { // 194
     typedef void (*fn_ptr_t)(uint8_t, uint8_t);
     ((fn_ptr_t)_sys_table_ptrs[194])(cnt, ticks_to_delay);
+}
+
+inline static int graphics_con_x(void) { // 195
+    typedef int (*fn_ptr_t)(void);
+    return ((fn_ptr_t)_sys_table_ptrs[195])();
+}
+inline static int graphics_con_y(void) { // 196
+    typedef int (*fn_ptr_t)(void);
+    return ((fn_ptr_t)_sys_table_ptrs[196])();
 }
 
 #ifdef __cplusplus
