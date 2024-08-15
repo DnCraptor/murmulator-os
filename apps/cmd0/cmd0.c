@@ -1,56 +1,36 @@
 #include "m-os-api.h"
 
-static char* cmd = 0;
+static string_t* s_cmd = 0;
 
 inline static void cmd_backspace() {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos == 0) {
-        // TODO: blimp
+    if (s_cmd->size == 0) {
+        blimp(10, 5);
         return;
     }
-    cmd[--cmd_pos] = 0;
+    string_resize(s_cmd, s_cmd->size - 1);
     gbackspace();
 }
 
 inline static void type_char(char c) {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos >= 512) {
-        // TODO: blimp
-        return;
-    }
     putc(c);
-    cmd[cmd_pos++] = c;
-    cmd[cmd_pos] = 0;
+    string_push_back_c(s_cmd, c);
 }
 
 inline static char replace_spaces0(char t) {
-    if (t == ' ') {
-        return 0;
-    }
-//    if (t >= 'A' && t <= 'Z') {
-//        return t + ('a' - 'A');
-//    }
-//    if (t >= 0x80 && t <= 0x8F /* А-П */) {
-//        return t + (0xA0 - 0x80);
-//    }
-//    if (t >= 0x90 && t <= 0x9F /* Р-Я */) {
-//        return t + (0xE0 - 0x90);
-//    }
-//    if (t >= 0xF0 && t <= 0xF6) return t + 1; // Ё...
-    return t;
+    return (t == ' ') ? 0 : t;
 }
 
 inline static int tokenize_cmd(cmd_ctx_t* ctx) {
-    if (cmd[0] == 0) {
+    if (!s_cmd->size) {
         return 0;
     }
     if (ctx->orig_cmd) free(ctx->orig_cmd);
-    ctx->orig_cmd = copy_str(cmd);
+    ctx->orig_cmd = copy_str(s_cmd->p);
     //goutf("orig_cmd: '%s' [%p]; cmd: '%s' [%p]\n", ctx->orig_cmd, ctx->orig_cmd, cmd, cmd);
     bool inSpace = true;
     int inTokenN = 0;
     char* t1 = ctx->orig_cmd;
-    char* t2 = cmd;
+    char* t2 = s_cmd->p;
     while(*t1) {
         char c = replace_spaces0(*t1++);
         //goutf("%02X -> %c %02X; t1: '%s' [%p], t2: '%s' [%p]\n", c, *t2, *t2, t1, t1, t2, t2);
@@ -69,22 +49,10 @@ inline static int tokenize_cmd(cmd_ctx_t* ctx) {
     return inTokenN;
 }
 
-inline static void cmd_push(char c) {
-    size_t cmd_pos = strlen(cmd);
-    if (cmd_pos >= 512) {
-        // TODO: blimp
-    }
-    cmd[cmd_pos++] = c;
-    cmd[cmd_pos] = 0;
-    putc(c);
-}
-
 inline static bool cmd_enter(cmd_ctx_t* ctx) {
     UINT br;
     putc('\n');
-    size_t cmd_pos = strlen(cmd);
-    //goutf("cmd_pos: %d\n", cmd_pos);
-    if (!cmd_pos) {
+    if (!s_cmd->size) {
         goto r2;
     }
     int tokens = tokenize_cmd(ctx);
@@ -93,7 +61,7 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     }
     ctx->argc = tokens;
     ctx->argv = (char**)malloc(sizeof(char*) * tokens);
-    char* t = cmd;
+    char* t = s_cmd->p;
     for (uint32_t i = 0; i < tokens; ++i) {
         ctx->argv[i] = copy_str(t);
         t = next_token(t);
@@ -104,15 +72,14 @@ r1:
     cleanup_ctx(ctx);
 r2:
     goutf("[%s]#", get_ctx_var(ctx, "CD"));
-    cmd[0] = 0;
+    string_resize(s_cmd, 0);
     return false;
 }
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
     cleanup_ctx(ctx);
-    cmd = malloc(512);
-    cmd[0] = 0;
+    s_cmd = new_string_v();
     goutf("[%s]#", get_ctx_var(ctx, "CD"));
     while(1) {
         char c = getch();
@@ -123,11 +90,11 @@ int main(void) {
             else if (c == '\t') {}
             else if (c == '\n') {
                 if ( cmd_enter(ctx) ) {
-                    free(cmd);
+                    delete_string(s_cmd);
                     //goutf("[%s]EXIT to exec, stage: %d\n", ctx->curr_dir, ctx->stage);
                     return 0;
                 }
-            } else cmd_push(c);
+            } else type_char(c);
         }
     }
     __unreachable();
