@@ -387,11 +387,16 @@ int main(void) {
     while(1) {
         char c = getch();
         if (c) {
-            if (c == 8) cmd_backspace();
-            else if (c == 17) cmd_up(ctx);
-            else if (c == 18) cmd_down(ctx);
-            else if (c == '\t') cmd_tab(ctx);
-            else if (c == '\n') {
+            if (c == CHAR_CODE_BS) cmd_backspace();
+            else if (c == CHAR_CODE_UP) cmd_up(ctx);
+            else if (c == CHAR_CODE_DOWN) cmd_down(ctx);
+            else if (c == CHAR_CODE_TAB) cmd_tab(ctx);
+            else if (c == CHAR_CODE_ESC) {
+                printf("\n");
+                string_resize(s_cmd, 0);
+                prompt(ctx);
+            }
+            else if (c == CHAR_CODE_ENTER) {
                 if ( cmd_enter(ctx) ) {
                     delete_string(s_cmd);
                     //goutf("[%s]EXIT to exec, stage: %d\n", ctx->curr_dir, ctx->stage);

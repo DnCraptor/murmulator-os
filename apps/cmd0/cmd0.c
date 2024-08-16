@@ -20,33 +20,31 @@ inline static char replace_spaces0(char t) {
     return (t == ' ') ? 0 : t;
 }
 
-inline static int tokenize_cmd(cmd_ctx_t* ctx) {
+inline static void tokenize_cmd(list_t* lst, cmd_ctx_t* ctx) {
     if (!s_cmd->size) {
         return 0;
     }
-    if (ctx->orig_cmd) free(ctx->orig_cmd);
-    ctx->orig_cmd = copy_str(s_cmd->p);
-    //goutf("orig_cmd: '%s' [%p]; cmd: '%s' [%p]\n", ctx->orig_cmd, ctx->orig_cmd, cmd, cmd);
-    bool inSpace = true;
-    int inTokenN = 0;
-    char* t1 = ctx->orig_cmd;
-    char* t2 = s_cmd->p;
-    while(*t1) {
-        char c = replace_spaces0(*t1++);
-        //goutf("%02X -> %c %02X; t1: '%s' [%p], t2: '%s' [%p]\n", c, *t2, *t2, t1, t1, t2, t2);
+    bool inSpace = false;
+    string_t* t = new_string_v();
+    for (size_t i = 0; i < s_cmd->size; ++i) {
+        char c = replace_spaces0(s_cmd->p[i]);
         if (inSpace) {
             if(c) { // token started
-                inSpace = 0;
-                inTokenN++; // new token
+                inSpace = false;
+                list_push_back(lst, t);
+                t = new_string_v();
             }
         } else if(!c) { // not in space, after the token
             inSpace = true;
         }
-        *t2++ = c;
+        string_push_back_c(t, c);
     }
-    *t2 = 0;
-    //goutf("cmd: %s\n", cmd);
-    return inTokenN;
+    list_push_back(lst, t);
+}
+
+static void prompt(cmd_ctx_t* ctx) {
+    string_resize(s_cmd, 0);
+    printf("[%s]#", get_ctx_var(ctx, "CD"));
 }
 
 inline static bool cmd_enter(cmd_ctx_t* ctx) {
@@ -55,24 +53,27 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     if (!s_cmd->size) {
         goto r2;
     }
-    int tokens = tokenize_cmd(ctx);
-    if (tokens == 0) {
+    list_t* lst = new_list_v(new_string_v, delete_string, NULL);
+    tokenize_cmd(lst, ctx);
+    if (list_count(lst) == 0) {
         goto r1;
     }
-    ctx->argc = tokens;
-    ctx->argv = (char**)malloc(sizeof(char*) * tokens);
-    char* t = s_cmd->p;
-    for (uint32_t i = 0; i < tokens; ++i) {
-        ctx->argv[i] = copy_str(t);
-        t = next_token(t);
+    ctx->argc = lst->size;
+    ctx->argv = (char**)calloc(sizeof(char*), ctx->argc);
+    node_t* n = lst->first;
+    for(size_t i = 0; i < lst->size && n != NULL; ++i, n = n->next) {
+        ctx->argv[i] = copy_str(c_str(n->data));
     }
+    if (ctx->orig_cmd) free(ctx->orig_cmd);
+    ctx->orig_cmd = copy_str(ctx->argv[0]);
+
     ctx->stage = PREPARED;
     return true;
 r1:
+    delete_list(lst);
     cleanup_ctx(ctx);
 r2:
-    goutf("[%s]#", get_ctx_var(ctx, "CD"));
-    string_resize(s_cmd, 0);
+    prompt(ctx);
     return false;
 }
 
@@ -80,15 +81,20 @@ int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
     cleanup_ctx(ctx);
     s_cmd = new_string_v();
-    goutf("[%s]#", get_ctx_var(ctx, "CD"));
+    prompt(ctx);
     while(1) {
         char c = getch();
         if (c) {
-            if (c == 8) cmd_backspace();
-            else if (c == 17) {}
-            else if (c == 18) {}
-            else if (c == '\t') {}
-            else if (c == '\n') {
+            if (c == CHAR_CODE_BS) cmd_backspace();
+            else if (c == CHAR_CODE_UP) { blimp(15, 1); }
+            else if (c == CHAR_CODE_DOWN) { blimp(15, 1); }
+            else if (c == CHAR_CODE_TAB) { blimp(15, 1); }
+            else if (c == CHAR_CODE_ESC) {
+                printf("\n");
+                string_resize(s_cmd, 0);
+                prompt(ctx);
+            }
+            else if (c == CHAR_CODE_ENTER) {
                 if ( cmd_enter(ctx) ) {
                     delete_string(s_cmd);
                     //goutf("[%s]EXIT to exec, stage: %d\n", ctx->curr_dir, ctx->stage);

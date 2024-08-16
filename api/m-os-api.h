@@ -776,7 +776,7 @@ inline static bool graphics_set_ext_font(uint8_t* t, uint8_t w, uint8_t h) { // 
 
 // since 0.2.0 (API v.17)
 inline static void blimp(uint32_t cnt, uint32_t ticks_to_delay) { // 194
-    typedef void (*fn_ptr_t)(uint8_t, uint8_t);
+    typedef void (*fn_ptr_t)(uint32_t, uint32_t);
     ((fn_ptr_t)_sys_table_ptrs[194])(cnt, ticks_to_delay);
 }
 

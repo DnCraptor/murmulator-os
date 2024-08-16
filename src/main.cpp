@@ -424,7 +424,9 @@ static kbd_state_t* process_input_on_boot(bool mount_res) {
 #ifdef HDMI
                     drv = HDMI_DRV;
 #else
+#ifdef TV
                     drv = RGB_DRV;
+#endif
 #endif
                     break;
 #ifdef HDMI
@@ -451,7 +453,9 @@ static kbd_state_t* process_input_on_boot(bool mount_res) {
 #ifdef HDMI
                     drv = HDMI_DRV;
 #else
+#ifdef TV
                     drv = RGB_DRV;
+#endif
 #endif
                     break;
 #ifdef HDMI
