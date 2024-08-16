@@ -525,9 +525,6 @@ bool vga_set_mode(int mode) {
             text_buffer_width = 640;
             text_buffer_height = 480;
             bitness = 4;
-            font_width = 6;
-            font_height = 8;
-            font_table = font_6x8;
             break;
         default:
             return false;

@@ -395,19 +395,21 @@ static void PWM_init_pin(uint8_t pinN, uint16_t max_lvl) {
     pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
 }
 
-static kbd_state_t* process_input_on_boot(bool mount_res) {
+static kbd_state_t* process_input_on_boot() {
     kbd_state_t* ks = get_kbd_state();
     for (int a = 0; a < 5; ++a) {
         uint8_t sc = ks->input & 0xFF;
         // F12 or ENTER or START Boot to USB FIRMWARE UPDATE mode
         if ((nespad_state & DPAD_START) || (sc == 0x58) /*F12*/ || (sc == 0x1C) /*ENTER*/) {
-            if(mount_res) unlink_firmware();
+            if (FR_OK == f_mount(&fs, "SD", 1)) {
+                unlink_firmware();
+            }
             reset_usb_boot(0, 0);
             while(1);
         }
         // F11 or SPACE or SELECT unlink prev uf2 firmware
         if ((nespad_state & DPAD_SELECT) || (sc == 0x57) /*F11*/  || (sc == 0x39) /*SPACE*/) {
-            if (mount_res) {
+            if (FR_OK == f_mount(&fs, "SD", 1)) {
                 if (nespad_state & DPAD_B) {
                     usb_driver(true);
                 	vTaskStartScheduler();
@@ -499,7 +501,6 @@ static void init(void) {
     sleep_ms(50);
 
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    bool mount_res = (FR_OK == f_mount(&fs, "SD", 1));
 
 #ifdef DEBUG_VGA
     FIL f;
@@ -508,11 +509,11 @@ static void init(void) {
     f_write(&f, vga_dbg_msg, strlen(vga_dbg_msg), &wr);
     f_close(&f);
 #endif
-    kbd_state_t* ks = process_input_on_boot(mount_res);
+    kbd_state_t* ks = process_input_on_boot();
     // send kbd reset only after initial process passed
     keyboard_send(0xFF);
 
-    if (mount_res) {
+    if (FR_OK == f_mount(&fs, "SD", 1)) {
         check_firmware();
     } else {
         startup_vga();
