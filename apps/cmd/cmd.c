@@ -321,7 +321,7 @@ inline static void cmd_tab(cmd_ctx_t* ctx) {
         s_b = new_string_cc(p);
         string_resize(s_b, p2 - p);
     } else {
-        new_string_v();
+        s_b = new_string_v();
     }
     DIR* pdir = (DIR*)malloc(sizeof(DIR));
     FILINFO* pfileInfo = (FILINFO*)malloc(sizeof(FILINFO));

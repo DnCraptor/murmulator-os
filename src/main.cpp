@@ -310,11 +310,11 @@ e:
 const char* tmp = "ZX Murmulator (RP2040) OS v." MOS_VERSION_STR;
 
 extern "C" void mallocFailedHandler() {
-    gouta("WARN: vApplicationMallocFailedHook\n");
+    gouta("WARN: malloc failed\n");
 }
 
 extern "C" void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
-    gouta("WARN: vApplicationStackOverflowHook\n");
+    goutf("WARN: stack overflow on task: '%s'\n", pcTaskName);
 }
 
 #ifdef DEBUG_VGA

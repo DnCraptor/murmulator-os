@@ -3,6 +3,8 @@
         "m-os-api.h": "c",
         "timer.h": "c",
         "m-os-api-tasks.h": "c",
-        "m-os-api-c-string.h": "c"
+        "m-os-api-c-string.h": "c",
+        "m-os-api-ff.h": "c",
+        "m-os-api-c-list.h": "c"
     }
 }

@@ -1,5 +1,3 @@
-#pragma once
-
 #include "FreeRTOSConfig.h"
 #include <stdint.h>
 #include <stddef.h>

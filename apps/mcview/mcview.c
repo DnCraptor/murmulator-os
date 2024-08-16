@@ -76,7 +76,9 @@ static size_t line_s = 0;
 static size_t line_e = 0;
 
 inline static void nespad_read() {
-    nespad_stat(&nespad_state, &nespad_state2);
+    nespad_state = 0;
+    nespad_state2 = 0;
+    //nespad_stat(&nespad_state, &nespad_state2);
 }
 
 inline static void scan_code_processed() {
