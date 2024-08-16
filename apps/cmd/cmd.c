@@ -1,6 +1,8 @@
 #include "m-os-api.h"
 #include "m-os-api-sdtfn.h"
 
+// #define DEBUG
+
 static string_t* s_cmd = NULL;
 
 inline static void cmd_backspace() {
@@ -21,40 +23,64 @@ inline static char replace_spaces0(char t) {
     return (t == ' ') ? 0 : t;
 }
 
-inline static int tokenize_cmd(char* cmdt, cmd_ctx_t* ctx) {
-    while (!cmdt[0 && cmdt[0] == ' ']) ++cmdt; // ignore trailing spaces
-    if (cmdt[0] == 0) {
+inline static size_t in_quotas(size_t i, string_t* pcmd, string_t* t) {
+    for (; i < pcmd->size; ++i) {
+        char c = pcmd->p[i];
+        if (c == '"') {
+            return i;
+        }
+        string_push_back_c(t, c);
+    }
+    return i;
+}
+
+inline static void tokenize_cmd(list_t* lst, string_t* pcmd, cmd_ctx_t* ctx) {
+    #ifdef DEBUG
+        printf("[tokenize_cmd] %s\n", pcmd->p);
+    #endif
+    while (pcmd->size && pcmd->p[0] == ' ') { // remove trailing spaces
+        string_clip(pcmd, 0);
+        #ifdef DEBUG
+            printf("[tokenize_cmd] clip: %s\n", pcmd->p);
+        #endif
+    }
+    if (!pcmd->size) {
         return 0;
     }
-    if (ctx->orig_cmd) free(ctx->orig_cmd);
-    ctx->orig_cmd = copy_str(cmdt);
-    //goutf("orig_cmd: '%s' [%p]; cmd: '%s' [%p]\n", ctx->orig_cmd, ctx->orig_cmd, cmdt, cmdt);
-    bool in_space = true;
-    bool in_qutas = false;
+    bool in_space = false;
     int inTokenN = 0;
-    char* t1 = ctx->orig_cmd;
-    char* t2 = cmdt;
-    while(*t1) {
-        if (*t1 == '"') in_qutas = !in_qutas;
-        if (in_qutas) {
-            *t2++ = *t1++;
-            continue; 
+    string_t* t = new_string_v();
+    for (size_t i = 0; i < pcmd->size; ++i) {
+        char c = pcmd->p[i];
+        if (c == '"') {
+            if(t->size) {
+                list_push_back(lst, t);
+                t = new_string_v();
+            }
+            i = in_quotas(++i, pcmd, t);
+            in_space = false;
+            continue;
         }
-        char c = replace_spaces0(*t1++);
-        //goutf("%02X -> %c %02X; t1: '%s' [%p], t2: '%s' [%p]\n", c, *t2, *t2, t1, t1, t2, t2);
+        c = replace_spaces0(c);
         if (in_space) {
             if(c) { // token started
-                in_space = 0;
-                inTokenN++; // new token
+                in_space = false;
+                list_push_back(lst, t);
+                t = new_string_v();
             }
         } else if(!c) { // not in space, after the token
             in_space = true;
         }
-        *t2++ = c;
+        string_push_back_c(t, c);
     }
-    *t2 = 0;
-    //goutf("cmd: %s\n", cmd);
-    return inTokenN;
+    if (t->size) list_push_back(lst, t);
+    #ifdef DEBUG
+        node_t* n = lst->first;
+        while(n) {
+            printf("[tokenize_cmd] n: %s\n", c_str(n->data));
+            n = n->next;
+        }
+    #endif
 }
 
 inline static void cmd_write_history(cmd_ctx_t* ctx) {
@@ -72,84 +98,87 @@ inline static void cmd_write_history(cmd_ctx_t* ctx) {
     free(cmd_history_file);
 }
 
-inline static bool prepare_ctx(char* cmdt, cmd_ctx_t* ctx) {
-    char* t = cmdt;
-    bool in_quotas = false;
-    bool append = false;
-    char* std_out = 0;
-    while (*t) {
-        if (*t == '"') in_quotas = !in_quotas;
-        if (!in_quotas && *t == '>') {
-            *t++ = 0;
-            if (*t == '>') {
-                *t++ = 0;
-                append = true;
-                std_out = t;
-            } else {
-                std_out = t;
-            }
+inline static string_t* get_std_out1(bool* p_append, string_t* pcmd, size_t i0, size_t sz) {
+    #ifdef DEBUG
+        printf("[get_std_out1] [%s] i0: %d\n", pcmd->p + i0, i0);
+    #endif
+    string_t* std_out_file = new_string_v();
+    for (size_t i = i0; i < sz; ++i) {
+        char c = pcmd->p[i];
+        #ifdef DEBUG
+            printf("[get_std_out1] [%s] c: %c\n", pcmd->p + i, c);
+        #endif
+        if (i == i0 && c == '>') {
+            *p_append = true;
+            continue;
+        }
+        if (c == '"') {
+            in_quotas(++i, pcmd, std_out_file);
             break;
         }
-        t++;
-    }
-    if (std_out) {
-        char* b = std_out;
-        in_quotas = false;
-        bool any_legal = false;
-        while(*b) {
-            if (!in_quotas && *b == ' ') {
-                if (any_legal) {
-                    *b = 0;
-                    break;
-                }
-                std_out = b + 1;
-            } else if (*b == '"') {
-                if (in_quotas) {
-                    *b = 0;
-                    break;
-                } else {
-                    std_out = b + 1;
-                }
-                in_quotas = !in_quotas;
-            } else {
-                any_legal = true;
-            }
-            b++;
+        if (c != ' ') {
+            string_push_back_c(std_out_file, c);
         }
+    }
+    return std_out_file;
+}
+
+inline static string_t* get_std_out0(bool* p_append, string_t* pcmd) {
+    #ifdef DEBUG
+        printf("[get_std_out0] %s\n", pcmd->p);
+    #endif
+    bool in_quotas = false;
+    size_t sz = pcmd->size;
+    for (size_t i = 0; i < sz; ++i) {
+        char c = pcmd->p[i];
+        if (c == '"') {
+            in_quotas = !in_quotas;
+        }
+        if (!in_quotas && c == '>') {
+            string_t* t = get_std_out1(p_append, pcmd, i + 1, sz);
+            string_resize(pcmd, i); // use only left side of the string
+            return t;
+        }
+    }
+    return NULL;
+}
+
+inline static bool prepare_ctx(string_t* pcmd, cmd_ctx_t* ctx) {
+    #ifdef DEBUG
+        printf("[prepare_ctx] %s\n", pcmd->p);
+    #endif
+    bool in_quotas = false;
+    bool append = false;
+    string_t* std_out_file = get_std_out0(&append, pcmd);
+    if (std_out_file) {
+        #ifdef DEBUG
+            printf("[prepare_ctx] stdout: '%s'; append: %d\n", std_out_file->p, append);
+        #endif
         ctx->std_out = calloc(1, sizeof(FIL));
-        if (FR_OK != f_open(ctx->std_out, std_out, FA_WRITE | (append ? FA_OPEN_APPEND : FA_CREATE_ALWAYS))) {
-            printf("Unable to open file: '%s'\n", std_out);
+        if (FR_OK != f_open(ctx->std_out, std_out_file->p, FA_WRITE | (append ? FA_OPEN_APPEND : FA_CREATE_ALWAYS))) {
+            printf("Unable to open file: '%s'\n", std_out_file->p);
+            delete_string(std_out_file);
             return false;
         }
+        delete_string(std_out_file);
     }
 
-    int tokens = tokenize_cmd(cmdt, ctx);
-    if (tokens == 0) {
+    list_t* lst = new_list_v(new_string_v, delete_string, NULL);
+    tokenize_cmd(lst, pcmd, ctx);
+    if (!lst->size) {
+        delete_list(lst);
         return false;
     }
 
-    ctx->argc = tokens;
-    ctx->argv = (char**)malloc(sizeof(char*) * tokens);
-    t = cmdt;
-    while (!t[0 && t[0] == ' ']) ++t; // ignore trailing spaces
-    for (uint32_t i = 0; i < tokens; ++i) {
-        ctx->argv[i] = copy_str(t);
-        t = next_token(t);
-        char *q = t;
-        bool in_quotas = false;
-        while (*q) {
-            if (*q == '"') {
-                if(in_quotas) {
-                    *q = 0;
-                    break;
-                }
-                else t = q + 1;
-                in_quotas = !in_quotas;
-            }
-            q++;
-        }
-        
+    ctx->argc = lst->size;
+    ctx->argv = (char**)calloc(sizeof(char*), lst->size);
+    node_t* n = lst->first;
+    for(size_t i = 0; i < lst->size && n != NULL; ++i, n = n->next) {
+        ctx->argv[i] = copy_str(c_str(n->data));
     }
+    delete_list(lst);
+    if (ctx->orig_cmd) free(ctx->orig_cmd);
+    ctx->orig_cmd = copy_str(ctx->argv[0]);
     ctx->stage = PREPARED;
     return true;
 }
@@ -185,25 +214,29 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
     } else {
         goto r2;
     }
-
-    char* tc = s_cmd->p;
-    char* ts = tc;
+    #ifdef DEBUG
+        printf("[cmd_enter] %s\n", s_cmd->p);
+    #endif
     bool exit = false;
     bool in_qutas = false;
     cmd_ctx_t* ctxi = ctx;
-    while(1) {
-        if (!*tc) {
-            //printf("'%s' by end zero\n", ts);
-            exit = prepare_ctx(ts, ctxi);
+    string_t* t = new_string_v();
+    for (size_t i = 0; i <= s_cmd->size; ++i) {
+        char c = s_cmd->p[i];
+        if (!c) {
+            #ifdef DEBUG
+                printf("[cmd_enter] [%s] pass to [prepare_ctx]\n", t->p);
+            #endif
+            exit = prepare_ctx(t, ctxi);
             break;
-        } else if (*tc == '"') {
+        }
+        if (c == '"') {
             in_qutas = !in_qutas;
-        } else if (!in_qutas && *tc == '|') {
-            //printf("'%s' by pipe\n", ts);
-            *tc = 0;
+        }
+        if (!in_qutas && c == '|') {
             cmd_ctx_t* curr = ctxi;
             cmd_ctx_t* next = new_ctx(ctxi);
-            exit = prepare_ctx(ts, curr);
+            exit = prepare_ctx(t, curr);
             curr->std_out = calloc(1, sizeof(FIL));
             curr->std_err = curr->std_out;
             next->std_in = calloc(1, sizeof(FIL));
@@ -213,16 +246,18 @@ inline static bool cmd_enter(cmd_ctx_t* ctx) {
             curr->next = next;
             next->detached = false;
             ctxi = next;
-            ts = tc + 1;
-        } else if (!in_qutas && *tc == '&') {
-            //printf("'%s' detached\n", ts);
-            *tc = 0;
-            exit = prepare_ctx(ts, ctxi);
+            string_resize(t, 0);
+            continue;
+        }
+        if (!in_qutas && c == '&') {
+            exit = prepare_ctx(t, ctxi);
             ctxi->detached = true;
+            string_resize(t, 0);
             break;
         }
-        tc++;
+        string_push_back_c(t, c);
     }
+    delete_string(t);
     if (exit) { // prepared ctx
         return true;
     }
@@ -392,6 +427,7 @@ int main(void) {
             else if (c == CHAR_CODE_DOWN) cmd_down(ctx);
             else if (c == CHAR_CODE_TAB) cmd_tab(ctx);
             else if (c == CHAR_CODE_ESC) {
+                blimp(15, 1);
                 printf("\n");
                 string_resize(s_cmd, 0);
                 prompt(ctx);

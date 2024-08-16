@@ -28,6 +28,9 @@ inline static list_t* new_list_v(alloc_fn_ptr_t allocator, dealloc_fn_ptr_t deal
 }
 
 inline static void list_push_back(list_t* lst, void* s) {
+    #ifdef DEBUG
+        printf("[list_push_back] [%p]<-[%s]\n", lst, c_str(s));
+    #endif
     node_t* i = malloc(sizeof(node_t));
     i->prev = lst->last;
     i->next = NULL;

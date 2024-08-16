@@ -48,6 +48,10 @@ inline static void string_reseve(string_t* s, size_t alloc) {
 }
 
 inline static void string_push_back_c(string_t* s, const char c) {
+    #ifdef DEBUG
+        printf("[string_push_back_c] [%s]<-[%c]\n", s->p, c);
+    #endif
+    if (!c) return;
     if (s->size + 1 == s->alloc) {
         string_reseve(s, s->alloc + 16);
     }
