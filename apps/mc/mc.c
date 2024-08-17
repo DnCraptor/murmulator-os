@@ -1039,8 +1039,9 @@ static void fill_panel(file_panel_desc_t* p) {
     p->files_number = 0;
     int start_file_offset = pp->start_file_offset;
     int selected_file_idx = pp->selected_file_idx;
+    int width = p->width;
     if (start_file_offset == 0 && p->s_path->size > 1) {
-        draw_label(p->left + 1, y, p->width - 2, "..", p == psp && selected_file_idx == y, true);
+        draw_label(p->left + 1, y, width - 2, "..", p == psp && selected_file_idx == y, true);
         y++;
         p->files_number++;
     }
@@ -1050,7 +1051,7 @@ static void fill_panel(file_panel_desc_t* p) {
             char* filename = fp->s_name->p;
             snprintf(line, MAX_WIDTH >> 1, "%s/%s", p->s_path->p, filename);
             bool selected = p == psp && selected_file_idx == y;
-            draw_label(p->left + 1, y, p->width - 2, filename, selected, fp->fattrib & AM_DIR);
+            draw_label(p->left + 1, y, width - 2, filename, selected, fp->fattrib & AM_DIR);
             y++;
         }
         p->files_number++;
@@ -1060,19 +1061,27 @@ static void fill_panel(file_panel_desc_t* p) {
     }
     file_info_t* fp = selected_file(p, false);
     if (fp) {
+        // redraw bottom line
+        for(int i = 1; i < width - 1; ++i) {
+            line[i] = 0xCD; // ═
+        }
+        line[0]         = 0xC8; // ╚
+        line[width - 1] = 0xBC; // ╝
+        line[width]     = 0;
+        draw_text(line, p->left, PANEL_LAST_Y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
         if (fp->fattrib & AM_DIR) {
-            draw_label(p->left + (p->width >> 1) - 4, PANEL_LAST_Y, 7, " <DIR> ", false, false);
+            draw_label(p->left + (width >> 1) - 3, PANEL_LAST_Y, 7, " <DIR> ", false, false);
         } else {
             char t[p->width];
             if (fp->fsize > 100*1024*1024) {
-                snprintf(t, p->width, " %d M ", (uint32_t)(fp->fsize >> 20));
+                snprintf(t, width, " %d M ", (uint32_t)(fp->fsize >> 20));
             } else if (fp->fsize > 100*1024) {
-                snprintf(t, p->width, " %d K ", (uint32_t)(fp->fsize >> 10));
+                snprintf(t, width, " %d K ", (uint32_t)(fp->fsize >> 10));
             } else {
-                snprintf(t, p->width, " %d B ", (uint32_t)fp->fsize);
+                snprintf(t, width, " %d B ", (uint32_t)fp->fsize);
             }
-            size_t sz = strnlen(t, p->width);
-            draw_label(p->left + (p->width >> 1) - (sz >> 1), PANEL_LAST_Y, sz, t, false, false);
+            size_t sz = strnlen(t, width);
+            draw_label(p->left + (width >> 1) - (sz >> 1), PANEL_LAST_Y, sz, t, false, false);
         }
     }
     if (p == psp) {
