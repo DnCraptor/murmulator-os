@@ -794,6 +794,7 @@ inline static int graphics_con_y(void) { // 196
 
 #else
 
+#include "m-os-api-c-array.h"
 #include "m-os-api-c-string.h"
 #include "m-os-api-c-list.h"
 
