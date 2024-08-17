@@ -161,7 +161,7 @@ typedef struct {
     string_t* s_name; //[MAX_WIDTH >> 1];
     int     dir_num;
 } file_info_t;
-static file_info_t* selected_file();
+static file_info_t* selected_file(file_panel_desc_t* p, bool with_refresh);
 
 #define MAX_FILES 500
 
@@ -338,16 +338,18 @@ static void reset(uint8_t cmd) {
     // TODO:
 }
 
-static file_info_t* selected_file() {
-    int start_file_offset = psp->indexes[psp->level].start_file_offset;
-    int selected_file_idx = psp->indexes[psp->level].selected_file_idx;
-    if (selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && start_file_offset == 0 && psp->s_path->size > 1) {
+static file_info_t* selected_file(file_panel_desc_t* p, bool with_refresh) {
+    int start_file_offset = p->indexes[p->level].start_file_offset;
+    int selected_file_idx = p->indexes[p->level].selected_file_idx;
+    if (selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && start_file_offset == 0 && p->s_path->size > 1) {
         return 0;
     }
-    collect_files(psp);
+    if (with_refresh) {
+        collect_files(p);
+    }
     int y = 1;
     int files_number = 0;
-    if (start_file_offset == 0 && psp->s_path->size > 1) {
+    if (start_file_offset == 0 && p->s_path->size > 1) {
         y++;
         files_number++;
     }
@@ -398,7 +400,7 @@ static void m_delete_file(uint8_t cmd) {
         return;
     }
 #endif
-    file_info_t* fp = selected_file();
+    file_info_t* fp = selected_file(psp, true);
     if (!fp) {
        no_selected_file();
        return;
@@ -602,7 +604,7 @@ static void m_copy_file(uint8_t cmd) {
         return;
     }
 #endif
-    file_info_t* fp = selected_file();
+    file_info_t* fp = selected_file(psp, true);
     if (!fp) {
        no_selected_file();
        return;
@@ -737,7 +739,7 @@ static void m_move_file(uint8_t cmd) {
         return;
     }
 #endif
-    file_info_t* fp = selected_file();
+    file_info_t* fp = selected_file(psp, true);
     if (!fp) {
        no_selected_file();
        return;
@@ -774,7 +776,7 @@ static void m_move_file(uint8_t cmd) {
 
 void m_view(uint8_t nu) {
     if (hidePannels) return;
-    file_info_t* fp = selected_file();
+    file_info_t* fp = selected_file(psp, true);
     if (!fp) return; // warn?
     if (fp->fattrib & AM_DIR) {
         enter_pressed();
@@ -791,7 +793,7 @@ void m_view(uint8_t nu) {
 
 void m_edit(uint8_t nu) {
     if (hidePannels) return;
-    file_info_t* fp = selected_file();
+    file_info_t* fp = selected_file(psp, true);
     if (!fp) return; // warn?
     if (fp->fattrib & AM_DIR) {
         enter_pressed();
@@ -1023,10 +1025,16 @@ static void fill_panel(file_panel_desc_t* p) {
     if (hidePannels) return;
     collect_files(p);
     indexes_t* pp = &p->indexes[p->level];
-    if (pp->selected_file_idx < FIRST_FILE_LINE_ON_PANEL_Y)
+    if (pp->selected_file_idx < FIRST_FILE_LINE_ON_PANEL_Y) {
         pp->selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
-    if (pp->start_file_offset < 0)
+    }
+    // TODO: selected should not be out of pannel
+//    if (pp->selected_file_idx - pp->start_file_offset > LAST_FILE_LINE_ON_PANEL_Y - FIRST_FILE_LINE_ON_PANEL_Y) {
+//        pp->selected_file_idx = pp->start_file_offset + FIRST_FILE_LINE_ON_PANEL_Y; // TODO: test it
+//    }
+    if (pp->start_file_offset < 0) {
         pp->start_file_offset = 0;
+    }
     int y = 1;
     p->files_number = 0;
     int start_file_offset = pp->start_file_offset;
@@ -1049,6 +1057,23 @@ static void fill_panel(file_panel_desc_t* p) {
     }
     for (; y <= LAST_FILE_LINE_ON_PANEL_Y; ++y) {
         draw_label(p->left + 1, y, p->width - 2, "", false, false);
+    }
+    file_info_t* fp = selected_file(p, false);
+    if (fp) {
+        if (fp->fattrib & AM_DIR) {
+            draw_label(p->left + (p->width >> 1) - 4, PANEL_LAST_Y, 7, " <DIR> ", false, false);
+        } else {
+            char t[p->width];
+            if (fp->fsize > 100*1024*1024) {
+                snprintf(t, p->width, " %d M ", (uint32_t)(fp->fsize >> 20));
+            } else if (fp->fsize > 100*1024) {
+                snprintf(t, p->width, " %d K ", (uint32_t)(fp->fsize >> 10));
+            } else {
+                snprintf(t, p->width, " %d B ", (uint32_t)fp->fsize);
+            }
+            size_t sz = strnlen(t, p->width);
+            draw_label(p->left + (p->width >> 1) - (sz >> 1), PANEL_LAST_Y, sz, t, false, false);
+        }
     }
     if (p == psp) {
         set_ctx_var(get_cmd_ctx(), "CD", psp->s_path->p);
@@ -1661,7 +1686,7 @@ static void enter_pressed() {
     if (hidePannels) {
         return;
     }
-    file_info_t* fp = selected_file();
+    file_info_t* fp = selected_file(psp, true);
     if (!fp) { // up to parent dir
         int i = psp->s_path->size;
         while(--i > 0) {
