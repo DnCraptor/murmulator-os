@@ -6,7 +6,7 @@
 const char CD[] = "CD";
 const char TEMP[] = "TEMP";
 const char _mc_con[] = ".mc.con";
-const char _mc_rc2[] = ".mc.rc2";
+const char _mc_rc2[] = ".mc.res";
 const char _cmd_history[] = ".cmd_history";
 
 static void m_window();
@@ -30,6 +30,18 @@ static char* line;
 static volatile uint32_t lastCleanableScanCode;
 static volatile uint32_t lastSavedScanCode;
 static bool hidePannels = false;
+
+typedef enum sort_type {
+    BY_NAME_ASC = 0,
+    BY_NAME_DESC,
+    BY_EXT_ASC,
+    BY_EXT_DESC,
+    BY_SIZE_ASC,
+    BY_SIZE_DESC,
+    BY_DATE_ASC,
+    BY_DATE_DESC,
+    BY_NOTHING
+} sort_type_t;
 
 static volatile bool ctrlPressed = false;
 static volatile bool altPressed = false;
@@ -80,7 +92,6 @@ typedef fn_1_12_tbl_rec_t fn_1_12_tbl_t[BTNS_COUNT];
 typedef struct {
     int selected_file_idx;
     int start_file_offset;
-    int dir_num;
 } indexes_t;
 
 typedef struct file_panel_desc {
@@ -90,9 +101,7 @@ typedef struct file_panel_desc {
     string_t* s_path;
     indexes_t indexes[16]; // TODO: some ext. limit logic
     int level;
-#if EXT_DRIVES_MOUNT
-    bool in_dos;
-#endif
+    sort_type_t sort_type;
 } file_panel_desc_t;
 static void fill_panel(file_panel_desc_t* p);
 static void collect_files(file_panel_desc_t* p);
@@ -130,22 +139,38 @@ typedef struct lines {
 static color_schema_t* pcs;
 
 typedef struct {
-    FSIZE_t fsize;   /* File size */
-    WORD    fdate;   /* Modified date */
-    WORD    ftime;   /* Modified time */
-    BYTE    fattrib; /* File attribute */
-    string_t* s_name; //[MAX_WIDTH >> 1];
-    int     dir_num;
+    string_t* s_name;
+    FSIZE_t fsize;  /* File size */
+	WORD	fdate;  /* Modified date */
+	WORD	ftime;  /* Modified time */
+    BYTE    fattr;  /* File attribute */
 } file_info_t;
+static array_t* files_info_arr = NULL; // of file_info_t*
+
+static file_info_t* new_file_info(FILINFO* fi) {
+    file_info_t* res = (file_info_t*)calloc(sizeof(file_info_t), 1);
+    res->s_name = new_string_cc(fi->fname);
+    res->fsize = fi->fsize;
+    res->fdate = fi->fdate;
+    res->ftime = fi->ftime;
+    res->fattr = fi->fattrib;
+    return res;
+}
+
+static file_info_t* fi_allocator(void) {
+    file_info_t* res = (file_info_t*)calloc(sizeof(file_info_t), 1);
+    res->s_name = new_string_v();
+    return res;
+}
+
+static void fi_deallocator(file_info_t* p) {
+    delete_string(p->s_name);
+    free(p);
+}
+
 static file_info_t* selected_file(file_panel_desc_t* p, bool with_refresh);
 
-#define MAX_FILES 500
-
-static file_info_t* files_info;
-static size_t files_count;
-
 int _init(void) {
-    files_count = 0;
     hidePannels = false;
 
     ctrlPressed = false;
@@ -163,7 +188,7 @@ int _init(void) {
 }
 
 inline static void m_cleanup() {
-    files_count = 0;
+    array_resize(files_info_arr, 0);
 }
 
 static void draw_label(int left, int top, int width, char* txt, bool selected, bool highlighted) {
@@ -283,8 +308,8 @@ static file_info_t* selected_file(file_panel_desc_t* p, bool with_refresh) {
         y++;
         files_number++;
     }
-    for(int fn = 0; fn < files_count; ++ fn) {
-        file_info_t* fp = &files_info[fn];
+    for(int fn = 0; fn < files_info_arr->size; ++ fn) {
+        file_info_t* fp = array_get_at(files_info_arr, fn);
         if (start_file_offset <= files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
             if (selected_file_idx == y) {
                 return fp;
@@ -337,10 +362,10 @@ static void m_delete_file(uint8_t cmd) {
     }
     string_t* s_path = new_string_cc("Remove '");
     string_push_back_cs(s_path, fp->s_name);
-    string_push_back_cc(s_path, fp->fattrib & AM_DIR ? "' folder?" : "' file?");
+    string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder?" : "' file?");
     if (m_prompt(s_path->p)) {
         construct_full_name_s(s_path, psp->s_path, fp->s_name);
-        FRESULT result = fp->fattrib & AM_DIR ? m_unlink_recursive(s_path->p) : f_unlink(s_path->p);
+        FRESULT result = fp->fattr & AM_DIR ? m_unlink_recursive(s_path->p) : f_unlink(s_path->p);
         if (result != FR_OK) {
             size_t width = MAX_WIDTH > 60 ? 60 : 40;
             size_t x = (MAX_WIDTH - width) >> 1;
@@ -377,13 +402,15 @@ inline static FRESULT m_copy(char* path, char* dest) {
         return result;
     }
     UINT br;
+    void* buff = malloc(512);
     do {
-        result = f_read(pfile1, files_info, sizeof(files_info), &br);
+        result = f_read(pfile1, buff, 512, &br);
         if (result != FR_OK || br == 0) break;
         UINT bw;
-        f_write(pfile2, files_info, br, &bw);
+        f_write(pfile2, buff, br, &bw);
         if (result != FR_OK) break;
     } while (br);
+    free(buff);
     free(pfile1);
     free(pfile2);
     f_close(pfile1);
@@ -543,14 +570,14 @@ static void m_copy_file(uint8_t cmd) {
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
     string_t* s_path = new_string_cc("Copy '");
     string_push_back_cs(s_path, fp->s_name);
-    string_push_back_cc(s_path, fp->fattrib & AM_DIR ? "' folder to '" : "' file to '");
+    string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder to '" : "' file to '");
     string_push_back_cs(s_path, dsp->s_path);
     string_push_back_cc(s_path, "'?");
     if (m_prompt(s_path->p)) { // TODO: ask name
         construct_full_name_s(s_path, psp->s_path, fp->s_name);
         string_t* s_dest = new_string_v();
         construct_full_name_s(s_dest, dsp->s_path, fp->s_name);
-        FRESULT result = fp->fattrib & AM_DIR ? m_copy_recursive(s_path->p, s_dest->p) : m_copy(s_path->p, s_dest->p);
+        FRESULT result = fp->fattr & AM_DIR ? m_copy_recursive(s_path->p, s_dest->p) : m_copy(s_path->p, s_dest->p);
         if (result != FR_OK) {
             size_t width = MAX_WIDTH > 60 ? 60 : 40;
             size_t x = (MAX_WIDTH - width) >> 1;
@@ -674,7 +701,7 @@ static void m_move_file(uint8_t cmd) {
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
     string_t* s_path = new_string_cc("Move '");
     string_push_back_cs(s_path, fp->s_name);
-    string_push_back_cc(s_path, fp->fattrib & AM_DIR ? "' folder to '" : "' file to '");
+    string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder to '" : "' file to '");
     string_push_back_cs(s_path, dsp->s_path);
     string_push_back_cc(s_path, "'?");
     if (m_prompt(s_path->p)) { // TODO: ask name
@@ -705,7 +732,7 @@ void m_view(uint8_t nu) {
     if (hidePannels) return;
     file_info_t* fp = selected_file(psp, true);
     if (!fp) return; // warn?
-    if (fp->fattrib & AM_DIR) {
+    if (fp->fattr & AM_DIR) {
         enter_pressed();
         return;
     }
@@ -722,7 +749,7 @@ void m_edit(uint8_t nu) {
     if (hidePannels) return;
     file_info_t* fp = selected_file(psp, true);
     if (!fp) return; // warn?
-    if (fp->fattrib & AM_DIR) {
+    if (fp->fattr & AM_DIR) {
         enter_pressed();
         return;
     }
@@ -733,6 +760,36 @@ void m_edit(uint8_t nu) {
     string_push_back_cs(s_cmd, fp->s_name);
     string_push_back_c(s_cmd, '"');
     mark_to_exit_flag = cmd_enter(get_cmd_ctx());
+}
+
+static void m_sort_by_name(uint8_t n) {
+    if (psp->sort_type != BY_NAME_ASC) psp->sort_type = BY_NAME_ASC;
+    else if (psp->sort_type == BY_NAME_ASC) psp->sort_type = BY_NAME_DESC;
+    else psp->sort_type = BY_NAME_ASC;
+    fill_panel(psp);
+}
+static void m_sort_by_ext(uint8_t n) {
+    if (psp->sort_type != BY_EXT_ASC) psp->sort_type = BY_EXT_ASC;
+    else if (psp->sort_type == BY_EXT_ASC) psp->sort_type = BY_EXT_DESC;
+    else psp->sort_type = BY_EXT_ASC;
+    fill_panel(psp);
+}
+static void m_sort_by_size(uint8_t n) {
+    if (psp->sort_type != BY_SIZE_ASC) psp->sort_type = BY_SIZE_ASC;
+    else if (psp->sort_type == BY_SIZE_ASC) psp->sort_type = BY_SIZE_DESC;
+    else psp->sort_type = BY_SIZE_ASC;
+    fill_panel(psp);
+}
+static void m_sort_by_nothing(uint8_t n) {
+    if (psp->sort_type != BY_NOTHING) psp->sort_type = BY_NOTHING;
+    else psp->sort_type = BY_NAME_ASC;
+    fill_panel(psp);
+}
+static void m_sort_by_date(uint8_t n) {
+    if (psp->sort_type != BY_DATE_ASC) psp->sort_type = BY_DATE_ASC;
+    else if (psp->sort_type == BY_DATE_ASC) psp->sort_type = BY_DATE_DESC;
+    else psp->sort_type = BY_DATE_ASC;
+    fill_panel(psp);
 }
 
 static fn_1_12_tbl_t fn_1_12_tbl = {
@@ -768,14 +825,14 @@ static fn_1_12_tbl_t fn_1_12_tbl_alt = {
 static fn_1_12_tbl_t fn_1_12_tbl_ctrl = {
     ' ', '1', "      ", do_nothing,
     ' ', '2', "      ", do_nothing,
-    ' ', '3', "      ", do_nothing,
-    ' ', '4', " Edit ", m_edit,
-    ' ', '5', " Copy ", m_copy_file,
-    ' ', '6', " Move ", m_move_file,
-    ' ', '7', "      ", do_nothing,
-    ' ', '8', " Del  ", m_delete_file,
+    ' ', '3', " Name ", m_sort_by_name,
+    ' ', '4', " Ext  ", m_sort_by_ext,
+    ' ', '5', "      ", do_nothing,
+    ' ', '6', " Size ", m_sort_by_size,
+    ' ', '7', " Usrot", m_sort_by_nothing,
+    ' ', '8', " Date ", m_sort_by_date,
     ' ', '9', "      ", do_nothing,
-    '1', '0', " Exit ", mark_to_exit,
+    '1', '0', "      ", do_nothing,
     '1', '1', "      ", do_nothing,
     '1', '2', "      ", do_nothing
 };
@@ -872,27 +929,8 @@ inline static bool m_opendir(
     return true;
 }
 
-static int m_comp(const file_info_t * e1, const file_info_t * e2) {
-    if ((e1->fattrib & AM_DIR) && !(e2->fattrib & AM_DIR)) return -1;
-    if (!(e1->fattrib & AM_DIR) && (e2->fattrib & AM_DIR)) return 1;
-    return strcmp(e1->s_name->p, e2->s_name->p);
-}
-
 inline static void m_add_file(FILINFO* fi) {
-    if (files_count >= MAX_FILES) {
-        // WARN?
-        return;
-    }
-    file_info_t* fp = &files_info[files_count++];
-    fp->fattrib = fi->fattrib;
-    fp->fdate   = fi->fdate;
-    fp->ftime   = fi->ftime;
-    fp->fsize   = fi->fsize;
-    if (!fp->s_name) {
-        fp->s_name = new_string_cc(fi->fname);
-    } else {
-        string_replace_cs(fp->s_name, fi->fname);
-    }
+    array_push_back(files_info_arr, new_file_info(fi));
 }
 
 static void draw_cmd_line(void) {
@@ -908,25 +946,123 @@ static void draw_cmd_line(void) {
     graphics_set_con_color(pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
 }
 
-static void collect_files(file_panel_desc_t* p) {
-    m_cleanup();
-#if EXT_DRIVES_MOUNT
-    if (p->in_dos) {
-        if(!mount_img(p->path, p->indexes[p->level].dir_num)) {
-           return;
+static int m_comp_bna(const void* pe1, const void* pe2) {
+    file_info_t* e1 = *((file_info_t**)pe1);
+    file_info_t* e2 = *((file_info_t**)pe2);
+    if ((e1->fattr & AM_DIR) && !(e2->fattr & AM_DIR)) return -1;
+    if (!(e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) return 1;
+    return strcmp(e1->s_name->p, e2->s_name->p);
+}
+
+static int m_comp_bnd(const void* pe1, const void* pe2) {
+    file_info_t* e1 = *((file_info_t**)pe1);
+    file_info_t* e2 = *((file_info_t**)pe2);
+    if ((e1->fattr & AM_DIR) && !(e2->fattr & AM_DIR)) return -1;
+    if (!(e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) return 1;
+    return strcmp(e2->s_name->p, e1->s_name->p);
+}
+
+inline static char* ext(string_t* s) {
+    for (int i = s->size - 1; i > 0; --i) {
+        if (s->p[i] == '.') {
+            return s->p + i + 1;
         }
-        qsort (files_info, files_count, sizeof(file_info_t), m_comp);
+    }
+    return "";
+}
+
+static int m_comp_bea(const void* pe1, const void* pe2) {
+    file_info_t* e1 = *((file_info_t**)pe1);
+    file_info_t* e2 = *((file_info_t**)pe2);
+    if ((e1->fattr & AM_DIR) && !(e2->fattr & AM_DIR)) return -1;
+    if (!(e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) return 1;
+    return strcmp(ext(e1->s_name), ext(e2->s_name));
+}
+
+static int m_comp_bed(const void* pe1, const void* pe2) {
+    file_info_t* e1 = *((file_info_t**)pe1);
+    file_info_t* e2 = *((file_info_t**)pe2);
+    if ((e1->fattr & AM_DIR) && !(e2->fattr & AM_DIR)) return -1;
+    if (!(e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) return 1;
+    return strcmp(ext(e2->s_name), ext(e1->s_name));
+}
+
+static int m_comp_bsa(const void* pe1, const void* pe2) {
+    file_info_t* e1 = *((file_info_t**)pe1);
+    file_info_t* e2 = *((file_info_t**)pe2);
+    if ((e1->fattr & AM_DIR) && !(e2->fattr & AM_DIR)) return -1;
+    if (!(e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) return 1;
+    if ((e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) {
+        return strcmp(e1->s_name->p, e2->s_name->p);
+    }
+    if (e1->fsize > e2->fsize) return -1;
+    if (e1->fsize < e2->fsize) return 1;
+    return strcmp(e1->s_name->p, e2->s_name->p);
+}
+
+static int m_comp_bsd(const void* pe1, const void* pe2) {
+    file_info_t* e1 = *((file_info_t**)pe1);
+    file_info_t* e2 = *((file_info_t**)pe2);
+    if ((e1->fattr & AM_DIR) && !(e2->fattr & AM_DIR)) return -1;
+    if (!(e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) return 1;
+    if ((e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) {
+        return strcmp(e1->s_name->p, e2->s_name->p);
+    }
+    if (e1->fsize > e2->fsize) return 1;
+    if (e1->fsize < e2->fsize) return -1;
+    return strcmp(e1->s_name->p, e2->s_name->p);
+}
+
+static int m_comp_bda(const void* pe1, const void* pe2) {
+    file_info_t* e1 = *((file_info_t**)pe1);
+    file_info_t* e2 = *((file_info_t**)pe2);
+    if ((e1->fattr & AM_DIR) && !(e2->fattr & AM_DIR)) return -1;
+    if (!(e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) return 1;
+    if (e1->fdate > e2->fdate) return 1;
+    if (e1->fdate < e2->fdate) return -1;
+    if (e1->ftime > e2->ftime) return 1;
+    if (e1->ftime < e2->ftime) return -1;
+    return strcmp(e1->s_name->p, e2->s_name->p);
+}
+
+static int m_comp_bdd(const void* pe1, const void* pe2) {
+    file_info_t* e1 = *((file_info_t**)pe1);
+    file_info_t* e2 = *((file_info_t**)pe2);
+    if ((e1->fattr & AM_DIR) && !(e2->fattr & AM_DIR)) return -1;
+    if (!(e1->fattr & AM_DIR) && (e2->fattr & AM_DIR)) return 1;
+    if (e2->fdate > e1->fdate) return 1;
+    if (e2->fdate < e1->fdate) return -1;
+    if (e2->ftime > e1->ftime) return 1;
+    if (e2->ftime < e1->ftime) return -1;
+    return strcmp(e1->s_name->p, e2->s_name->p);
+}
+
+static void collect_files(file_panel_desc_t* p) {
+    static __compar_fn_t comp_fn[] = {
+        m_comp_bna,
+        m_comp_bnd,
+        m_comp_bea,
+        m_comp_bed,
+        m_comp_bsa,
+        m_comp_bsd,
+        m_comp_bda,
+        m_comp_bdd,
+    };
+    m_cleanup();
+    DIR* pdir = (DIR*)malloc(sizeof(DIR));
+    if (!m_opendir(pdir, p->s_path->p)) {
+        free(pdir);
         return;
     }
-#endif
-    DIR dir;
-    if (!m_opendir(&dir, p->s_path->p)) return;
-    FILINFO fileInfo;
-    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
-        m_add_file(&fileInfo);
+    FILINFO* pfileInfo = (FILINFO*)malloc(sizeof(FILINFO));
+    while(f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
+        m_add_file(pfileInfo);
     }
-    f_closedir(&dir);
-    qsort(files_info, files_count, sizeof(file_info_t), m_comp);
+    f_closedir(pdir);
+    free(pdir);
+    if (p->sort_type != BY_NOTHING) {
+        qsort(files_info_arr->p, files_info_arr->size, sizeof(void*), comp_fn[p->sort_type]);
+    }
 }
 
 static void construct_full_name_s(string_t* dst, const string_t* folder, const string_t* file) {
@@ -973,13 +1109,13 @@ static void fill_panel(file_panel_desc_t* p) {
         y++;
         p->files_number++;
     }
-    for(int fn = 0; fn < files_count; ++ fn) {
-        file_info_t* fp = &files_info[fn];
+    for(int fn = 0; fn < files_info_arr->size; ++ fn) {
+        file_info_t* fp = array_get_at(files_info_arr, fn);
         if (start_file_offset <= p->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
             char* filename = fp->s_name->p;
             snprintf(line, MAX_WIDTH >> 1, "%s/%s", p->s_path->p, filename);
             bool selected = p == psp && selected_file_idx == y;
-            draw_label(p->left + 1, y, width - 2, filename, selected, fp->fattrib & AM_DIR);
+            draw_label(p->left + 1, y, width - 2, filename, selected, fp->fattr & AM_DIR);
             y++;
         }
         p->files_number++;
@@ -997,7 +1133,7 @@ static void fill_panel(file_panel_desc_t* p) {
         line[width - 1] = 0xBC; // ╝
         line[width]     = 0;
         draw_text(line, p->left, PANEL_LAST_Y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-        if (fp->fattrib & AM_DIR) {
+        if (fp->fattr & AM_DIR) {
             draw_label(p->left + (width >> 1) - 3, PANEL_LAST_Y, 7, " <DIR> ", false, false);
         } else {
             char t[p->width];
@@ -1368,7 +1504,7 @@ static void enter_pressed() {
         redraw_current_panel();
         return;
     }
-    if (fp->fattrib & AM_DIR) {
+    if (fp->fattr & AM_DIR) {
         string_t* path = new_string_v();
         construct_full_name_s(path, psp->s_path, fp->s_name);
         string_replace_ss(psp->s_path, path);
@@ -1379,7 +1515,6 @@ static void enter_pressed() {
         }
         psp->indexes[psp->level].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
         psp->indexes[psp->level].start_file_offset = 0;
-        psp->indexes[psp->level].dir_num = fp->dir_num;
         redraw_current_panel();
         return;
     }
@@ -1892,8 +2027,10 @@ int main(void) {
     s_cmd = new_string_v();
 
     left_panel = calloc(1, sizeof(file_panel_desc_t));
+    left_panel->sort_type = BY_NAME_ASC;
     left_panel->s_path = new_string_cc("/");
     right_panel = calloc(1, sizeof(file_panel_desc_t));
+    right_panel->sort_type = BY_NAME_ASC;
     right_panel->s_path = new_string_cc("/");
     psp = left_panel;
 
@@ -1920,24 +2057,20 @@ int main(void) {
     pcs->FOREGROUND_SELECTED_COLOR = 0, // Black
     pcs->BACKGROUND_SELECTED_COLOR = 11, // Light Blue
 
-    files_info = calloc(sizeof(file_info_t), MAX_FILES);
-
+    files_info_arr = new_array_v(fi_allocator, fi_deallocator, NULL);
     scancode_handler = get_scancode_handler();
     set_scancode_handler(scancode_handler_impl);
 
     start_manager(ctx);
 
     set_scancode_handler(scancode_handler);
+    delete_array(files_info_arr);
     free(line);
     delete_string(right_panel->s_path);
     free(right_panel);
     delete_string(left_panel->s_path);
     free(left_panel);
     free(pcs);
-    for (int i = 0; i < MAX_FILES; ++i) {
-        if (files_info[i].s_name) delete_string(files_info[i].s_name); 
-    }
-    free(files_info);
     delete_string(s_cmd);
 
     return 0;

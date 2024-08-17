@@ -51,3 +51,21 @@ inline static void array_push_back(array_t* arr, const void* data) {
 inline static void* array_get_at(array_t* arr, size_t n) { // by element number
     return arr->p[n];
 }
+
+inline static void* array_resize(array_t* arr, size_t n) {
+    if (n == arr->size) return;
+    register size_t min_sz_bytes = (arr->size + 1) * sizeof(void*);
+    if (min_sz_bytes > arr->alloc) {
+        array_reserve(arr, min_sz_bytes);
+    }
+    if (n < arr->size) {
+        for (size_t i = n; i < arr->size; ++i) {
+            arr->deallocator(arr->p[i]);
+        }
+    } else {
+        for (size_t i = arr->size; i < n; ++i) {
+            arr->p[i] = arr->allocator();
+        }
+    }
+    arr->size = n;
+}
