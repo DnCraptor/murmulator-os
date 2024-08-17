@@ -1,3 +1,5 @@
+#ifndef M_API_C_STRING
+
 typedef struct string {
     size_t size; // string size excluding end-0
     size_t alloc; // really allocated bytes
@@ -151,3 +153,4 @@ inline static const char* c_str(const string_t* s) {
 inline static size_t c_strlen(const string_t* s) {
     return s->size;
 }
+#endif

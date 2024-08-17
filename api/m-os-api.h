@@ -1,3 +1,8 @@
+#define __force_inline __attribute__((always_inline))
+#define inline __force_inline
+// switch used in MinSizeRel optimisation style will call __gnu_thumb1_case_uni, not defined on this stage
+#define switch DO_NOT_USE_SWITCH
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -327,11 +332,6 @@ inline static size_t strlen(const char * s) {
 inline static char* strncpy(char* t, const char * s, size_t sz) {
     typedef char* (*fn_ptr_t)(char*, const char*, size_t);
     return ((fn_ptr_t)_sys_table_ptrs[63])(t, s, sz);
-}
-
-inline static char* strcpy(char* t, const char * s) {
-    typedef char* (*fn_ptr_t)(char*, const char*);
-    return ((fn_ptr_t)_sys_table_ptrs[60])(t, s);
 }
 
 inline static int strcmp(const char * s1, const char * s2) {

@@ -6,6 +6,7 @@ Raspberry Pi Pico (RP2040)<br/>
 Sources are "in-progress" state and testing now only on ZX Murmulator devboard with VGA/HDMI/TV output.<br/>
 Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme<br/>
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
+![VGA OR hdmi](./assets/vga_hdmi.jpg)
 
 # This Archive
 Extract MOS folder to your SD-Card to /MOS folder.
