@@ -6,7 +6,7 @@
 const char CD[] = "CD";
 const char TEMP[] = "TEMP";
 const char _mc_con[] = ".mc.con";
-const char _mc_rc2[] = ".mc.res";
+const char _mc_res[] = ".mc.res";
 const char _cmd_history[] = ".cmd_history";
 
 static void m_window();
@@ -1833,7 +1833,7 @@ inline static void save_rc() {
     char* tmp = get_ctx_var(ctx, TEMP);
     if(!tmp) tmp = "";
     size_t cdl = strlen(tmp);
-    char * mc_rc_file = concat(tmp, _mc_rc2);
+    char * mc_rc_file = concat(tmp, _mc_res);
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
     if (FR_OK != f_open(pfh, mc_rc_file, FA_CREATE_ALWAYS | FA_WRITE)) {
         goto r;
@@ -1861,7 +1861,7 @@ inline static bool initi_from_rc(cmd_ctx_t* ctx) {
     char* tmp = get_ctx_var(ctx, TEMP);
     if(!tmp) tmp = "";
     size_t cdl = strlen(tmp);
-    char * mc_rc_file = concat(tmp, _mc_rc2);
+    char * mc_rc_file = concat(tmp, _mc_res);
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
     if (FR_OK != f_open(pfh, mc_rc_file, FA_READ)) {
         goto r1;
