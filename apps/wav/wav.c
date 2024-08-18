@@ -130,7 +130,7 @@ int main(void) {
     printf("             pcm: %d\n", w->pcm);
     printf("        channels: %d\n", w->ch);
     printf("            hreq: %d Hz\n", w->freq);
-    printf("bytes per second: %d\n", w->byte_per_second);
+    printf("bytes per second: %d (%d KB)\n", w->byte_per_second, w->byte_per_second >> 10);
     printf("bytes per sample: %d\n", w->byte_per_sample);
     printf("bits per channel: %d\n --- \n", w->bit_per_sample);
 
@@ -160,7 +160,7 @@ int main(void) {
     pcm_setup(w->freq);
     b1 = (char*)malloc(ONE_BUFF_SIZE);
     b2 = (char*)malloc(ONE_BUFF_SIZE);
-    printf("2 buffers allocated: %d (%dKB) each\n", ONE_BUFF_SIZE, ONE_BUFF_SIZE >> 10);
+    printf("2 buffers allocated: %d (%d KB) each\n", ONE_BUFF_SIZE, ONE_BUFF_SIZE >> 10);
 
     b2_sz = 0;
     b2_locked = false;
