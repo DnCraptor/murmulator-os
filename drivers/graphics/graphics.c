@@ -641,7 +641,7 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
         return;
     }
     if (bit == 4) {
-        uint8_t* p0 = graphics_buffer + (width * y * font_height >> 1) + (x * font_width >> 1);
+        uint8_t* p0 = graphics_buffer + ((width * y * font_height + x * font_width) >> 2);
         uint8_t cf = color & 0x0F;
         uint8_t cb = bgcolor & 0x0F;
         if (font_width == 6) {
@@ -652,6 +652,7 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
                 *p++ = ( ((glyph_pixels >> 2) & 1) ? cf : cb ) | (( ((glyph_pixels >> 3) & 1) ? cf : cb ) << 4);
                 *p   = ( ((glyph_pixels >> 4) & 1) ? cf : cb ) | (( ((glyph_pixels >> 5) & 1) ? cf : cb ) << 4);
             }
+            return;
         }
         for (int glyph_line = 0; glyph_line < font_height; ++glyph_line) {
             uint8_t* p = p0 + (width * glyph_line >> 1);
@@ -660,6 +661,30 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
             *p++ = ( ((glyph_pixels >> 2) & 1) ? cf : cb ) | (( ((glyph_pixels >> 3) & 1) ? cf : cb ) << 4);
             *p++ = ( ((glyph_pixels >> 4) & 1) ? cf : cb ) | (( ((glyph_pixels >> 5) & 1) ? cf : cb ) << 4);
             *p   = ( ((glyph_pixels >> 6) & 1) ? cf : cb ) | ((  (glyph_pixels >> 7)      ? cf : cb ) << 4);
+        }
+        return;
+    }
+    if (bit == 2) {
+        uint8_t* p0 = graphics_buffer + ((width * y * font_height + x * font_width) >> 2);
+        uint8_t cf = color & 0x03; // TODO: mapping
+        uint8_t cb = bgcolor & 0x03;
+        if (font_width == 6) {
+            for (int glyph_line = 0; glyph_line < font_height; ++glyph_line) {
+                uint8_t* p = p0 + (width * glyph_line >> 2);
+                uint8_t glyph_pixels = font_table[c * font_height + glyph_line];
+                *p++ = (  (glyph_pixels & 1)       ? cf : cb ) | (( ((glyph_pixels >> 1) & 1) ? cf : cb ) << 2) |
+                       (( ((glyph_pixels >> 2) & 1) ? cf : cb ) << 4 ) | (( ((glyph_pixels >> 3) & 1) ? cf : cb ) << 6);
+                *p   = ( ((glyph_pixels >> 4) & 1) ? cf : cb ) | (( ((glyph_pixels >> 5) & 1) ? cf : cb ) << 2) | (*p & 0xF0);
+            }
+            return;
+        }
+        for (int glyph_line = 0; glyph_line < font_height; ++glyph_line) {
+            uint8_t* p = p0 + (width * glyph_line >> 2);
+            uint8_t glyph_pixels = font_table[c * font_height + glyph_line];
+            *p++ = (  (glyph_pixels & 1)       ? cf : cb ) | (( ((glyph_pixels >> 1) & 1) ? cf : cb ) << 2) |
+                   (( ((glyph_pixels >> 2) & 1) ? cf : cb ) << 4 ) | (( ((glyph_pixels >> 3) & 1) ? cf : cb ) << 6);
+            *p   = ( ((glyph_pixels >> 4) & 1) ? cf : cb ) | (( ((glyph_pixels >> 5) & 1) ? cf : cb ) << 2) |
+                   (( ((glyph_pixels >> 6) & 1) ? cf : cb ) << 4) | ((  (glyph_pixels >> 7)      ? cf : cb ) << 6);
         }
         return;
     }

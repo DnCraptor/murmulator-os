@@ -507,6 +507,9 @@ bool vga_set_mode(int mode) {
             text_buffer_width = 256;
             text_buffer_height = 256;
             bitness = 2;
+            font_width = 6;
+            font_height = 8;
+            font_table = font_6x8;
             break;
         case BK_512x256x1:
             text_buffer_width = 512;

@@ -107,19 +107,7 @@ static void __always_inline run_application() {
     __unreachable();
 }
 
-static void __always_inline check_firmware() {
-    FIL f;
-    if(f_open(&f, FIRMWARE_MARKER_FN, FA_READ) == FR_OK) {
-        f_close(&f);
-        f_unmount("SD");
-        run_application();
-    }
-}
-
-inline static void unlink_firmware() {
-    f_unlink(FIRMWARE_MARKER_FN);
-}
-
+static const char SD[] = "SD";
 static const char CD[] = "CD"; // current directory 
 static const char BASE[] = "BASE"; 
 static const char MOS[] = "MOS"; 
@@ -129,6 +117,19 @@ static const char SWAP[] = "SWAP";
 static const char COMSPEC[] = "COMSPEC"; 
 static const char ctmp[] = "/tmp"; 
 static const char ccmd[] = "/mos/cmd";
+
+static void __always_inline check_firmware() {
+    FIL f;
+    if(f_open(&f, FIRMWARE_MARKER_FN, FA_READ) == FR_OK) {
+        f_close(&f);
+        f_unmount(SD);
+        run_application();
+    }
+}
+
+inline static void unlink_firmware() {
+    f_unlink(FIRMWARE_MARKER_FN);
+}
 
 static cmd_ctx_t* set_default_vars() {
     cmd_ctx_t* ctx = get_cmd_startup_ctx();
@@ -401,7 +402,7 @@ static kbd_state_t* process_input_on_boot() {
         uint8_t sc = ks->input & 0xFF;
         // F12 or ENTER or START Boot to USB FIRMWARE UPDATE mode
         if ((nespad_state & DPAD_START) || (sc == 0x58) /*F12*/ || (sc == 0x1C) /*ENTER*/) {
-            if (FR_OK == f_mount(&fs, "SD", 1)) {
+            if (FR_OK == f_mount(&fs, SD, 1)) {
                 unlink_firmware();
             }
             reset_usb_boot(0, 0);
@@ -409,7 +410,7 @@ static kbd_state_t* process_input_on_boot() {
         }
         // F11 or SPACE or SELECT unlink prev uf2 firmware
         if ((nespad_state & DPAD_SELECT) || (sc == 0x57) /*F11*/  || (sc == 0x39) /*SPACE*/) {
-            if (FR_OK == f_mount(&fs, "SD", 1)) {
+            if (FR_OK == f_mount(&fs, SD, 1)) {
                 if (nespad_state & DPAD_B) {
                     usb_driver(true);
                 	vTaskStartScheduler();
@@ -513,7 +514,7 @@ static void init(void) {
     // send kbd reset only after initial process passed
     keyboard_send(0xFF);
 
-    if (FR_OK == f_mount(&fs, "SD", 1)) {
+    if (FR_OK == f_mount(&fs, SD, 1)) {
         check_firmware();
     } else {
         startup_vga();
