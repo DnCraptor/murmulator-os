@@ -20,7 +20,7 @@ if(NOT FLASH_SIZE)
 set(FLASH_SIZE 16384)
 endif ()
 
-set(MOS_VERSION 0.2.0)
+set(MOS_VERSION 0.2.1)
 
 SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
 
@@ -169,6 +169,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         PSRAM_PIN_MOSI=20
         PSRAM_PIN_MISO=21
 
+        WAV_IN_PIO=22
+
+        PWM_PIN0=26
+        PWM_PIN1=27
         BEEPER_PIN=28
 
         #BOOT_DEBUG_ACC=0
@@ -177,7 +181,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #DEBUG_APP_LOAD=1
         #CFG_TUSB_DEBUG=3
 
-        M_API_VERSION=17
+        M_API_VERSION=18
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
         #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV

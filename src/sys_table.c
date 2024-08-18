@@ -269,6 +269,9 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     blimp, // 194
     graphics_con_x, // 195
     graphics_con_y, // 196
+    //
+    pcm_setup, // 197
+    pcm_cleanup, // 198
     // TODO:
     0
 };

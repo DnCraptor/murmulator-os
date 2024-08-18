@@ -543,8 +543,9 @@ static void init(void) {
     init_psram();
     show_logo(true);
     graphics_set_con_pos(0, 1);
+    PWM_init_pin(PWM_PIN0, (1 << 12) - 1);
+    PWM_init_pin(PWM_PIN1, (1 << 12) - 1);
     PWM_init_pin(BEEPER_PIN, (1 << 12) - 1);
-    // TODO: other sound sources
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
