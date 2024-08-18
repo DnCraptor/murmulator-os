@@ -110,6 +110,8 @@ uint32_t get_vga_screen_height() {
 }
 uint32_t get_vga_console_width() {
     switch(graphics_mode) {
+        case BK_256x256x2:
+        case BK_512x256x1:
         case GRAPHICS_320x240x256:
         case GRAPHICS_640x480x16:
             return text_buffer_width / font_width;
@@ -118,6 +120,8 @@ uint32_t get_vga_console_width() {
 }
 uint32_t get_vga_console_height() {
     switch(graphics_mode) {
+        case BK_256x256x2:
+        case BK_512x256x1:
         case GRAPHICS_320x240x256:
         case GRAPHICS_640x480x16:
             return text_buffer_height / font_height;
@@ -384,7 +388,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
         return output_buffer;
     };
     //зона прорисовки изображения
-    int addr_in_buf = 64 * (y + g_conf.shift_y - 0330);
+    int addr_in_buf = 64 * (y /*+ g_conf.shift_y - 0330*/); // TODO: BK-0010 specific
     while (addr_in_buf < 0) addr_in_buf += 16 << 10;
     while (addr_in_buf >= 16 << 10) addr_in_buf -= 16 << 10;
     uint8_t* input_buffer_8bit = input_buffer + addr_in_buf;
@@ -507,9 +511,6 @@ bool vga_set_mode(int mode) {
             text_buffer_width = 256;
             text_buffer_height = 256;
             bitness = 2;
-            font_width = 6;
-            font_height = 8;
-            font_table = font_6x8;
             break;
         case BK_512x256x1:
             text_buffer_width = 512;
