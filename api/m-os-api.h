@@ -796,9 +796,11 @@ inline static void pcm_cleanup(void) { // 198
     typedef void (*fn_ptr_t)(void);
     ((fn_ptr_t)_sys_table_ptrs[198])();
 }
-inline static void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size) { // 199
-    typedef void (*fn_ptr_t)(int16_t* buff, uint8_t channels, size_t size);
-    ((fn_ptr_t)_sys_table_ptrs[199])(buff, channels, size);
+
+typedef char* (*pcm_end_callback_t)(size_t* size);
+inline static void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size, pcm_end_callback_t cb) { // 199
+    typedef void (*fn_ptr_t)(int16_t* buff, uint8_t channels, size_t size, pcm_end_callback_t cb);
+    ((fn_ptr_t)_sys_table_ptrs[199])(buff, channels, size, cb);
 }
 
 #ifdef __cplusplus

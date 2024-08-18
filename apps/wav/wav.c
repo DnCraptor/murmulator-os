@@ -35,6 +35,64 @@ typedef struct wav {
     uint32_t subchunk_size;
 } wav_t;
 
+static char* b1;
+static char* b2;
+
+static volatile size_t b1_sz;
+static volatile size_t b2_sz;
+
+static volatile bool b1_locked;
+static volatile bool b2_locked;
+
+static char* pcm_end_callback(size_t* size) {
+    if (b1_locked) {
+        b2_locked = true;
+        b1_locked = false;
+        if (b2_sz) {
+            //printf("switch to b2\n");
+            b2_locked = true;
+            *size = b2_sz;
+            return b2;
+        }
+        //printf("no b2 data\n");
+        b2_locked = false;
+        return NULL;
+    }
+    if (b2_locked) {
+        b1_locked = true;
+        b2_locked = false;
+        if (b1_sz) {
+            //printf("switch to b1\n");
+            b1_locked = true;
+            *size = b1_sz;
+            return b2;
+        }
+        //printf("no b1 data\n");
+        b1_locked = false;
+        return NULL;
+    }
+    //printf("no b1/b2 locked\n");
+    return NULL;
+}
+
+inline static void wait4end(void) {
+    while(b1_locked || b2_locked) {
+        vTaskDelay(1);
+    }
+}
+
+inline static void wait4b1(void) {
+    while(b1_locked) {
+        vTaskDelay(1);
+    }
+}
+
+inline static void wait4b2(void) {
+    while(b2_locked) {
+        vTaskDelay(1);
+    }
+}
+
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
     if (ctx->argc != 2) {
@@ -50,7 +108,7 @@ int main(void) {
     }
     wav_t* w = (wav_t*)malloc(sizeof(wav_t));
     UINT rb;
-    if(f_read(f, w, sizeof(wav_t), &rb) != FR_OK) {
+    if (f_read(f, w, sizeof(wav_t), &rb) != FR_OK) {
         fprintf(ctx->std_err, "Unable to read file: '%s'\n", ctx->argv[1]);
         res = 3;
         goto e2;
@@ -66,18 +124,18 @@ int main(void) {
         goto e2;
     }
 
-    printf("      file name: %s\n", ctx->argv[1]);
-    printf("      file size: %d\n", w->f_szie + 8);
-    printf("    header size: %d\n", w->h_size);
-    printf("            pcm: %d\n", w->pcm);
-    printf("       channels: %d\n", w->ch);
-    printf("           hreq: %d Hz\n", w->freq);
-    printf("byts per second: %d\n", w->byte_per_second);
-    printf("byts per sample: %d\n", w->byte_per_sample);
-    printf("bits per sample: %d\n --- \n", w->bit_per_sample);
+    printf("       file name: %s\n", ctx->argv[1]);
+    printf("       file size: %d\n", w->f_szie + 8);
+    printf("     header size: %d\n", w->h_size);
+    printf("             pcm: %d\n", w->pcm);
+    printf("        channels: %d\n", w->ch);
+    printf("            hreq: %d Hz\n", w->freq);
+    printf("bytes per second: %d\n", w->byte_per_second);
+    printf("bytes per sample: %d\n", w->byte_per_sample);
+    printf("bits per channel: %d\n --- \n", w->bit_per_sample);
 
-    printf("        data id: %c%c%c%c\n", w->data[0], w->data[1], w->data[2], w->data[3]);
-    printf("      data size: %d\n", w->subchunk_size);
+    printf("   data chunk id: %c%c%c%c\n", w->data[0], w->data[1], w->data[2], w->data[3]);
+    printf(" data chunk size: %d (%d KB)\n", w->subchunk_size, w->subchunk_size >> 10);
 
     if (w->pcm != 1) {
         fprintf(ctx->std_err, "Unsupported file format: PCM = %d (1 is expected)\n", w->ch);
@@ -94,6 +152,45 @@ int main(void) {
         res = 8;
         goto e2;
     }
+    HeapStats_t* stat = (HeapStats_t*)malloc(sizeof(HeapStats_t));
+    vPortGetHeapStats(stat);
+    size_t ONE_BUFF_SIZE = stat->xMinimumEverFreeBytesRemaining >> 2; // using half of free continues block
+    free(stat);
+
+    pcm_setup(w->freq);
+    b1 = (char*)malloc(ONE_BUFF_SIZE);
+    b2 = (char*)malloc(ONE_BUFF_SIZE);
+    printf("2 buffers allocated: %d (%dKB) each\n", ONE_BUFF_SIZE, ONE_BUFF_SIZE >> 10);
+
+    b2_sz = 0;
+    b2_locked = false;
+    //printf("read b1\n");
+    if (f_read(f, b1, ONE_BUFF_SIZE, &b1_sz) == FR_OK && b1_sz) {
+        b1_locked = true;
+        pcm_set_buffer(b1, w->ch, rb, pcm_end_callback);
+    }
+    f_read(f, b2, ONE_BUFF_SIZE, &b2_sz);
+    if (b1_sz && b2_sz)
+    while (1) {
+        wait4b2();
+        //printf("read b2\n");
+        f_read(f, b2, ONE_BUFF_SIZE, &b2_sz);
+        if (!b2_sz) {
+            wait4end();
+            break;
+        }
+        wait4b1();
+        //printf("read b1\n");
+        f_read(f, b1, ONE_BUFF_SIZE, &b1_sz);
+        if (!b1_sz) {
+            wait4end();
+            break;
+        }
+    }
+    free(b2);
+    free(b1);
+    pcm_cleanup();
+    printf("Done. Both buffers are deallocated.\n");
 e2:
     free(w);
 e1:

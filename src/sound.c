@@ -2,6 +2,7 @@
 #include <pico/time.h>
 #include "FreeRTOS.h"
 #include "task.h"
+#include "sound.h"
 
 void blimp(uint32_t count, uint32_t tiks_to_delay) {
     for (uint32_t i = 0; i < count; ++i) {
@@ -17,6 +18,7 @@ static int16_t* m_buff = NULL;
 static uint8_t m_channels = 0;
 static size_t m_off = 0; // in 16-bit words
 static size_t m_size = 0; // 16-bit values prepared (available)
+static pcm_end_callback_t m_cb = NULL;
 
 static bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt) {
     static int16_t outL = 0;
@@ -37,10 +39,17 @@ static bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt) {
     } else {
         outR = outL;
     }
+    if (m_cb && m_off >= m_size) {
+        m_buff = m_cb(&m_size);
+        m_off = 0;
+    }
     return true;
 }
 
 void pcm_cleanup(void) {
+    uint16_t o = 0;
+    pwm_set_gpio_level(PWM_PIN0, o); // Право
+    pwm_set_gpio_level(PWM_PIN1, o); // Лево
     cancel_repeating_timer(&m_timer);
     m_timer.delay_us = 0;
 }
@@ -52,8 +61,10 @@ void pcm_setup(int hz) {
 	return add_repeating_timer_us(-1000000 / hz, timer_callback, NULL, &m_timer);
 }
 
-void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size) {
+void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size, pcm_end_callback_t cb) {
     m_buff = buff;
     m_channels = channels;
     m_size = size;
+    m_cb = cb;
+    m_off = 0;
 }
