@@ -272,6 +272,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     //
     pcm_setup, // 197
     pcm_cleanup, // 198
+    pcm_set_buffer, // 199
     // TODO:
     0
 };

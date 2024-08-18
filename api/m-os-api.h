@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 17
+#define M_API_VERSION 18
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
@@ -785,6 +785,20 @@ inline static int graphics_con_x(void) { // 195
 inline static int graphics_con_y(void) { // 196
     typedef int (*fn_ptr_t)(void);
     return ((fn_ptr_t)_sys_table_ptrs[196])();
+}
+
+// since 0.2.1 (API v.18)
+inline static void pcm_setup(int hz) { // 197
+    typedef void (*fn_ptr_t)(int);
+    ((fn_ptr_t)_sys_table_ptrs[197])(hz);
+}
+inline static void pcm_cleanup(void) { // 198
+    typedef void (*fn_ptr_t)(void);
+    ((fn_ptr_t)_sys_table_ptrs[198])();
+}
+inline static void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size) { // 199
+    typedef void (*fn_ptr_t)(int16_t* buff, uint8_t channels, size_t size);
+    ((fn_ptr_t)_sys_table_ptrs[199])(buff, channels, size);
 }
 
 #ifdef __cplusplus
