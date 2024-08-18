@@ -689,15 +689,15 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
             uint8_t glyph_pixels = font_table[c * font_height + glyph_line];
             glyph_pixels = cb > cf ? ~glyph_pixels : glyph_pixels;
             *p = 0;
-            *p   |= ((glyph_pixels    )   & 1) ? 0b11000000 : 0;
-            *p   |= ((glyph_pixels << 1)  & 1) ? 0b00110000 : 0;
-            *p   |= ((glyph_pixels << 2)  & 1) ? 0b00001100 : 0;
-            *p++ |= ((glyph_pixels << 3)  & 1) ? 0b00000011 : 0;
+            *p   |= ((glyph_pixels    )  & 1) ? 0b00000011 : 0b00000001;
+            *p   |= ((glyph_pixels << 1) & 1) ? 0b00001100 : 0b00000100;
+            *p   |= ((glyph_pixels << 2) & 1) ? 0b00110000 : 0b00010000;
+            *p++ |= ((glyph_pixels << 3) & 1) ? 0b11000000 : 0b01000000;
             *p = 0;
-            *p   |= ((glyph_pixels << 4)  & 1) ? 0b11000000 : 0;
-            *p   |= ((glyph_pixels << 5)  & 1) ? 0b00110000 : 0;
-            *p   |= ((glyph_pixels << 6)  & 1) ? 0b00001100 : 0;
-            *p   |= ((glyph_pixels << 7)     ) ? 0b00000011 : 0;
+            *p   |= ((glyph_pixels << 4) & 1) ? 0b00000011 : 0b00000001;
+            *p   |= ((glyph_pixels << 5) & 1) ? 0b00001100 : 0b00000100;
+            *p   |= ((glyph_pixels << 6) & 1) ? 0b00110000 : 0b00010000;
+            *p   |= ((glyph_pixels << 7)    ) ? 0b11000000 : 0b01000000;
         }
         return;
     }

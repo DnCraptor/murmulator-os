@@ -5,6 +5,7 @@
 #include "ram_page.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "graphics.h"
 
 int pallete_mask = 3; // 11 - 2 bits
 
@@ -426,13 +427,22 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
     switch (graphics_mode) {
         case BK_512x256x1: {
             current_palette += 5*4;
-            //1bit buf
-            for (int x = 512/8; x--;) {
+            // 1-bit buf
+            register int xc = pos_x;
+            register int yc = (pos_y + 1) * font_height - 1;
+            for (int x = 0; x < 512 / 8; ++x) {
                 register uint8_t i = *input_buffer_8bit++;
-                for (register uint8_t shift = 0; shift < 8; ++shift) {
-                    register uint8_t t = current_palette[(i >> shift) & 1];
-                    *output_buffer_8bit++ = t;
-                    *output_buffer_8bit++ = t;
+                if (xc == x && yc == y) {
+                    register uint8_t t = current_palette[1];
+                    for (register uint8_t shift = 0; shift < 16; ++shift) {
+                        *output_buffer_8bit++ = t;
+                    }
+                } else {
+                    for (register uint8_t shift = 0; shift < 8; ++shift) {
+                        register uint8_t t = current_palette[(i >> shift) & 1];
+                        *output_buffer_8bit++ = t;
+                        *output_buffer_8bit++ = t;
+                    }
                 }
             }
             break;
@@ -441,7 +451,7 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             current_palette += g_conf.graphics_pallette_idx * 4;
             register uint16_t m = (3 << 6) | (pallete_mask << 4) | (pallete_mask << 2) | pallete_mask; // TODO: outside
             m |= m << 8;
-            //2bit buf
+            // 2-bit buf
             for (int x = 256 / 4; x--;) {
                 register uint8_t i = *input_buffer_8bit++;
                 for (register uint8_t shift = 0; shift < 8; shift += 2) {
@@ -693,6 +703,8 @@ void vga_clr_scr(uint8_t color) {
         memset(t_buf, color, (text_buffer_height * text_buffer_width) >> 1);
     } else if (bitness == 8) {
         memset(t_buf, 0/* TODO: mapping fn */, text_buffer_height * text_buffer_width);
+    } else {
+        memset(t_buf, 0, (text_buffer_height * text_buffer_width * bitness) >> 3);
     }
     graphics_set_con_pos(0, 0);
     graphics_set_con_color(7, color); // TODO:
