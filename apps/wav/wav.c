@@ -37,10 +37,10 @@ typedef struct wav {
 
 typedef enum state {
     EMPTY = 0,
-    LOADING_STARTED,
-    FILLED,
-    LOCKED,
-    PROCESSED
+    LOADING_STARTED = 1,
+    FILLED = 2,
+    LOCKED = 3,
+    PROCESSED = 4
 } state_t;
 
 typedef struct chunk {
@@ -49,24 +49,36 @@ typedef struct chunk {
     volatile state_t state;
 } chunk_t;
 
-volatile static node_t* node;
+typedef struct pipe_node {
+    chunk_t* ch;
+    volatile struct pipe_node* next;
+} pipe_node_t;
+
+volatile static pipe_node_t* pipe;
 
 static char* pcm_end_callback(size_t* size) { // assumed callback is executing on core#1
-    chunk_t* prev_chunk = node->data;
-    node_t* n = node->next;
-    node = n;
-    chunk_t* chunk = n->data;
-    if (chunk->state != FILLED) {
-        while (chunk->state == LOADING_STARTED) {
-// waiting for load finished (or failed)
-        }
-        if (chunk->state != FILLED) {
-            return NULL; // no more filled data
-        }
+    if (!pipe) {
+        *size = 0;
+        return NULL;
     }
+//    printf("top of pipe: [%p]\n", pipe);
+    chunk_t* chunk = pipe->ch;
+    chunk->state = PROCESSED;
+    pipe_node_t* n = pipe->next;
+    if (!n) {
+//        printf("No more data in the pipe: [%p]\n", pipe);
+        pipe = NULL;
+        *size = 0;
+        return NULL;
+    }
+    pipe = n;
+    chunk = n->ch;
+//    printf("switch pipe to: [%p] chunk: [%p] chunk->state: %d chunk->size: %d\n", n, n->ch, chunk->state, chunk->size);
+    while (chunk->state != FILLED) {
+//        printf("chunk->state: %d\n", chunk->state);
+    }
+    *size = chunk->size >> 1;
     chunk->state = LOCKED;
-    prev_chunk->state = PROCESSED;
-    *size = chunk->size;
     return chunk->p;
 }
 
@@ -86,6 +98,21 @@ static void convert2int16buff(chunk_t* n_ch, chunk_t* ch) {
         np[i] = (int16_t)p[i] << 7;
     }
     n_ch->state = FILLED;
+}
+
+static pipe_node_t* pipe2cleanup = 0;
+static pipe_node_t* last_created = 0;;
+
+static void try_cleanup_it(void) {
+    if (!pipe2cleanup) pipe2cleanup = pipe;
+    while (pipe2cleanup && pipe2cleanup->ch->state == PROCESSED) {
+        pipe_node_t* next = pipe2cleanup->next;
+        free(pipe2cleanup->ch->p);
+        free(pipe2cleanup->ch);
+        printf("Node deallocated: [%p]->next = [%p]\n", pipe2cleanup, next);
+        free(pipe2cleanup);
+        pipe2cleanup = next;
+    }
 }
 
 int main(void) {
@@ -147,92 +174,85 @@ int main(void) {
         res = 8;
         goto e2;
     }
+
     HeapStats_t* stat = (HeapStats_t*)malloc(sizeof(HeapStats_t));
     vPortGetHeapStats(stat);
-    size_t ONE_BUFF_SIZE = (stat->xMinimumEverFreeBytesRemaining >> 2) & 0xFFFFFE00; // using 3/4 of free continues block adjusted for 512 bytes
-    free(stat);
+    size_t ONE_BUFF_SIZE = (stat->xSizeOfLargestFreeBlockInBytes >> 3) & 0xFFFFFE00; // using 1/8 of free continues block adjusted for 512 bytes
 
     pcm_setup(w->freq);
-    node_t* n1 = malloc(sizeof(node_t));
-    node_t* n2 = malloc(sizeof(node_t));
-    node_t* n3 = malloc(sizeof(node_t));
-    chunk_t* c1 = (chunk_t*)calloc(sizeof(chunk_t), 1);
-    chunk_t* c2 = (chunk_t*)calloc(sizeof(chunk_t), 1);
-    chunk_t* c3 = (chunk_t*)calloc(sizeof(chunk_t), 1);
-    c1->p = (char*)malloc(ONE_BUFF_SIZE);
-    c2->p = (char*)malloc(ONE_BUFF_SIZE);
-    c3->p = (char*)malloc(ONE_BUFF_SIZE);
-    n1->data = c1;
-    n2->data = c2;
-    n3->data = c3;
-    n1->next = n2; // cyclic buffer
-    n2->next = n3;
-    n3->next = n1;
-    n1->prev = n3; // actually not used, may be removed?
-    n2->prev = n1;
-    n3->prev = n2;
-    printf("3 buffers are allocated: %d (%d KB) each\n", ONE_BUFF_SIZE, ONE_BUFF_SIZE >> 10);
+    pipe = 0; // pipe to play;
+    pipe2cleanup = 0;
+    last_created = 0;;
 
-    node = n1; // start playing from first node
-    node_t* l_node;
-
-    // preload data to all buffers
-    f_read(f, c1->p, ONE_BUFF_SIZE, &c1->size);
-    if (w->bit_per_sample == 8) { // convert from uint8_t to int16_t
-        if (c1->size) {
-            convert2int16buff(c2, c1);
-            c1->state = FILLED;
-            pcm_set_buffer(c1->p, w->ch, c1->size, pcm_end_callback);
-            l_node = n3; // start loading from 3rd node
-        }
-    } else {
-        if (c1->size) {
-            c1->state = FILLED;
-            pcm_set_buffer(c1->p, w->ch, c1->size, pcm_end_callback);
-            f_read(f, c2->p, ONE_BUFF_SIZE, &c2->size);
-        }
-        if (c2->size) {
-            c2->state = FILLED;
-            f_read(f, c3->p, ONE_BUFF_SIZE, &c3->size);
-        }
-        if (c3->size) {
-            c3->state = FILLED;
-        }
-        l_node = n1; // start loading from first node also
-    }
-
-
-    if (c1->size) while (1) {
-        chunk_t* ch = (chunk_t*)l_node->data;
-        while (ch->state != PROCESSED) {
+    while (1) {
+        vPortGetHeapStats(stat);
+        while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + 512) { // some msg? or break;
             vTaskDelay(1);
+            try_cleanup_it();
+            vPortGetHeapStats(stat);
         }
-        ch->state = LOADING_STARTED;
-        f_read(f, ch->p, ONE_BUFF_SIZE, &ch->size);
-        if (!ch->size) {
-            while (c1->state == LOCKED || c2->state == LOCKED || c3->state == LOCKED) {
-
-            }
-            ch->state = EMPTY;
+        pipe_node_t* n = calloc(sizeof(pipe_node_t), 1);
+        printf("Node allocated: [%p]\n", n);
+        n->ch = (chunk_t*)calloc(sizeof(chunk_t), 1);
+        n->ch->p = (char*)malloc(ONE_BUFF_SIZE);
+        n->ch->state = LOADING_STARTED;
+        if (f_read(f, n->ch->p, ONE_BUFF_SIZE, &n->ch->size) != FR_OK || !n->ch->size) {
+            printf("No more data\n");
+            n->ch->state = EMPTY;
             break;
         }
         if (w->bit_per_sample == 8) { // convert from uint8_t to int16_t
-            l_node = l_node->next; // use next chunk for this
-            chunk_t* n_ch = (chunk_t*)l_node->data;
-            convert2int16buff(n_ch, ch);
+            vPortGetHeapStats(stat);
+            while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + 512) { // some msg? or break;
+                vTaskDelay(1);
+                try_cleanup_it();
+                vPortGetHeapStats(stat);
+            }
+            pipe_node_t* n2 = calloc(sizeof(pipe_node_t), 1);
+            printf("Node(2) allocated: [%p]\n", n);
+            n2->ch = (chunk_t*)calloc(sizeof(chunk_t), 1);
+            n2->ch->p = (char*)malloc(ONE_BUFF_SIZE);
+            n2->ch->size = n->ch->size;
+            convert2int16buff(n2->ch, n->ch);
+            printf("[%p]->next = [%p] (n2)\n", n, n2);
+            n->next = n2;
         }
-        ch->state = FILLED;
-        l_node = l_node->next;
+        n->ch->state = FILLED;
+        if (pipe == 0) {
+            pipe = n;
+            pipe2cleanup = n;
+            pcm_set_buffer(n->ch->p, w->ch, n->ch->size >> 1, pcm_end_callback);
+        }
+        if (n->next) {
+            printf("[%p]->next = [%p] (override n)\n", n, n->next);
+            n = n->next;
+        }
+        if (last_created) {
+            // printf("[%p]->next = [%p] (lc)\n", last_created, n);
+            if (last_created == n) {
+                getch();
+            }
+            last_created->next = n;
+        }
+        last_created = n;
+        // printf("last_created: [%p] (reassigned)\n", n);
+        try_cleanup_it();
     }
-    free(c3->p);
-    free(c2->p);
-    free(c1->p);
-    free(c3);
-    free(c2);
-    free(c1);
-    free(n3);
-    free(n2);
-    free(n1);
+    if (!pipe2cleanup) pipe2cleanup = pipe;
+    while (pipe2cleanup) {
+        // printf("Cleanup (finally)\n");
+        if(pipe2cleanup->ch->state != LOCKED) {
+            vTaskDelay(1);
+            continue;
+        }
+        pipe_node_t* next = pipe2cleanup->next;
+        free(pipe2cleanup->ch->p);
+        free(pipe2cleanup->ch);
+        free(pipe2cleanup);
+        pipe2cleanup = next;
+    }
+    free(stat);
+
     pcm_cleanup();
     printf("Done. All buffers are deallocated.\n");
 e2:

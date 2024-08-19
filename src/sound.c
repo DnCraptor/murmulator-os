@@ -116,9 +116,10 @@ void pcm_setup(int hz) {
 }
 
 void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size, pcm_end_callback_t cb) {
+    m_size = 0;
     m_buff = buff;
     m_channels = channels;
-    m_size = size;
     m_cb = cb;
     m_off = 0;
+    m_size = size;
 }
