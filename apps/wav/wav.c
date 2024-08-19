@@ -37,6 +37,7 @@ typedef struct wav {
 
 typedef enum state {
     EMPTY = 0,
+    LOADING_STARTED,
     FILLED,
     LOCKED,
     PROCESSED
@@ -58,7 +59,12 @@ static char* pcm_end_callback(size_t* size) { // assumed callback is executing o
     node = n;
     chunk = n->data;
     if (chunk->state != FILLED) {
-        return NULL; // no more filled data
+        while (chunk->state == LOADING_STARTED) {
+// waiting for load finished (or failed)
+        }
+        if (chunk->state != FILLED) {
+            return NULL; // no more filled data
+        }
     }
     chunk->state = LOCKED;
     *size = chunk->size;
@@ -126,7 +132,7 @@ int main(void) {
     }
     HeapStats_t* stat = (HeapStats_t*)malloc(sizeof(HeapStats_t));
     vPortGetHeapStats(stat);
-    size_t ONE_BUFF_SIZE = (stat->xMinimumEverFreeBytesRemaining >> 2) & 0xFFFFFE00; // using 2/3 of free continues block adjusted for 512 bytes
+    size_t ONE_BUFF_SIZE = (stat->xMinimumEverFreeBytesRemaining >> 2) & 0xFFFFFE00; // using 3/4 of free continues block adjusted for 512 bytes
     free(stat);
 
     pcm_setup(w->freq);
@@ -145,10 +151,10 @@ int main(void) {
     n1->next = n2; // cyclic buffer
     n2->next = n3;
     n3->next = n1;
-    n1->prev = n3;
+    n1->prev = n3; // actually not used, may be removed?
     n2->prev = n1;
     n3->prev = n2;
-    printf("3 buffers allocated: %d (%d KB) each\n", ONE_BUFF_SIZE, ONE_BUFF_SIZE >> 10);
+    printf("3 buffers are allocated: %d (%d KB) each\n", ONE_BUFF_SIZE, ONE_BUFF_SIZE >> 10);
 
     node = n1; // start playing from first node
 
@@ -174,10 +180,13 @@ int main(void) {
         while (ch->state != PROCESSED) {
             vTaskDelay(1);
         }
+        ch->state = LOADING_STARTED;
         f_read(f, ch->p, ONE_BUFF_SIZE, &ch->size);
         if (!ch->size && c1->state != LOCKED && c2->state != LOCKED && c3->state != LOCKED) {
+            ch->state = EMPTY;
             break;
         }
+        ch->state = ch->size ? FILLED : EMPTY;
         l_node = l_node->next;
     }
     free(c3->p);
