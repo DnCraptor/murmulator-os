@@ -47,11 +47,13 @@ static int drv = DEFAULT_VIDEO_DRIVER;
 void __time_critical_func(render_core)() {
     multicore_lockout_victim_init();
     graphics_init(drv);
-
     // graphics_driver_t* gd = get_graphics_driver();
     // install_graphics_driver(gd);
-
     sem_acquire_blocking(&vga_start_semaphore);
+    while(true) {
+        pcm_call();
+        tight_loop_contents();
+    }
     /*
     // 60 FPS loop
 #define frame_tick (16666)

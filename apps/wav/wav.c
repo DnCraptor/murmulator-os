@@ -35,62 +35,34 @@ typedef struct wav {
     uint32_t subchunk_size;
 } wav_t;
 
-static char* b1;
-static char* b2;
+typedef enum state {
+    EMPTY = 0,
+    FILLED,
+    LOCKED,
+    PROCESSED
+} state_t;
 
-static volatile size_t b1_sz;
-static volatile size_t b2_sz;
+typedef struct chunk {
+    char* p;
+    volatile size_t size;
+    volatile state_t state;
+} chunk_t;
 
-static volatile bool b1_locked;
-static volatile bool b2_locked;
+volatile static node_t* node;
 
-static char* pcm_end_callback(size_t* size) {
-    if (b1_locked) {
-        b2_locked = true;
-        b1_locked = false;
-        if (b2_sz) {
-            //printf("switch to b2\n");
-            b2_locked = true;
-            *size = b2_sz;
-            return b2;
-        }
-        //printf("no b2 data\n");
-        b2_locked = false;
-        return NULL;
+static char* pcm_end_callback(size_t* size) { // assumed callback is executing on core#1
+    chunk_t* chunk = node->data;
+    chunk->state = PROCESSED;
+
+    node_t* n = node->next;
+    node = n;
+    chunk = n->data;
+    if (chunk->state != FILLED) {
+        return NULL; // no more filled data
     }
-    if (b2_locked) {
-        b1_locked = true;
-        b2_locked = false;
-        if (b1_sz) {
-            //printf("switch to b1\n");
-            b1_locked = true;
-            *size = b1_sz;
-            return b2;
-        }
-        //printf("no b1 data\n");
-        b1_locked = false;
-        return NULL;
-    }
-    //printf("no b1/b2 locked\n");
-    return NULL;
-}
-
-inline static void wait4end(void) {
-    while(b1_locked || b2_locked) {
-        vTaskDelay(1);
-    }
-}
-
-inline static void wait4b1(void) {
-    while(b1_locked) {
-        vTaskDelay(1);
-    }
-}
-
-inline static void wait4b2(void) {
-    while(b2_locked) {
-        vTaskDelay(1);
-    }
+    chunk->state = LOCKED;
+    *size = chunk->size;
+    return chunk->p;
 }
 
 int main(void) {
@@ -129,8 +101,8 @@ int main(void) {
     printf("     header size: %d\n", w->h_size);
     printf("             pcm: %d\n", w->pcm);
     printf("        channels: %d\n", w->ch);
-    printf("            hreq: %d Hz\n", w->freq);
-    printf("bytes per second: %d (%d KB)\n", w->byte_per_second, w->byte_per_second >> 10);
+    printf("            freq: %d Hz\n", w->freq);
+    printf("bytes per second: %d (%d KB/s)\n", w->byte_per_second, w->byte_per_second >> 10);
     printf("bytes per sample: %d\n", w->byte_per_sample);
     printf("bits per channel: %d\n --- \n", w->bit_per_sample);
 
@@ -154,43 +126,71 @@ int main(void) {
     }
     HeapStats_t* stat = (HeapStats_t*)malloc(sizeof(HeapStats_t));
     vPortGetHeapStats(stat);
-    size_t ONE_BUFF_SIZE = stat->xMinimumEverFreeBytesRemaining >> 2; // using half of free continues block
+    size_t ONE_BUFF_SIZE = (stat->xMinimumEverFreeBytesRemaining >> 2) & 0xFFFFFE00; // using 2/3 of free continues block adjusted for 512 bytes
     free(stat);
 
     pcm_setup(w->freq);
-    b1 = (char*)malloc(ONE_BUFF_SIZE);
-    b2 = (char*)malloc(ONE_BUFF_SIZE);
-    printf("2 buffers allocated: %d (%d KB) each\n", ONE_BUFF_SIZE, ONE_BUFF_SIZE >> 10);
+    node_t* n1 = malloc(sizeof(node_t));
+    node_t* n2 = malloc(sizeof(node_t));
+    node_t* n3 = malloc(sizeof(node_t));
+    chunk_t* c1 = (chunk_t*)calloc(sizeof(chunk_t), 1);
+    chunk_t* c2 = (chunk_t*)calloc(sizeof(chunk_t), 1);
+    chunk_t* c3 = (chunk_t*)calloc(sizeof(chunk_t), 1);
+    c1->p = (char*)malloc(ONE_BUFF_SIZE);
+    c2->p = (char*)malloc(ONE_BUFF_SIZE);
+    c3->p = (char*)malloc(ONE_BUFF_SIZE);
+    n1->data = c1;
+    n2->data = c2;
+    n3->data = c3;
+    n1->next = n2; // cyclic buffer
+    n2->next = n3;
+    n3->next = n1;
+    n1->prev = n3;
+    n2->prev = n1;
+    n3->prev = n2;
+    printf("3 buffers allocated: %d (%d KB) each\n", ONE_BUFF_SIZE, ONE_BUFF_SIZE >> 10);
 
-    b2_sz = 0;
-    b2_locked = false;
-    //printf("read b1\n");
-    if (f_read(f, b1, ONE_BUFF_SIZE, &b1_sz) == FR_OK && b1_sz) {
-        b1_locked = true;
-        pcm_set_buffer(b1, w->ch, rb, pcm_end_callback);
+    node = n1; // start playing from first node
+
+    // preload data to all buffers
+    f_read(f, c1->p, ONE_BUFF_SIZE, &c1->size);
+    if (c1->size) {
+        c1->state = FILLED;
+        pcm_set_buffer(c1->p, w->ch, c1->size, pcm_end_callback);
+        f_read(f, c2->p, ONE_BUFF_SIZE, &c2->size);
     }
-    f_read(f, b2, ONE_BUFF_SIZE, &b2_sz);
-    if (b1_sz && b2_sz)
-    while (1) {
-        wait4b2();
-        //printf("read b2\n");
-        f_read(f, b2, ONE_BUFF_SIZE, &b2_sz);
-        if (!b2_sz) {
-            wait4end();
+    if (c2->size) {
+        c2->state = FILLED;
+        f_read(f, c3->p, ONE_BUFF_SIZE, &c3->size);
+    }
+    if (c3->size) {
+        c3->state = FILLED;
+    }
+
+    node_t* l_node = n1; // start loading from first node also
+
+    if (c1->size) while (1) {
+        chunk_t* ch = (chunk_t*)l_node->data;
+        while (ch->state != PROCESSED) {
+            vTaskDelay(1);
+        }
+        f_read(f, ch->p, ONE_BUFF_SIZE, &ch->size);
+        if (!ch->size && c1->state != LOCKED && c2->state != LOCKED && c3->state != LOCKED) {
             break;
         }
-        wait4b1();
-        //printf("read b1\n");
-        f_read(f, b1, ONE_BUFF_SIZE, &b1_sz);
-        if (!b1_sz) {
-            wait4end();
-            break;
-        }
+        l_node = l_node->next;
     }
-    free(b2);
-    free(b1);
+    free(c3->p);
+    free(c2->p);
+    free(c1->p);
+    free(c3);
+    free(c2);
+    free(c1);
+    free(n3);
+    free(n2);
+    free(n1);
     pcm_cleanup();
-    printf("Done. Both buffers are deallocated.\n");
+    printf("Done. All buffers are deallocated.\n");
 e2:
     free(w);
 e1:
