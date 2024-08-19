@@ -52,12 +52,10 @@ typedef struct chunk {
 volatile static node_t* node;
 
 static char* pcm_end_callback(size_t* size) { // assumed callback is executing on core#1
-    chunk_t* chunk = node->data;
-    chunk->state = PROCESSED;
-
+    chunk_t* prev_chunk = node->data;
     node_t* n = node->next;
     node = n;
-    chunk = n->data;
+    chunk_t* chunk = n->data;
     if (chunk->state != FILLED) {
         while (chunk->state == LOADING_STARTED) {
 // waiting for load finished (or failed)
@@ -67,8 +65,27 @@ static char* pcm_end_callback(size_t* size) { // assumed callback is executing o
         }
     }
     chunk->state = LOCKED;
+    prev_chunk->state = PROCESSED;
     *size = chunk->size;
     return chunk->p;
+}
+
+static void convert2int16buff(chunk_t* n_ch, chunk_t* ch) {
+    while (n_ch->state != PROCESSED && n_ch->state != EMPTY) {
+        vTaskDelay(1);
+    }
+    n_ch->state = LOADING_STARTED;
+    uint8_t* p = ch->p;
+    int16_t* np = n_ch->p;
+    size_t half = ch->size >> 1;
+    for (size_t i = half; i < ch->size; ++i) {
+        np[i - half] = (int16_t)p[i] << 7;
+    }
+    np = ch->p; // from remaining part in back order
+    for (int i = half - 1; i >= 0; --i) {
+        np[i] = (int16_t)p[i] << 7;
+    }
+    n_ch->state = FILLED;
 }
 
 int main(void) {
@@ -157,23 +174,33 @@ int main(void) {
     printf("3 buffers are allocated: %d (%d KB) each\n", ONE_BUFF_SIZE, ONE_BUFF_SIZE >> 10);
 
     node = n1; // start playing from first node
+    node_t* l_node;
 
     // preload data to all buffers
     f_read(f, c1->p, ONE_BUFF_SIZE, &c1->size);
-    if (c1->size) {
-        c1->state = FILLED;
-        pcm_set_buffer(c1->p, w->ch, c1->size, pcm_end_callback);
-        f_read(f, c2->p, ONE_BUFF_SIZE, &c2->size);
-    }
-    if (c2->size) {
-        c2->state = FILLED;
-        f_read(f, c3->p, ONE_BUFF_SIZE, &c3->size);
-    }
-    if (c3->size) {
-        c3->state = FILLED;
+    if (w->bit_per_sample == 8) { // convert from uint8_t to int16_t
+        if (c1->size) {
+            convert2int16buff(c2, c1);
+            c1->state = FILLED;
+            pcm_set_buffer(c1->p, w->ch, c1->size, pcm_end_callback);
+            l_node = n3; // start loading from 3rd node
+        }
+    } else {
+        if (c1->size) {
+            c1->state = FILLED;
+            pcm_set_buffer(c1->p, w->ch, c1->size, pcm_end_callback);
+            f_read(f, c2->p, ONE_BUFF_SIZE, &c2->size);
+        }
+        if (c2->size) {
+            c2->state = FILLED;
+            f_read(f, c3->p, ONE_BUFF_SIZE, &c3->size);
+        }
+        if (c3->size) {
+            c3->state = FILLED;
+        }
+        l_node = n1; // start loading from first node also
     }
 
-    node_t* l_node = n1; // start loading from first node also
 
     if (c1->size) while (1) {
         chunk_t* ch = (chunk_t*)l_node->data;
@@ -182,11 +209,19 @@ int main(void) {
         }
         ch->state = LOADING_STARTED;
         f_read(f, ch->p, ONE_BUFF_SIZE, &ch->size);
-        if (!ch->size && c1->state != LOCKED && c2->state != LOCKED && c3->state != LOCKED) {
+        if (!ch->size) {
+            while (c1->state == LOCKED || c2->state == LOCKED || c3->state == LOCKED) {
+
+            }
             ch->state = EMPTY;
             break;
         }
-        ch->state = ch->size ? FILLED : EMPTY;
+        if (w->bit_per_sample == 8) { // convert from uint8_t to int16_t
+            l_node = l_node->next; // use next chunk for this
+            chunk_t* n_ch = (chunk_t*)l_node->data;
+            convert2int16buff(n_ch, ch);
+        }
+        ch->state = FILLED;
         l_node = l_node->next;
     }
     free(c3->p);

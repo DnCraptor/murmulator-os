@@ -389,15 +389,6 @@ static void info(bool with_sd) {
     );
 }
 
-static pwm_config config = pwm_get_default_config();
-
-static void PWM_init_pin(uint8_t pinN, uint16_t max_lvl) {
-    gpio_set_function(pinN, GPIO_FUNC_PWM);
-    pwm_config_set_clkdiv(&config, 1.0);
-    pwm_config_set_wrap(&config, max_lvl); // MAX PWM value
-    pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
-}
-
 static kbd_state_t* process_input_on_boot() {
     kbd_state_t* ks = get_kbd_state();
     for (int a = 0; a < 5; ++a) {
@@ -545,9 +536,7 @@ static void init(void) {
     init_psram();
     show_logo(true);
     graphics_set_con_pos(0, 1);
-    PWM_init_pin(PWM_PIN0, (1 << 12) - 1);
-    PWM_init_pin(PWM_PIN1, (1 << 12) - 1);
-    PWM_init_pin(BEEPER_PIN, (1 << 12) - 1);
+    init_sound();
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 

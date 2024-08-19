@@ -1,9 +1,48 @@
 #include <hardware/pwm.h>
 #include <pico/multicore.h>
+#include <pico/stdlib.h>
 #include <pico/time.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "sound.h"
+#include "audio.h"
+
+#define SOUND_FREQUENCY 44100
+
+#ifdef I2S_SOUND
+static i2s_config_t i2s_config = {
+		.sample_freq = SOUND_FREQUENCY, 
+		.channel_count = 2,
+		.data_pin = PWM_PIN0,
+		.clock_pin_base = PWM_PIN1,
+		.pio = pio1,
+		.sm = 0,
+        .dma_channel = 0,
+        .dma_buf = NULL,
+        .dma_trans_count = 0,
+        .volume = 0,
+	};
+#endif
+static void PWM_init_pin(uint8_t pinN, uint16_t max_lvl) {
+    pwm_config config = pwm_get_default_config();
+    gpio_set_function(pinN, GPIO_FUNC_PWM);
+    pwm_config_set_clkdiv(&config, 1.0);
+    pwm_config_set_wrap(&config, max_lvl); // MAX PWM value
+    pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
+}
+
+void init_sound() {
+#ifdef I2S_SOUND
+    i2s_config.sample_freq = SOUND_FREQUENCY;
+    i2s_config.dma_trans_count = SOUND_FREQUENCY / 100;
+    i2s_volume(&i2s_config, 0);
+    i2s_init(&i2s_config);
+#else
+    PWM_init_pin(PWM_PIN0, (1 << 12) - 1);
+    PWM_init_pin(PWM_PIN1, (1 << 12) - 1);
+#endif
+    PWM_init_pin(BEEPER_PIN, (1 << 12) - 1);
+}
 
 void blimp(uint32_t count, uint32_t tiks_to_delay) {
     for (uint32_t i = 0; i < count; ++i) {
@@ -40,12 +79,12 @@ void pcm_call() {
         return;
     }
     int16_t* b = m_buff + m_off;
-    uint16_t x = *b > 0 ? *b : -(*b);
+    uint32_t x = ((int32_t)*b) + 0x8000;
     outL = x >> 4;
     ++m_off;
     if (m_channels == 2) {
         ++b;
-        x = *b > 0 ? *b : -(*b);
+        x = ((int32_t)*b) + 0x8000;
         outR = x >> 4;
         ++m_off;
     } else {

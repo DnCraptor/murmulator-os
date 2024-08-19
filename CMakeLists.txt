@@ -20,7 +20,7 @@ if(NOT FLASH_SIZE)
 set(FLASH_SIZE 16384)
 endif ()
 
-set(MOS_VERSION 0.2.1)
+set(MOS_VERSION 0.2.2)
 
 SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
 
@@ -35,6 +35,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(FAMILY rp2040)
 set(BOARD pico_sdk)
 
+add_subdirectory(drivers/audio)
 add_subdirectory(drivers/ps2)
 add_subdirectory(drivers/fatfs)
 add_subdirectory(drivers/sdcard)
@@ -79,6 +80,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         sdcard
         fatfs
         nespad
+        audio
 
         graphics
 
@@ -170,6 +172,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         PSRAM_PIN_MISO=21
 
         WAV_IN_PIO=22
+
+        #I2S_SOUND=1
 
         PWM_PIN0=26
         PWM_PIN1=27
