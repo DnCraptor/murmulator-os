@@ -35,6 +35,12 @@ typedef struct wav {
     uint32_t subchunk_size;
 } wav_t;
 
+typedef struct info {
+    char INFO[4];
+    char info_id[4];
+    uint32_t size;
+} info_t;
+
 typedef enum state {
     EMPTY = 0,
     LOADING_STARTED = 1,
@@ -165,10 +171,47 @@ e0:
     printf("            freq: %d Hz\n", w->freq);
     printf("bytes per second: %d (%d KB/s)\n", w->byte_per_second, w->byte_per_second >> 10);
     printf("bytes per sample: %d\n", w->byte_per_sample);
-    printf("bits per channel: %d\n --- \n", w->bit_per_sample);
+    printf("bits per channel: %d\n"
+           " --- \n", w->bit_per_sample);
 
     printf("   data chunk id: %c%c%c%c\n", w->data[0], w->data[1], w->data[2], w->data[3]);
-    printf(" data chunk size: %d (%d KB)\n", w->subchunk_size, w->subchunk_size >> 10);
+    printf(" data chunk size: %d (%d KB)\n"
+           " --- \n", w->subchunk_size, w->subchunk_size >> 10);
+
+    if (strncmp(w->data, "LIST", 4) == 0) {
+        info_t* ch = (info_t*)malloc(w->subchunk_size);
+        size_t size;
+        if (f_read(f, ch, w->subchunk_size, &size) != FR_OK || size != w->subchunk_size) {
+            fprintf(ctx->std_err, "Unexpected end of file: '%s'\n");
+            res = 10;
+            free(ch);
+            goto e2;
+        }
+        if (strncmp(ch->INFO, "INFO", 4) != 0) {
+            fprintf(ctx->std_err, "Unexpected LIST section in the file: '%s'\n");
+            res = 11;
+            free(ch);
+            goto e2;
+        }
+        printf("   info chunk id: %c%c%c%c\n", ch->info_id[0], ch->info_id[1], ch->info_id[2], ch->info_id[3]);
+        printf(" info chunk size: %d\n", ch->size);
+        size_t off = sizeof(info_t);
+        if (ch->size > 0) {
+            char* buff = malloc(ch->size + 1);
+            snprintf(buff, ch->size + 1, "%s", (char*)ch + off);
+            printf(" info chunk text: %s\n"
+                   " --- \n", buff);
+            free(buff);
+            off += ch->size;
+        }
+        if (off < w->subchunk_size) {
+            info_t* ch1 = (info_t*)((char*)ch + off);
+            printf("   info chunk id: %c%c%c%c\n", ch1->info_id[0], ch1->info_id[1], ch1->info_id[2], ch1->info_id[3]);
+            printf(" info chunk size: %d\n", ch1->size);
+        }
+        free(ch);
+    }
+    // TODO: "data"?
 
     if (w->pcm != 1) {
         fprintf(ctx->std_err, "Unsupported file format: PCM = %d (1 is expected)\n", w->ch);
