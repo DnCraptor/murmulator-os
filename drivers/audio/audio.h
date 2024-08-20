@@ -41,6 +41,7 @@ typedef struct i2s_config
     uint8_t  data_pin;
     uint8_t  clock_pin_base;
     PIO	     pio;
+    uint32_t program_offset;
     uint8_t  sm; 
     uint8_t  dma_channel;
     uint16_t dma_trans_count;

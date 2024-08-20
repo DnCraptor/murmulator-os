@@ -52,9 +52,10 @@ i2s_config_t i2s_get_default_config(void) {
 }
 
 void i2s_deinit(i2s_config_t *i2s_config) {
+    dma_channel_abort(i2s_config->dma_channel);
     dma_channel_unclaim(i2s_config->dma_channel);
     pio_sm_set_enabled(i2s_config->pio, i2s_config->sm, false);
-    // ?? pio_remove_program(i2s_config->pio);
+    pio_remove_program(i2s_config->pio, &audio_i2s_program, i2s_config->program_offset);
     pio_sm_unclaim(i2s_config->pio, i2s_config->sm);
 }
 
@@ -80,8 +81,8 @@ void i2s_init(i2s_config_t *i2s_config) {
     audio_i2s_cs4334_program_init(i2s_config->pio, i2s_config->sm , offset, i2s_config->data_pin , i2s_config->clock_pin_base);
     divider >>= 3;
 #else
-    uint offset = pio_add_program(i2s_config->pio, &audio_i2s_program);
-    audio_i2s_program_init(i2s_config->pio, i2s_config->sm, offset, i2s_config->data_pin , i2s_config->clock_pin_base);
+    i2s_config->program_offset = pio_add_program(i2s_config->pio, &audio_i2s_program);
+    audio_i2s_program_init(i2s_config->pio, i2s_config->sm, i2s_config->program_offset, i2s_config->data_pin , i2s_config->clock_pin_base);
 #endif
     pio_sm_set_clkdiv_int_frac(i2s_config->pio, i2s_config->sm , divider >> 8u, divider & 0xffu);
     pio_sm_set_enabled(i2s_config->pio, i2s_config->sm, false);
