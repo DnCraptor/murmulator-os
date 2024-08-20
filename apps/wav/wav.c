@@ -179,23 +179,27 @@ e0:
            " --- \n", w->subchunk_size, w->subchunk_size >> 10);
 
     if (strncmp(w->data, "LIST", 4) == 0) {
-        info_t* ch = (info_t*)malloc(w->subchunk_size);
+        char* sch = (char*)malloc(w->subchunk_size);
         size_t size;
-        if (f_read(f, ch, w->subchunk_size, &size) != FR_OK || size != w->subchunk_size) {
+        if (f_read(f, sch, w->subchunk_size, &size) != FR_OK || size != w->subchunk_size) {
             fprintf(ctx->std_err, "Unexpected end of file: '%s'\n");
             res = 10;
-            free(ch);
+            free(sch);
             goto e2;
         }
+        size_t off = 0;
+        info_t* ch = sch;
         if (strncmp(ch->INFO, "INFO", 4) != 0) {
             fprintf(ctx->std_err, "Unexpected LIST section in the file: '%s'\n");
             res = 11;
-            free(ch);
+            free(sch);
             goto e2;
         }
+info:
+        ch = sch + off;
         printf("   info chunk id: %c%c%c%c\n", ch->info_id[0], ch->info_id[1], ch->info_id[2], ch->info_id[3]);
         printf(" info chunk size: %d\n", ch->size);
-        size_t off = sizeof(info_t);
+        off = sizeof(info_t);;
         if (ch->size > 0) {
             char* buff = malloc(ch->size + 1);
             snprintf(buff, ch->size + 1, "%s", (char*)ch + off);
@@ -205,13 +209,10 @@ e0:
             off += ch->size;
         }
         if (off < w->subchunk_size) {
-            info_t* ch1 = (info_t*)((char*)ch + off);
-            printf("   info chunk id: %c%c%c%c\n", ch1->info_id[0], ch1->info_id[1], ch1->info_id[2], ch1->info_id[3]);
-            printf(" info chunk size: %d\n", ch1->size);
+            goto info;
         }
-        free(ch);
+        free(sch);
     }
-    // TODO: "data"?
 
     if (w->pcm != 1) {
         fprintf(ctx->std_err, "Unsupported file format: PCM = %d (1 is expected)\n", w->ch);
