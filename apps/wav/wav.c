@@ -109,7 +109,7 @@ static void try_cleanup_it(void) {
         pipe_node_t* next = pipe2cleanup->next;
         free(pipe2cleanup->ch->p);
         free(pipe2cleanup->ch);
-        printf("Node deallocated: [%p]->next = [%p]\n", pipe2cleanup, next);
+        // printf("Node deallocated: [%p]->next = [%p]\n", pipe2cleanup, next);
         free(pipe2cleanup);
         pipe2cleanup = next;
     }
@@ -117,9 +117,20 @@ static void try_cleanup_it(void) {
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
-    if (ctx->argc != 2) {
-        fprintf(ctx->std_err, "Usage: wav [file]\n");
+    if (ctx->argc < 2 || ctx->argc > 3) {
+e0:
+        fprintf(ctx->std_err,
+            "Usage: wav [file] [bytes]\n"
+            "  where [bytes] - optional param to reserve some RAM for other applications (512 by default).\n"
+        );
         return 1;
+    }
+    int reserve = 512;
+    if (ctx->argc == 3) {
+        reserve = atoi(ctx->argv[2]);
+        if (!reserve) {
+            goto e0;
+        }
     }
     int res = 0;
     FIL* f = (FIL*)malloc(sizeof(FIL));
@@ -169,6 +180,11 @@ int main(void) {
         res = 7;
         goto e2;
     }
+    if (w->bit_per_sample != 8 && w->bit_per_sample != 16) {
+        fprintf(ctx->std_err, "Unsupported bit per samples: %d (8 or 18 is expected)\n", w->bit_per_sample);
+        res = 7;
+        goto e2;
+    }
     if (w->h_size != 16) {
         fprintf(ctx->std_err, "Unsupported header size: %d (16 is expected)\n", w->h_size);
         res = 8;
@@ -186,35 +202,35 @@ int main(void) {
 
     while (1) {
         vPortGetHeapStats(stat);
-        while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + 512) { // some msg? or break;
+        while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + reserve) { // some msg? or break;
             vTaskDelay(1);
             try_cleanup_it();
             vPortGetHeapStats(stat);
         }
         pipe_node_t* n = calloc(sizeof(pipe_node_t), 1);
-        printf("Node allocated: [%p]\n", n);
+        // printf("Node allocated: [%p]\n", n);
         n->ch = (chunk_t*)calloc(sizeof(chunk_t), 1);
         n->ch->p = (char*)malloc(ONE_BUFF_SIZE);
         n->ch->state = LOADING_STARTED;
         if (f_read(f, n->ch->p, ONE_BUFF_SIZE, &n->ch->size) != FR_OK || !n->ch->size) {
-            printf("No more data\n");
+            // printf("No more data\n");
             n->ch->state = EMPTY;
             break;
         }
         if (w->bit_per_sample == 8) { // convert from uint8_t to int16_t
             vPortGetHeapStats(stat);
-            while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + 512) { // some msg? or break;
+            while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + reserve) { // some msg? or break;
                 vTaskDelay(1);
                 try_cleanup_it();
                 vPortGetHeapStats(stat);
             }
             pipe_node_t* n2 = calloc(sizeof(pipe_node_t), 1);
-            printf("Node(2) allocated: [%p]\n", n);
+            // printf("Node(2) allocated: [%p]\n", n);
             n2->ch = (chunk_t*)calloc(sizeof(chunk_t), 1);
             n2->ch->p = (char*)malloc(ONE_BUFF_SIZE);
             n2->ch->size = n->ch->size;
             convert2int16buff(n2->ch, n->ch);
-            printf("[%p]->next = [%p] (n2)\n", n, n2);
+            // printf("[%p]->next = [%p] (n2)\n", n, n2);
             n->next = n2;
         }
         n->ch->state = FILLED;
@@ -223,18 +239,15 @@ int main(void) {
             pipe2cleanup = n;
             pcm_set_buffer(n->ch->p, w->ch, n->ch->size >> 1, pcm_end_callback);
         }
-        if (n->next) {
-            printf("[%p]->next = [%p] (override n)\n", n, n->next);
-            n = n->next;
-        }
         if (last_created) {
             // printf("[%p]->next = [%p] (lc)\n", last_created, n);
-            if (last_created == n) {
-                getch();
-            }
             last_created->next = n;
         }
-        last_created = n;
+        if (w->bit_per_sample == 8) { // actually n->next == n2 in this case
+            last_created = n->next;
+        } else {
+            last_created = n;
+        }
         // printf("last_created: [%p] (reassigned)\n", n);
         try_cleanup_it();
     }
