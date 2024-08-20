@@ -282,6 +282,7 @@ static void draw_box(int left, int top, int width, int height, const char* title
 }
 
 static void do_nothing(uint8_t cmd) {
+    if (hidePannels) return;
     snprintf(line, MAX_WIDTH, "CMD: F%d", cmd + 1);
     const line_t lns[2] = {
         { -1, "Not yet implemented function" },
@@ -348,6 +349,7 @@ static FRESULT m_unlink_recursive(char * path) {
 }
 
 static void m_delete_file(uint8_t cmd) {
+    if (hidePannels) return;
 #if EXT_DRIVES_MOUNT
     if (psp->in_dos) {
         // TODO:
@@ -555,6 +557,7 @@ static void no_selected_file() {
 }
 
 static void m_copy_file(uint8_t cmd) {
+    if (hidePannels) return;
 #if EXT_DRIVES_MOUNT
     if (psp->in_dos) {
         // TODO:
@@ -605,6 +608,7 @@ static void mark_to_exit(uint8_t cmd) {
 }
 
 static void m_info(uint8_t cmd) {
+    if (hidePannels) return;
     line_t plns[2] = {
         { 1, " It is ZX Murmulator OS Commander" },
         { 1, "tba" }
@@ -627,6 +631,7 @@ static void m_info(uint8_t cmd) {
 }
 
 static void m_mk_dir(uint8_t cmd) {
+    if (hidePannels) return;
 #if EXT_DRIVES_MOUNT
     if (psp->in_dos) {
         // TODO:
@@ -686,6 +691,7 @@ static void m_mk_dir(uint8_t cmd) {
 }
 
 static void m_move_file(uint8_t cmd) {
+    if (hidePannels) return;
 #if EXT_DRIVES_MOUNT
     if (psp->in_dos) {
         // TODO:
