@@ -51,6 +51,13 @@ i2s_config_t i2s_get_default_config(void) {
     return i2s_config;
 }
 
+void i2s_deinit(i2s_config_t *i2s_config) {
+    dma_channel_unclaim(i2s_config->dma_channel);
+    pio_sm_set_enabled(i2s_config->pio, i2s_config->sm, false);
+    // ?? pio_remove_program(i2s_config->pio);
+    pio_sm_unclaim(i2s_config->pio, i2s_config->sm);
+}
+
 /**
  * Initialize the I2S driver. Must be called before calling i2s_write or i2s_dma_write
  * i2s_config: I2S context obtained by i2s_get_default_config()
@@ -60,7 +67,7 @@ void i2s_init(i2s_config_t *i2s_config) {
     uint8_t func=GPIO_FUNC_PIO1;    // TODO: GPIO_FUNC_PIO0 for pio0 or GPIO_FUNC_PIO1 for pio1
     gpio_set_function(i2s_config->data_pin, func);
     gpio_set_function(i2s_config->clock_pin_base, func);
-    gpio_set_function(i2s_config->clock_pin_base+1, func);
+    gpio_set_function(i2s_config->clock_pin_base + 1, func);
     
     i2s_config->sm = pio_claim_unused_sm(i2s_config->pio, true);
 
@@ -74,12 +81,9 @@ void i2s_init(i2s_config_t *i2s_config) {
     divider >>= 3;
 #else
     uint offset = pio_add_program(i2s_config->pio, &audio_i2s_program);
-    audio_i2s_program_init(i2s_config->pio, i2s_config->sm , offset, i2s_config->data_pin , i2s_config->clock_pin_base);
-
+    audio_i2s_program_init(i2s_config->pio, i2s_config->sm, offset, i2s_config->data_pin , i2s_config->clock_pin_base);
 #endif
-
     pio_sm_set_clkdiv_int_frac(i2s_config->pio, i2s_config->sm , divider >> 8u, divider & 0xffu);
-
     pio_sm_set_enabled(i2s_config->pio, i2s_config->sm, false);
 #endif
     /* Allocate memory for the DMA buffer */
@@ -131,8 +135,8 @@ void i2s_init(i2s_config_t *i2s_config) {
  *        len: length of sample in 32 bits words
  */
 void i2s_write(const i2s_config_t *i2s_config,const int16_t *samples,const size_t len) {
-    for(size_t i=0;i<len;i++) {
-            pio_sm_put_blocking(i2s_config->pio, i2s_config->sm, (uint32_t)samples[i]);
+    for (size_t i = 0; i < len; i++) {
+        pio_sm_put_blocking(i2s_config->pio, i2s_config->sm, (uint32_t)samples[i]);
     }
 }
 

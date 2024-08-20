@@ -130,8 +130,8 @@ void pcm_cleanup(void) {
     cancel_repeating_timer(&m_timer);
     m_timer.delay_us = 0;
 #ifdef I2S_SOUND
-    goutf("[pcm_cleanup]\n");
     i2s_volume(&i2s_config, 0);
+    i2s_deinit(&i2s_config);
     // TODO: stop DMA?
 #else
     uint16_t o = 0;
@@ -142,7 +142,9 @@ void pcm_cleanup(void) {
 }
 
 void pcm_setup(int hz) {
-    if (m_timer.delay_us) pcm_cleanup();
+    if (m_timer.delay_us) {
+        pcm_cleanup();
+    }
 #ifdef I2S_SOUND
     i2s_config.sample_freq = hz;
 #else
