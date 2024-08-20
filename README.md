@@ -55,12 +55,11 @@ M-OS manages access to<br/>
  - VGA/HDMI/TV adapter (222-color schema, installed on ZX Murmulator board),<br/>
  - PS/2 keyboard (connected to ZX Murmulator board),<br/>
  - Kempston (Dendy 8-bit) Joystick (connected to ZX Murmulator board),<br/>
- - Sound devices (PWM 12-bit stereo + "speaker")<br/>
+ - Sound devices (PWM 12-bit stereo + "speaker" or TDA1387T/PCM5102A DAC chip in "PCM" build versions)<br/>
 <br/>
 Other types of<br/>
  - video outputs: TFT/ILI9341/...;<br/>
  - inputs: USB HUD devices, PS/2 and other mouse types, Wii Joystick...;<br/>
- - sound outputs: TDA...<br/>
 to be supported later.<br/>
 <br/>
 M-OS is installed as bootable application for RP2040 on Rasperry Pi Pico FLASH ROM.<br/>
