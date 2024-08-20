@@ -3,7 +3,7 @@ ZX Murmulator OS v.0.2.3<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
-Sources are "in-progress" state and testing now only on ZX Murmulator devboard with VGA/HDMI/TV output.<br/>
+Sources are "in-progress" state and testing now only on ZX Murmulator devboard with VGA/HDMI/TV(RGB) output.<br/>
 Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme<br/>
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
 ![VGA OR hdmi](./assets/vga_hdmi.jpg)
@@ -12,12 +12,12 @@ Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/
 Extract MOS folder to your SD-Card to /MOS folder.
 
 # Optional
-There are several features to be supported, like external PSRAM and DAC, are availbel on more featured murmulator versions.<br/>
-Let use translate from russian on site https://murmulator.ru/types, for case it is required for you.
+There are several extra features supported, like external PSRAM and/or DAC, are availbel on more featured Murmulator versions.<br/>
+Let use translate from russian on https://murmulator.ru/types site, for case you want to get more info.
 
 # Current state
 RP2040 core 0: starts FreeRTOS (based on https://github.com/FreeRTOS/FreeRTOS-Community-Supported-Demos/tree/3d475bddf7ac8af425da67cdaa2485e90a57a881/CORTEX_M0%2B_RP2040) <br/>
-RP2040 core 1: starts VGA/HDMI/TV driver (based on ZX Murmulator comunity version last used before it in https://github.com/xrip/pico-launcher)
+RP2040 core 1: starts VGA/HDMI/TV(RGB) driver (based on ZX Murmulator comunity version last used before in https://github.com/xrip/pico-launcher)
 
 # MOS build hints:
  - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
@@ -34,7 +34,7 @@ in/arm-none-eabi-gcc" "-DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/arm-none-eabi-g++"
 # MOS applications build hints:
  - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
  - ignore linker (ld) errors<br/>
- - for GUI VSCode build mode do not miss to set build Configuration to use "GCC 10.3.1. arm-none-eabi" and "Release"<br/>
+ - for GUI VSCode build mode do not miss to set build Configuration to use "GCC 10.3.1. arm-none-eabi" and "Release" (or "MinSizeRel")<br/>
  - lookup for appropriated "obj" file, rename it and use as executable<br/>
 
 # OS syscalls
@@ -43,9 +43,9 @@ TBA
 # ZX Murmulator OS tips
 ZX Murmulator OS (M-OS to make it short) has no specific levels of execution like kernel and application. All code parts (kernel/application) executes on the same level (like it was in good old DOS).<br/>
 <br/>
-M-OS uses a micro-kernel architecture, it means we have no separate kernel modules, all kernel related code is precompiled, prelinked and preinstalled on hardware. Only application level code is replaceable while kernel is working.<br/>
+M-OS uses a mono-kernel architecture, it means we have no separate kernel modules, all kernel related code is precompiled, prelinked and preinstalled on hardware. Only application level code is replaceable while kernel is working.<br/>
 <br/>
-M-OS is based on FreeRTOS port for RP2040 (Base version: FreeRTOSv202212.01. Examples used: https://github.com/FreeRTOS/FreeRTOS-Community-Supported-Demos/tree/3d475bddf7ac8af425da67cdaa2485e90a57a881/CORTEX_M0%2B_RP2040) which is running on core#0 of the RP2040. No SPI support for now. Time slice used by FreeRTOS = 1ms.<br/>
+M-OS is based on FreeRTOS port for RP2040 (Base version: FreeRTOSv202212.01. Examples used: https://github.com/FreeRTOS/FreeRTOS-Community-Supported-Demos/tree/3d475bddf7ac8af425da67cdaa2485e90a57a881/CORTEX_M0%2B_RP2040) which is running on core#0 of the RP2040. No SPI support for now. System time slice (tick) used by FreeRTOS = 1ms.<br/>
 <br/>
 M-OS manages access to<br/>
  - SRAM (256+4+4KB installed on RP2040),<br/>
@@ -73,8 +73,6 @@ Addresses map (16MB flash):<br/>
 M-OS application should try to reuse functions from OS instead of linking other libraries.<br/>
 M-OS application should not use malloc/calloc/free functions from standard library, but call specific wrappers provided in m-os-api.h (TBA - full list of functions)<br/>
 <br/>
-M-OS application may use static RAM variables/arrays, but limited to specific region, that is not used by OS. (TBA - start address 20020000?, memmap.ld to be provided)<br/>
-<br/>
 Example of application level wrapper definition (will be provided whole set of wrappers in the m-os-api.h header file):<br/>
 
 #define M_OS_API_SYA_TABLE_BASE (void*)0x10001000ul<br/>
@@ -83,7 +81,7 @@ typedef void (*draw_text_ptr_t)(const char *string, uint32_t x, uint32_t y, uint
 #define _draw_text_ptr_idx 25<br/>
 #define draw_text ((draw_text_ptr_t)_sys_table_ptrs[_draw_text_ptr_idx])<br/>
 <br/>
-So it will be possible to call draw_text the same way as for case graphics.h and VGA/HDMI driver exists, but without 'em.<br/>
+So it will be possible to call draw_text the same way as for case graphics.h and VGA/HDMI/TV driver exists, but without it.<br/>
 
 # M-OS commands
 cls - clear screen<br/>
