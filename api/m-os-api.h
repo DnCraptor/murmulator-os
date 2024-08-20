@@ -805,6 +805,9 @@ inline static void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size, 
     ((fn_ptr_t)_sys_table_ptrs[199])(buff, channels, size, cb);
 }
 
+// since 0.2.3
+#define WAV_IN_PIO 22
+
 #ifdef __cplusplus
 }
 #include "m-os-api-cpp-string.h"

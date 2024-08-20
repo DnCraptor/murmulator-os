@@ -31,6 +31,12 @@ static void PWM_init_pin(uint8_t pinN, uint16_t max_lvl) {
     pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
 }
 
+inline static void inInit(uint gpio) {
+    gpio_init(gpio);
+    gpio_set_dir(gpio, GPIO_IN);
+    gpio_pull_up(gpio);
+}
+
 void init_sound() {
 #ifdef I2S_SOUND
     i2s_config.sample_freq = SOUND_FREQUENCY;
@@ -41,6 +47,10 @@ void init_sound() {
     PWM_init_pin(PWM_PIN1, (1 << 12) - 1);
 #endif
     PWM_init_pin(BEEPER_PIN, (1 << 12) - 1);
+#ifdef WAV_IN_PIO
+    //пин ввода звука
+    inInit(WAV_IN_PIO);
+#endif
 }
 
 void blimp(uint32_t count, uint32_t tiks_to_delay) {
