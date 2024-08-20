@@ -14,6 +14,7 @@
         "hardfault.h": "c",
         "keyboard.h": "c",
         "fnt8x16.h": "c",
-        "font6x8.h": "c"
+        "font6x8.h": "c",
+        "cstdio": "c"
     }
 }

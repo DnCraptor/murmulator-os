@@ -83,7 +83,7 @@ void i2s_init(i2s_config_t *i2s_config) {
     pio_sm_set_enabled(i2s_config->pio, i2s_config->sm, false);
 #endif
     /* Allocate memory for the DMA buffer */
-    i2s_config->dma_buf=malloc(i2s_config->dma_trans_count*sizeof(uint32_t));
+   // i2s_config->dma_buf=malloc(i2s_config->dma_trans_count*sizeof(uint32_t));
 
     /* Direct Memory Access setup */
     i2s_config->dma_channel = dma_claim_unused_channel(true);
@@ -112,7 +112,6 @@ void i2s_init(i2s_config_t *i2s_config) {
 #else
     channel_config_set_dreq(&dma_config, pio_get_dreq(i2s_config->pio, i2s_config->sm, true));
 #endif
-    
     dma_channel_configure(i2s_config->dma_channel,
                           &dma_config,
                           addr_write_DMA,    // Destination pointer
@@ -120,7 +119,6 @@ void i2s_init(i2s_config_t *i2s_config) {
                           i2s_config->dma_trans_count,                // Number of 32 bits words to transfer
                           false                                       // Start immediately
     );
-
     pio_sm_set_enabled(i2s_config->pio, i2s_config->sm , true);
 }
 
@@ -147,25 +145,21 @@ void i2s_dma_write(i2s_config_t *i2s_config,const int16_t *samples) {
     /* Wait the completion of the previous DMA transfer */
     dma_channel_wait_for_finish_blocking(i2s_config->dma_channel);
     /* Copy samples into the DMA buffer */
-
 #ifdef AUDIO_PWM_PIN
-    for(uint16_t i=0;i<i2s_config->dma_trans_count*2;i++) {
-           
-            i2s_config->dma_buf[i] = (65536/2+(samples[i]))>>(3+i2s_config->volume);
-
-        }
+    for(uint16_t i = 0; i < i2s_config->dma_trans_count * 2; i++) {
+        i2s_config->dma_buf[i] = (65536 / 2 + (samples[i])) >> (3 + i2s_config->volume);
+    }
 #else
-
-    if(i2s_config->volume==0) {
-        memcpy(i2s_config->dma_buf,samples,i2s_config->dma_trans_count*sizeof(int32_t));
+    if (i2s_config->dma_buf == samples) {
+        // TODO: volumes?
+    } else if(i2s_config->volume == 0) {
+        memcpy(i2s_config->dma_buf, samples, i2s_config->dma_trans_count * sizeof(int32_t));
     } else {
-        for(uint16_t i=0;i<i2s_config->dma_trans_count*2;i++) {
-            i2s_config->dma_buf[i] = samples[i]>>i2s_config->volume;
+        for(uint16_t i = 0; i < i2s_config->dma_trans_count * sizeof(int32_t) / sizeof(int16_t); i++) {
+            i2s_config->dma_buf[i] = samples[i] >> i2s_config->volume;
         }
     }
 #endif    
-
-
     /* Initiate the DMA transfer */
     dma_channel_transfer_from_buffer_now(i2s_config->dma_channel,
                                          i2s_config->dma_buf,
