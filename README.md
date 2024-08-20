@@ -1,5 +1,5 @@
 # murmulator-os
-ZX Murmulator OS v.0.2.2<br/>
+ZX Murmulator OS v.0.2.3<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
