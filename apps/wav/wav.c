@@ -84,7 +84,7 @@ static char* pcm_end_callback(size_t* size) { // assumed callback is executing o
 
 static void convert2int16buff(chunk_t* n_ch, chunk_t* ch) {
     while (n_ch->state != PROCESSED && n_ch->state != EMPTY) {
-        vTaskDelay(1);
+    //    vTaskDelay(1);
     }
     n_ch->state = LOADING_STARTED;
     uint8_t* p = ch->p;
@@ -193,7 +193,13 @@ e0:
 
     HeapStats_t* stat = (HeapStats_t*)malloc(sizeof(HeapStats_t));
     vPortGetHeapStats(stat);
-    size_t ONE_BUFF_SIZE = (stat->xSizeOfLargestFreeBlockInBytes >> 3) & 0xFFFFFE00; // using 1/8 of free continues block adjusted for 512 bytes
+     // using 1/8 of free continues block adjusted for 512 bytes
+    int ONE_BUFF_SIZE = ((stat->xSizeOfLargestFreeBlockInBytes - reserve) >> 3) & 0xFFFFFE00;
+    if (ONE_BUFF_SIZE <= 0) {
+        fprintf(ctx->std_err, "Not enouth RAM (%d KB). Try to reboot M-OS and try again...\n", stat->xSizeOfLargestFreeBlockInBytes >> 10);
+        res = 9;
+        goto e3;
+    }
 
     pcm_setup(w->freq);
     pipe = 0; // pipe to play;
@@ -203,7 +209,7 @@ e0:
     while (1) {
         vPortGetHeapStats(stat);
         while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + reserve) { // some msg? or break;
-            vTaskDelay(1);
+        //    vTaskDelay(1);
             try_cleanup_it();
             vPortGetHeapStats(stat);
         }
@@ -220,7 +226,7 @@ e0:
         if (w->bit_per_sample == 8) { // convert from uint8_t to int16_t
             vPortGetHeapStats(stat);
             while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + reserve) { // some msg? or break;
-                vTaskDelay(1);
+            //    vTaskDelay(1);
                 try_cleanup_it();
                 vPortGetHeapStats(stat);
             }
@@ -255,7 +261,7 @@ e0:
     while (pipe2cleanup) {
         // printf("Cleanup (finally)\n");
         if(pipe2cleanup->ch->state != LOCKED) {
-            vTaskDelay(1);
+        //    vTaskDelay(1);
             continue;
         }
         pipe_node_t* next = pipe2cleanup->next;
@@ -264,10 +270,11 @@ e0:
         free(pipe2cleanup);
         pipe2cleanup = next;
     }
-    free(stat);
 
     pcm_cleanup();
     printf("Done. All buffers are deallocated.\n");
+e3:
+    free(stat);
 e2:
     free(w);
 e1:
