@@ -36,7 +36,6 @@ void init_sound() {
     i2s_config.sample_freq = SOUND_FREQUENCY;
     i2s_config.dma_trans_count = SOUND_FREQUENCY / 100;
     i2s_volume(&i2s_config, 0);
-    i2s_init(&i2s_config);
 #else
     PWM_init_pin(PWM_PIN0, (1 << 12) - 1);
     PWM_init_pin(PWM_PIN1, (1 << 12) - 1);
@@ -54,10 +53,12 @@ void blimp(uint32_t count, uint32_t tiks_to_delay) {
 }
 
 static repeating_timer_t m_timer = { 0 };
+#ifndef I2S_SOUND
 static volatile int16_t* m_buff = NULL;
 static volatile uint8_t m_channels = 0;
 static volatile size_t m_off = 0; // in 16-bit words
 static volatile size_t m_size = 0; // 16-bit values prepared (available)
+#endif
 static volatile pcm_end_callback_t m_cb = NULL;
 static volatile bool m_let_process_it = false;
 
@@ -67,7 +68,15 @@ static bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt) { // core
 }
 
 void pcm_call() {
-    if (!m_let_process_it) return;
+    if (!m_let_process_it) {
+        return;
+    }
+#ifdef I2S_SOUND
+    size_t size = 0;
+    char* buff = m_cb(&size);
+    i2s_config.dma_trans_count = size >> 1;
+    i2s_dma_write(&i2s_config, buff);
+#else
     static uint16_t outL = 0;
     static uint16_t outR = 0;
     pwm_set_gpio_level(PWM_PIN0, outR); // Право
@@ -94,14 +103,20 @@ void pcm_call() {
         m_buff = m_cb(&m_size);
         m_off = 0;
     }
+#endif
     m_let_process_it = false;
     return;
 }
 
 void pcm_cleanup(void) {
+#ifdef I2S_SOUND
+    i2s_volume(&i2s_config, 0);
+    // TODO: stop DMA?
+#else
     uint16_t o = 0;
     pwm_set_gpio_level(PWM_PIN0, o); // Право
     pwm_set_gpio_level(PWM_PIN1, o); // Лево
+#endif
     cancel_repeating_timer(&m_timer);
     m_timer.delay_us = 0;
     m_let_process_it = false;
@@ -110,16 +125,30 @@ void pcm_cleanup(void) {
 void pcm_setup(int hz) {
     if (m_timer.delay_us) pcm_cleanup();
     m_let_process_it = false;
+#ifdef I2S_SOUND
+    i2s_config.sample_freq = hz;
+#else
     //hz; // 44100;	//44000 //44100 //96000 //22050
 	// negative timeout means exact delay (rather than delay between callbacks)
 	add_repeating_timer_us(-1000000 / hz, timer_callback, NULL, &m_timer);
+#endif
 }
 
+// size - in 16-bit values count
 void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size, pcm_end_callback_t cb) {
+#ifdef I2S_SOUND
+    i2s_config.channel_count = channels;
+    i2s_config.dma_trans_count = i2s_config.sample_freq / (size << 1); // Number of 32 bits words to transfer
+    i2s_init(&i2s_config);
+    i2s_dma_write(&i2s_config, buff);
+    i2s_volume(&i2s_config, 16);
+	add_repeating_timer_us(-1000000 / i2s_config.dma_trans_count, timer_callback, NULL, &m_timer);
+#else
     m_size = 0;
     m_buff = buff;
     m_channels = channels;
     m_cb = cb;
     m_off = 0;
     m_size = size;
+#endif
 }
