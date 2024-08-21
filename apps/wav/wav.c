@@ -35,8 +35,11 @@ typedef struct wav {
     uint32_t subchunk_size;
 } wav_t;
 
-typedef struct info {
+typedef struct INFO {
     char INFO[4];
+} INFO_t;
+
+typedef struct info {
     char info_id[4];
     uint32_t size;
 } info_t;
@@ -110,15 +113,77 @@ static pipe_node_t* pipe2cleanup = 0;
 static pipe_node_t* last_created = 0;;
 
 static void try_cleanup_it(void) {
-    if (!pipe2cleanup) pipe2cleanup = pipe;
-    while (pipe2cleanup && pipe2cleanup->ch->state == PROCESSED) {
+    while (pipe2cleanup->ch->state == PROCESSED) {
         pipe_node_t* next = pipe2cleanup->next;
+        if (!next) break; // do not remove last node to have a head
         free(pipe2cleanup->ch->p);
         free(pipe2cleanup->ch);
         // printf("Node deallocated: [%p]->next = [%p]\n", pipe2cleanup, next);
         free(pipe2cleanup);
         pipe2cleanup = next;
     }
+}
+
+typedef struct info_desc {
+    const char FORB[5];
+    const char* desc;
+} info_desc_t;
+
+static const info_desc_t info_descs[22] = {
+ { "IARL",	"The location where the subject of the file is archived" },
+ { "IART",	"The artist of the original subject of the file" },
+ { "ICMS",	"The name of the person or organization that commissioned the original subject of the file" },
+ { "ICMT",	"General comments about the file or its subject" },
+ { "ICOP",	"Copyright information about the file" },
+ { "ICRD",	"The date the subject of the file was created" },
+ { "ICRP",	"Whether and how an image was cropped" },
+ { "IDIM",	"The dimensions of the original subject of the file" },
+ { "IDPI",	"Dots per inch settings used to digitize the file" },
+ { "IENG",	"The name of the engineer who worked on the file" },
+ { "IGNR",	"The genre of the subject" },
+ { "IKEY",	"A list of keywords for the file or its subject" },
+ { "ILGT",	"Lightness settings used to digitize the file" },
+ { "IMED",	"Medium for the original subject of the file" },
+ { "INAM",	"Title of the subject of the file (name)" },
+ { "IPLT",	"The number of colors in the color palette used to digitize the file" },
+ { "IPRD",	"Name of the title the subject was originally intended for" },
+ { "ISB",	"Description of the contents of the file (subject)" },
+ { "ISFT",	"Name of the software package used to create the file" },
+ { "ISRC",	"The name of the person or organization that supplied the original subject of the file" },
+ { "ISRF",	"The original form of the material that was digitized (source form)" },
+ { "ITCH",	"The name of the technician who digitized the subject file" }
+};
+
+inline static const info_desc_t* get_info_desc(const char info[4]) {
+    for (size_t i = 0; i < 22; ++i) {
+        if (strncmp(info_descs[i].FORB, info, 4) == 0) {
+            return info_descs + i;
+        }
+    }
+    return NULL;
+}
+
+inline static void hex(uint32_t off, const char* buf, UINT rb) {
+    for (unsigned i = 0; i < rb; i += 16) {
+        printf("%08X  ", off + i);
+        for (unsigned j = 0; j < 16; ++j) {
+            if (j + i < rb) {
+                printf("%02X ", buf[i + j]);
+            } else {
+                printf("   ");
+            }
+            if(j == 7) {
+                printf(" ");
+            }
+        }
+        printf("  ");
+        for (unsigned j = 0; j < 16 && j + i < rb; ++j) {
+            char c = buf[i + j];
+            printf("%c", !c || c == '\n' ? ' ' : c);
+        }
+        printf("\n");
+    }
+    printf("\n");
 }
 
 int main(void) {
@@ -187,29 +252,34 @@ e0:
             free(sch);
             goto e2;
         }
-        size_t off = 0;
-        info_t* ch = sch;
+        INFO_t* ch = sch;
         if (strncmp(ch->INFO, "INFO", 4) != 0) {
             fprintf(ctx->std_err, "Unexpected LIST section in the file: '%s'\n");
+            hex(w->h_size, sch, w->subchunk_size);
             res = 11;
             free(sch);
             goto e2;
         }
-info:
-        ch = sch + off;
-        printf("   info chunk id: %c%c%c%c\n", ch->info_id[0], ch->info_id[1], ch->info_id[2], ch->info_id[3]);
-        printf(" info chunk size: %d\n", ch->size);
-        off = sizeof(info_t);;
-        if (ch->size > 0) {
-            char* buff = malloc(ch->size + 1);
-            snprintf(buff, ch->size + 1, "%s", (char*)ch + off);
-            printf(" info chunk text: %s\n"
-                   " --- \n", buff);
-            free(buff);
-            off += ch->size;
-        }
-        if (off < w->subchunk_size) {
-            goto info;
+        size_t off = sizeof(INFO_t);
+        while (off < w->subchunk_size) {
+            info_t* ch = (info_t*)(sch + off);
+            size_t sz = ch->size;
+            printf(" info chunk size: %d\n", sz);
+            const info_desc_t* info_desc = get_info_desc(ch->info_id);
+            if (!info_desc) {
+                printf("   info chunk id: %c%c%c%c (Unknown tag)\n", ch->info_id[0], ch->info_id[1], ch->info_id[2], ch->info_id[3]);
+            } else {
+                printf("   info chunk id: %s (%s)\n", info_desc->FORB, info_desc->desc);
+            }
+            off += sizeof(info_t);
+            if (sz > 0) {
+                char* s = sch + off;
+                printf(" info chunk text: %s\n --- \n", s);
+                off += sz;
+                while (!*(sch + off)) ++off;
+            }
+            if ((off < w->subchunk_size)) printf("...\n");
+            break; // TODO: why it hangs? on next one?
         }
         free(sch);
     }
@@ -250,7 +320,7 @@ info:
     pipe2cleanup = 0;
     last_created = 0;;
 
-    while (1) {
+    while (getch_now() != CHAR_CODE_ESC) {
         vPortGetHeapStats(stat);
         while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + reserve) { // some msg? or break;
         //    vTaskDelay(1);
@@ -301,7 +371,6 @@ info:
         // printf("last_created: [%p] (reassigned)\n", n);
         try_cleanup_it();
     }
-    if (!pipe2cleanup) pipe2cleanup = pipe;
     while (pipe2cleanup) {
         // printf("Cleanup (finally)\n");
         if(pipe2cleanup->ch->state != LOCKED) {
