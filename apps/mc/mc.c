@@ -805,7 +805,7 @@ static fn_1_12_tbl_t fn_1_12_tbl = {
     ' ', '4', " Edit ", m_edit,
     ' ', '5', " Copy ", m_copy_file,
     ' ', '6', " Move ", m_move_file,
-    ' ', '7', "MkDir ", m_mk_dir,
+    ' ', '7', " MkDir", m_mk_dir,
     ' ', '8', " Del  ", m_delete_file,
     ' ', '9', "      ", do_nothing,
     '1', '0', " Exit ", mark_to_exit,
@@ -866,14 +866,18 @@ static inline fn_1_12_tbl_t* actual_fn_1_12_tbl() {
 
 static void draw_fn_btn(fn_1_12_tbl_rec_t* prec, int left, int top) {
     char line[10];
-    snprintf(line, MAX_WIDTH, "       ");
+    snprintf(line, 10, "       ");
     // 1, 2, 3... button mark
-    line[0] = prec->pre_mark;
-    line[1] = prec->mark;
+    if (MAX_WIDTH < 80) {
+        line[0] = prec->mark;
+    } else {
+        line[0] = prec->pre_mark;
+        line[1] = prec->mark;
+    }
     draw_text(line, left, top, pcs->FOREGROUND_F1_12_COLOR, pcs->BACKGROUND_F1_12_COLOR);
     // button
-    snprintf(line, MAX_WIDTH, prec->name);
-    draw_text(line, left + 2, top, pcs->FOREGROUND_F_BTN_COLOR, pcs->BACKGROUND_F_BTN_COLOR);
+    snprintf(line, 10, MAX_WIDTH < 100 ? prec->name + 1 : prec->name);
+    draw_text(line, left + (MAX_WIDTH < 80 ? 1 : 2), top, pcs->FOREGROUND_F_BTN_COLOR, pcs->BACKGROUND_F_BTN_COLOR);
 }
 
 static void bottom_line() {
@@ -891,23 +895,22 @@ static void bottom_line() {
         }
     }
     int i = 0;
-    for (; i < BTNS_COUNT && (i + 1) * BTN_WIDTH < MAX_WIDTH; ++i) {
-        const fn_1_12_tbl_rec_t* rec = &(*actual_fn_1_12_tbl())[i];
-        draw_fn_btn(rec, i * BTN_WIDTH, F_BTN_Y_POS);
+    int width = BTN_WIDTH;
+    if (MAX_WIDTH < 100) {
+        --width;
     }
-    i = i * BTN_WIDTH;
+    if (MAX_WIDTH < 80) {
+        width -= 2;
+    }
+    for (; i < BTNS_COUNT && (i + 1) * width < MAX_WIDTH; ++i) {
+        const fn_1_12_tbl_rec_t* rec = &(*actual_fn_1_12_tbl())[i];
+        draw_fn_btn(rec, i * width, F_BTN_Y_POS);
+    }
+    i = i * width;
     for (; i < MAX_WIDTH; ++i) {
         draw_text(" ", i, F_BTN_Y_POS, pcs->FOREGROUND_F1_12_COLOR, pcs->BACKGROUND_F1_12_COLOR);
     }
     draw_cmd_line();
-}
-
-inline static void update_menu_color() {
- //   const char * m = g_conf.color_mode ? " B/W  " : " Color";
- //   snprintf(fn_1_12_tbl[11].name, BTN_WIDTH, m);
- //   snprintf(fn_1_12_tbl_alt[11].name, BTN_WIDTH, m);
- //   snprintf(fn_1_12_tbl_ctrl[11].name, BTN_WIDTH, m);
-    bottom_line();
 }
 
 static void redraw_window() {
@@ -915,7 +918,7 @@ static void redraw_window() {
     fill_panel(left_panel);
     fill_panel(right_panel);
     draw_cmd_line();
-    update_menu_color();
+    bottom_line();
 }
 
 inline static bool m_opendir(
@@ -2011,7 +2014,7 @@ inline static void start_manager(cmd_ctx_t* ctx) {
     m_window();
     fill_panel(left_panel);
     fill_panel(right_panel);
-    update_menu_color();
+    bottom_line();
     work_cycle(ctx);
 }
 
