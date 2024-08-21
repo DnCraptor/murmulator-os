@@ -23,6 +23,7 @@ static volatile uint32_t frame_number;
 static volatile uint32_t screen_line;
 static volatile uint8_t* input_buffer;
 static volatile uint32_t* * prev_output_buffer;
+static char* font_table;
 
 typedef struct {
     uint8_t* graphics_buffer;
@@ -72,6 +73,7 @@ static volatile bool lock_buffer;
 static volatile int graphics_mode;
 
 int _init(void) {
+    font_table = font_8x16;
     frame_number = 0;
     screen_line = 0;
     input_buffer = NULL;
@@ -145,6 +147,7 @@ static uint8_t* dma_handler_VGA_impl() {
     uint32_t* * output_buffer = &lines_pattern[2 + (screen_line & 1)];
     uint32_t div_factor = 2;
     int cursor_color = _cursor_color;
+#undef switch
     switch (graphics_mode) {
         case BK_256x256x2:
         case BK_512x256x1:
@@ -172,7 +175,7 @@ static uint8_t* dma_handler_VGA_impl() {
                 uint16_t c = color[cursor_color];
                 for (register uint32_t x = 0; x < text_buffer_width; x++) {
                     // из таблицы символов получаем "срез" текущего символа
-                    uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
+                    uint8_t glyph_pixels = font_table[((*text_buffer_line++) << 4) + glyph_line];
                     // считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                     color = &txt_palette_fast[4 * (*text_buffer_line++)];
                     if (x == xc) { // TODO: cur height
@@ -193,7 +196,7 @@ static uint8_t* dma_handler_VGA_impl() {
             } else {
               for (register uint32_t x = 0; x < text_buffer_width; x++) {
                     // из таблицы символов получаем "срез" текущего символа
-                    uint8_t glyph_pixels = font_8x16[((*text_buffer_line++) << 4) + glyph_line];
+                    uint8_t glyph_pixels = font_table[((*text_buffer_line++) << 4) + glyph_line];
                     // считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                     uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
                     *output_buffer_16bit++ = color[glyph_pixels & 3];
@@ -765,6 +768,33 @@ static void vga_driver_init(void) {
     init_palette();
 }
 
+static int get_default_mode(void) {
+    return TEXTMODE_100x37;
+}
+
+static const uint8_t font_width = 8;
+static const uint8_t font_height = 16;
+
+static bool set_font(uint8_t width, uint8_t height) {
+    if (width == 8 && height == 16) {
+        font_table = font_8x16;
+        return true;
+    }
+    return false;
+}
+static uint8_t get_font_width(void) {
+    return font_width;
+}
+static uint8_t get_font_height(void) {
+    return font_height;
+}
+static bool set_ext_font(uint8_t width, uint8_t height, char* ft) {
+    font_table = ft;
+}
+static char* get_font_table(void) {
+    return font_table;
+}
+
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
     graphics_driver_t* gd = malloc(sizeof(graphics_driver_t));
@@ -796,6 +826,12 @@ int main(void) {
     gd->get_mode = vga_get_mode;
     gd->is_mode_text = vga_is_text_mode;
     gd->set_cursor_color = vga_set_cursor_color;
+    gd->get_default_mode = get_default_mode;
+    gd->set_font = set_font;
+    gd->get_font_width = get_font_width;
+    gd->get_font_height = get_font_height;
+    gd->set_ext_font = set_ext_font;
+    gd->get_font_table = get_font_table;
     install_graphics_driver(gd);
     vga_set_mode(0);
     for(;;) {
