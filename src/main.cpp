@@ -389,6 +389,12 @@ static void info(bool with_sd) {
     );
 }
 
+static void usb_on_boot() {
+    usb_driver(true);
+   	vTaskStartScheduler();
+    for(;;) { vTaskDelay(10); }
+}
+
 static kbd_state_t* process_input_on_boot() {
     kbd_state_t* ks = get_kbd_state();
     for (int a = 0; a < 5; ++a) {
@@ -405,14 +411,13 @@ static kbd_state_t* process_input_on_boot() {
         if ((nespad_state & DPAD_SELECT) || (sc == 0x57) /*F11*/  || (sc == 0x39) /*SPACE*/) {
             if (FR_OK == f_mount(&fs, SD, 1)) {
                 if (nespad_state & DPAD_B) {
-                    usb_driver(true);
-                	vTaskStartScheduler();
-                    for(;;) { vTaskDelay(10); }
+                    usb_on_boot();
                 }
                 unlink_firmware(); // return to M-OS
             }
+        } else if (sc == 0x47 /*HOME*/ && FR_OK == f_mount(&fs, SD, 1)) {
+            usb_on_boot();
         }
-        if (sc == 0x47 /*HOME*/) usb_driver(true);
         // DPAD A/TAB start with HDMI, if default is VGA, and vice versa
         if ((nespad_state & DPAD_A) || (sc == 0x0F) /*TAB*/) {
             switch(DEFAULT_VIDEO_DRIVER) {
