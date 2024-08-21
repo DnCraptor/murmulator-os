@@ -807,6 +807,9 @@ inline static void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size, 
 
 // since 0.2.3
 #define WAV_IN_PIO 22
+// since 0.2.4
+#define BUFSIZE 127
+#define BUFSIZ  512
 
 #ifdef __cplusplus
 }

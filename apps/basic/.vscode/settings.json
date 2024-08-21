@@ -3,6 +3,11 @@
         "m-os-api.h": "c",
         "timer.h": "c",
         "m-os-api-tasks.h": "c",
-        "m-os-api-ff.h": "c"
+        "m-os-api-ff.h": "c",
+        "hardware.h": "c",
+        "runtime.h": "c",
+        "language.h": "c",
+        "basic.h": "c",
+        "math.h": "c"
     }
 }
