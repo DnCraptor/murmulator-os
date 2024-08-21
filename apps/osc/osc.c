@@ -1,5 +1,6 @@
 #include "m-os-api.h"
 #include <hardware/gpio.h>
+#include "m-os-api-sdtfn.h"
 
 typedef struct screen {
     uint8_t* b;
@@ -8,15 +9,48 @@ typedef struct screen {
     uint8_t bit;
 } screen_t;
 
-void draw_rect(screen_t* scr, int x, int y, int w, int h, uint8_t color) {
+void draw_rect(screen_t* scr, int x1, int y1, int w, int h, uint8_t color) {
+    int x2 = x1 + w - 1;
+    int y2 = y1 + h - 1;
     if (scr->bit == 8) {
-        for (int xi = x; xi < x + w; ++xi) {
-
+        char* sa = scr->b + scr->w * y1; // top line
+        for (int xi = x1; xi <= x2; ++xi) {
+            sa[xi] = color;
+        }
+        sa = scr->b + scr->w * y2; // bottim line
+        for (int xi = x1; xi <= x2; ++xi) {
+            sa[xi] = color;
+        }
+        sa = scr->b + x1; // left line
+        for (int yi = y1; yi <= y2; ++yi) {
+            sa[scr->w * yi] = color;
+        }
+        sa = scr->b + x2; // right line
+        for (int yi = y1; yi <= y2; ++yi) {
+            sa[scr->w * yi] = color;
+        }
+        return;
+    }
+    if (scr->bit == 4) {
+        char* sa = scr->b + ((scr->w * y1) >> 1); // top line
+        for (int xi = x1; xi <= x2; ++xi) {
+            sa[xi] = color;
+        }
+        sa = scr->b + ((scr->w * y2) >> 1); // bottim line
+        for (int xi = x1; xi <= x2; ++xi) {
+            sa[xi] = color;
+        }
+        sa = scr->b + (x1 >> 1); // left line
+        for (int yi = y1; yi <= y2; ++yi) {
+            sa[scr->w * yi] = color;
+        }
+        sa = scr->b + (x2 >> 1); // right line
+        for (int yi = y1; yi <= y2; ++yi) {
+            sa[scr->w * yi] = color;
         }
         return;
     }
 }
-
 
 inline static int shift_screen(int x, uint32_t w, uint32_t h, uint8_t bit, uint8_t* buff) {
     __memset(buff, 0xFF, (w * h * bit) >> 3); // TODO:

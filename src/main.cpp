@@ -54,33 +54,7 @@ void __time_critical_func(render_core)() {
         pcm_call();
         tight_loop_contents();
     }
-    /*
-    // 60 FPS loop
-#define frame_tick (16666)
-    uint64_t tick = time_us_64();
-#ifdef TFT
-    uint64_t last_renderer_tick = tick;
-#endif
-    uint64_t last_input_tick = tick;
-    while (true) {
-#ifdef TFT
-        if (tick >= last_renderer_tick + frame_tick) {
-            refresh_lcd();
-            last_renderer_tick = tick;
-        }
-#endif
-        // Every 5th frame
-        if (tick >= last_input_tick + frame_tick * 5) {
-    ///        nespad_read();
-            last_input_tick = tick;
-        }
-        tick = time_us_64();
-
-        tight_loop_contents();
-    }
-
     __unreachable();
-    */
 }
 
 inline static void tokenizeCfg(char* s, size_t sz) {
