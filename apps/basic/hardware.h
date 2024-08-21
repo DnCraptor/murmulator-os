@@ -64,7 +64,7 @@
 #endif
 
 /* use a serial port as printer interface - unfinished - similar to Arduino */
-#define POSIXPRT
+#undef POSIXPRT
 
 /* use TAB in MS mode */
 #define HASMSTAB

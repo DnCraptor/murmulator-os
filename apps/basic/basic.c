@@ -9675,3 +9675,9 @@ int main(void){
   /* put your main code here, to run repeatedly: */
   
  }
+
+//--------------------------------------------------------
+// TODO: support for static libraries in M-OS
+//--------------------------------------------------------
+#include "runtime.c"
+//--------------------------------------------------------
