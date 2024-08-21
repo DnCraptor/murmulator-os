@@ -641,7 +641,7 @@ static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t
         return;
     }
     if (bit == 4) {
-        uint8_t* p0 = graphics_buffer + ((width * y * font_height + x * font_width) >> 2);
+        uint8_t* p0 = graphics_buffer + ((width * y * font_height + x * font_width) >> 1);
         uint8_t cf = color & 0x0F;
         uint8_t cb = bgcolor & 0x0F;
         if (font_width == 6) {
