@@ -1,3 +1,4 @@
+#include <math.h>
 #include "math-wrapper.h"
 
 uint32_t __u32u32u32_div(uint32_t x, uint32_t y) {
@@ -35,4 +36,35 @@ double __ddu32_div(double x, uint32_t y) {
 }
 double __ddf_mul(double x, float y) {
     return x * y;
+}
+
+double __trunc (double t) {
+    return trunc(t);
+}
+double __floor (double t) {
+    return floor(t);
+}
+double __pow (double x, double y) {
+    return pow(x, y);
+}
+double __sqrt (double x) {
+    return sqrt(x);
+}
+double __sin (double a) {
+    return sin(a);
+}
+double __cos (double a) {
+    return sin(a);
+}
+double __tan (double a) {
+    return tan(a);
+}
+double __atan (double x) {
+    return atan(x);
+}
+double __log (double x) {
+    return log(x);
+}
+double __exp (double x) {
+    return exp(x);
 }

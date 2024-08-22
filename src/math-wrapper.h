@@ -14,3 +14,15 @@ double __ddd_mul(double x, double y);
 double __ddu32_mul(double x, uint32_t y);
 double __ddu32_div(double x, uint32_t y);
 double __ddf_mul(double x, float y);
+
+double __trunc (double);
+double __floor (double t);
+double __pow (double, double);
+double __sqrt (double);
+double __sin (double);
+double __cos (double);
+double __tan (double);
+double __atan (double);
+double __log (double);
+double __exp (double);
+

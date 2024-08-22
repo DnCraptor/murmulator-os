@@ -1,3 +1,4 @@
+#include <time.h>
 #include <hardware/flash.h>
 #include <pico/multicore.h>
 #include <pico/stdlib.h>
@@ -273,6 +274,17 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     pcm_setup, // 197
     pcm_cleanup, // 198
     pcm_set_buffer, // 199
+    // v.0.2.4
+    __trunc, // 200
+    __floor, // 201
+    __pow, // 202
+    __sqrt, // 203
+    __sin, // 204
+    __cos, // 205
+    __tan, // 206
+    __atan, // 207
+    __log, // 208
+    __exp, // 109
     // TODO:
     0
 };

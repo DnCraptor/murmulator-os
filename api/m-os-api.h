@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 18
+#define M_API_VERSION 19
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
@@ -807,10 +807,78 @@ inline static void pcm_set_buffer(int16_t* buff, uint8_t channels, size_t size, 
 
 // since 0.2.3
 #define WAV_IN_PIO 22
-// since 0.2.4
+// since 0.2.4 (API v.19)
 #define BUFSIZE 127
 #define BUFSIZ  512
 #define SYSTYPE_PASPPI 1
+
+inline static double trunc (double t) {
+    typedef double (*fn_ptr_t)(double);
+    return ((fn_ptr_t)_sys_table_ptrs[200])(t);
+}
+
+inline static double floor (double t) {
+    typedef double (*fn_ptr_t)(double);
+    return ((fn_ptr_t)_sys_table_ptrs[201])(t);
+}
+
+inline static double pow (double x, double y) {
+    typedef double (*fn_ptr_t)(double, double);
+    return ((fn_ptr_t)_sys_table_ptrs[202])(x, y);
+}
+
+inline static double sqrt (double x) {
+    typedef double (*fn_ptr_t)(double);
+    return ((fn_ptr_t)_sys_table_ptrs[203])(x);
+}
+
+inline static double sin (double x) {
+    typedef double (*fn_ptr_t)(double);
+    return ((fn_ptr_t)_sys_table_ptrs[204])(x);
+}
+
+inline static double cos (double x) {
+    typedef double (*fn_ptr_t)(double);
+    return ((fn_ptr_t)_sys_table_ptrs[205])(x);
+}
+
+inline static double tan (double x) {
+    typedef double (*fn_ptr_t)(double);
+    return ((fn_ptr_t)_sys_table_ptrs[206])(x);
+}
+inline static double atan (double x) {
+    typedef double (*fn_ptr_t)(double);
+    return ((fn_ptr_t)_sys_table_ptrs[207])(x);
+}
+inline static double log (double x) {
+    typedef double (*fn_ptr_t)(double);
+    return ((fn_ptr_t)_sys_table_ptrs[208])(x);
+}
+inline static double exp (double x) {
+    typedef double (*fn_ptr_t)(double);
+    return ((fn_ptr_t)_sys_table_ptrs[209])(x);
+}
+
+inline static DIR* opendir(const char* p) {
+    DIR* d = (DIR*)malloc(sizeof(DIR));
+    if (f_opendir(d, p) == FR_OK) return d;
+    free(d);
+    return NULL;
+}
+
+inline static void closedir(DIR* d) {
+    if (!d) return;
+    f_closedir(d);
+    free(d);
+}
+
+inline static FILINFO* readdir(DIR* d, FILINFO* fi) {
+    if (f_readdir(d, fi) == FR_OK && fi->fname[0] != '\0') {
+        return fi;
+    }
+    free(fi);
+    return NULL;
+}
 
 #ifdef __cplusplus
 }

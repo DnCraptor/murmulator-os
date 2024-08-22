@@ -1227,7 +1227,8 @@ struct ffblk *bffblk;
 
 void rootopen() {
 #ifndef MSDOS
-  root=opendir ("./");
+  root = opendir ("/");
+  file = (FILINFO*)malloc(sizeof(FILINFO));
 #else 
   (void) findfirst("*.*", bffblk, 0);
 #endif
@@ -1235,7 +1236,7 @@ void rootopen() {
 
 uint8_t rootnextfile() {
 #ifndef MSDOS
-  file = readdir(root);
+  file = readdir(root, file); // wrapper, will free(file) if no more files
   return (file != 0);
 #else 
   return (findnext(bffblk) == 0);
@@ -1260,7 +1261,7 @@ const char* rootfilename() {
 
 uint32_t rootfilesize() { 
 #ifndef MSDOS
-  return 0;
+  return file ? (uint32_t)file->fsize : 0;
 #else
   return (bffblk->ff_fsize);
 #endif
@@ -1269,6 +1270,7 @@ uint32_t rootfilesize() {
 void rootfileclose() {}
 void rootclose(){
 #ifndef MSDOS
+  if (file) free(file);
   (void) closedir(root);
 #endif  
 }
@@ -2030,3 +2032,10 @@ void fasttickerprofile() {
 }
 #endif
 
+// TODO: ensure how to handle it...
+int ftime (struct timeb* t) {
+  t->time = 0; // TODO: time_t
+  t->millitm = 0; // unsigned short
+  t->timezone = 0; // short
+  t->dstflag = 0; // short
+}

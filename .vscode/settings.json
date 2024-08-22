@@ -15,6 +15,7 @@
         "keyboard.h": "c",
         "fnt8x16.h": "c",
         "font6x8.h": "c",
-        "cstdio": "c"
+        "cstdio": "c",
+        "usb.h": "c"
     }
 }

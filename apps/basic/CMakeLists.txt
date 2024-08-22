@@ -7,7 +7,6 @@ if(NOT FLASH_SIZE)
 set(FLASH_SIZE 4096)
 endif ()
 
-
 project(murmulator-os-apps-basic C CXX ASM)
 pico_sdk_init()
 
@@ -38,13 +37,18 @@ add_executable(${PROJECT_NAME} basic.c)
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../api
-    )
+)
 
 configure_file(memmap.ld.in memmap.ld @ONLY)
 pico_set_linker_script(${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/memmap.ld)
 
 pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS Applications: Basic based on Tiny Basic")
 pico_set_program_version(${PROJECT_NAME} "test")
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+   # pico_runtime
+   # pico_stdlib
+)
 
 #family_configure_device_example(${PROJECT_NAME} noos)
 # -fPIC -shared
@@ -77,7 +81,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${BUILD_NAME}")
 
-pico_enable_stdio_uart(${PROJECT_NAME} 0)
-pico_enable_stdio_usb(${PROJECT_NAME} 0)
+#pico_enable_stdio_uart(${PROJECT_NAME} 0)
+#pico_enable_stdio_usb(${PROJECT_NAME} 0)
 
 pico_add_extra_outputs(${PROJECT_NAME})

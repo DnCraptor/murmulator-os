@@ -8,6 +8,7 @@
         "runtime.h": "c",
         "language.h": "c",
         "basic.h": "c",
-        "math.h": "c"
+        "math.h": "c",
+        "timeb.h": "c"
     }
 }
