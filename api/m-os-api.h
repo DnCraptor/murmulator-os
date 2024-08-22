@@ -89,6 +89,7 @@ inline static void gouta(char* string) {
     typedef void (*t_ptr_t)(char*);
     ((t_ptr_t)_sys_table_ptrs[127])(string);
 }
+#define puts(s) gouta(s)
 /*
 static void goutf(const char *__restrict str, ...) {
     va_list ap;
@@ -430,10 +431,12 @@ inline static char getch(void) {
     typedef char (*fn_ptr_t)(void);
     return ((fn_ptr_t)_sys_table_ptrs[122])();
 }
+#define getchar() getch()
 inline static void putc(char c) {
     typedef void (*fn_ptr_t)(char);
     ((fn_ptr_t)_sys_table_ptrs[123])(c);
 }
+#define putchar(c) putc(c)
 
 inline static void cleanup_bootb_ctx(cmd_ctx_t* ctx) {
     typedef void (*fn_ptr_t)(cmd_ctx_t* ctx);

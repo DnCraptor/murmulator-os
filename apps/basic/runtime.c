@@ -17,6 +17,7 @@
 #include "hardware.h"
 #include "runtime.h"
 #include "m-os-api-sdtfn.h"
+#include "m-os-api-math.h"
 
 /* a small character buffer to receive strings */
 #define CBUFSIZE 4 
@@ -587,7 +588,10 @@ long freeRam() {
 /* 
  * the sleep and restart functions
  */
-void restartsystem() { exit(0);}
+void restartsystem() {
+  printf("TODO: implement exit function\n");
+  //exit(0);
+}
 void activatesleep(long t) {}
 
 /* 
@@ -902,6 +906,9 @@ char vt52read() { return 0; }
 void rtcbegin() {}
 
 uint16_t rtcget(uint8_t i) {
+  return 0;
+  // TODO
+  /*
   struct timeb thetime;
   struct tm *ltime;
   ftime(&thetime);
@@ -923,7 +930,7 @@ uint16_t rtcget(uint8_t i) {
       return ltime->tm_year-100;
     default:
       return 0;
-  }
+  } */
 }
 
 void rtcset(uint8_t i, uint16_t v) {}

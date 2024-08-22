@@ -284,7 +284,30 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     __tan, // 206
     __atan, // 207
     __log, // 208
-    __exp, // 109
+    __exp, // 209
+    __aeabi_fmul, // 210
+    __aeabi_i2f, // 211
+    __aeabi_fadd, // 212
+    __aeabi_fsub, // 213
+    __aeabi_fdiv, // 214
+    __aeabi_fcmpge, // 215
+    __aeabi_idivmod, // 216
+    __aeabi_idiv, // 217
+    __aeabi_f2d, // 218
+    __aeabi_d2f, // 219
+    __aeabi_f2iz, // 220
+    __aeabi_fcmplt, // 221
+    __aeabi_dsub, // 222
+    __aeabi_d2iz, // 223
+    __aeabi_fcmpeq, // 224
+    __aeabi_fcmpun, // 225
+    __aeabi_fcmpgt, // 226
+    __aeabi_dcmpge, // 227
+    __aeabi_uidiv, // 228
+    __aeabi_ui2f, // 229
+    __aeabi_f2uiz, // 230
+    __aeabi_fcmple, // 231
+    memmove, // 232
     // TODO:
     0
 };

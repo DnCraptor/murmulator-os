@@ -9,6 +9,8 @@
         "language.h": "c",
         "basic.h": "c",
         "math.h": "c",
-        "timeb.h": "c"
+        "timeb.h": "c",
+        "m-os-api-math.h": "c",
+        "m-os-api-sdtfn.h": "c"
     }
 }

@@ -9,7 +9,6 @@
 #define f_rmdir(path) f_unlink(path)
 #define f_unmount(path) f_mount(0, path, 0)
 
-
 /* File attribute bits for directory entry (FILINFO.fattrib) */
 #define	AM_RDO	0x01	/* Read only */
 #define	AM_HID	0x02	/* Hidden */
@@ -263,3 +262,9 @@ inline static FRESULT f_open_pipe(FIL* to, FIL* from) {
     typedef FRESULT (*fn_ptr_t)(FIL*, FIL*);
     return ((fn_ptr_t)_sys_table_ptrs[151])(to, from);
 }
+
+inline static bool f_eof(FIL* fp) {
+	return ((int)((fp)->fptr == (fp)->obj.objsize));
+}
+#define feof(f) f_eof(f)
+#define remove(f) f_unlink(f)

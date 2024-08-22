@@ -21,6 +21,11 @@ char* strcpy(char* t, const char * s) {
     return ((fn_ptr_t)_sys_table_ptrs[60])(t, s);
 }
 
+void* memmove(void* dst, const void* src, size_t sz) {
+    typedef void* (*fn)(void *, const void*, size_t);
+    return ((fn)_sys_table_ptrs[232])(dst, src, sz);
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -26,3 +26,26 @@ double __atan (double);
 double __log (double);
 double __exp (double);
 
+// pico-sdk\src\rp2_common\pico_float\float_aeabi.S
+extern float __aeabi_fmul(float, float); //         single-precision multiplication
+extern float __aeabi_i2f(int); //                   integer to float (single precision) conversion
+extern float __aeabi_fadd(float, float); //         single-precision addition
+extern float __aeabi_fsub(float, float);//     single-precision subtraction, x - y
+extern float __aeabi_fdiv(float, float); //    single-precision division, n / d
+extern int __aeabi_fcmpge(float, float); //        result (1, 0) denotes (>=, ?<) [2], use for C >=
+extern int __aeabi_idivmod(int, int);
+extern int __aeabi_idiv(int, int);
+extern double __aeabi_f2d(float);
+extern float __aeabi_d2f(double);
+extern int __aeabi_f2iz(float); //                     float (single precision) to integer C-style conversion [3]
+extern int __aeabi_fcmplt(float, float); //         result (1, 0) denotes (<, ?>=) [2], use for C <
+extern double __aeabi_dsub(double, double); //     double-precision subtraction, x - y
+extern int __aeabi_d2iz(double); //                     double (double precision) to integer C-style conversion [3]
+extern int __aeabi_fcmpeq(float, float); //         result (1, 0) denotes (=, ?<>) [2], use for C == and !=
+extern int __aeabi_fcmpun(float, float); //         result (1, 0) denotes (?, <=>) [2], use for C99 isunordered()
+extern int __aeabi_fcmpgt(float, float); //         result (1, 0) denotes (>, ?<=) [2], use for C >
+extern int __aeabi_dcmpge(double, double); //         result (1, 0) denotes (>=, ?<) [2], use for C >=
+extern unsigned __aeabi_uidiv(unsigned, unsigned );
+extern float __aeabi_ui2f(unsigned);
+extern unsigned __aeabi_f2uiz(float); //             float (single precision) to unsigned C-style conversion [3]
+extern int __aeabi_fcmple(float, float); //         result (1, 0) denotes (<=, ?>) [2], use for C <=
