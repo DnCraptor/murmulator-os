@@ -16,6 +16,7 @@
 
 #include "hardware.h"
 #include "runtime.h"
+#include "m-os-api-sdtfn.h"
 
 /* a small character buffer to receive strings */
 #define CBUFSIZE 4 
@@ -124,7 +125,9 @@ void ioinit() {
   but not on DOSBOX MSDOS as DOSBOS does not handle CTRL BREAK correctly 
   DOS can be interrupted with the CONIO mechanism using BREAKCHAR. 
 */ 
+#ifdef POSIXSIGNALS
   signalon();
+#endif
 
 /* this is only for RASPBERRY - wiring has to be started explicitly */
   wiringbegin();
@@ -963,18 +966,30 @@ char mqttread() {return 0;};
  */ 
 int8_t eeprom[EEPROMSIZE];
 void ebegin(){ 
-  int i;
-  FILE* efile;
-  for (i=0; i<EEPROMSIZE; i++) eeprom[i]=-1;
-  efile=fopen("eeprom.dat", "r");
-  if (efile) fread(eeprom, EEPROMSIZE, 1, efile);
+  for (int i = 0; i < EEPROMSIZE; ++i) {
+    eeprom[i] = -1;
+  }
+  FILE* efile = (FIL*)malloc(sizeof(FIL));
+  if (f_open(efile, "eeprom.dat", FA_READ) != FR_OK) {
+    goto e;
+  }
+  uint32_t br;
+  f_read(efile, eeprom, EEPROMSIZE, &br);
+  f_close(efile);
+e:
+  free(efile);
 }
 
 void eflush(){
-  FILE* efile;
-  efile=fopen("eeprom.dat", "w");
-  if (efile) fwrite(eeprom, EEPROMSIZE, 1, efile);
-  fclose(efile);
+  FILE* efile = (FIL*)malloc(sizeof(FIL));
+  if (f_open(efile, "eeprom.dat", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+    goto e;
+  }
+  uint32_t bw;
+  f_write(efile, eeprom, EEPROMSIZE, &bw);
+  f_close(efile);
+e:
+  free(efile);
 }
 
 uint16_t elength() { return EEPROMSIZE; }
@@ -1186,24 +1201,36 @@ char fileread(){
   return c;
 }
 
-uint8_t ifileopen(const char* filename){
-  ifile=fopen(filename, "r");
-  return ifile!=0;
+uint8_t ifileopen(const char* filename) {
+  ifile = (FIL*)malloc(sizeof(FIL));
+  if (f_open(ifile, filename, FA_READ) == FR_OK) return 1;
+  free(ifile);
+  ifile = 0;
+  return 0;
 }
 
 void ifileclose(){
-  if (ifile) fclose(ifile);
-  ifile=0;  
+  if (ifile) {
+    f_close(ifile);
+    free(ifile);
+    ifile = 0;
+  }
 }
 
 uint8_t ofileopen(const char* filename, const char* m){
-  ofile=fopen(filename, m);
-  return ofile!=0;
+  ofile = (FIL*)malloc(sizeof(FIL));
+  if (f_open(ofile, filename, m[0] == 'w' ? FA_WRITE : FA_OPEN_APPEND) == FR_OK) return 1;
+  free(ofile);
+  ofile = 0;
+  return 0;
 }
 
 void ofileclose(){ 
-  if (ofile) fclose(ofile); 
-  ofile=0;
+  if (ofile) {
+    f_close(ofile);
+    free(ofile);
+    ofile = 0;
+  }
 }
 
 int fileavailable(){ return !feof(ifile); }

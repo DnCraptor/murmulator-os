@@ -872,6 +872,19 @@ inline static void closedir(DIR* d) {
     free(d);
 }
 
+inline static void fputc(char c, FILE* f) {
+    char b[] = { c };
+    uint32_t bw;
+    f_write(f, b, 1, &bw);
+}
+
+inline static int fgetc(FILE* f) {
+    char b[1];
+    uint32_t br;
+    if (f_read(f, b, 1, &br) == FR_OK && br == 1) return b[0];
+    return -1;
+}
+
 inline static FILINFO* readdir(DIR* d, FILINFO* fi) {
     if (f_readdir(d, fi) == FR_OK && fi->fname[0] != '\0') {
         return fi;
