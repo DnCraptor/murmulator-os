@@ -77,7 +77,7 @@
  * ins(): reads an entire line (uses inch except for pioserial)
  *
  */
-void ioinit();
+// void ioinit();
 void iodefaults();
 int cheof(int);
 char inch();
@@ -202,12 +202,12 @@ void aftersleepinterrupt(void);
 #define LONGYIELDINTERVAL 1000
 #define YIELDINTERVAL 32
 
-void byield(); /* the yield function called in empty loops */
-void bdelay(uint32_t); /* a delay function using byield() */
-void fastticker(); /* a function for very frequent background tasks */
-void yieldfunction(); /* everything that needs to be done often - 32 ms */
-void longyieldfunction(); /* everything that needs to be done not so often - 1 second */
-void yieldschedule(); /* scheduler call for some platforms */
+inline static void byield(); /* the yield function called in empty loops */
+inline static void bdelay(uint32_t); /* a delay function using byield() */
+inline static void fastticker(); /* a function for very frequent background tasks */
+inline static void yieldfunction(); /* everything that needs to be done often - 32 ms */
+inline static void longyieldfunction(); /* everything that needs to be done not so often - 1 second */
+inline static void yieldschedule(); /* scheduler call for some platforms */
 
 /* 
  *  EEPROM handling, these function enable the @E array and 
@@ -218,12 +218,12 @@ void yieldschedule(); /* scheduler call for some platforms */
  * mem_t in BASIC. This is needed because running from EEPROM
  * requires negative token values to be recongized. 
  * 
- */ 
 void ebegin(); 
 void eflush();
 uint16_t elength();
 void eupdate(uint16_t, int8_t);
 int8_t eread(uint16_t);
+ */ 
 
 /* 
  *  The wrappers of the arduino io functions.
@@ -234,7 +234,6 @@ int8_t eread(uint16_t);
  *  pulseout generates microsecond pulses. 
  *  
  *  awrite requires ESP32 2.0.2 core, else disable awrite().
- */ 
 uint16_t aread(uint8_t);
 uint8_t dread(uint8_t);
 void awrite(uint8_t, uint16_t);
@@ -243,10 +242,11 @@ void pinm(uint8_t, uint8_t);
 uint32_t pulsein(uint8_t, uint8_t, uint32_t);
 void pulseout(uint16_t, uint8_t, uint16_t, uint16_t, uint16_t, uint16_t);
 void playtone(uint8_t, uint16_t, uint16_t, uint8_t);
-void tonetoggle(); /* internal function of the tone emulation, called by byield */
+void tonetoggle(); /* internal function of the tone emulation, called by byield * /
 
 void breakpinbegin();
 uint8_t getbreakpin();
+ */ 
 
 /*
  * DISPLAY driver code section, the hardware models define a set of 
@@ -334,11 +334,11 @@ void fcircle(int, int, int);
  *
  */
 
-void dspsetcursorx(uint8_t);
-void dspsetcursory(uint8_t);
-uint8_t dspgetcursorx();
-uint8_t dspgetcursory();
-void dspbell(); /* to whom the bell tolls - implement this to you own liking */
+inline static void dspsetcursorx(uint8_t);
+inline static void dspsetcursory(uint8_t);
+inline static uint8_t dspgetcursorx();
+inline static uint8_t dspgetcursory();
+inline static void dspbell(); /* to whom the bell tolls - implement this to you own liking */
 
 
 /* 
@@ -529,8 +529,8 @@ char mqttcheckch();
 
 char* mkfilename(const char*);
 const char* rmrootfsprefix(const char*); /* remove the prefix from the filename */
-void fsbegin(); 
-uint8_t fsstat(uint8_t);
+inline static void fsbegin(); 
+inline static uint8_t fsstat(uint8_t);
 
 /*
  *	File I/O function on an Arduino
@@ -539,9 +539,9 @@ uint8_t fsstat(uint8_t);
  * open and close is handled separately by (i/o)file(open/close)
  * only one file can be open for write and read at the same time
  */
-void filewrite(char);
-char fileread();
-int fileavailable(); /* is int because some of the fs do this */
+inline static void filewrite(char);
+inline static char fileread();
+inline static int fileavailable(); /* is int because some of the fs do this */
 uint8_t ifileopen(const char*);
 void ifileclose();
 uint8_t ofileopen(const char*, const char*);
@@ -558,33 +558,33 @@ void ofileclose();
  *	rootfileclose()
  * rootclose()
  */
-void rootopen();
-uint8_t rootnextfile(); 
-uint8_t rootisfile();
-const char* rootfilename();
-uint32_t rootfilesize();
-void rootfileclose(); 
-void rootclose();
-void removefile(const char*);
+inline static void rootopen();
+inline static uint8_t rootnextfile(); 
+inline static uint8_t rootisfile();
+inline static const char* rootfilename();
+inline static uint32_t rootfilesize();
+inline static void rootfileclose(); 
+inline static void rootclose();
+inline static void removefile(const char*);
 
 /*
  * formatting for fdisk of the internal filesystems
  */
-void formatdisk(uint8_t);
+inline static void formatdisk(uint8_t);
 
 /*
  * The buffer I/O device. This is a stream to write to a given bufer
  * from BASIC.
  */
 
-void bufferbegin();
+inline static void bufferbegin();
 uint8_t bufferstat(uint8_t);
-void bufferwrite(char);
-char bufferread();
-char buffercheckch();
-uint16_t bufferavailable();
-uint16_t bufferins(char*, uint16_t);
-void bufferouts(char*, uint16_t);
+inline static void bufferwrite(char);
+inline static char bufferread();
+inline static char buffercheckch();
+inline static uint16_t bufferavailable();
+inline static uint16_t bufferins(char*, uint16_t);
+inline static void bufferouts(char*, uint16_t);
 
 /*
  *	Primary serial code uses the Serial object or Picoserial
@@ -627,14 +627,14 @@ void picogetchar(char);
  * character oriented -> blocking is handled in 
  * consins instead.
  */
-char serialread();
-void serialbegin();
-uint8_t serialstat(uint8_t); /* state information on the serial port */
-void serialwrite(char); /* write to a serial stream */
-char serialcheckch(); /* check on a character, needed for breaking */
-uint16_t serialavailable(); /* avail method, needed for AVAIL() */ 
-void serialflush(); /* flush serial */
-uint16_t serialins(char*, uint16_t); /* read a line from serial */
+inline static char serialread();
+inline static void serialbegin();
+inline static uint8_t serialstat(uint8_t); /* state information on the serial port */
+inline static void serialwrite(char); /* write to a serial stream */
+inline static char serialcheckch(); /* check on a character, needed for breaking */
+inline static uint16_t serialavailable(); /* avail method, needed for AVAIL() */ 
+inline static void serialflush(); /* flush serial */
+inline static uint16_t serialins(char*, uint16_t); /* read a line from serial */
 
 /*
  * reading from the console with inch or the picoserial callback
@@ -644,16 +644,16 @@ uint16_t serialins(char*, uint16_t); /* read a line from serial */
  */
 uint16_t consins(char *, uint16_t);
 
-void prtbegin(); /* second serial port */
-char prtopen(char*, uint16_t); /* the open functions are not needed here */
-void prtclose();
-uint8_t prtstat(uint8_t);
-void prtwrite(char);
-char prtread();
-char prtcheckch();
-uint16_t prtavailable();
-void prtset(uint32_t);
-uint16_t prtins(char*, uint16_t);
+inline static void prtbegin(); /* second serial port */
+inline static char prtopen(char*, uint16_t); /* the open functions are not needed here */
+inline static void prtclose();
+inline static uint8_t prtstat(uint8_t);
+inline static void prtwrite(char);
+inline static char prtread();
+inline static char prtcheckch();
+inline static uint16_t prtavailable();
+inline static void prtset(uint32_t);
+inline static uint16_t prtins(char*, uint16_t);
 
 /* 
  * The wire code, direct access to wire communication

@@ -132,7 +132,7 @@ typedef unsigned long long uint64_t;
 /*
  * additional prototypes in an non Arduino world 
  */
-unsigned long millis();
+inline static unsigned long millis();
 
 /* the ususal suspects */
 ///#include <stdio.h>

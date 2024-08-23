@@ -88,6 +88,44 @@ uint8_t blockmode = 0;
 
 inline static void rtcbegin() {}
 
+
+/* 
+ *  EEPROM handling, these function enable the @E array and 
+ *  loading and saving to EEPROM with the "!" mechanism
+ *  a filesystem based dummy
+ */ 
+int8_t eeprom[EEPROMSIZE];
+inline static void ebegin(){
+  for (int i = 0; i < EEPROMSIZE; ++i) {
+    eeprom[i] = -1;
+  }
+  FILE* efile = (FIL*)malloc(sizeof(FIL));
+  if (f_open(efile, "eeprom.dat", FA_READ) != FR_OK) {
+    goto e;
+  }
+  uint32_t br;
+  f_read(efile, eeprom, EEPROMSIZE, &br);
+  f_close(efile);
+e:
+  free(efile);
+}
+
+inline static void eflush(){
+  FILE* efile = (FIL*)malloc(sizeof(FIL));
+  if (f_open(efile, "eeprom.dat", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+    goto e;
+  }
+  uint32_t bw;
+  f_write(efile, eeprom, EEPROMSIZE, &bw);
+  f_close(efile);
+e:
+  free(efile);
+}
+
+inline static uint16_t elength() { return EEPROMSIZE; }
+inline static void eupdate(uint16_t a, int8_t c) { if (a>=0 && a<EEPROMSIZE) eeprom[a]=c; }
+inline static int8_t eread(uint16_t a) { if (a>=0 && a<EEPROMSIZE) return eeprom[a]; else return -1;  }
+
 /* 
  *  Input and output functions.
  * 
@@ -98,7 +136,7 @@ inline static void rtcbegin() {}
  * ins(): reads an entire line (uses inch except for pioserial)
  *
  */
-void ioinit() {
+inline static void ioinit() {
 
 /* a standalone system runs from keyboard and display */
 #ifdef STANDALONE
@@ -965,59 +1003,21 @@ char mqttread() {return 0;};
 #endif
 
 /* 
- *  EEPROM handling, these function enable the @E array and 
- *  loading and saving to EEPROM with the "!" mechanism
- *  a filesystem based dummy
- */ 
-int8_t eeprom[EEPROMSIZE];
-void ebegin(){ 
-  for (int i = 0; i < EEPROMSIZE; ++i) {
-    eeprom[i] = -1;
-  }
-  FILE* efile = (FIL*)malloc(sizeof(FIL));
-  if (f_open(efile, "eeprom.dat", FA_READ) != FR_OK) {
-    goto e;
-  }
-  uint32_t br;
-  f_read(efile, eeprom, EEPROMSIZE, &br);
-  f_close(efile);
-e:
-  free(efile);
-}
-
-void eflush(){
-  FILE* efile = (FIL*)malloc(sizeof(FIL));
-  if (f_open(efile, "eeprom.dat", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
-    goto e;
-  }
-  uint32_t bw;
-  f_write(efile, eeprom, EEPROMSIZE, &bw);
-  f_close(efile);
-e:
-  free(efile);
-}
-
-uint16_t elength() { return EEPROMSIZE; }
-void eupdate(uint16_t a, int8_t c) { if (a>=0 && a<EEPROMSIZE) eeprom[a]=c; }
-int8_t eread(uint16_t a) { if (a>=0 && a<EEPROMSIZE) return eeprom[a]; else return -1;  }
-
-
-/* 
  *	the wrappers of the arduino io functions
  */ 
 
 #if !defined(POSIXWIRING) && !defined(POSIXPIGPIO)
-uint16_t aread(uint8_t p) { return 0; }
-uint8_t dread(uint8_t p) { return 0; }
-void awrite(uint8_t p, uint16_t v){}
-void dwrite(uint8_t p, uint8_t v){}
-void pinm(uint8_t p, uint8_t m){}
+inline static uint16_t aread(uint8_t p) { return 0; }
+inline static uint8_t dread(uint8_t p) { return 0; }
+inline static void awrite(uint8_t p, uint16_t v){}
+inline static void dwrite(uint8_t p, uint8_t v){}
+inline static void pinm(uint8_t p, uint8_t m){}
 
 /* wrapper around pulsein */
-uint32_t pulsein(uint8_t pin, uint8_t val, uint32_t t) { return 0; }
+inline static uint32_t pulsein(uint8_t pin, uint8_t val, uint32_t t) { return 0; }
 
 /* write a pulse in microsecond range */
-void pulseout(uint16_t unit, uint8_t pin, uint16_t duration, uint16_t val, uint16_t repetition, uint16_t interval) {}
+inline static void pulseout(uint16_t unit, uint8_t pin, uint16_t duration, uint16_t val, uint16_t repetition, uint16_t interval) {}
 #endif
 
 #if defined(POSIXWIRING)
@@ -1068,8 +1068,8 @@ void breakpinbegin() { pinm(BREAKPIN, INPUT_PULLUP); }
 uint8_t getbreakpin() { return dread(BREAKPIN); } 
 #else 
 /* there is no pins hence no breakpin */
-void breakpinbegin() {}
-uint8_t getbreakpin() { return 1; } /* we return 1 because the breakpin is defined INPUT_PULLUP */
+inline static void breakpinbegin() {}
+inline static uint8_t getbreakpin() { return 1; } /* we return 1 because the breakpin is defined INPUT_PULLUP */
 #endif
 
 /* we need to do millis by hand except for RASPPI with wiring */
@@ -1175,7 +1175,7 @@ typedef struct {
 
 #define TIMER_BASE _u(0x40054000)
 #define timer_hw ((timer_hw_t *)TIMER_BASE)
-unsigned long millis() { 
+inline static unsigned long millis() { 
   return timer_hw->timerawl / 1000;
   /*
   struct timeb thetime;
@@ -1185,12 +1185,12 @@ unsigned long millis() {
 }
 
 /* this is just a stub, only needed in fasttickerprofile */
-unsigned long micros() {
+inline static unsigned long micros() {
   return timer_hw->timerawl;
 }
 #endif
 
-void playtone(uint8_t pin, uint16_t frequency, uint16_t duration, uint8_t volume) {
+inline static void playtone(uint8_t pin, uint16_t frequency, uint16_t duration, uint8_t volume) {
   // TODO:
   blimp(duration, 1);
 }
@@ -1212,7 +1212,7 @@ void playtone(uint8_t pin, uint16_t frequency, uint16_t duration, uint8_t volume
 uint32_t lastyield=0;
 uint32_t lastlongyield=0;
 
-void byield() { 
+inline static void byield() { 
 
 /* the fast ticker for all fast timing functions */
   fastticker();
@@ -1236,7 +1236,7 @@ void byield() {
 }
 
 /* delay must be implemented to use byield() while waiting */
-void bdelay(uint32_t t) {
+inline static void bdelay(uint32_t t) {
   unsigned long i;
   if (t > 0) {
     i = millis();
@@ -1245,7 +1245,7 @@ void bdelay(uint32_t t) {
 }
 
 /* fastticker is the hook for all timing functions */
-void fastticker() {
+inline static void fastticker() {
 /* fastticker profiling test code */
 #ifdef FASTTICKERPROFILE
   fasttickerprofile();
@@ -1257,10 +1257,10 @@ void fastticker() {
 }
 
 /* everything that needs to be done often - 32 ms */
-void yieldfunction() {}
+inline static void yieldfunction() {}
 
 /* everything that needs to be done not so often - 1 second */
-void longyieldfunction() {
+inline static void longyieldfunction() {
 #ifdef BASICBGTASK
 /* polling for the BREAKCHAR */
 #ifdef POSIXNONBLOCKING
@@ -1269,7 +1269,7 @@ void longyieldfunction() {
 #endif
 }
 
-void yieldschedule() {}
+inline static void yieldschedule() {}
 
 /* 
  *  The file system driver - all methods needed to support BASIC fs access
@@ -1277,7 +1277,7 @@ void yieldschedule() {}
  *
  * file system code is a wrapper around the POSIX API
  */
-void fsbegin() {}
+inline static void fsbegin() {}
 
 FILE* ifile;
 FILE* ofile;
@@ -1290,7 +1290,7 @@ void* file;
 #endif 
 
 /* POSIX OSes always have filesystems */
-uint8_t fsstat(uint8_t c) { return 1; }
+inline static uint8_t fsstat(uint8_t c) { return 1; }
 
 /*
  *  File I/O function on an Arduino
@@ -1299,14 +1299,14 @@ uint8_t fsstat(uint8_t c) { return 1; }
  * open and close is handled separately by (i/o)file(open/close)
  * only one file can be open for write and read at the same time
  */
-void filewrite(char c) { 
+inline static void filewrite(char c) { 
   if (ofile) 
     fputc(c, ofile); 
   else 
     ioer=1;
 }
 
-char fileread(){
+inline static char fileread(){
   char c;
   if (ifile) c = fgetc(ifile);
   else { ioer = 1; return 0; }
@@ -1346,7 +1346,7 @@ void ofileclose(){
   }
 }
 
-int fileavailable(){ return !feof(ifile); }
+inline static int fileavailable(){ return !feof(ifile); }
 
 /*
  * directory handling for the catalog function
@@ -1365,7 +1365,7 @@ int fileavailable(){ return !feof(ifile); }
 struct ffblk *bffblk; 
 #endif
 
-void rootopen() {
+inline static void rootopen() {
 #ifndef MSDOS
   root = opendir ("/");
   file = (FILINFO*)malloc(sizeof(FILINFO));
@@ -1374,7 +1374,7 @@ void rootopen() {
 #endif
 }
 
-uint8_t rootnextfile() {
+inline static uint8_t rootnextfile() {
 #ifndef MSDOS
   file = readdir(root, file); // wrapper, will free(file) if no more files
   return (file != 0);
@@ -1383,7 +1383,7 @@ uint8_t rootnextfile() {
 #endif
 }
 
-uint8_t rootisfile() {
+inline static uint8_t rootisfile() {
 #if !defined(MSDOS) && !defined(MINGW)
   return (file->fattrib != AM_DIR);
 #else
@@ -1391,7 +1391,7 @@ uint8_t rootisfile() {
 #endif
 }
 
-const char* rootfilename() { 
+inline static const char* rootfilename() { 
 #ifndef MSDOS
   return (file->fname);
 #else
@@ -1399,7 +1399,7 @@ const char* rootfilename() {
 #endif  
 }
 
-uint32_t rootfilesize() { 
+inline static uint32_t rootfilesize() { 
 #ifndef MSDOS
   return file ? (uint32_t)file->fsize : 0;
 #else
@@ -1407,8 +1407,8 @@ uint32_t rootfilesize() {
 #endif
 }
 
-void rootfileclose() {}
-void rootclose(){
+inline static void rootfileclose() {}
+inline static void rootclose(){
 #ifndef MSDOS
   if (file) free(file);
   (void) closedir(root);
@@ -1418,14 +1418,14 @@ void rootclose(){
 /*
  * remove method for files
  */
-void removefile(const char *filename) {
+inline static void removefile(const char *filename) {
   remove(filename);
 }
 
 /*
  * formatting for fdisk of the internal filesystems
  */
-void formatdisk(uint8_t i) {
+inline static void formatdisk(uint8_t i) {
   puts("Format not implemented on this platform.");
 }
 
@@ -1436,11 +1436,11 @@ void formatdisk(uint8_t i) {
  */
 
 /* use the input buffer variable from BASIC here, it is extern to runtime */
-void bufferbegin() {}
+inline static void bufferbegin() {}
 
 /* write to the buffer, works only until 127 
   uses vt52 style commands to handle the buffer content*/
-void bufferwrite(char c) {
+inline static void bufferwrite(char c) {
   if (!nullbuffer) return;
   switch (c) {
   case 12: /* clear screen */
@@ -1463,11 +1463,11 @@ void bufferwrite(char c) {
 }
 
 /* read not needed right now */
-char bufferread() { return 0; }
-uint16_t bufferavailable() { return 0; }
-char buffercheckch() { return 0; }
-void bufferflush() { }
-uint16_t bufferins(char *b, uint16_t nb) { return 0; }
+inline static char bufferread() { return 0; }
+inline static uint16_t bufferavailable() { return 0; }
+inline static char buffercheckch() { return 0; }
+inline static void bufferflush() { }
+inline static uint16_t bufferins(char *b, uint16_t nb) { return 0; }
 
 /*
  * Primary serial code, if NONBLOCKING is set, 
@@ -1564,21 +1564,21 @@ void serialflush() { }
 #endif
 #else 
 /* the blocking code only uses puchar and getchar */
-void serialbegin(){}
-char serialread() { return getchar(); }
-char serialcheckch(){ return 1; }
-uint16_t serialavailable() { return 1; }
-void serialflush() {}
+inline static void serialbegin(){}
+inline static char serialread() { return getchar(); }
+inline static char serialcheckch(){ return 1; }
+inline static uint16_t serialavailable() { return 1; }
+inline static void serialflush() {}
 #endif
 
-uint8_t serialstat(uint8_t c) {
+inline static uint8_t serialstat(uint8_t c) {
   if (c == 0) return 1;
   if (c == 1) return serial_baudrate/1000;
   return 0;
 }
 
 /* send the CSI sequence to start with ANSI */
-void sendcsi() {
+inline static void sendcsi() {
   putchar(27); putchar('['); /* CSI */
 }
 
@@ -1597,18 +1597,18 @@ uint8_t vt52number(char c) {
 }
 
 /* set the cursor */
-void dspsetcursory(uint8_t i) {
-  cursory=i;
+inline static void dspsetcursory(uint8_t i) {
+  cursory = i;
 }
 
 /* remember the position */
-void dspsetcursorx(uint8_t i) {
+inline static void dspsetcursorx(uint8_t i) {
   sendcsi();
   printf("%d;%dH", abs(cursory)+1, i+1);
 }
 
 /* set colors, vga here */
-void dspsetfgcolor(uint8_t co) {
+inline static void dspsetfgcolor(uint8_t co) {
   sendcsi();
   if (co < 8) {
     putchar('3');
@@ -1620,7 +1620,7 @@ void dspsetfgcolor(uint8_t co) {
   putchar('m');
 }
 
-void dspsetbgcolor(uint8_t co) {
+inline static void dspsetbgcolor(uint8_t co) {
   sendcsi();
   if (co < 8) {
     putchar('4');
@@ -1633,7 +1633,7 @@ void dspsetbgcolor(uint8_t co) {
 }
 
 /* vt52 state engine, a smaller version of the Arduino code*/
-void dspvt52(char* c){
+void dspvt52(char* c) {
   
 /* reading and processing multi byte commands */
   switch (vt52s) {
@@ -1932,14 +1932,14 @@ uint16_t prtins(char* b, uint16_t nb) {
 }
 
 #else
-void prtbegin() {}
-uint8_t prtstat(uint8_t c) {return 0; }
-void prtset(uint32_t s) {}
-void prtwrite(char c) {}
-char prtread() {return 0;}
-char prtcheckch(){ return 0; }
-uint16_t prtavailable(){ return 0; }
-uint16_t prtins(char* b, uint16_t nb) { return 0; }
+inline static void prtbegin() {}
+inline static uint8_t prtstat(uint8_t c) {return 0; }
+inline static void prtset(uint32_t s) {}
+inline static void prtwrite(char c) {}
+inline static char prtread() {return 0;}
+inline static char prtcheckch(){ return 0; }
+inline static uint16_t prtavailable(){ return 0; }
+inline static uint16_t prtins(char* b, uint16_t nb) { return 0; }
 #endif
 
 
