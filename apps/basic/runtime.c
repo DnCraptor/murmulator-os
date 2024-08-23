@@ -23,13 +23,6 @@
 #define CBUFSIZE 4 
 char* cbuffer[CBUFSIZE];
 
-/* if the BASIC interpreter provides a loop function it will superseed this one */
-#ifndef MSDOS
-///void __attribute__((weak)) bloop() {}
-#else
-void bloop() {}
-#endif
-
 /* 
  *  Global variables of the runtime env.
  */
@@ -93,6 +86,8 @@ const uint16_t serial1_baudrate = 0;
 uint8_t sendcr = 0;
 uint8_t blockmode = 0;
 
+inline static void rtcbegin() {}
+
 /* 
  *  Input and output functions.
  * 
@@ -130,7 +125,7 @@ void ioinit() {
 #endif
 
 /* this is only for RASPBERRY - wiring has to be started explicitly */
-  wiringbegin();
+//  wiringbegin();
 
 /* all serial protocolls, ttl channels, SPI and Wire */
   serialbegin();
@@ -534,7 +529,7 @@ void outs(char *ir, uint16_t l){
 struct timeb start_time;
 void timeinit() { ftime(&start_time); }
 
-/* starting wiring for raspberry */
+/* starting wiring for raspberry 
 void wiringbegin() {
 #ifdef POSIXWIRING
   wiringPiSetup();
@@ -551,6 +546,7 @@ void wiringbegin() {
   }
 #endif
 }
+*/
 
 /* signal handling */
 #ifdef POSIXSIGNALS
@@ -576,7 +572,7 @@ void signaloff() {}
 /*
  * helper functions OS, heuristic on how much memory is available in BASIC
  */
-long freememorysize() {
+inline static long freememorysize() {
 #ifdef MSDOS
   return 48000;
 #else
@@ -584,23 +580,24 @@ long freememorysize() {
 #endif  
 }
 
-long freeRam() {
+inline static long freeRam() {
   return freememorysize();
 }
 
 /* 
  * the sleep and restart functions
  */
-void restartsystem() {
+bool marked_to_exit;
+inline static void restartsystem() {
   marked_to_exit = true;
   //exit(0);
 }
-void activatesleep(long t) {}
+inline static void activatesleep(long t) {}
 
 /* 
  * start the SPI bus 
  */
-void spibegin() {}
+inline static void spibegin() {}
 
 /*
  * DISPLAY driver code section, the hardware models define a set of 
@@ -621,29 +618,29 @@ void spibegin() {}
  */
 const int dsp_rows = 0;
 const int dsp_columns = 0;
-void dspsetupdatemode(uint8_t c) {}
-void dspwrite(char c){}
-void dspbegin() {}
-uint8_t dspstat(uint8_t c) { return 0; }
-char dspwaitonscroll() { return 0; }
-uint8_t dspactive() { return 0; }
-void dspsetscrollmode(uint8_t c, uint8_t l) {}
-void dspsetcursor(uint8_t c) {}
+inline static void dspsetupdatemode(uint8_t c) {}
+inline static void dspwrite(char c){}
+inline static void dspbegin() {}
+inline static uint8_t dspstat(uint8_t c) { return 0; }
+inline static char dspwaitonscroll() { return 0; }
+inline static uint8_t dspactive() { return 0; }
+inline static void dspsetscrollmode(uint8_t c, uint8_t l) {}
+inline static void dspsetcursor(uint8_t c) {}
 
 #ifndef POSIXFRAMEBUFFER
 /* these are the graphics commands */
-void rgbcolor(uint8_t r, uint8_t g, uint8_t b) {}
-void vgacolor(uint8_t c) {}
-void plot(int x, int y) {}
-void line(int x0, int y0, int x1, int y1)   {}
-void rect(int x0, int y0, int x1, int y1)   {}
-void frect(int x0, int y0, int x1, int y1)  {}
-void circle(int x0, int y0, int r) {}
-void fcircle(int x0, int y0, int r) {}
+inline static void rgbcolor(uint8_t r, uint8_t g, uint8_t b) {}
+inline static void vgacolor(uint8_t c) {}
+inline static void plot(int x, int y) {}
+inline static void line(int x0, int y0, int x1, int y1)   {}
+inline static void rect(int x0, int y0, int x1, int y1)   {}
+inline static void frect(int x0, int y0, int x1, int y1)  {}
+inline static void circle(int x0, int y0, int r) {}
+inline static void fcircle(int x0, int y0, int r) {}
 
 /* stubs for the vga code part analogous to ESP32 */
-void vgabegin(){}
-void vgawrite(char c){}
+inline static void vgabegin(){}
+inline static void vgawrite(char c){}
 #else
 /* 
  * This is the first draft of the linux framebuffer code 
@@ -890,15 +887,15 @@ void vgawrite(char c) {}
  *  kbdavailable(), kbdread(), kbdcheckch()
  * the later is for interrupting running BASIC code
  */
-void kbdbegin() {}
-uint8_t kbdstat(uint8_t c) {return 0; }
-uint8_t kbdavailable(){ return 0;}
-char kbdread() { return 0;}
-char kbdcheckch() { return 0;}
+inline static void kbdbegin() {}
+inline static uint8_t kbdstat(uint8_t c) { return 0; }
+inline static uint8_t kbdavailable(){ return 0;}
+inline static char kbdread() { return 0;}
+inline static char kbdcheckch() { return 0;}
 
 /* vt52 code stubs - unused here - needed for basic.c */
-uint8_t vt52avail() {return 0;}
-char vt52read() { return 0; }
+inline static uint8_t vt52avail() {return 0;}
+inline static char vt52read() { return 0; }
 
 /* Display driver would be here, together with vt52 */
 
@@ -906,9 +903,7 @@ char vt52read() { return 0; }
  * Real Time clock code 
  */
 
-void rtcbegin() {}
-
-uint16_t rtcget(uint8_t i) {
+inline static uint16_t rtcget(uint8_t i) {
   return 0;
   // TODO
   /*
@@ -936,22 +931,22 @@ uint16_t rtcget(uint8_t i) {
   } */
 }
 
-void rtcset(uint8_t i, uint16_t v) {}
+inline static void rtcset(uint8_t i, uint16_t v) {}
 
 /* 
  * Wifi and MQTT code 
  */
 #ifndef POSIXMQTT
-void netbegin() {}
-uint8_t netconnected() { return 0; }
-void mqttbegin() {}
-uint8_t mqttstat(uint8_t c) {return 0; }
-uint8_t mqttstate() {return 0;}
-void mqttsubscribe(const char *t) {}
-void mqttsettopic(const char *t) {}
-void mqttouts(const char *m, uint16_t l) {}
-uint16_t mqttins(char *b, uint16_t nb) { return 0; };
-char mqttread() {return 0;};
+inline static void netbegin() {}
+inline static uint8_t netconnected() { return 0; }
+inline static void mqttbegin() {}
+inline static uint8_t mqttstat(uint8_t c) {return 0; }
+inline static uint8_t mqttstate() {return 0;}
+inline static void mqttsubscribe(const char *t) {}
+inline static void mqttsettopic(const char *t) {}
+inline static void mqttouts(const char *m, uint16_t l) {}
+inline static uint16_t mqttins(char *b, uint16_t nb) { return 0; };
+inline static char mqttread() {return 0;};
 #else 
 /* we use mosquitto */
 #include <mosquitto.h>
@@ -1222,9 +1217,6 @@ void byield() {
 /* the fast ticker for all fast timing functions */
   fastticker();
 
-/* the loop function for non BASIC stuff */
-  bloop();
-
 #if defined(BASICBGTASK)
 /* yield all 32 milliseconds */
   if (millis()-lastyield > YIELDINTERVAL-1) {
@@ -1340,7 +1332,7 @@ void ifileclose(){
 
 uint8_t ofileopen(const char* filename, const char* m){
   ofile = (FIL*)malloc(sizeof(FIL));
-  if (f_open(ofile, filename, m[0] == 'w' ? FA_WRITE : FA_OPEN_APPEND) == FR_OK) return 1;
+  if (f_open(ofile, filename, m[0] == 'w' ? (FA_WRITE | FA_CREATE_ALWAYS) : FA_OPEN_APPEND) == FR_OK) return 1;
   free(ofile);
   ofile = 0;
   return 0;

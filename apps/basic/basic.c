@@ -2,6 +2,13 @@
 // TODO:
 #undef switch
 //#define HASKEYBOARD
+
+//--------------------------------------------------------
+// TODO: support for static libraries in M-OS
+//--------------------------------------------------------
+#include "runtime.c"
+//--------------------------------------------------------
+
 /*----------------------------------------------------------------
  * Please read this before compiling: 
  *  - Review hardware.h for settings specific hardware settings.
@@ -603,8 +610,6 @@ char** bargv;
 mem_t bnointafterrun = 0;
 #endif
 
-bool marked_to_exit;
-
 /* formaters lastouttoken and spaceafterkeyword to make a nice LIST */
 mem_t lastouttoken;
 mem_t spaceafterkeyword;
@@ -762,6 +767,10 @@ address_t ballocmem(){ return MEMSIZE-1; };
  * 	
  */
 
+inline static void beupdate(address_t a, mem_t v) {
+	eupdate(a, v);
+}
+
 /* save a file to EEPROM, disabled if we use the EEPROM directly */
 void esave() {
 #ifndef EEPROMMEMINTERFACE
@@ -820,26 +829,23 @@ void eload() {
 }
 
 /* autorun something from EEPROM or a filesystem */
-char autorun() {
-
+inline static char autorun() {
 /* autorun from EEPROM if there is an EEPROM flagged for autorun */	
-	if (elength()>0 && eread(0) == 1) { /* autorun from the EEPROM */
-		top=getaddress(1, beread);
-  		st=SERUN;
+	if (elength() > 0 && eread(0) == 1) { /* autorun from the EEPROM */
+		top = getaddress(1, beread);
+  		st = SERUN;
   		return 1; /* EEPROM autorun overrules filesystem autorun */
 	} 
-
 /* autorun from a given command line argument, if we have one */
 #ifdef HASARGS
 	if (bargc > 0 && ifileopen(bargv[1])) {
 		xload(bargv[1]);
-		st=SRUN;
+		st = SRUN;
 		ifileclose();
-		bnointafterrun=TERMINATEAFTERRUN;
+		bnointafterrun = TERMINATEAFTERRUN;
 		return 1;			
 	}
 #endif
-
 /* on a platform with a file system, autoexec from a file */
 #if defined(FILESYSTEMDRIVER) 
 	if (ifileopen("autoexec.bas")) {
@@ -849,7 +855,6 @@ char autorun() {
 		return 1;
 	}
 #endif
-
 /* nothing to autorun */
 	return 0;
 }
@@ -1050,7 +1055,7 @@ address_t bfree(name_t* name) {
 }
 
 /* the length of an object, we directly return from the cache */
-address_t blength(name_t* name) {
+inline static address_t blength(name_t* name) {
 	if (bfind(name)) return bfind_object.size; else return 0;
 }
 #endif /* HASAPPLE1 */
@@ -1249,11 +1254,6 @@ void clrvars() {
 mem_t beread(address_t a) {
 	return eread(a);
 }
-
-void beupdate(address_t a, mem_t v) {
-	eupdate(a, v);
-}
-
 
 /* a generic memory reader for numbers  */
 number_t getnumber(address_t m, memreader_t f) {
@@ -9528,9 +9528,6 @@ void setup() {
  	// if (fsstat(1) == 1 && fsstat(2) > 0) outsc("Filesystem started\n");
 #endif
 
-/* setup for all non BASIC stuff */
-	bsetup();
-
 /* get the BASIC memory, either as memory array with
 	ballocmem() or as an SPI serical memory */
 #if (defined(SPIRAMINTERFACE) || defined(SPIRAMSIMULATOR)) && MEMSIZE == 0
@@ -9701,7 +9698,7 @@ int main(void){
  * - Avoid allocating a lot of memory in bloop().
  */
 
-void bsetup() {
+int _init(void) {
   /* put your setup code here, to run once: */
 	sp = 0; 
 	ibuffer[0] = 0;
@@ -9769,16 +9766,6 @@ void bsetup() {
 	marked_to_exit = false;
 	init_runtime();
 }
-
-void bloop() {
-  /* put your main code here, to run repeatedly: */
-}
-
-//--------------------------------------------------------
-// TODO: support for static libraries in M-OS
-//--------------------------------------------------------
-#include "runtime.c"
-//--------------------------------------------------------
 
 int __required_m_api_verion(void) {
     return M_API_VERSION;

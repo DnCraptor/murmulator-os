@@ -471,13 +471,11 @@ address_t ballocmem();
 /* handle files im EEPROM */
 void eload();
 void esave();
-char autorun();
 
 /* the variable heap from Apple 1 BASIC */
 address_t bmalloc(name_t*, address_t);
 address_t bfind(name_t*);
 address_t bfree(name_t*);
-address_t blength (name_t*);
 
 /* normal variables of number_t */
 number_t getvar(name_t*);
@@ -593,7 +591,6 @@ mem_t memread(address_t);
 mem_t memread2(address_t);
 void memwrite2(address_t, mem_t);
 mem_t beread(address_t);
-void beupdate(address_t, mem_t);
 void gettoken();
 void firstline();
 void nextline();
@@ -791,7 +788,3 @@ void xedit();
 
 /* the statement loop */
 void statement();
-
-/* the extension functions */
-void bsetup();
-void bloop();

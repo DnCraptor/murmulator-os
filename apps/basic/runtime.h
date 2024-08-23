@@ -139,7 +139,7 @@ extern uint8_t bsystype;
  */
 
 void timeinit();	/* handling time - part of the Arduino core - only needed on POSIX OSes */
-void wiringbegin();	/* starting wiring is only needed on raspberry */
+//void wiringbegin();	/* starting wiring is only needed on raspberry */
 void signalon();	/* POSIX signals - not needed on Ardunino */
 
 /*
@@ -153,14 +153,14 @@ void signalon();	/* POSIX signals - not needed on Ardunino */
  * Arduino data from https://docs.arduino.cc/learn/programming/memory-guide
  */
 
-long freememorysize(); /* determine how much actually to allocate */
-void restartsystem(); /* cold start of the MCU */
-long freeRam();	/* try to find the free heap after alocating all globals */
+//long freememorysize(); /* determine how much actually to allocate */
+//void restartsystem(); /* cold start of the MCU */
+//long freeRam();	/* try to find the free heap after alocating all globals */
 
 /* This is unfinished, don't use, sleep and RTC interrupt code. */ 
 void rtcsqw();
 void aftersleepinterrupt(void);
-void activatesleep(long);
+//void activatesleep(long);
 
 /* 
  * Start the SPI bus. Called once on start. 
@@ -169,7 +169,7 @@ void activatesleep(long);
  * the PIN settings if the library code is not clean - currenty no conflict known.
  * for the libraries used here.
  */
-void spibegin();
+//void spibegin();
 
 /* 
  *  Timeing functions and background tasks. 
@@ -276,7 +276,6 @@ uint8_t rgbtovga(uint8_t, uint8_t, uint8_t);
 
 /* 
  * prototypes for screen handling
- */
 void dspbegin(); 
 void dspprintchar(char, uint8_t, uint8_t);
 void dspclear();
@@ -296,6 +295,7 @@ void rect(int, int, int, int);
 void frect(int, int, int, int);
 void circle(int, int, int);
 void fcircle(int, int, int);
+ */
 
 /*
  * this is a generic display code 
@@ -364,29 +364,30 @@ typedef short dspbuffer_t;
 #else
 typedef char dspbuffer_t;
 #endif
-
+/*
 dspbuffer_t dspget(uint16_t);
 dspbuffer_t dspgetrc(uint8_t, uint8_t);
 dspbuffer_t dspgetc(uint8_t);
+*/
 
-void dspsetxy(dspbuffer_t, uint8_t, uint8_t); /* this functions prints a character and updates the display buffer */
-void dspset(uint16_t, dspbuffer_t);
-void dspsetscrollmode(uint8_t, uint8_t); /* 0 normal scroll, 1 enable waitonscroll function */
+//void dspsetxy(dspbuffer_t, uint8_t, uint8_t); /* this functions prints a character and updates the display buffer */
+//void dspset(uint16_t, dspbuffer_t);
+//void dspsetscrollmode(uint8_t, uint8_t); /* 0 normal scroll, 1 enable waitonscroll function */
 
-void dspbufferclear(); /* clear the buffer */
-void dspscroll(uint8_t, uint8_t); /* do the scroll */
-void dspreversescroll(uint8_t); /* do the reverse scroll only one line implemented */
+//void dspbufferclear(); /* clear the buffer */
+//void dspscroll(uint8_t, uint8_t); /* do the scroll */
+//void dspreversescroll(uint8_t); /* do the reverse scroll only one line implemented */
 
 /* 
  * This is the minimalistic VT52 state engine. It is an interface to 
  * process single byte control sequences of the form <ESC> char 
  */
 
-char vt52read(); /* the reader from the buffer, for messages going back from the display */
-uint8_t vt52avail(); /* the avail from the buffer */
-void vt52push(char); /* putting something into the buffer */
-uint8_t vt52number(char); /* something little, generating numbers */
-void vt52graphcommand(uint8_t); /* execute one graphics command */
+//char vt52read(); /* the reader from the buffer, for messages going back from the display */
+//uint8_t vt52avail(); /* the avail from the buffer */
+//void vt52push(char); /* putting something into the buffer */
+//uint8_t vt52number(char); /* something little, generating numbers */
+//void vt52graphcommand(uint8_t); /* execute one graphics command */
 
 /* 
  * this is a special part of the vt52 code with this, the terminal 
@@ -403,7 +404,7 @@ void vt52wiringcommand(uint8_t);
 void dspvt52(char*);
 
 
-/* these functions are used to access the display */
+/* these functions are used to access the display 
 void dspouts(char*, uint16_t);
 void dspwrite(char);
 uint8_t dspstat(uint8_t);
@@ -412,14 +413,14 @@ uint8_t dspactive();
 void dspsetupdatemode(uint8_t);
 uint8_t dspgetupdatemode(); 
 void dspgraphupdate();
-
+*/
 /* 
  * code for the VGA system of Fabgl 
  */
-void vgabegin(); /* this starts the vga controller and the terminal right now */
+//void vgabegin(); /* this starts the vga controller and the terminal right now */
 int vgastat(uint8_t); /* currently unused */
 void vgascale(int*, int*); /* scale the screen size */
-void vgawrite(char); 
+//void vgawrite(char); 
 void vgaend();
 
 /* 
@@ -434,14 +435,13 @@ void vgaend();
  * they need to provide
  * 	kbdavailable(), kbdread(), kbdcheckch()
  * the later is for interrupting running BASIC code
- */
-
 void kbdbegin();
 uint8_t kbdstat(uint8_t);
 uint8_t kbdavailable();
 char kbdread();
 char kbdcheckch();
 uint16_t kbdins(char*, uint16_t);
+ */
 
 /* 
  * Arduino Real Time clock. The interface here offers the values as number_t 
@@ -466,9 +466,9 @@ uint16_t kbdins(char*, uint16_t);
  */
 
 /* No begin method needed */
-void rtcbegin();
-uint16_t rtcget(uint8_t); /* get the time from the registers */
-void rtcset(uint8_t, uint16_t);
+//void rtcbegin();
+//uint16_t rtcget(uint8_t); /* get the time from the registers */
+//void rtcset(uint8_t, uint16_t);
 
 /* convert the time to a unix time number from https://de.wikipedia.org/wiki/Unixzeit  */
 void rtctimetoutime();
@@ -489,13 +489,12 @@ void rtcutimetotime();
  * wifisettings.h is the generic network definition file
  * all network settings are compiled into the code 
  * BASIC cannot change them at runtime.
- */
-
 void mqttsetname(); 
 void netbegin();
 void netstop();
 void netreconnect();
 uint8_t netconnected();
+ */
 
 /*
  * mqtt event handling in BASIC can be triggered here
@@ -507,7 +506,6 @@ void mqttcallback(char*, byte*, unsigned int);
 
 /*
  * mqtt prototypes 
- */
 void mqttbegin();
 uint8_t mqttstat(uint8_t);
 uint8_t mqttreconnect();
@@ -521,6 +519,7 @@ char mqttread();
 uint16_t mqttins(char*, uint16_t);
 uint16_t mqttavailable();
 char mqttcheckch();
+ */
 
 /* 
  *	The file system driver - all methods needed to support BASIC fs access
