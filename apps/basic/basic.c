@@ -1,6 +1,7 @@
 #include "m-os-api.h"
 // TODO:
 #undef switch
+//#define HASKEYBOARD
 /*----------------------------------------------------------------
  * Please read this before compiling: 
  *  - Review hardware.h for settings specific hardware settings.
@@ -599,6 +600,8 @@ int bargc;
 char** bargv;
 mem_t bnointafterrun = 0;
 #endif
+
+bool marked_to_exit;
 
 /* formaters lastouttoken and spaceafterkeyword to make a nice LIST */
 mem_t lastouttoken;
@@ -1983,6 +1986,10 @@ void printmessage(char i){
 	outsc((char *)getmessage(i));
 }
 
+inline static void clrforstack() {
+	loopsp = 0;
+}
+
 /*
  *	Layer 0 - error handling
  *
@@ -2207,7 +2214,7 @@ address_t popaddress(){
 }
 
 void clearst(){
-	sp=0;
+	sp = 0;
 }
 
 /* these are not really stack operations but a way to handle temp char data */
@@ -2222,7 +2229,7 @@ char popchar() { return 0; }
  */
 void clrdata() {
 #ifdef HASDARTMOUTH
-	data=0;
+	data = 0;
 #endif
 }
 
@@ -2315,10 +2322,6 @@ void droploop() {
 		error(ELOOP);
 		return;
 	} 
-}
-
-void clrforstack() {
-	loopsp=0;
 }
 
 /* GOSUB stack handling */
@@ -2750,7 +2753,6 @@ void nexttoken() {
 	address_t k, l, i;
 	char* ir;
 	char quotechar;
-
 /* RUN mode vs. INT mode, in RUN mode we read from mem via gettoken() */
 	if (st == SRUN || st == SERUN) {
 /* in the token stream we call fastticker - all fast timing functions are in stream */
@@ -2758,7 +2760,7 @@ void nexttoken() {
 /* read the token from memory */
 		gettoken();
 /* show what we are doing */
-		if (debuglevel>1) { debugtoken(); outcr(); }
+		if (debuglevel > 1) { debugtoken(); outcr(); }
 		return;
 	}
 
@@ -2777,7 +2779,7 @@ void nexttoken() {
 
 /* end of line token */
 	if (*bi == '\0') { 
-		token=EOL; 
+		token = EOL; 
 		if (DEBUG) debugtoken();
 		return; 
 	}
@@ -2886,7 +2888,6 @@ void nexttoken() {
 			break;
 		}
 	}
-
 
 /* 
  *	Ir is reused here to implement string compares
@@ -3221,7 +3222,7 @@ void nextline() {
  * assumes that findline calls it only if a new line is to be stored
  * the LINECACHE size depends on the architecture. 
  */
-#if defined(LINECACHESIZE) && LINECACHESIZE>0
+#if defined(LINECACHESIZE) && LINECACHESIZE > 0
 const unsigned char linecachedepth = LINECACHESIZE;
 typedef struct {address_t l; address_t h;} linecacheentry;
 linecacheentry linecache[LINECACHESIZE];
@@ -3262,7 +3263,6 @@ address_t findinlinecache(address_t l){ return 0; }
  */
 void findline(address_t l) {
 	address_t a;
-
 /* we know it already, here to advance */
 	if ((a=findinlinecache(l))) { 
 		here=a; 
@@ -3360,13 +3360,12 @@ void diag(){
 #endif
 
 void storeline() {
-	const index_t lnlength=addrsize+1;
+	const index_t lnlength = addrsize + 1;
 	index_t linelength;
 	number_t newline; 
 	address_t here2, here3; 
 	address_t t1, t2;
 	address_t y;
-
 /* the data pointers becomes invalid once the code has been changed */
 	clrdata();
 
@@ -6119,15 +6118,17 @@ endnosave:
  */
 void xrun(){
 	if (token == TCONT) {
-		st=SRUN;
+		st = SRUN;
 		nexttoken();
 	} else {
 		nexttoken();
 		parsearguments();
 		if (er != 0 ) return;
-		if (args > 1) { error(EARGS); return; }
+		if (args > 1) {
+			error(EARGS); return;
+		}
 		if (args == 0) {
-			here=0;
+			here = 0;
 		} else {
 			findline(pop());
 		}
@@ -6220,9 +6221,9 @@ void xnew(){
 	zeroblock(0, memsize);
 	top=0;
 
-	if (DEBUG) outsc("** clearing EEPROM state \n ");
 /* on EEPROM systems also clear the stored state and top */
 #ifdef EEPROMMEMINTERFACE
+	if (DEBUG) outsc("** clearing EEPROM state \n ");
 	eupdate(0, 0);
 	setaddress(1, beupdate, top);
 #endif
@@ -6753,22 +6754,24 @@ void xload(const char* f) {
 
 		bi=ibuffer+1;
 		while (fileavailable()) {
-			ch=fileread();
-
+			ch = fileread();
 			if (ch == '\n' || ch == '\r' || cheof(ch)) {
-				*bi=0;
-				bi=ibuffer+1;
+				*bi = 0;
+				bi = ibuffer + 1;
+				#if DEBUG
+				printf("[line] %s\n", bi);
+				#endif
 				if (*bi != '#') { /* lines starting with a # are skipped - Unix style shell startup */
 					nexttoken();
 					if (token == NUMBER) {
-						ax=x;
+						ax = x;
 						storeline();
 					}
         			if (er != 0 ) break;
-        			bi=ibuffer+1;
+        			bi = ibuffer+1;
         		}
       		} else {
-        		*bi++=ch;
+        		*bi++ = ch;
       		}
 
 			if ((bi-ibuffer) > BUFSIZE) {
@@ -6940,7 +6943,7 @@ void xset(){
 	switch (function) {	
 /* runtime debug level */
 	case 0:
-		debuglevel=argument;
+//		debuglevel=argument;
 		break;	
 /* autorun/run flag of the EEPROM 255 for clear, 0 for prog, 1 for autorun */
 	case 1: 
@@ -7620,11 +7623,11 @@ void xerror() {
  */
 #ifdef HASTIMER 
 void resettimer(btimer_t* t) {
-	t->enabled=0;
-	t->interval=0;
-	t->last=0;
-	t->type=0;
-	t->linenumber=0;
+	t->enabled = 0;
+	t->interval = 0;
+	t->last = 0;
+	t->type = 0;
+	t->linenumber = 0;
 }
 
 void xtimer() {
@@ -9486,7 +9489,6 @@ errorhandler:
  *	the setup routine - Arduino style
  */
 void setup() {
-
 /* start measureing time */
 	timeinit();
 
@@ -9576,6 +9578,7 @@ void loop() {
 		xrun();
 		st=SINT;
 	}
+	if (marked_to_exit) return;
 
 /* always return to default io channels once interactive mode is reached */
 	iodefaults();
@@ -9622,8 +9625,13 @@ int main(void){
   
 /* do what an Arduino would do, this loops for every interactive input */
 	setup();
-	while (1)
+	while (!marked_to_exit) {
 		loop();
+	}
+	#if DEBUG
+	printf("Done. Cleanup mem: %ph\n", mem);
+	#endif
+	free(mem);
 }
 #endif
 
@@ -9666,18 +9674,83 @@ int main(void){
  * - Avoid allocating a lot of memory in bloop().
  */
 
- void bsetup() {
+void bsetup() {
   /* put your setup code here, to run once: */
-  
- }
+	sp = 0; 
+	ibuffer[0] = 0;
+	loopsp = 0;
+	gosubsp = 0;
+	form = 0;
+#ifdef MSARRAYLIMITS
+	msarraylimits = 1;
+	arraylimit = 0;
+#else
+	msarraylimits = 0;
+	arraylimit = 1;
+#endif
+	booleanmode = BOOLEANMODE;
+	forceint = 0;
+	defaultstrdim = STRSIZEDEF;
+	randombase = 0;
+	#ifdef SUPPRESSSUBSTRINGS
+	substringmode = 0;
+	#else 
+	substringmode = 1;
+	#endif
+	reltab = 0;
+	lowercasenames = 0;
+	debuglevel = 0;
+#ifdef HASDARTMOUTH
+	data = 0;
+	datarc = 1;
+#endif
+#ifdef HASARGS
+	bnointafterrun = 0;
+#endif
+	outliteral = 0;
+	lexliteral = 0; 
+#ifdef HASTIMER
+	resettimer(&after_timer);
+	resettimer(&every_timer);
+#endif
+#ifdef HASEVENTS
+/* the event list */
+	nevents = 0;
+	ievent = 0;
+	events_enabled = 1;
+#endif
+#ifdef HASERRORHANDLING
+	berrorh.linenumber = 0;
+	berrorh.type = 0;
+	erh = 0;
+#endif
+/* the string for real time clocks */
+	rtcstring[0] = 0; 
+/* the units pulse operates on, in microseconds*/
+	bpulseunit = 10; 
+/* only needed for POSIXNONBLOCKING */
+	breakcondition = 0;
+/* the FN context, how deep are we in a nested function call, negative values reserved */
+	fncontext = 0; 
+/* the accuracy of a equal or not equal statement on numbers */
+#ifdef HASFLOAT
+	epsilon = 0;
+#endif
+	linecachehere = 0;
+	marked_to_exit = false;
+	init_runtime();
+}
 
- void bloop() {
+void bloop() {
   /* put your main code here, to run repeatedly: */
-  
- }
+}
 
 //--------------------------------------------------------
 // TODO: support for static libraries in M-OS
 //--------------------------------------------------------
 #include "runtime.c"
 //--------------------------------------------------------
+
+int __required_m_api_verion(void) {
+    return M_API_VERSION;
+}

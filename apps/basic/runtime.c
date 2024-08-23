@@ -30,7 +30,6 @@ char* cbuffer[CBUFSIZE];
 void bloop() {}
 #endif
 
-
 /* 
  *  Global variables of the runtime env.
  */
@@ -372,6 +371,7 @@ uint16_t consins(char *b, uint16_t nb) {
   z=1;
   while(z < nb) {
     c=inch();
+    putc(c); //// <---
     if (c == '\r') c=inch();
     if (c == '\n' || cheof(c)) { /* terminal character is either newline or EOF */
       break;
@@ -382,6 +382,9 @@ uint16_t consins(char *b, uint16_t nb) {
   b[z]=0x00;
   z--;
   b[0]=(unsigned char)z;
+#ifdef DEBUG
+printf("[%d] %s\n", b[0], b + 1);
+#endif
   return z;
 }
 
@@ -589,7 +592,7 @@ long freeRam() {
  * the sleep and restart functions
  */
 void restartsystem() {
-  printf("TODO: implement exit function\n");
+  marked_to_exit = true;
   //exit(0);
 }
 void activatesleep(long t) {}
@@ -616,14 +619,14 @@ void spibegin() {}
  * 
  * Color is currently either 24 bit or 4 bit 16 color vga.
  */
-const int dsp_rows=0;
-const int dsp_columns=0;
+const int dsp_rows = 0;
+const int dsp_columns = 0;
 void dspsetupdatemode(uint8_t c) {}
 void dspwrite(char c){}
 void dspbegin() {}
-uint8_t dspstat(uint8_t c) {return 0; }
+uint8_t dspstat(uint8_t c) { return 0; }
 char dspwaitonscroll() { return 0; }
-uint8_t dspactive() {return 0; }
+uint8_t dspactive() { return 0; }
 void dspsetscrollmode(uint8_t c, uint8_t l) {}
 void dspsetcursor(uint8_t c) {}
 
@@ -1174,6 +1177,7 @@ void yieldschedule() {}
  * file system code is a wrapper around the POSIX API
  */
 void fsbegin() {}
+
 FILE* ifile;
 FILE* ofile;
 #ifndef MSDOS
@@ -1203,8 +1207,9 @@ void filewrite(char c) {
 
 char fileread(){
   char c;
-  if (ifile) c=fgetc(ifile); else { ioer=1; return 0; }
-  if (cheof(c)) ioer=-1;
+  if (ifile) c = fgetc(ifile);
+  else { ioer = 1; return 0; }
+  if (cheof(c)) ioer = -1;
   return c;
 }
 
@@ -1478,7 +1483,7 @@ void sendcsi() {
 
 /* the vt52 state engine */
 #ifdef POSIXVT52TOANSI
-#include <stdlib.h>
+//#include <stdlib.h>
 uint8_t dspesc = 0;
 uint8_t vt52s = 0;
 int cursory = 0;
@@ -2072,4 +2077,41 @@ int ftime (struct timeb* t) {
   t->millitm = 0; // unsigned short
   t->timezone = 0; // short
   t->dstflag = 0; // short
+}
+
+void init_runtime(void) {
+  idd = ISERIAL; // default input stream in interactive mode 
+  odd = OSERIAL; // default output stream in interactive mode 
+  ioer = 0; // the io error variable, always or-ed with ert in BASIC
+/* the pointer to the buffer used for the &0 device */
+  nullbuffer = ibuffer;
+  nullbufsize = BUFSIZE; 
+/* the system type */
+#if defined(MSDOS)
+  bsystype = SYSTYPE_MSDOS;
+#elif defined(RASPPI)
+  bsystype = SYSTYPE_PASPPI;
+#elif defined(MINGW)
+  bsystype = SYSTYPE_MINGW;
+#elif defined(POSIX)
+  bsystype = SYSTYPE_POSIX;
+#else
+  bsystype = SYSTYPE_UNKNOWN;
+#endif
+  sendcr = 0;
+  blockmode = 0;
+  lastyield = 0;
+  lastlongyield = 0;
+#ifdef POSIXVT52TOANSI
+  dspesc = 0;
+  vt52s = 0;
+  cursory = 0;
+  vt52active = 1;
+#endif
+#ifdef FASTTICKERPROFILE
+  lastfasttick = 0;
+  fasttickcalls = 0;
+  avgfasttick = 0;
+  devfasttick = 0;
+#endif
 }

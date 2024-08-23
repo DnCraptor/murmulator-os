@@ -11,6 +11,7 @@
         "math.h": "c",
         "timeb.h": "c",
         "m-os-api-math.h": "c",
-        "m-os-api-sdtfn.h": "c"
+        "m-os-api-sdtfn.h": "c",
+        "setjmp.h": "c"
     }
 }

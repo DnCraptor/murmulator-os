@@ -772,5 +772,7 @@ void spiramrawwrite(uint16_t, int8_t); /* the simple unbuffered byte write, with
  */
 void fasttickerprofile();
 
+void init_runtime(void);
+
 // defined RUNTIMEH
 #endif

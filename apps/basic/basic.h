@@ -543,7 +543,7 @@ void clrdata();
 void pushforstack(name_t*, number_t, number_t);
 void popforstack(name_t*, number_t*, number_t*);
 void dropforstack();
-void clrforstack();
+// inline static void clrforstack();
 void pushgosubstack(mem_t);
 void popgosubstack();
 void dropgosubstack();
