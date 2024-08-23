@@ -6469,14 +6469,22 @@ void xlocate() {
 	cy=popaddress();
 	cx=popaddress();
 	if (!USELONGJUMP && er) return;
-
+#if VT52
 /* for locate we go through the VT52 interface for cursor positioning*/
 	if (cx > 0 && cy > 0 && cx < 224 && cy < 224) {
 		outch(27); outch('Y');
 		outch(31+(unsigned int) cy); 
 		outch(31+(unsigned int) cx);
 	}
-
+#else // M-OS
+	int w = get_console_width();
+	int h = get_console_height();
+	int x = cx = (w >> 1);
+	int y = cy = (h >> 1);
+	if (x >= 0 && y >= 0 && x < w && y < h) {
+		graphics_set_con_pos(x, y);
+	}
+#endif
 /* set the charcount, this is half broken on escape sequences */
 #ifdef HASMSTAB
 	if (od > 0 && od <= OPRT) charcount[od-1]=cx;
@@ -9154,12 +9162,16 @@ void statement(){
 			xnetstat();
 			break;
 		case TCLS:
-			ax=od; 
+			ax=od;
 /* if we have a display it is the default for CLS */
 #if defined(DISPLAYDRIVER) || defined(GRAPHDISPLAYDRIVER)		
 			od=ODSP;
 #endif
+#if VT52
 			outch(12);
+#else
+			clrScr(0);
+#endif
 			od=ax;
 			nexttoken();
 			break;
