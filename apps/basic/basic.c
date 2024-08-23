@@ -890,29 +890,28 @@ address_t bmalloc(name_t* name, address_t l) {
 /* 
  *	How much space does the payload of the object need? 
  */
-	switch(name->token) {
-  	case VARIABLE: /* a variable needs numsize bytes*/
-		payloadsize=numsize;
-
-		break;
+	register token_t t = name->token;
+	if ( t == VARIABLE ) { /* a variable needs numsize bytes*/
+		payloadsize = numsize;
+	}
 #ifndef HASMULTIDIM
-	case ARRAYVAR: /* a one dimensional array needs numsize*l bytes */
-		payloadsize=numsize*l;
-		break;
+	else if ( t == ARRAYVAR ) { /* a one dimensional array needs numsize*l bytes */
+		payloadsize = numsize * l;
+	}
 #else
-	case ARRAYVAR: /* a two dimensional array needs numsize*l bytes plus one word for the additional dimension*/
-		payloadsize=numsize*l+addrsize;
-		break;
+	else if ( t == ARRAYVAR ) { /* a two dimensional array needs numsize*l bytes plus one word for the additional dimension*/
+		payloadsize = numsize * l + addrsize;
+	}
 #endif
 #ifdef HASDARTMOUTH
-	case TFN: /* the jump address, the type of function/type of return value, the number of vars 
+	else if ( t == TFN ) { /* the jump address, the type of function/type of return value, the number of vars 
 			and all variables are stored*/
-		payloadsize=addrsize+2+sizeof(name_t)*l; 
-		break;
+		payloadsize = addrsize + 2 + sizeof(name_t) * l; 
+	}
 #endif
 /* these are plain buffers allocated by the MALLOC call in BASIC */
-	default:
-		payloadsize=l;
+	 else {
+		payloadsize = l;
 	}
 
 /* enough memory ?, on an EEPROM system we limit the heap to the RAM */
@@ -1068,40 +1067,26 @@ number_t getvar(name_t *name){
 
 /* the special variables */
 	if (name->c[0] == '@') {
-		switch (name->c[1]) {
-		case 'A':
-			return availch();
-		case 'S': 
-			return ert|ioer;
-		case 'I':
-			return id;
-		case 'O':
-			return od;
-		case 'C':
-			if (availch()) return inch(); else return 0;
-		case 'E':
-			return elength()/numsize;
-		case 0:
-			return (himem-top)/numsize;
-		case 'R':
-			return rd;
-		case 'U':
-			return getusrvar();
+		register char c = name->c[1];
+		if ( c == 'A' )	return availch();
+		if ( c == 'S' )	return ert|ioer;
+		if ( c == 'I' )	return id;
+		if ( c == 'O' )	return od;
+		if ( c == 'C' )	{ if (availch()) return inch(); else return 0; }
+		if ( c == 'E' )	return elength() / numsize;
+		if ( c ==  0  )	return (himem-top) / numsize;
+		if ( c == 'R' )	return rd;
+		if ( c == 'U' )	return getusrvar();
 #ifdef HASFLOAT
-		case 'P':
-			return epsilon;
+		if ( c == 'P' )	return epsilon;
 #endif
 #ifdef HASIOT
-		case 'V':
-			return vlength;
+		if ( c ==  'V')	return vlength;
 #endif
 #if defined(DISPLAYDRIVER) || defined (GRAPHDISPLAYDRIVER)
-		case 'X':
-			return dspgetcursorx();
-		case 'Y':
-			return dspgetcursory();
+		if ( c == 'X' )	return dspgetcursorx();
+		if ( c == 'Y' )	return dspgetcursory();
 #endif
-		}
 	}
 
 #ifdef HASAPPLE1
@@ -1140,53 +1125,62 @@ void setvar(name_t *name, number_t v){
 	if (DEBUG) { outsc("* setvar "); outname(name); outspc(); outnumber(v); outcr(); }
 
 /* the special variables */
-	if (name->c[0] == '@')
-		switch (name->c[1]) {
-		case 'S': 
-			ert=v;
-        	ioer=v;
+	if (name->c[0] == '@') {
+		register char c = name->c[1];
+		if ( c == 'S' ) {
+			ert = v;
+        	ioer = v;
 			return;
-		case 'I':
-			id=v;
+		}
+		if ( c == 'I' ) {
+			id = v;
 			return;
-		case 'O':
-			od=v;
+		}
+		if ( c == 'O' ) {
+			od = v;
 			return;
-		case 'C':
+		}
+		if ( c == 'C' ) {
 			outch(v);
 			return;
-		case 'R':
-			rd=v;
+		}
+		if ( c == 'R' ) {
+			rd = v;
 			return;
-		case 'U':
+		}
+		if ( c == 'U' ) {
 			setusrvar(v);
 			return;
+		}
 #ifdef HASFLOAT
-		case 'P':
-			epsilon=v;
+		if ( c == 'P' ) {
+			epsilon = v;
 			return;
+		}
 #endif
 #ifdef HASIOT
-		case 'V':
+		if ( c == 'V' ) {
 			return;
+		}
 #endif
 #if defined(DISPLAYDRIVER) || defined(GRAPHDISPLAYDRIVER)
-		case 'X':
+		if ( c == 'X' ) {
         	dspsetcursorx((int)v);
 /* set the charcount, this is half broken but works */
 #ifdef HASMSTAB
 			if (od > 0 && od <= OPRT) charcount[od-1]=v;
 #endif
 			return;
-		case 'Y':
+		}
+		if ( c == 'Y' ) {
 			dspsetcursory((int)v);
 			return;
-#endif
 		}
-
+#endif
+	}
 #ifdef HASAPPLE1
 /* dynamically allocated vars */
-	a=bfind(name);
+	a = bfind(name);
 
 /* autocreate if not found */
 	if (a == 0) {
@@ -1503,53 +1497,58 @@ void array(lhsobject_t* object, mem_t getset, number_t* value) {
 
 /* handling the special array, range check and access is done here */
 	if (object->name.c[0] == '@') {
-		switch(object->name.c[1]) {
-		case 'E': 
-			h=elength()/numsize;
-			a=elength()-numsize*object->i;
+		register char c = object->name.c[1];
+		if ( c == 'E' ) {
+			h = elength() / numsize;
+			a = elength() - numsize * object->i;
 			if (a < eheadersize) { error(EORANGE); return; }
-			if (getset == 'g') *value=getnumber(a, beread);  
+			if (getset == 'g') *value = getnumber(a, beread);  
 			else if (getset == 's') setnumber(a, beupdate, *value);
 			return;
+		}
 #if defined(DISPLAYDRIVER) && defined(DISPLAYCANSCROLL)
-		case 'D': 
+		if ( c == 'D' ) {
 			if (getset == 'g') *value=dspget(object->i-1); 
 			else if (getset == 's') dspset(object->i-1, *value);
 			return;	
+		}
 #endif
 #if defined(HASCLOCK)
-		case 'T':
+		if ( c == 'T' ) {
 			if (getset == 'g') *value=rtcget(object->i); 
 			else if (getset == 's') rtcset(object->i, *value);
 			return;
+		}
 #endif
 #if defined(ARDUINO) && defined(ARDUINOSENSORS)
-		case 'S':
+		if ( c == 'S' ) {
 			if (getset == 'g') *value=sensorread(object->i, 0); 
 			return;
+		}
 #endif
-		case 'U': 
+		if ( c == 'U' ) {
 			if (getset == 'g') *value=getusrarray(object->i); 
 			else if (getset == 's') setusrarray(object->i, *value);
 			return;
-		case 0: 
+		}
+		if ( c ==  0 ) { 
 			h=(himem-top)/numsize;
 			a=himem-numsize*(object->i+1)+1; 
 			if (object->i < 0 || a < top) { error(EORANGE); return; }
 			if (getset == 'g') *value=getnumber(a, memread2); 
 			else if (getset == 's') setnumber(a, memwrite2, *value);	
 			return;
-		case 'M':
+		}
+		if ( c == 'M' ) {
 			h=himem-top;
 			a=himem-object->i;
 			if (object->i < 0 || a < top) { error(EORANGE); return; }
 			if (getset == 'g') *value=memread2(a); 
 			else if (getset == 's') memwrite2(a, *value); 
 			return;
-		default:
-			error(EVARIABLE);
-			return;
 		}
+		error(EVARIABLE);
+		return;
 	} else {
 /* dynamically allocated arrays */
 #ifdef HASAPPLE1
@@ -1691,40 +1690,42 @@ void getstring(bstring_t* strp, name_t* name, address_t b, address_t j) {
 	}
 
 /* special string variables */
-	if (name->c[0] == '@')
-		switch(name->c[1]) {
-		case 0: 
+	if (name->c[0] == '@') {
+		register char c = name->c[1];
+		if ( c == 0 ) {
 			strp->ir=ibuffer+b;
 			strp->length=ibuffer[0];
 			strp->strdim=BUFSIZ-2;
 			return;
-		default:
-			error(EVARIABLE); 
-			return;
-		case 'U':
+		}
+		if ( c == 'U' ) {
 			makeusrstring(); /* a user definable special string in sbuffer */
 			strp->ir=sbuffer+b;
 			strp->length=sbuffer[0];
 			return;
+		}
 #ifdef HASCLOCK
-		case 'T':
+		if ( c == 'T' ) {
 			rtcmkstr(); /* the time string */
 			strp->ir=rtcstring+b;
 			strp->length=rtcstring[0];
 			return;
+		}
 #endif	
 /* the arguments string on POSIX systems */
 #ifdef HASARGS
-		case 'A': 
+		if ( c == 'A' ) {
 			if (bargc > 2) {
 				strp->ir=bargv[2];
 				strp->length=cstringlength(bargv[2], BUFSIZE);
 				return; 
 			}	
 			return;
-#endif
-		}	
-
+		}
+#endif	
+		error(EVARIABLE); 
+		return;
+	}
 /* dynamically allocated strings, create on the fly */
 	if (!(ax=bfind(name))) ax=createstring(name, defaultstrdim, arraylimit);
 
@@ -1812,16 +1813,17 @@ void setstringlength(name_t* name, address_t l, address_t j) {
 	} 
 
 /* the special strings */
-	if (name->c[0] == '@')
-		switch(name->c[1]) {
-		case 0: 
+	if (name->c[0] == '@') {
+		char c = name->c[1];
+		if ( c == 0 ) {
 			*ibuffer=l;
 			return;
-		case 'U':
+		}
+		if ( c == 'U') {
 			/* do nothing here for the moment */
 			return;
 		}
-
+	}
 /* find the variable address */
 	a=bfind(name);
 	if (!USELONGJUMP && er) return;
@@ -2087,25 +2089,18 @@ void debugtoken(){
 		return;	
 	}
 
-	switch(token) {
-	case LINENUMBER: 
+	if ( token == LINENUMBER ) {
 		printmessage(MLINE);
-		break;
-	case NUMBER:
+	} else if ( token == NUMBER ) {
 		printmessage(MNUMBER);
-		break;
-	case VARIABLE:
+	} else if ( token == VARIABLE ) {
 		printmessage(MVARIABLE);
-		break;	
-	case ARRAYVAR:
+	} else if ( token == ARRAYVAR ) {
 		printmessage(MARRAY);
-		break;		
-	case STRING:
+	} else if ( token == STRING ) {
 		printmessage(MSTRING);
-		break;
-	case STRINGVAR:
+	} else if ( token == STRINGVAR ) {
 		printmessage(MSTRINGVAR);
-		break;
 	}
 
 	outspc();
@@ -3032,47 +3027,44 @@ char nomemory(number_t b){
 /* store a token - check free memory before changing anything */
 void storetoken() {
 	int i;
-
-	switch (token) {
-	case LINENUMBER:
-		if (nomemory(addrsize+1)) break;
+	if (token == LINENUMBER ) {
+		if (nomemory(addrsize+1)) return;
 		memwrite2(top++, token);
 		setaddress(top, memwrite2, ax);
 		top+=addrsize;
 		return;	
-	case NUMBER:
-		if (nomemory(numsize+1)) break;
+	}
+	if (token == NUMBER ) {
+		if (nomemory(numsize+1)) return;
 		memwrite2(top++, token);
 		setnumber(top, memwrite2, x);
 		top+=numsize;
 		return;
-	case ARRAYVAR:
-	case VARIABLE:
-	case STRINGVAR:
-		if (nomemory(sizeof(name_t))) break;
+	}
+	if (token == ARRAYVAR || token == VARIABLE || token == STRINGVAR ) {
+		if (nomemory(sizeof(name_t))) return;
 		memwrite2(top++, token);
-		top=setname_pgm(top, &name);
+		top = setname_pgm(top, &name);
 		return;
-	case STRING:
+	}
+	if (token == STRING ) {
 		i=sr.length;
-		if (nomemory(i+2)) break;
+		if (nomemory(i+2)) return;
 		memwrite2(top++, token);
 		memwrite2(top++, i);
 		while (i > 0) { memwrite2(top++, *sr.ir++); i--; }	
 		return;
-	default:
-		if (token >= -127) { /* the good old code with just one byte token */
-			if (nomemory(1)) break;
-			memwrite2(top++, token);
-		} else {
-#ifdef HASLONGTOKENS
-			if (nomemory(2)) break; /* this is the two byte token extension */
-			memwrite2(top++, TEXT1);
-			memwrite2(top++, token+255);
-#endif
-		}
+	}
+	if (token >= -127) { /* the good old code with just one byte token */
+		if (nomemory(1)) return;
+		memwrite2(top++, token);
 		return;
 	}
+#ifdef HASLONGTOKENS
+	if (nomemory(2)) return; /* this is the two byte token extension */
+	memwrite2(top++, TEXT1);
+	memwrite2(top++, token+255);
+#endif
 } 
 
 
@@ -3160,24 +3152,23 @@ void gettoken() {
 #endif
  
  /* otherwise we check for the argument */
-	switch (token) {
-	case LINENUMBER:
+	if ( token == LINENUMBER ) {
 		ax=getaddress(here, memread);
 		here+=addrsize;
-		break;
-	case NUMBER:	
+		return;
+	}
+	if ( token == NUMBER ) {
 		x=getnumber(here, memread);
 		here+=numsize;	
-		break;
-	case ARRAYVAR:
-	case VARIABLE:
-	case STRINGVAR:
+		return;
+	}
+	if ( token == ARRAYVAR || token == VARIABLE || token == STRINGVAR ) {
 		here=getname(here, &name, memread);
 		name.token=token;
-		break;
-	case STRING:
+		return;
+	}
+	if ( token == STRING ) {
 		sr.length=(unsigned char)memread(here++);	
-
 /* 
  * 	if we run from EEPROM, the input buffer is used to get string constants. 
  *  if we run on a system with real memory, we produce a mem pointer
