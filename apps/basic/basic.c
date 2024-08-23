@@ -582,7 +582,9 @@ unsigned long rd;
 #endif
 
 /* the RUN debuglevel */
+#if DEBUG_LVLS
 mem_t debuglevel = 0;
+#endif
 
 /* DATA pointer, where is the current READ statement  */
 #ifdef HASDARTMOUTH
@@ -872,13 +874,13 @@ address_t bmalloc(name_t* name, address_t l) {
 	address_t heapheadersize = sizeof(name_t) + addrsize; /* this is only used to estimate the free space, it is the maximum */
 	address_t b=himem; /* the current position on the heap, we store it in case of errors */
 
-/* Initial DEBUG message. */
-	if (DEBUG) { 
+	/* Initial DEBUG message. */
+	#if DEBUG 
 		outsc("** bmalloc with token "); 
 		outnumber(name->token); outspc(); 
 		outname(name); outspc(); 
 		outnumber(l); outcr();
-	}
+	#endif
 
 /* 
  *	How much space does the payload of the object need? 
@@ -2077,8 +2079,9 @@ void reseterror() {
 
 void debugtoken(){
 	outsc("* "); 
-	if (debuglevel>2) { outnumber(here); outsc(" * "); }
-
+#if DEBUG_LVLS
+	if (debuglevel > 2) { outnumber(here); outsc(" * "); }
+#endif
 	if (token == EOL) {
 		outsc("EOL");
 		return;	
@@ -2760,7 +2763,9 @@ void nexttoken() {
 /* read the token from memory */
 		gettoken();
 /* show what we are doing */
+#if DEBUG_LVLS
 		if (debuglevel > 1) { debugtoken(); outcr(); }
+#endif
 		return;
 	}
 
@@ -6233,13 +6238,17 @@ void xnew(){
  *	REM - skip everything 
  */
 void xrem() {
+#if DEBUG_LVLS
 	if (debuglevel == -1) outsc("REM: ");
+#endif
 	while (token != LINENUMBER && token != EOL && here <= top) 
 	{
 		nexttoken();
+#if DEBUG_LVLS
 		if (debuglevel == -1) {
 			if (token != LINENUMBER) outputtoken(); else outcr();
 		}
+#endif
 	} 
 }
 
@@ -6951,7 +6960,9 @@ void xset(){
 	switch (function) {	
 /* runtime debug level */
 	case 0:
-//		debuglevel=argument;
+#if DEBUG_LVLS
+		debuglevel=argument;
+#endif
 		break;	
 /* autorun/run flag of the EEPROM 255 for clear, 0 for prog, 1 for autorun */
 	case 1: 
@@ -9029,7 +9040,9 @@ void statement(){
 	while (token != EOL) {
 #ifdef HASSTEFANSEXT
 /* debug level 1 happens only in the statement loop */
+#if DEBUG_LVLS
 		if (debuglevel == 1) { debugtoken(); outcr(); }
+#endif
 #endif
 		switch(token){
 		case ':':
@@ -9713,7 +9726,9 @@ void bsetup() {
 	#endif
 	reltab = 0;
 	lowercasenames = 0;
+#if DEBUG_LVLS
 	debuglevel = 0;
+#endif
 #ifdef HASDARTMOUTH
 	data = 0;
 	datarc = 1;
