@@ -9616,7 +9616,9 @@ void loop() {
 #ifndef ARDUINO
 int main(void){
     cmd_ctx_t* ctx = get_cmd_ctx();
-
+	if (ctx->argc < 2) {
+		printf("Interactive mode is temporary unsupported\n");
+	}
 /* save the arguments if there are any */
 #ifdef HASARGS
 	bargc = ctx->argc;

@@ -734,15 +734,7 @@ static void m_move_file(uint8_t cmd) {
     redraw_window();
 }
 
-void m_view(uint8_t nu) {
-    if (hidePannels) return;
-    file_info_t* fp = selected_file(psp, true);
-    if (!fp) return; // warn?
-    if (fp->fattr & AM_DIR) {
-        enter_pressed();
-        return;
-    }
-    string_replace_cs(s_cmd, "mcview \"");
+static void m_ext_common(file_info_t* fp) {
     if (psp->s_path->size > 1)
         string_push_back_cs(s_cmd, psp->s_path);
     string_push_back_c(s_cmd, '/');
@@ -751,7 +743,19 @@ void m_view(uint8_t nu) {
     mark_to_exit_flag = cmd_enter(get_cmd_ctx());
 }
 
-void m_edit(uint8_t nu) {
+static void m_view(uint8_t nu) {
+    if (hidePannels) return;
+    file_info_t* fp = selected_file(psp, true);
+    if (!fp) return; // warn?
+    if (fp->fattr & AM_DIR) {
+        enter_pressed();
+        return;
+    }
+    string_replace_cs(s_cmd, "mcview \"");
+    m_ext_common(fp);
+}
+
+static void m_edit(uint8_t nu) {
     if (hidePannels) return;
     file_info_t* fp = selected_file(psp, true);
     if (!fp) return; // warn?
@@ -760,12 +764,7 @@ void m_edit(uint8_t nu) {
         return;
     }
     string_replace_cs(s_cmd, "mcedit \"");
-    if (psp->s_path->size > 1)
-        string_push_back_cs(s_cmd, psp->s_path);
-    string_push_back_c(s_cmd, '/');
-    string_push_back_cs(s_cmd, fp->s_name);
-    string_push_back_c(s_cmd, '"');
-    mark_to_exit_flag = cmd_enter(get_cmd_ctx());
+    m_ext_common(fp);
 }
 
 static void m_sort_by_name(uint8_t n) {
@@ -1537,6 +1536,20 @@ static void enter_pressed() {
     }
     construct_full_name_s(s_cmd, psp->s_path, fp->s_name);
     gouta(s_cmd->p);
+
+    if (s_cmd->size >= 4) {
+        char *p = s_cmd->p + s_cmd->size - 4;
+        if (strncmp(".wav", p, 4) == 0 || strncmp(".WAV", p, 4) == 0) {
+            string_replace_cs(s_cmd, "wav \"");
+            m_ext_common(fp);
+            return;
+        }
+        if (strncmp(".bas", p, 4) == 0 || strncmp(".BAS", p, 4) == 0) {
+            string_replace_cs(s_cmd, "basic \"");
+            m_ext_common(fp);
+            return;
+        }
+    }
     mark_to_exit_flag = cmd_enter(get_cmd_ctx());
 }
 

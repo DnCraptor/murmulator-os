@@ -1,5 +1,5 @@
 # murmulator-os
-ZX Murmulator OS v.0.2.3<br/>
+ZX Murmulator OS v.0.2.4<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
@@ -114,7 +114,8 @@ gmode [#] - simple graphics mode test<br/>
 font [width] [height] - show/set font size for graphics modes, like `font 6 8`<br/>
 blimp [n1] [n2] - simple sound test. [n1] number of cycles, [n2] OS ticks between high and low levels (1/freq.)<br/>
 wav [file] - simple .wav files player (tested on 8 kHz 1-channel 16-bit files)<br/>
-
+basic [file] - tiny basic interperator implementation (by Stefan Lenz, see https://github.com/slviajero/tinybasic for more info)<br/>
+<br/>
 [cmd] &gt; [file] - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format (NESPAD [A] button in mc)<br/>
 [TAB] - autocomplete<br/>
