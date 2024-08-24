@@ -459,7 +459,7 @@ void bintroutine1();
 void bintroutine2();
 void bintroutine3();
 mem_t enableevent(mem_t);
-void disableevent(mem_t);
+inline static void disableevent(mem_t);
 mem_t eventindex(mem_t);
 mem_t addevent(mem_t, mem_t, mem_t, address_t);
 void deleteevent(mem_t);

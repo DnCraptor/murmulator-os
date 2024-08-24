@@ -24,7 +24,8 @@
  * 		debug with SET 0,x before using this.
  */
 #define DEBUG 0
-#define DEBUG_LVLS 0
+#define DEFAULT_DEBUG_LVL 0
+#define TRACE_PRINTF 0
 /*
  * Interpreter feature sets, choose one of the predefines or undefine all predefines and set the 
  * features in custom settings

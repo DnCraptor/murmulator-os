@@ -1,6 +1,5 @@
 #include "m-os-api.h"
 // TODO:
-#undef switch
 //#define HASKEYBOARD
 
 //--------------------------------------------------------
@@ -589,9 +588,7 @@ unsigned long rd;
 #endif
 
 /* the RUN debuglevel */
-#if DEBUG_LVLS
 mem_t debuglevel = 0;
-#endif
 
 /* DATA pointer, where is the current READ statement  */
 #ifdef HASDARTMOUTH
@@ -646,10 +643,10 @@ btimer_t every_timer = {0, 0, 0, 0, 0};
 #define EVENTLISTSIZE 4
 
 /* the event list */
-int nevents = 0;
-int ievent = 0;
-mem_t events_enabled = 1;
-volatile bevent_t eventlist[EVENTLISTSIZE];
+static int nevents = 0;
+static int ievent = 0;
+static mem_t events_enabled = 1;
+static volatile bevent_t eventlist[EVENTLISTSIZE] = { 0 };
 
 /* the extension of the GOSUB stack */
 mem_t gosubarg[GOSUBDEPTH];
@@ -2011,11 +2008,13 @@ inline static void clrforstack() {
  */ 
 void error(token_t e){
 	address_t i;
+	/* store the error number */
+	er = e;
+	#if TRACE_PRINTF
+	printf("[error] %d; e: %d\n", token, e);
+	#endif
 
-/* store the error number */
-	er=e;
-
-/* clear the stacks */
+	/* clear the stacks */
 	clearst();
 	clrforstack();
 	clrgosubstack();
@@ -2037,11 +2036,15 @@ void error(token_t e){
 
 /* set input and output device back to default, and delete the form */
 	iodefaults();
- 	form=0;
+ 	form = 0;
 
 /* find the line number if in RUN modes */
 	if (st != SINT) {
-		outnumber(myline(here));
+		address_t a = myline(here);
+		#if TRACE_PRINTF
+		printf("[error] %d %d\n", token, a);
+		#endif
+		outnumber(a);
 		outch(':');
 		outspc();
 	}
@@ -2081,9 +2084,7 @@ void reseterror() {
 
 void debugtoken(){
 	outsc("* "); 
-#if DEBUG_LVLS
 	if (debuglevel > 2) { outnumber(here); outsc(" * "); }
-#endif
 	if (token == EOL) {
 		outsc("EOL");
 		return;	
@@ -2758,9 +2759,10 @@ void nexttoken() {
 /* read the token from memory */
 		gettoken();
 /* show what we are doing */
-#if DEBUG_LVLS
 		if (debuglevel > 1) { debugtoken(); outcr(); }
-#endif
+		#if TRACE_PRINTF
+		printf("next token1: %c %d\n", (token & 0xFF), token);
+		#endif
 		return;
 	}
 
@@ -2771,6 +2773,9 @@ void nexttoken() {
 	if (lexliteral) {
 		token=*bi;
 		if (*bi != '\0') bi++; else lexliteral=0;
+		#if TRACE_PRINTF
+		printf("next token2: %d\n", token);
+		#endif
 		return;
 	}
 
@@ -2781,6 +2786,9 @@ void nexttoken() {
 	if (*bi == '\0') { 
 		token = EOL; 
 		if (DEBUG) debugtoken();
+		#if TRACE_PRINTF
+		printf("next token3: %d\n", token);
+		#endif
 		return; 
 	}
 
@@ -2794,6 +2802,9 @@ void nexttoken() {
 #endif
 		token=NUMBER;
 		if (DEBUG) debugtoken();
+		#if TRACE_PRINTF
+		printf("next token4: %d\n", token);
+		#endif
 		return;
 	}
 
@@ -2813,6 +2824,9 @@ void nexttoken() {
 		sr.length=k;
 		sr.address=0; /* we don't find the string in BASIC memory, as we lex from bi */
 		if (DEBUG) debugtoken();
+		#if TRACE_PRINTF
+		printf("next token5: %d\n", token);
+		#endif
 		return;
 	}
 
@@ -2834,6 +2848,9 @@ void nexttoken() {
 			token='=';
 		}
 		if (DEBUG) debugtoken();
+		#if TRACE_PRINTF
+		printf("next token6: %d\n", token);
+		#endif
 		return;
 	}
 
@@ -2847,6 +2864,9 @@ void nexttoken() {
 			token='>';
 		}
 		if (DEBUG) debugtoken();
+		#if TRACE_PRINTF
+		printf("next token7: %d\n", token);
+		#endif
 		return;
 	}
 
@@ -2863,6 +2883,9 @@ void nexttoken() {
 			token='<';
 		}
 		if (DEBUG) debugtoken();
+		#if TRACE_PRINTF
+		printf("next token8: %d\n", token);
+		#endif
 		return;
 	}
 
@@ -2913,7 +2936,10 @@ void nexttoken() {
 		if (i == 0) continue;
 		bi+=i;
 		token=gettokenvalue(k);
-		if (token == TREM) lexliteral=1;
+		if (token == TREM) lexliteral = 1;
+		#if TRACE_PRINTF
+		printf("next token9: %d\n", token);
+		#endif
 		if (DEBUG) debugtoken();
 		return;
 	}
@@ -2947,7 +2973,10 @@ void nexttoken() {
 			token=ARRAYVAR;
 		}	
 /* the new code filling the name variable directly, will be used in the entire code soon */
-		name.token=token;	
+		name.token = token;
+		#if TRACE_PRINTF
+		printf("next tokenA: %d\n", token);
+		#endif
 		if (DEBUG) debugtoken();
 		return;
 	}
@@ -2981,6 +3010,9 @@ void nexttoken() {
 	token=*bi;
 	bi++;
 	if (DEBUG) debugtoken();
+	#if TRACE_PRINTF
+	printf("next tokenB: %d\n", token);
+	#endif
 	return;
 }
 
@@ -3132,61 +3164,76 @@ void memwrite2(address_t a, mem_t c) {
 /* get a token from memory */
 void gettoken() {
 	stringlength_t i;
-
-/* if we have reached the end of the program, EOL is always returned
+	/* if we have reached the end of the program, EOL is always returned
 		we don't rely on mem having a trailing EOL */
 	if (here >= top) {
-		token=EOL;
+		token = EOL;
+		#if TRACE_PRINTF
+		printf("[gettoken1] %d\n", token);
+		#endif
 		return;
 	}
 
-/* if we have no data type we are done reading just one byte */
-	token=memread(here++); 
-	name.token=token;
+	/* if we have no data type we are done reading just one byte */
+	token = memread(here++); 
+	name.token = token;
 
-/* if there are multibyte tokens, get the next byte and construct a token value <-127 */
+	/* if there are multibyte tokens, get the next byte and construct a token value <-127 */
 #ifdef HASLONGTOKENS
 	if (token == TEXT1) {
-		token=memread(here++)-255;
+		token = memread(here++) - 255;
 	}
 #endif
  
  /* otherwise we check for the argument */
 	if ( token == LINENUMBER ) {
-		ax=getaddress(here, memread);
-		here+=addrsize;
+		ax = getaddress(here, memread);
+		here += addrsize;
+		#if TRACE_PRINTF
+		printf("[gettoken2] %d\n", token);
+		#endif
 		return;
 	}
 	if ( token == NUMBER ) {
-		x=getnumber(here, memread);
-		here+=numsize;	
+		x = getnumber(here, memread);
+		here += numsize;
+		#if TRACE_PRINTF
+		printf("[gettoken3] %d\n", token);
+		#endif
 		return;
 	}
 	if ( token == ARRAYVAR || token == VARIABLE || token == STRINGVAR ) {
-		here=getname(here, &name, memread);
-		name.token=token;
+		here = getname(here, &name, memread);
+		name.token = token;
+		#if TRACE_PRINTF
+		printf("[gettoken4] %d\n", token);
+		#endif
 		return;
 	}
 	if ( token == STRING ) {
-		sr.length=(unsigned char)memread(here++);	
-/* 
- * 	if we run from EEPROM, the input buffer is used to get string constants. 
- *  if we run on a system with real memory, we produce a mem pointer
- *  otherwise the caller has to handle strings through the address (SPIRAM systems)
- */
+		sr.length = (unsigned char)memread(here++);	
+	/* 
+ 	 * 	if we run from EEPROM, the input buffer is used to get string constants. 
+ 	 *  if we run on a system with real memory, we produce a mem pointer
+ 	 *  otherwise the caller has to handle strings through the address (SPIRAM systems)
+ 	 */
 		if (st == SERUN) { 					
-			for(i=0; i<sr.length; i++) ibuffer[i]=memread(here+i);	
-			sr.ir=ibuffer;
+			for (i = 0; i < sr.length; ++i)
+				ibuffer[i] = memread(here+i);	
+			sr.ir = ibuffer;
 		} else {
 #ifndef USEMEMINTERFACE
-			sr.ir=(char*)&mem[here]; 
+			sr.ir = (char*)&mem[here]; 
 #else 
-			sr.ir=0;
+			sr.ir = 0;
 #endif
 		}
-		sr.address=here;
-		here+=sr.length;	
+		sr.address = here;
+		here += sr.length;	
 	}
+	#if TRACE_PRINTF
+	printf("[gettoken4] %d\n", token);
+	#endif
 }
 
 /* goto the first line of a program */
@@ -3197,12 +3244,18 @@ void firstline() {
 	}
 	here=0;
 	gettoken();
+	#if TRACE_PRINTF
+	printf("[firstline] %d\n", token);
+	#endif
 }
 
 /* goto the next line, search forward */
 void nextline() {
 	while (here < top) {
 		gettoken();
+		#if TRACE_PRINTF
+		printf("[nextline] %d\n", token);
+		#endif
 		if (token == LINENUMBER) return;
 		if (here >= top) {
 			here=top;
@@ -3259,45 +3312,63 @@ address_t findinlinecache(address_t l){ return 0; }
  */
 void findline(address_t l) {
 	address_t a;
-/* we know it already, here to advance */
-	if ((a=findinlinecache(l))) { 
-		here=a; 
-		token=LINENUMBER;
-		ax=l; 
+	#if TRACE_PRINTF
+	printf("[findline] %d [%d]\n", token, l);
+	#endif
+	/* we know it already, here to advance */
+	if ((a = findinlinecache(l))) { 
+		here = a; 
+		token = LINENUMBER;
+		ax = l;
+		#if TRACE_PRINTF
+		printf("[findline] %d [%d] found in cache\n", token, l);
+		#endif
 		return;
 	}
 
 /* we need to search */
-	here=0;
+	here = 0;
 	while (here < top) {
 		gettoken();
+		#if TRACE_PRINTF
+		printf("[findline] %d here (%d) < top (%d)\n", token, here, top);
+		#endif
 		if (token == LINENUMBER && ax == l ) {
-/* now that we know we cache */
+			/* now that we know we cache */
 			addlinecache(l, here);
 			return;
 		}
 	}
+	#if TRACE_PRINTF
+	printf("[findline] %d here (%d) not found\n", token, l);
+	#endif
 	error(ELINE);
 }
 
 /* finds the line of a location */
 address_t myline(address_t h) {
-	address_t l=0; 
-	address_t l1=0;
+	address_t l = 0; 
+	address_t l1 = 0;
 	address_t here2;
 
-	here2=here;
-	here=0;
+	here2 = here;
+	here = 0;
 	gettoken();
+	#if TRACE_PRINTF
+	printf("[myline] %d\n", token);
+	#endif
 	while (here < top) {
 		if (token == LINENUMBER) {
-			l1=l;
-			l=ax;
+			l1 = l;
+			l = ax;
 		}
 		if (here >= h) break;
 		gettoken();
+		#if TRACE_PRINTF
+		printf("[myline2] %d\n", token);
+		#endif
 	}
-	here=here2;
+	here = here2;
 	if (token == LINENUMBER)
 		return l1;
 	else 
@@ -3395,12 +3466,16 @@ void storeline() {
  *	stage 2: check if only a linenumber stored - then delete this line
  */
 	if (linelength == (lnlength)) {  		
-		top-=(lnlength);				
+		top -= (lnlength);
+		#if TRACE_PRINTF
+		printf("[storeline]\n");
+		#endif
 		findline(ax);
-		if (er) return;	
-		y=here-lnlength;							
+		if (er)
+			return;	
+		y = here - lnlength;							
 		nextline();			
-		here-=lnlength;
+		here -= lnlength;
 		if (ax != 0) {						
 			moveblock(here, top-here, y);	
 			top=top-(here-y);
@@ -3438,8 +3513,11 @@ void storeline() {
  *	here points to the following line and here2 points to the previous line
  */
 		if (ax == 0) { 
-			here=here3-lnlength;
+			here = here3 - lnlength;
 			gettoken();
+			#if TRACE_PRINTF
+			printf("[storeline] %d\n", token);
+			#endif
 			if (token == LINENUMBER && ax == y) { // we have a double line at the end
 				here2-=lnlength;
 				here-=lnlength;
@@ -3453,6 +3531,9 @@ void storeline() {
 		here=here2-lnlength;
 		t2=here;
 		gettoken();
+		#if TRACE_PRINTF
+		printf("[storeline2] %d\n", token);
+		#endif
 		if (ax == y) {		/* the line already exists and has to be replaced */
 			here2=t2;  		/* this is the line we are dealing with */
 			here=t1;   		/* this is the next line */
@@ -3907,18 +3988,17 @@ char stringvalue(bstring_t* strp) {
 	strp->strdim=0;
 	strp->ir=0;
 
-	switch(token) {
-	case STRING:
+	if ( token == STRING ) {
 /* sr has the string information from gettoken and nexttoken*/
 		strp->ir=sr.ir;
 		strp->length=sr.length;
 		strp->address=sr.address;
-		break;
+	}
 #ifdef HASAPPLE1
-	case STRINGVAR:
+	else if ( token == STRINGVAR ) {
 		parsestringvar(strp, &lhs);
-		break;
-	case TSTR:
+	}
+	else if ( token == TSTR ) {
 		nexttoken();
 		if (token == '$') nexttoken();
 		if (token != '(') { error(EARGS); return 0; }
@@ -3933,9 +4013,9 @@ char stringvalue(bstring_t* strp) {
 		strp->ir=sbuffer;
 		if (er != 0) return 0;
 		if (token != ')') {error(EARGS); return 0; }
-		break;
+	}
 #ifdef HASMSSTRINGS
-	case TCHR:
+	else if ( token == TCHR ) {
 		nexttoken();
 		if (token == '$') nexttoken();
 		if (token != '(') { error(EARGS); return 0; }
@@ -3946,10 +4026,8 @@ char stringvalue(bstring_t* strp) {
 		strp->ir=sbuffer;
 		strp->length=1;
 		if (token != ')') {error(EARGS); return 0; }
-		break;
-	case TRIGHT:
-	case TMID:
-	case TLEFT:	
+	}
+	else if ( token == TRIGHT || token == TMID || token == TLEFT ) {
 		t=token;
 		nexttoken();
 		if (token == '$') nexttoken();
@@ -3965,18 +4043,17 @@ char stringvalue(bstring_t* strp) {
 		expression();
 		if (er != 0) return 0;
 /* all the rest depends on the function */
-		switch (t) {
-		case TRIGHT:
+		if ( t == TRIGHT ) {
 			l=popaddress();
 			if (k < l) l=k; 
 			if (strp->address) strp->address=strp->address+(k-l);
 			if (strp->ir) strp->ir=strp->ir+(k-l);
-			break;
-		case TLEFT:
+		}
+		else if ( t == TLEFT ) {
 			l=popaddress();
 			if (k < l) l=k; 
-			break;
-		case TMID:
+		}
+		else if ( t == TMID ) {
 			if (token == ',') { 
 				nexttoken();
 				expression();
@@ -3996,15 +4073,14 @@ char stringvalue(bstring_t* strp) {
 			if (l < 0) l=0; 
 			if (strp->address != 0) strp->address=strp->address+i-1;
 			if (strp->ir) strp->ir=strp->ir+i-1;;
-			break;	
 		}
 		strp->length=l;
 
 		if (token != ')') {error(EARGS); return 0; }
-		break; 
+	} 
 #endif
 #endif
-	default:
+	else {
 		return 0;
 	}
 	return 1;
@@ -4148,20 +4224,19 @@ void factorarray() {
 	parsesubscripts();
 	if (er != 0 ) return;
 
-	switch(args) {
-	case 1:
+	if ( args == 1 ) {
 		object.i=popaddress();
 		if (!USELONGJUMP && er) return;
 		object.j=arraylimit;
-		break;
+	}
 #ifdef HASMULTIDIM
-	case 2:
+	else if ( args == 2 ) {
 		object.j=popaddress();
 		object.i=popaddress();
 		if (!USELONGJUMP && er) return;
-		break;
+	}
 #endif
-	default:
+	else {
 		error(EARGS); 
 		return;
 	}
@@ -4181,26 +4256,26 @@ void factorlen() {
 	if ( token != '(') { error(EARGS); return; }
 
 	nexttoken();
-	switch(token) {
-	case STRING:
+	if (token == STRING ) {
 		push(sr.length);
 		nexttoken();
-		break;
-	case STRINGVAR:
+	}
+	else if (token == STRINGVAR ) {
 		parsestringvar(&s, &lhs);
 		push(s.length);
 		nexttoken();
-		break;
+	}
+	else if (
 #ifdef HASMSSTRINGS
-	case TRIGHT:
-	case TLEFT:
-	case TMID:
-	case TCHR:
+	token == TRIGHT ||
+	token == TLEFT ||
+	token == TMID ||
+	token == TCHR ||
 #endif			
-	case TSTR:
+	token == TSTR ) {
 		error(EARGS);
 		return;
-	default:
+	} else {
 		expression();
 		if (!USELONGJUMP && er) return;
 		n.token=TBUFFER;
@@ -4402,20 +4477,18 @@ void factorasc() {
 	if ( token != '(') { error(EARGS); return; }
 
 	nexttoken();
-	switch(token) {
-	case STRING:
+	if ( token == STRING ) {
 		if (sr.ir) push(sr.ir[0]); else push(memread2(sr.address));
 		nexttoken();
-		break;
-	case STRINGVAR:
+	}
+	else if ( token == STRINGVAR ) {
 		parsestringvar(&s, &lhs);
 		if (s.length > 0) {
 			if (s.ir) push(s.ir[0]); else push(memread2(s.address));
 		} else 
 			push(0);
 		nexttoken();
-		break;
-	default:
+	} else {
 		error(EARGS);
 		return;
 	}
@@ -4430,190 +4503,228 @@ void factorasc() {
 
 void factor(){
 	if (DEBUG) bdebug("factor\n");
-	switch (token) {
-	case NUMBER: 
+	if ( token == NUMBER ) {
 		push(x);
-		break;
-	case VARIABLE: 	
+		return;
+	}
+	if ( token == VARIABLE ) {
 		push(getvar(&name));
-		break;
-	case ARRAYVAR:
+		return;
+	}
+	if ( token == ARRAYVAR ) {
 		factorarray();
-		break; 
-	case '(':
+		return;
+	}
+	if ( token == '(' ) {
 		nexttoken();
 		expression();
 		if (er != 0 ) return;
 		if (token != ')') { error(EARGS); return; } 
-		break;
+		return;
+	}
 /* Palo Alto BASIC functions */
-	case TABS: 
+	if ( token == TABS ) {
 		parsefunction(xabs, 1);
-		break;
-	case TRND: 
+		return;
+	}
+	if ( token == TRND ) {
 		parsefunction(xrnd, 1);
-		break;
-	case TSIZE:
+		return;
+	}
+	if ( token == TSIZE ) {
 		push(himem-top);
-		break;
+		return;
+	}
 /* Apple 1 BASIC functions */
 #ifdef HASAPPLE1
-	case TSGN: 
+	if ( token == TSGN ) {
 		parsefunction(xsgn, 1);
-		break;
-	case TPEEK: 
+		return;
+	}
+	if ( token == TPEEK ) {
 		parsefunction(xpeek, 1);
-		break;
-	case TLEN: 
+		return;
+	}
+	if ( token == TLEN ) {
 		factorlen();
-		break;
+		return;
+	}
 #ifdef HASIOT
-	case TAVAIL:
+	if ( token == TAVAIL ) {
 		parsefunction(xavail, 1);
-		break;	
-	case TOPEN:
+		return;
+	}
+	if ( token == TOPEN ) {
 		parsefunction(xfopen, 1);
-		break;
-	case TSENSOR:
+		return;
+	}
+	if ( token == TSENSOR ) {
 		parsefunction(xfsensor, 2);
-		break;
-	case TVAL:
+		return;
+	}
+	if ( token == TVAL ) {
 		factorval();
-		break;
-	case TINSTR:
+		return;
+	}
+	if ( token == TINSTR ) {
 		factorinstr();
-		break;
-	case TWIRE:
+		return;
+	}
+	if ( token == TWIRE ) {
 		parsefunction(xfwire, 1);
-		break;
+		return;
+	}
 #endif
 #ifdef HASERRORHANDLING
-	case TERROR:
+	if ( token == TERROR ) {
 		push(erh);
-		break;
+		return;
+	}
 #endif
-	case THIMEM:
+	if ( token == THIMEM ) {
 		push(himem);
-		break;
+		return;
+	}
 /* Apple 1 string compare code */
-	case STRING:
-	case STRINGVAR:
+	if ( token == STRING || 
 #ifdef HASIOT
-	case TSTR:
+		token == TSTR ||
 #endif
 #ifdef HASMSSTRINGS
-	case TLEFT:
-	case TRIGHT:
-	case TMID:
-	case TCHR:
+		token == TLEFT ||
+		token == TRIGHT ||
+		token == TMID ||
+		token == TCHR ||
 #endif
+		token == STRINGVAR ) {
 		streval();
-		if (er != 0 ) return;
-		break;
+		return;
+	}
 #endif
 /*  Stefan's tinybasic additions */
 #ifdef HASSTEFANSEXT
-	case TSQR: 
+	if ( token == TSQR ) {
 		parsefunction(sqr, 1);
-		break;
-	case TMAP: 
+		return;
+	}
+	if ( token == TMAP ) {
 		parsefunction(xmap, 5);
-		break;
-	case TUSR:
+		return;
+	}
+	if ( token == TUSR ) {
 		parsefunction(xusr, 2);
-		break;
-	case TPOW:
+		return;
+	}
+	if ( token == TPOW ) {
 		parsefunction(xpow, 2);
-		break;
+		return;
+	}
 #endif
 /* Arduino I/O */
 #ifdef HASARDUINOIO
-	case TAREAD: 
+	if ( token == TAREAD ) {
 		parsefunction(xaread, 1);
-		break;
-	case TDREAD: 
+		return;
+	}
+	if ( token == TDREAD ) {
 		parsefunction(xdread, 1);
-		break;
-	case TMILLIS: 
+		return;
+	}
+	if ( token == TMILLIS ) {
 		parsefunction(bmillis, 1);
-		break;	
+		return;
+	}
 #ifdef HASPULSE
-	case TPULSE:
+	if ( token == TPULSE ) {
 		parsefunction(bpulsein, 3);
-		break;
+		return;
+	}
 #endif
-	case TAZERO:
+	if ( token == TAZERO ) {
 #if defined(ARDUINO) && defined(A0)
 		push(A0);
 #else 
 		push(0);
 #endif			
-		break;
-	case TLED:
+		return;
+	}
+	if ( token == TLED ) {
 #ifdef LED_BUILTIN
 		push(LED_BUILTIN);
 #else
 		push(0);
 #endif
-		break;
+		return;
+	}
 #endif
 /* mathematical functions in case we have float */
 #ifdef HASFLOAT
-	case TSIN:
+	if ( token == TSIN ) {
 		parsefunction(xsin, 1);
-		break;
-	case TCOS:
-		parsefunction(xcos, 1);
-		break;
-	case TTAN:
-		parsefunction(xtan, 1);
-		break;		
-	case TATAN:
-		parsefunction(xatan, 1);
-		break;
-	case TLOG:
-		parsefunction(xlog, 1);
-		break;
-	case TEXP:
-		parsefunction(xexp, 1);
-		break;
-#endif
-/* int is always present to make programs compatible */
-	case TINT:
-		parsefunction(xint, 1);
-		break;
-#ifdef HASDARTMOUTH
-	case TFN:
-		xfn(0);
-		break;
-/* an arcane feature, DATA evaluates to the data record number */
-	case TDATA:
-		push(datarc);
-		break;
-#endif
-#ifdef HASDARKARTS
-	case TMALLOC:
-		parsefunction(xmalloc, 2);
-		break;	
-	case TFIND:
-		xfind();
-		break;
-#endif
-#ifdef HASIOT
-	case TNETSTAT:
-		factornetstat();
-		break;
-#endif
-#ifdef HASMSSTRINGS
-	case TASC:
-		factorasc();
-		break;	
-#endif
-/* unknown function */
-	default:
-		error(EUNKNOWN);
 		return;
 	}
+	if ( token == TCOS ) {
+		parsefunction(xcos, 1);
+		return;
+	}
+	if ( token == TTAN ) {
+		parsefunction(xtan, 1);
+		return;
+	}
+	if ( token == TATAN ) {
+		parsefunction(xatan, 1);
+		return;
+	}
+	if ( token == TLOG ) {
+		parsefunction(xlog, 1);
+		return;
+	}
+	if ( token == TEXP ) {
+		parsefunction(xexp, 1);
+		return;
+	}
+#endif
+/* int is always present to make programs compatible */
+	if ( token == TINT ) {
+		parsefunction(xint, 1);
+		return;
+	}
+#ifdef HASDARTMOUTH
+	if ( token == TFN ) {
+		xfn(0);
+		return;
+	}
+/* an arcane feature, DATA evaluates to the data record number */
+	if ( token == TDATA ) {
+		push(datarc);
+		return;
+	}
+#endif
+#ifdef HASDARKARTS
+	if ( token == TMALLOC ) {
+		parsefunction(xmalloc, 2);
+		return;
+	}
+	if ( token == TFIND ) {
+		xfind();
+		return;
+	}
+#endif
+#ifdef HASIOT
+	if ( token == TNETSTAT ) {
+		factornetstat();
+		return;
+	}
+#endif
+#ifdef HASMSSTRINGS
+	if ( token == TASC ) {
+		factorasc();
+		return;
+	}
+#endif
+/* unknown function */
+	error(EUNKNOWN);
+	return;
 }
 
 /* this is how the power operator ^ is handled */
@@ -4728,8 +4839,7 @@ void compexpression() {
 	if (DEBUG) bdebug("compexp\n"); 
 	addexpression();
 	if (!USELONGJUMP && er) return;
-	switch (token){
-	case '=':
+	if ( token == '=' ) {
 		parseoperator(compexpression);
 		if (!USELONGJUMP && er) return;
 #ifndef HASFLOAT
@@ -4737,36 +4847,41 @@ void compexpression() {
 #else 
 		if (fabs(x-y) <= epsilon) push(booleanmode); else push(0);
 #endif
-		break;
-	case NOTEQUAL:
+		return;
+	}
+	if ( token == NOTEQUAL ) {
 		parseoperator(compexpression);
 		if (!USELONGJUMP && er) return;
 #ifndef HASFLOAT
 		push(x != y ? booleanmode : 0);
 #else 
-	if (fabs(x-y) > epsilon) push(booleanmode); else push(0);
+		if (fabs(x-y) > epsilon) push(booleanmode); else push(0);
 #endif
-		break;
-	case '>':
+		return;
+	}
+	if ( token == '>' ) {
 		parseoperator(compexpression);
 		if (!USELONGJUMP && er) return;
 		push(x > y ? booleanmode : 0);
-		break;
-	case '<':
+		return;
+	}
+	if ( token == '<' ) {
 		parseoperator(compexpression);
 		if (!USELONGJUMP && er) return;
 		push(x < y ? booleanmode : 0);
-		break;
-	case LESSEREQUAL:
+		return;
+	}
+	if ( token == LESSEREQUAL ) {
 		parseoperator(compexpression);
 		if (!USELONGJUMP && er) return;
 		push(x <= y ? booleanmode : 0);
-		break;
-	case GREATEREQUAL:
+		return;
+	}
+	if ( token == GREATEREQUAL ) {
 		parseoperator(compexpression);
 		if (!USELONGJUMP && er) return;
 		push(x >= y ? booleanmode : 0);
-		break;
+		return;
 	}
 }
 
@@ -4884,13 +4999,10 @@ processsymbol:
 		expression();
 		if (!USELONGJUMP && er) return;
 
-		switch(modifier) {
-		case '#':
+		if ( modifier == '#' ) {
 			form=pop();
-			break;
-		case '&':
+		} else if ( modifier == '&' ) {
 			od=pop();
-			break;
 		}
 		goto separators;
 	}
@@ -4905,13 +5017,14 @@ processsymbol:
 separators:
 	if (termsymbol()) goto processsymbol;
 
-	switch (token) {
-	case ',':
+	if ( token == ',' ) {
 		if (!modifier) outspc();
-	case ';':
+		goto cont;
+	}
+	if ( token == ';') {
+cont:
 		semicolon=1;
 		nexttoken();
-		break;
 	}
 	modifier=0;
 
@@ -4963,42 +5076,41 @@ void lefthandside(lhsobject_t* lhs) {
 	lhs->ps=1;
 
 /* look at the variables and continue parsing */
-	switch (lhs->name.token) {
-	case VARIABLE:
+	register token_t t = lhs->name.token;
+	if ( t == VARIABLE ) {
 		nexttoken();
-		break;
-	case ARRAYVAR:
+	}
+	else if ( t == ARRAYVAR ) {
 		parsesubscripts();
 		if (!USELONGJUMP && er) return;
-		switch(args) {
-		case 1:
+		if ( args == 1 ) {
 			lhs->i=popaddress();
 			if (!USELONGJUMP && er) return;
 			lhs->j=arraylimit;
-			break;
-		case 2:
+		}
+		else if ( args == 2 ) {
 			lhs->j=popaddress();
 			if (!USELONGJUMP && er) return;
 			lhs->i=popaddress();
 			if (!USELONGJUMP && er) return;
-			break;
-		default:
+		}
+		else {
 			error(EARGS);
 			return;
 		}
 		nexttoken();
-		break;
+	}
 #ifdef HASAPPLE1
-	case STRINGVAR:
+	else if ( t == STRINGVAR ) {
 		parsestringvar(0, lhs);
 		nexttoken();
-		break;
+	}
 #else /* HASAPPLE1 */
 /* here we could implement a string thing for a true Tinybasic */
 #endif
-		default:
-			error(EUNKNOWN);
-			return;
+	else {
+		error(EUNKNOWN);
+		return;
 	}
 
 	if (DEBUG) {
@@ -5017,32 +5129,28 @@ void assignnumber2(lhsobject_t* lhs, number_t x) {
 	bstring_t sr;
 
 /* depending on the variable type, assign the value */
-	switch (lhs->name.token) {
-	case VARIABLE:
+	register token_t t = lhs->name.token;
+	if ( t == VARIABLE ) {
 		setvar(&lhs->name, x);
-		break;
-	case ARRAYVAR: 	
+	}
+	else if ( t == ARRAYVAR ) {
 		array(lhs, 's', &x);
-		break;
+	}
 #ifdef HASAPPLE1
-	case STRINGVAR:
-
+	else if ( t == STRINGVAR ) {
 /* find the string variable */
 		getstring(&sr, &lhs->name, lhs->i, lhs->j);
 		if (!USELONGJUMP && er) return;
-
 /* the first character of the string is set to the number */
 		if (sr.ir) sr.ir[0]=x; else if (sr.address) memwrite2(ax, x); else error(EUNKNOWN);
-
 /* set the length */
 		if (lhs->ps)
 			setstringlength(&lhs->name, 1, lhs->j);
 		else 
 			if (sr.length < lhs->i && lhs->i <= sr.strdim) 
 				setstringlength(&lhs->name, lhs->i, lhs->j);
-		break;
-#endif
 	}
+#endif
 }
 
 /*
@@ -5069,19 +5177,17 @@ void assignment() {
 	nexttoken();
 
 /* here comes the code for the right hand side, the evaluation depends on the left hand side type */
-	switch (lhs.name.token) {
+	register token_t t = lhs.name.token;
 /* the lefthandside is a scalar, evaluate the righthandside as a number, even if it is a string */
-	case VARIABLE:
-	case ARRAYVAR: 
+	if ( t == VARIABLE || t == ARRAYVAR ) {
 		expression();
 		if (!USELONGJUMP && er) return;
 		assignnumber2(&lhs, pop());
-		break;
+	}
 #ifdef HASAPPLE1
 /* the lefthandside is a string variable, try evaluate the righthandside as a stringvalue */
-	case STRINGVAR: 
+	else if ( t == STRINGVAR ) {
 nextstring:
-
 /* do we deal with a string as righthand side */
 		s=stringvalue(&sr);
 		if (!USELONGJUMP && er) return;
@@ -5154,9 +5260,8 @@ addstring:
 			nexttoken();
 			goto nextstring;
 		}
-		break; /* case STRINGVAR */
+	}
 #endif /* HASAPPLE1 */
-	} /* switch */
 }
 
 
@@ -5302,9 +5407,8 @@ nextvariable:
 		if (!USELONGJUMP && er) return;
 
 /* which data type do we input */
-		switch (lhs.name.token) {
-		case VARIABLE:
-		case ARRAYVAR: 
+		register token_t t = lhs.name.token;
+		if ( t == VARIABLE || t == ARRAYVAR ) {
 again:
 /* if we have no buffer or are at the end, read it and set cursor k to the beginning */
 			if (k == 0 || (address_t) buffer[0] < k) { 
@@ -5351,9 +5455,9 @@ again:
 				}
 				k++;
 			}
-			break;
+		}
 #ifdef HASAPPLE1
-		case STRINGVAR:
+		else if ( t == STRINGVAR ) {
 /* the destination address of the lefthandside, on the fly create included */
 			getstring(&s, &lhs.name, lhs.i, lhs.j);
 			if (!USELONGJUMP && er) return;
@@ -5401,9 +5505,8 @@ again:
 /* classical Apple 1 behaviour is string truncation in substring logic */
 			newlength = lhs.i+newlength-1;	
 			setstringlength(&lhs.name, newlength, lhs.j);
-			break;
-#endif		
 		}
+#endif		
 	}
 
 /* seperators and termsymbols */
@@ -5438,6 +5541,9 @@ void xgoto() {
 	x=pop();
 
 	if (DEBUG) { outsc("** goto/gosub evaluated line number "); outnumber(x); outcr(); }
+	#if TRACE_PRINTF
+	printf("[xgoto]\n");
+	#endif
 	findline((address_t) x);
 	if (!USELONGJUMP && er) return;
 	if (DEBUG) { outsc("** goto/gosub branches to "); outnumber(here); outcr(); }
@@ -5510,6 +5616,9 @@ processelse:
 		if (token == TELSE) {
 			nexttoken();
 			if (token == NUMBER) {
+				#if TRACE_PRINTF
+				printf("[xif else]\n");
+				#endif
 				findline((address_t) x);
 				return;	
 			}
@@ -5523,6 +5632,9 @@ processelse:
 	if (token == TTHEN) {
 		nexttoken();
 		if (token == NUMBER) {
+			#if TRACE_PRINTF
+			printf("[xif]\n");
+			#endif
 			findline((address_t) x);
 		}
 	} 
@@ -5693,20 +5805,19 @@ void xbreak(){
 
 	loop=activeloop();
 	if (!USELONGJUMP && er) return;
-	switch (loop->var.token) {
-	case TWHILE: 
+	register token_t t = loop->var.token;
+	if ( t == TWHILE ) {
 		findbraket(TWHILE, TWEND);
 		nexttoken();
-		break;
-	case TREPEAT:
+	}
+	else if ( t == TREPEAT ) {
 		findbraket(TREPEAT, TUNTIL);
 		while (!termsymbol()) nexttoken();
-		break;	
-	default: /* a FOR loop is the default */
+	}
+	else { /* a FOR loop is the default */
 		findbraket(TFOR, TNEXT);
 		nexttoken();	
 		if (token == VARIABLE) nexttoken(); /* we are at next and skip the variable check */
-		break;	
 	}
 	droploop();
 }
@@ -5728,19 +5839,13 @@ void xbreak(){
 void xcont() {
 	bloop_t* loop;
 
-	loop=activeloop();
+	loop = activeloop();
 	if (!USELONGJUMP && er) return;
-	switch (loop->var.token) {
-	case TWHILE: 
-		findbraket(TWHILE, TWEND);
-		break;
-	case TREPEAT:
-		findbraket(TREPEAT, TUNTIL);
-		break;
-	default: /* a FOR loop is the default */
+	register token_t t = loop->var.token;
+	if ( t == TWHILE )	findbraket(TWHILE, TWEND);
+	else if ( t == TREPEAT ) findbraket(TREPEAT, TUNTIL);
+	else /* a FOR loop is the default */
 		findbraket(TFOR, TNEXT);
-		break;
-	}
 }
 #else
 void xcont() {
@@ -5844,30 +5949,25 @@ void outputtoken() {
 		spaceafterkeyword=0;
 	}
 
-	switch (token) {
-	case NUMBER:
-		outnumber(x);
-		break;
-	case LINENUMBER: 
+	if ( token == NUMBER ) outnumber(x);
+	else if ( token == LINENUMBER ) {
 		outnumber(ax);
 		outspc();
-		break;
-	case ARRAYVAR:
-	case STRINGVAR:
-	case VARIABLE:
+	}
+	else if ( token == ARRAYVAR || token == STRINGVAR || token == VARIABLE ) {
 		if (lastouttoken == NUMBER) outspc(); 
 		outname(&name);
 		if (token == STRINGVAR) outch('$');
-		break;
-	case STRING:
+	}
+	else if ( token == STRING) {
 		outch('"'); 
 #ifdef USEMEMINTERFACE
 		if (!sr.ir) getstringtobuffer(&sr, spistrbuf1, SPIRAMSBSIZE);
 #endif
 		outs(sr.ir, sr.length);
 		outch('"');
-		break;
-	default:
+	}
+	else {
 		if ( (token < 32 && token >= BASEKEYWORD) || token < -127) {	
 			if ((token == TTHEN || 
 				token == TELSE ||
@@ -5887,16 +5987,16 @@ void outputtoken() {
 				token != LESSEREQUAL && 
 				token != TREM &&
 				token != TFN) spaceafterkeyword=1;
-			break;
+			goto ex;
 		}	
 		if (token >= 32) {
 			outch(token);
 			if (token == ':' && !outliteral) outspc();
-			break;
+			goto ex;
 		} 
 		outch(token); outspc(); outnumber(token);
 	}
-
+ex:
 	lastouttoken=token;
 }
 
@@ -5918,11 +6018,17 @@ void listlines(address_t b, address_t e) {
 	if ( top != 0 ) {
 		here=0;
 		gettoken();
+		#if TRACE_PRINTF
+		printf("[listlines] %d\n", token);
+		#endif
 		while (here < top) {
 			if (token == LINENUMBER && ax >= b) oflag=1;
 			if (token == LINENUMBER && ax >  e) oflag=0;
 			if (oflag) outputtoken();
 			gettoken();
+			#if TRACE_PRINTF
+			printf("[listlines2] %d\n", token);
+			#endif
 			if (token == LINENUMBER && oflag) {
 				outcr();
 /* wait after every line on small displays
@@ -5945,20 +6051,19 @@ void xlist(){
 	if (!USELONGJUMP && er) return;
 
 /* parse the arguments */
-	switch (args) {
-	case 0: 
+	if ( args == 0 ) {
 		b=0;
 		e=maxaddr;
-		break;
-	case 1: 
+	}
+	else if ( args == 1 ) {
 		b=pop();
 		e=b;
-		break;
-	case 2: 
+	}
+	else if ( args == 2 ) {
 		e=pop();
 		b=pop();
-		break;
-	default:
+	}
+	else {
 		error(EARGS);
 		return;
 	}
@@ -6017,42 +6122,45 @@ undo: /* this is the undo point */
 		outcr();
 
 /* get a bunch of editing commands and process them*/
-		i=ins(sbuffer, SBUFSIZE);
-		for (k=1; k<=i; k++) {
-			ch=sbuffer[k];
-			switch (ch) {
-			case 'q': /* quit the editor*/
+		i = ins(sbuffer, SBUFSIZE);
+		for (k = 1; k <= i; ++k) {
+			ch = sbuffer[k];
+			if ( ch == 'q' ) { /* quit the editor*/
 				goto done;
-			case 'Q': /* end the editor without saving */
+			}
+			if ( ch == 'Q' ) { /* end the editor without saving */
 				goto endnosave;
-				break;
-			case 'X': /* delete from cursor until the end of the line */
-				ibuffer[0]=(char)l;
-				ibuffer[l]=0;
-				break;
-			case 'j': /* vi style left */
+			}
+			if ( ch == 'X' ) { /* delete from cursor until the end of the line */
+				ibuffer[0] = (char)l;
+				ibuffer[l] = 0;
+			}
+			else if ( ch == 'j' ) { /* vi style left */
 				if (l > 1) l--;
-				break;
-			case 'k': /* vi style right */
-				if (l<(unsigned char)ibuffer[0]) l++;
-				break;
-			case 'x': /* delete the cursor character */
+			}
+			else if ( ch == 'k' ) { /* vi style right */
+				if (l < (unsigned char)ibuffer[0]) l++;
+			}
+			else if ( ch == 'x' ) { /* delete the cursor character */
 				if ((unsigned char)ibuffer[0]>0) {
 					for (j=l; j<(unsigned char)ibuffer[0]; j++) ibuffer[j]=ibuffer[j+1]; 
 					ibuffer[j]=0;
 					ibuffer[0]=(unsigned char)ibuffer[0]-1;
 				}
 				if ((unsigned char)ibuffer[0]<l) l=(unsigned char)ibuffer[0];
-				break;
-			case 's': /* substitute one character at the cursor position */
-				if (k<i) {
+			}
+			else if ( ch == 's' ) { /* substitute one character at the cursor position */
+				if (k < i) {
 					k++; 
-					ibuffer[l]=sbuffer[k];
+					ibuffer[l] = sbuffer[k];
 				}
-				break;
-			case 'a': /* append multiple characters at the end of the line */
-				l=(unsigned char)ibuffer[0]+1;
-			case 'i': /* insert multiple characters at the cursor position */
+			}
+			else if ( ch == 'a' ) { /* append multiple characters at the end of the line */
+				l = (unsigned char)ibuffer[0] + 1;
+				goto insert;
+			}
+			else if ( ch == 'i' ) { /* insert multiple characters at the cursor position */
+insert:
 				if (i-k+(unsigned char)ibuffer[0] < BUFSIZ) {
 					for (j=i-k+(unsigned char)ibuffer[0]; j>=l; j--) {
 						ibuffer[j+i-k]=ibuffer[j];
@@ -6061,33 +6169,31 @@ undo: /* this is the undo point */
 				}
 				ibuffer[0]=(unsigned char)ibuffer[0]+i-k;
 				k=i;
-				break;
-			case '^': /* vi style start of line */
-				l=1;
-				break;
-			case '$': /* vi style end of line */
-				l=(unsigned char)ibuffer[0]+1;
-				break;
-			case 'h': /* vi style backspace */
+			}
+			else if ( ch == '^' ) { /* vi style start of line */
+				l = 1;
+			}
+			else if ( ch == '$' ) { /* vi style end of line */
+				l = (unsigned char)ibuffer[0] + 1;
+			}
+			else if ( ch == 'h' ) { /* vi style backspace */
 				if (l > 1) {
 					for (j=l-1; j<(unsigned char)ibuffer[0]; j++) ibuffer[j]=ibuffer[j+1]; 
 					ibuffer[j]=0;
 					ibuffer[0]=(unsigned char)ibuffer[0]-1;
 					l--;
 				}
-				break;
-			case 'u': /* vi style undo */
+			}
+			else if ( ch == 'u' ) { /* vi style undo */
 				goto undo;
-				break;
-			case ':':  /* find the next colon : character*/
+			}
+			else if ( ch == ':' ) {  /* find the next colon : character*/
 				if (l <= (unsigned char)ibuffer[0]) {
 					while (l <= (unsigned char)ibuffer[0] && ibuffer[l] != ':') l++;
 					if (l <= (unsigned char)ibuffer[0]) l++;
 				}
-				break;
-			default: /* do nothing if the character is not recogized */
-				break;
 			}
+			/* do nothing if the character is not recogized */
 		}
 	}
 
@@ -6126,6 +6232,9 @@ void xrun(){
 		if (args == 0) {
 			here = 0;
 		} else {
+			#if TRACE_PRINTF
+			printf("[xrun]\n");
+			#endif
 			findline(pop());
 		}
 		if (!USELONGJUMP && er) return;
@@ -6152,7 +6261,7 @@ void xrun(){
 /* once statement is called it stays into a loop until the token stream 
 		is exhausted. Then we return to interactive mode. */
 	statement();
-	st=SINT;
+	st = SINT;
 /* flush the EEPROM when changing to interactive mode */
 	eflush();
 
@@ -6229,17 +6338,16 @@ void xnew(){
  *	REM - skip everything 
  */
 void xrem() {
-#if DEBUG_LVLS
 	if (debuglevel == -1) outsc("REM: ");
-#endif
 	while (token != LINENUMBER && token != EOL && here <= top) 
 	{
 		nexttoken();
-#if DEBUG_LVLS
 		if (debuglevel == -1) {
 			if (token != LINENUMBER) outputtoken(); else outcr();
 		}
-#endif
+		#if TRACE_PRINTF
+		printf("[REM] token: %d\n", token);
+		#endif
 	} 
 }
 
@@ -6255,58 +6363,59 @@ void xclr() {
 
 #ifdef HASDARKARTS
 	name_t variable;
-
 	nexttoken();
-
 	if (termsymbol()) {
 		clrvars();
 		clrgosubstack();
 		clrforstack();
 		clrdata();
 		clrlinecache();
-		ert=0;
-    	ioer=0;
+		ert = 0;
+    	ioer = 0;
 	} else {
-		variable=name;
-		switch (variable.token) {
-		case VARIABLE:
+		variable = name;
+		register token_t t = variable.token;
+		if ( t == VARIABLE ) {
 			if (variable.c[0] == '@') { return; }
-			break;
-		case ARRAYVAR: 
+		}
+		else if ( t == ARRAYVAR ) {
 			nexttoken();
 			if (token != '(') { error(EVARIABLE); return; }
 			nexttoken();
 			if (token != ')') { error(EVARIABLE); return; }
-			break;
-		case STRINGVAR:
+		}
+		else if ( t == STRINGVAR ) {
 			if (variable.c[0] == '@') { error(EVARIABLE); return; }
-			break;
-		case TGOSUB:
+		}
+		else if ( t == TGOSUB ) {
 			clrgosubstack();
 			goto next;
-		case TFOR: 
+		}
+		else if ( t == TFOR ) {
 			clrforstack();
 			goto next;
-		case TEVERY:
+		}
+		else if ( t == TEVERY ) {
 			resettimer(&every_timer);
 			goto next;
-		case TAFTER:
+		}
+		else if ( t == TAFTER ) {
 			resettimer(&after_timer);
-			goto next;	
-		default:
+			goto next;
+		} else {
 			expression();
 			if (!USELONGJUMP && er) return;
-			ax=pop();
-			variable.c[0]=ax%256;
-			variable.c[1]=ax/256;
-			variable.token=TBUFFER;
+			ax = pop();
+			variable.c[0] = ax % 256;
+			variable.c[1] = ax / 256;
+			variable.token = TBUFFER;
 		}
 
 /* we have to clear an object, call free */
-		ax=bfree(&variable);
+		ax = bfree(&variable);
 		if (ax == 0) { 
 			if (variable.token != TBUFFER) { error(EVARIABLE); return; }
-			else ert=1;
+			else ert = 1;
 		}
 	}
 #else
@@ -6510,27 +6619,25 @@ void xdump() {
 	parsearguments();
 	if (!USELONGJUMP && er) return;
 
-	switch (args) {
-	case 0: 
-		x=0;
-		a=memsize;
-		break;
-	case 1: 
-		x=pop();
-		a=memsize;
-		break;
-	case 2: 
-		a=pop();
-		x=pop();
-		break;
-	default:
+	if ( args == 0 ) {
+		x = 0;
+		a = memsize;
+	}
+	else if ( args == 1 ) {
+		x = pop();
+		a = memsize;
+	}
+	else if ( args == 2 ) {
+		a = pop();
+		x = pop();
+	}
+	else {
 		error(EARGS);
 		return;
 	}
-
-	form=6;
-	if (a>x) dumpmem((a-x)/8+1, x, eflag);
-	form=0;
+	form = 6;
+	if (a > x) dumpmem((a - x) / 8 + 1, x, eflag);
+	form = 0;
 }
 
 /*
@@ -6694,10 +6801,16 @@ void xsave() {
 		here2=here;
 		here=0;
 		gettoken();
+		#if TRACE_PRINTF
+		printf("[xsave] %d\n", token);
+		#endif
 		while (here < top) {
 			outputtoken();
 			if (ert) break;
 			gettoken();
+			#if TRACE_PRINTF
+			printf("[xsave2] %d\n", token);
+			#endif
 			if (token == LINENUMBER) outcr();
 		}
 		if (here == top) outputtoken();
@@ -6766,7 +6879,7 @@ void xload(const char* f) {
 			if (ch == '\n' || ch == '\r' || cheof(ch)) {
 				*bi = 0;
 				bi = ibuffer + 1;
-				#if DEBUG
+				#if TRACE_PRINTF
 				printf("[line] %s\n", bi);
 				#endif
 				if (*bi != '#') { /* lines starting with a # are skipped - Unix style shell startup */
@@ -6897,38 +7010,35 @@ void xput(){
 /* setpersonality is a helper of xset */
 void setpersonality(index_t p) {
 #ifdef HASAPPLE1
-	switch(p) {
 /* a Microsoft like BASIC have arrays starting at 0 with n+1 elements and no substrings, MS type RND */
-	case 'm':
-	case 'M':
-		msarraylimits=1;
-		arraylimit=0;
-		substringmode=0;
-		booleanmode=-1;
-		randombase=-1;
-		reltab=1;
-		break;
+	if ( p == 'm' || p == 'M' ) {
+		msarraylimits = 1;
+		arraylimit = 0;
+		substringmode = 0;
+		booleanmode = -1;
+		randombase = -1;
+		reltab = 1;
+		return;
+	}
 /* an Apple 1 like BASIC have arrays starting at 1 with n elements and substrings */
-	case 'a':
-	case 'A':
-		msarraylimits=0;
-		arraylimit=1;
-		substringmode=1;
-		booleanmode=1;
-		randombase=0;
-		reltab=0;
-		break;
+	if ( p == 'a' || p == 'A' ) {
+		msarraylimits = 0;
+		arraylimit = 1;
+		substringmode = 1;
+		booleanmode = 1;
+		randombase = 0;
+		reltab = 0;
+		return;
+	}
 /* PaloAlto BASIC is an integer basic with slightly different behaviour */
-	case 'p':
-	case 'P':
-		msarraylimits=0;
-		arraylimit=0;
-		substringmode=1;
-		booleanmode=1;
-		forceint=1;
-		randombase=1;
-		reltab=0;
-		break;
+	if ( p == 'p' || p == 'P' ) {
+		msarraylimits = 0;
+		arraylimit = 0;
+		substringmode = 1;
+		booleanmode = 1;
+		forceint = 1;
+		randombase = 1;
+		reltab = 0;
 	}
 #endif
 }
@@ -6941,164 +7051,105 @@ void setpersonality(index_t p) {
 void xset(){
 	address_t function;
 	index_t argument;
-
 	nexttoken();
 	parsenarguments(2);
-	if (!USELONGJUMP && er) return;
-
-	argument=pop();
-	function=pop();
-	switch (function) {	
+	if ( !USELONGJUMP && er ) return;
+	argument = pop();
+	function = pop();
 /* runtime debug level */
-	case 0:
-#if DEBUG_LVLS
+	if ( function == 0 ) {
 		debuglevel=argument;
-#endif
-		break;	
+	}
 /* autorun/run flag of the EEPROM 255 for clear, 0 for prog, 1 for autorun */
-	case 1: 
-		eupdate(0, argument);
-		break;
+	else if ( function == 1 ) eupdate(0, argument);
 /* change the output device */			
-	case 2: 
-		switch (argument) {
-		case 0:
-			od=OSERIAL;
-			break;
-		case 1:
-			od=ODSP;
-			break;
-		}		
-		break;
+	else if ( function == 2 ) {
+		if ( argument == 0 ) od = OSERIAL;
+		else if ( argument == 1 ) od = ODSP;
+	}
 /* change the default output device */			
-	case 3: 
-		switch (argument) {
-		case 0:
-			od=(odd=OSERIAL);
-			break;
-		case 1:
-			od=(odd=ODSP);
-			break;
-		}		
-		break;
+	else if ( function == 3 ) {
+		if ( argument == 0 ) odd = (od = OSERIAL);
+		else if ( argument == 1 ) odd = (od = ODSP);
+	}
  /* change the input device */			
-	case 4:
-		switch (argument) {
-		case 0:
-			id=ISERIAL;
-			break;
-		case 1:
-			id=IKEYBOARD;
-			break;
-		}		
-		break;
+	else if ( function == 4 ) {
+		if ( argument == 0 ) id = ISERIAL;
+		else if ( argument == 1 ) id = IKEYBOARD;
+	}
 /* change the default input device */					
-	case 5:
-		switch (argument) {
-		case 0:
-			idd=(id=ISERIAL);
-			break;
-		case 1:
-			idd=(id=IKEYBOARD);
-			break;
-		}		
-		break;	
+	else if ( function == 5 ) {
+		if ( argument == 0 ) idd = (id = ISERIAL);
+		else if ( argument == 1 ) idd = (id = IKEYBOARD);
+	}
 #ifdef HASSERIAL1
 /* set the cr behaviour */
-	case 6: 
-		sendcr=(char)argument;
-		break;
+	else if ( function == 6 ) sendcr=(char)argument;
 /* set the blockmode behaviour */
-	case 7: 
-		blockmode=argument;
-		break;
+	else if ( function == 7 ) blockmode=argument;
 /* set the second serial ports baudrate */
-	case 8:
-		prtset(argument);
-		break;
+	else if ( function == 8 ) prtset(argument);
 #endif
 /* set the power amplifier level of the radio module */
 #ifdef HASRF24
-	case 9: 
-		radioset(argument);
-		break;
+	else if ( function == 9 ) radioset(argument);
 #endif		
 /* display update control for paged displays */
 #ifdef DISPLAYDRIVER
-	case 10:
-		dspsetupdatemode(argument);
-		break;
+	else if ( function == 10 ) dspsetupdatemode(argument);
 #endif
 /* change the output device to a true TAB */
 #ifdef HASMSTAB
-	case 11:
-    	reltab=argument;
-		break;
+	else if ( function == 11 ) reltab = argument;
 #endif
 /* change the lower array limit */
 #ifdef HASAPPLE1
-	case 12:
-		if (argument>=0) arraylimit=argument; else error(EORANGE); 
-		break;
+	else if ( function == 12 ) {
+		if ( argument >= 0) arraylimit = argument;
+		else error(EORANGE); 
+	}
 #endif
 /* the keyboard repeat frequency */
 #ifdef HASKEYPAD
-	case 13:
-		kbdrepeat=argument;
-		break;
+	else if ( function == 13 ) kbdrepeat = argument;
 #endif
 /* the units the pulse command is using */
 #ifdef HASPULSE
-	case 14:
-		bpulseunit=argument;
-		break;
+	else if ( function == 14 ) bpulseunit = argument;
 #endif
 /* switch on the vt52 emulation an a POSIX system with an ANSI terminal */
 #ifdef POSIXVT52TOANSI 
-	case 15:
-		vt52active=argument;
-		break;
+	else if ( function == 15 ) vt52active = argument;
 #endif
 /* change the default size of a string at autocreate */
 #ifdef HASAPPLE1
-	case 16:
-		if (argument>0) defaultstrdim=argument; else error(EORANGE);
-		break;
+	else if ( function == 16 ) {
+		if (argument > 0) defaultstrdim = argument;
+		else error(EORANGE);
+	}
 #endif
 /* set the boolean mode */
-	case 17: 
-		if (argument==-1 || argument==1) booleanmode=argument; else error(EORANGE);
-		break;
+	else if ( function == 17 ) {
+		if (argument == -1 || argument == 1) booleanmode = argument;
+		else error(EORANGE);
+	}
 /* set the integer mode */
-	case 18: 
-		forceint=(argument != 0);
-		break;
+	else if ( function == 18 ) forceint = (argument != 0);
 /* set the random number behaviour */
-	case 19: 
-		randombase=argument;
-		break;
+	else if ( function == 19 ) randombase = argument;
 /* the substring mode on and off */
 #ifdef HASAPPLE1
-	case 20:
-		substringmode=(argument != 0);
-		break;
+	else if ( function == 20) substringmode = (argument != 0);
 #endif
 /* the MS array behaviour, creates n+1 elements when on */
 #ifdef HASAPPLE1
-	case 21:
-		msarraylimits=(argument != 0);
-		break;	
+	else if ( function == 21 ) msarraylimits = (argument != 0);
 #endif
 /* set many settings at once to change the entire personality of the interpreter */
-	case 22:
-		setpersonality(argument);
-		break;
+	else if ( function == 22 ) setpersonality(argument);
 #ifdef HASAPPLE1
-	case 23:
-		lowercasenames=(argument != 0);
-		break;	
+	else if ( function == 23 ) lowercasenames = (argument != 0);
 #endif		
-	}
 }
 
 /*
@@ -7298,20 +7349,14 @@ void xcolor() {
 	nexttoken();
 	parsearguments();
 	if (!USELONGJUMP && er) return;
-	switch(args) {
-	case 1: 
-		vgacolor(pop());
-		break;
-	case 3:
+	if (args == 1) vgacolor(pop());
+	else if (args == 3) {
 		b=pop();
 		g=pop();
 		r=pop();
 		rgbcolor(r, g, b);
-		break;
-	default:
-		error(EARGS);
-		break;
 	}
+	else error(EARGS);
 }
 
 /*
@@ -7440,27 +7485,26 @@ void xfind() {
 	a=bfind(&name);
 
 /* depending on the object, interpret the result */
-	switch (token) {
-	case ARRAYVAR:
-	case TFN:
+	if ( token == ARRAYVAR || token == TFN) {
 		if (!expect('(', EUNKNOWN)) return;
-		if (!expect(')', EUNKNOWN)) return; 	
-	case VARIABLE:
-	case STRINGVAR:
-		nexttoken();
-		break;
-	default:
-		expression(); /* do not use expectexpr here because of the token sequence */
-		if (!USELONGJUMP && er) return;
-		n=popaddress();
-      	if (!USELONGJUMP && er) return;
-		name.token=TBUFFER;
-		name.l=2;
-		name.c[0]=n%256;
-		name.c[1]=n/256;
-		a=bfind(&name);
+		if (!expect(')', EUNKNOWN)) return;
+		goto intern;
 	}
-
+	if (token == VARIABLE || token == STRINGVAR ) {
+intern:
+		nexttoken();
+		goto cont;
+	}
+	expression(); /* do not use expectexpr here because of the token sequence */
+	if (!USELONGJUMP && er) return;
+	n=popaddress();
+  	if (!USELONGJUMP && er) return;
+	name.token=TBUFFER;
+	name.l=2;
+	name.c[0]=n%256;
+	name.c[1]=n/256;
+	a=bfind(&name);
+cont:
 /* closing braket, dont use expect here because of the token sequence */ 
 	if (token != ')') { error(EUNKNOWN); return; }
 
@@ -7505,7 +7549,10 @@ void xeval(){
 
 /* we find the line we are currently at */
 	if (st != SINT) {
-		mline=myline(here);
+		mline = myline(here);
+		#if TRACE_PRINTF
+		printf("[xeval] %d %d\n", token, mline);
+		#endif
 		if (DEBUG) {outsc("** myline is "); outnumber(mline); outcr(); }
 	}
 
@@ -7518,6 +7565,9 @@ void xeval(){
 
 /* find my line - side effects not checked here */
 	if (st != SINT) {
+		#if TRACE_PRINTF
+		printf("[xeval]\n");
+		#endif
 		findline(mline);
 		nextline();
 	}
@@ -7607,24 +7657,18 @@ void xfwire() {
  */
 #ifdef HASERRORHANDLING
 void xerror() {
-	berrorh.type=0;
-	erh=0;
+	berrorh.type = 0;
+	erh = 0;
 	nexttoken();
-	switch (token) {
-	case TGOTO:
+	register token_t t = token;
+	if ( t == TGOTO ) {
 		if (!expectexpr()) return;
-		berrorh.type=TGOTO;
-		berrorh.linenumber=pop();
-		break;
-	case TCONT:
-		berrorh.type=TCONT;
-	case TSTOP:		
-		nexttoken();
-		break;
-	default:
-		error(EARGS);
-		return;
+		berrorh.type = TGOTO;
+		berrorh.linenumber = pop();
 	}
+	else if ( t == TCONT ) berrorh.type = TCONT;
+	else if ( t == TSTOP ) nexttoken();
+	else error(EARGS);
 }
 #endif
 
@@ -7643,36 +7687,31 @@ void resettimer(btimer_t* t) {
 void xtimer() {
 	token_t t;
 	btimer_t* timer;
-
-/* do we deal with every or after */
-	if (token == TEVERY) timer=&every_timer; else timer=&after_timer;
-
+	/* do we deal with every or after */
+	if ( token == TEVERY ) timer = &every_timer;
+	else timer = &after_timer;
 	/* one argument expected, the time intervall */
-	if (!expectexpr()) return;
-
+	if ( !expectexpr() ) return;
 	/* after that, a command GOTO or GOSUB with a line number
 			more commands thinkable */
-	switch(token) {
-	case TGOSUB:
-	case TGOTO:
+	if ( token == TGOSUB || token == TGOTO ) {
 		t=token;
 		if (!expectexpr()) return;
-		timer->last=millis();
+		timer->last = millis();
 		timer->type=t;
-		timer->linenumber=pop();
-		timer->interval=pop();
-		timer->enabled=1;
-		break;
-	default:
+		timer->linenumber = pop();
+		timer->interval = pop();
+		timer->enabled = 1;
+	} else {
 		if (termsymbol()) {
 			x=pop();
 			if (x == 0) 
 				timer->enabled=0;
 			else {
 				if (timer->linenumber) {
-					timer->enabled=1;
-					timer->interval=x;
-					timer->last=millis();	
+					timer->enabled = 1;
+					timer->interval = x;
+					timer->last = millis();	
 				} else 
 					error(EARGS);
 			}
@@ -7728,39 +7767,23 @@ mem_t eventindex(mem_t pin) {
 mem_t enableevent(mem_t pin){
 	mem_t inter;
 	mem_t i;
-
 /* do we have the data */
-	if ((i=eventindex(pin))<0) return 0;
-
+	if ((i = eventindex(pin)) < 0) return 0;
 /* can we use this pin? */  
-	inter=pintointerrupt(eventlist[i].pin);
+	inter = pintointerrupt(eventlist[i].pin);
 	if (inter < 0) return 0;
-
 /* attach the interrupt function to this pin */
-	switch(i) {
-	case 0: 
-		attachinterrupt(inter, bintroutine0, eventlist[i].mode); 
-		break;
-	case 1:
-		attachinterrupt(inter, bintroutine1, eventlist[i].mode); 
-		break;
-	case 2:
-		attachinterrupt(inter, bintroutine2, eventlist[i].mode); 
-		break;
-	case 3:
-		attachinterrupt(inter, bintroutine3, eventlist[i].mode); 
-		break;
-	default:
-		return 0;
-	}
-
+	if ( i == 0 ) attachinterrupt(inter, bintroutine0, eventlist[i].mode); 
+	else if ( i == 1 ) attachinterrupt(inter, bintroutine1, eventlist[i].mode); 
+	else if ( i == 2 ) attachinterrupt(inter, bintroutine2, eventlist[i].mode); 
+	else if ( i == 3 ) attachinterrupt(inter, bintroutine3, eventlist[i].mode); 
+	else return 0;
 /* now set it enabled in BASIC */
 	eventlist[i].enabled=1; 
 	return 1;
 }
 
-
-void disableevent(mem_t pin) {
+inline static void disableevent(mem_t pin) {
 	detachinterrupt(pin); 
 }
 
@@ -7813,27 +7836,23 @@ void xevent() {
 	parsearguments();
 	if (!USELONGJUMP && er) return;
 
-	switch(args) {
-	case 2:
-		mode=pop();
+	if ( args == 2 ) {
+		mode = pop();
 		if (mode > 3) {
 			error(EARGS);
 			return;
 		}
-	case 1: 
-		pin=pop();
-		break;
-	default:
-		error(EARGS);
 	}
+	else if ( args == 1 ) pin = pop();
+	else error(EARGS);
 
 /* followed by termsymbol, GOTO or GOSUB */
 	if (token == TGOTO || token == TGOSUB) {
-		type=token;
+		type = token;
 
 /* which line to go to */
 		if (!expectexpr()) return;
-		line=pop();
+		line = pop();
 	} 
 
     
@@ -8007,62 +8026,63 @@ void xopen() {
 	}
 
 /* open the stream */
-	switch(stream) {
 #ifdef HASSERIAL1
-	case ISERIAL1:
+	if ( stream == ISERIAL1 ) {
 		prtclose();
 		if (mode == 0) mode=9600;
 		if (prtopen(filename, mode)) ert=0; else ert=1;
-		break;
+		nexttoken();
+		return;
+	}
 #endif
 #ifdef FILESYSTEMDRIVER
-	case IFILE:
-		switch (mode) {
-		case 1:
+	if ( stream == IFILE ) {
+		if ( mode == 1 ) {
 			ofileclose();
 			if (ofileopen(filename, "w")) ert=0; else ert=1;
-			break;
-		case 2:
+		} else if ( mode == 2 ) {
 			ofileclose();
 			if (ofileopen(filename, "a")) ert=0; else ert=1;
-			break;
-		default:
-		case 0:
+		} else {
 			ifileclose();
 			if (ifileopen(filename)) ert=0; else ert=1;		
-			break;
 		}
-		break;
+		nexttoken();
+		return;
+	}
 #endif
 #ifdef HASRF24
-	case IRADIO:
+	if ( stream == IRADIO ) {
 		if (mode == 0) {
 			iradioopen(filename);
 		} else if (mode == 1) {
 			oradioopen(filename);
 		}
-		break;
+		nexttoken();
+		return;
+	}
 #endif
 #if defined(HASWIRE)
-	case IWIRE:
+	if ( stream == IWIRE ) {
 		wireopen(filename[0], mode);
-		break;
+		nexttoken();
+		return;
+	}
 #endif
 #ifdef HASMQTT
-	case IMQTT:
+	if ( stream == IMQTT ) {
 		if (mode == 0) {
 			mqttsubscribe(filename);
 		} else if (mode == 1) {
 			mqttsettopic(filename); 
 		}
-		break;
-#endif
-	default:
-		error(EORANGE);
+		nexttoken();
 		return;
 	}
 #endif
-	nexttoken();
+	error(EORANGE);
+	return;
+#endif
 }
 
 /*
@@ -8100,10 +8120,8 @@ void xclose() {
 	}
 
 /* currently only close of files is implemented, should be also implemented for Wire */
-	switch(stream) {
-	case IFILE:
+	if ( stream == IFILE ) {
 		if (mode == 1 || mode == 2) ofileclose(); else if (mode == 0) ifileclose();
-		break;
 	}
 #endif
 	nexttoken();
@@ -8144,95 +8162,88 @@ void xusr() {
 	int arg;
 	address_t a;
 
-	v=pop();
-	arg=(int)v; /* a bit paranoid here */
-	fn=pop();
-	switch(fn) {
+	v = pop();
+	arg = (int)v; /* a bit paranoid here */
+	fn = pop();
 /* USR(0,y) delivers all the internal constants and variables or the interpreter */		
-	case 0: 
-		switch(arg) {
-		case 0: 
-			push(bsystype); 
-			break;
-		case 1: /* language set identifier, odd because USR is part of STEFANSEXT*/
-			a=0;
+	if ( fn == 0 ) {
+		if ( arg == 0 )	push(bsystype); 
+		else if ( arg == 1 ) { /* language set identifier, odd because USR is part of STEFANSEXT*/
+			a = 0;
 #ifdef HASAPPLE1
-			a|=1;	
+			a |= 1;	
 #endif
 #ifdef HASARDUINOIO
-			a|=2;
+			a |= 2;
 #endif
 #ifdef HASFILEIO
-			a|=4;
+			a |= 4;
 #endif 
 #ifdef HASDARTMOUTH
-			a|=8;
+			a |= 8;
 #endif
 #ifdef HASGRAPH
-			a|=16;
+			a |= 16;
 #endif
 #ifdef HASDARKARTS
-			a|=32;
+			a |= 32;
 #endif
 #ifdef HASIOT
-			a|=64;
+			a |= 64;
 #endif
-			push(a); break;
-		case 2: 
-			push(0); break; /* reserved for system speed identifier */	
+			push(a);
+		}
+		else if ( arg == 2 ) push(0); /* reserved for system speed identifier */	
 
 #ifdef HASFLOAT
-		case 3:	push(-1); break;
+		else if ( arg == 3 ) push(-1);
 #else 
 		case 3: push(0); break;
 #endif
-		case 4: push(numsize); break;
-		case 5: push(maxnum); break;
-		case 6: push(addrsize); break;
-		case 7: push(maxaddr); break;
-		case 8: push(strindexsize); break;
-		case 9: push(memsize+1); break;
-		case 10: push(elength()); break;
-		case 11: push(GOSUBDEPTH); break;
-		case 12: push(FORDEPTH); break;
-		case 13: push(STACKSIZE); break;
-		case 14: push(BUFSIZE); break;
-		case 15: push(SBUFSIZE); break;
-		case 16: push(ARRAYSIZEDEF); break;
-		case 17: push(defaultstrdim); break;
+		else if ( arg == 4 ) push(numsize);
+		else if ( arg == 5 ) push(maxnum);
+		else if ( arg == 6 ) push(addrsize);
+		else if ( arg == 7 ) push(maxaddr);
+		else if ( arg == 8 ) push(strindexsize);
+		else if ( arg == 9 ) push(memsize + 1);
+		else if ( arg == 10 ) push(elength());
+		else if ( arg == 11 ) push(GOSUBDEPTH);
+		else if ( arg == 12 ) push(FORDEPTH);
+		else if ( arg == 13 ) push(STACKSIZE);
+		else if ( arg == 14 ) push(BUFSIZE);
+		else if ( arg == 15 ) push(SBUFSIZE);
+		else if ( arg == 16 ) push(ARRAYSIZEDEF);
+		else if ( arg == 17 ) push(defaultstrdim);
 /* - 24 reserved, don't use */
-		case 24: push(top); break;
-		case 25: push(here); break;
-		case 26: push(himem); break;
-		case 27: push(0); break;
-		case 28: push(freeRam()); break;
-		case 29: push(gosubsp); break;
-		case 30: push(loopsp); break;
-		case 31: push(0); break; /* fnc removed as interpreter variable */
-		case 32: push(sp); break;
+		else if ( arg == 24 ) push(top);
+		else if ( arg == 25 ) push(here);
+		else if ( arg == 26 ) push(himem);
+		else if ( arg == 27 ) push(0);
+		else if ( arg == 28 ) push(freeRam());
+		else if ( arg == 29 ) push(gosubsp);
+		else if ( arg == 30 ) push(loopsp); 
+		else if ( arg == 31 ) push(0);  /* fnc removed as interpreter variable */
+		else if ( arg == 32 ) push(sp);
 #ifdef HASDARTMOUTH
-		case 33: push(data); break;
+		else if ( arg == 33 ) push(data);
 #else
-		case 33: push(0); break;
+		else if ( arg == 33 ) push(0);
 #endif
-		case 34: push(0); break;
+		else if ( arg == 34 ) push(0);
 #ifdef FASTTICKERPROFILE
-		case 35: push(avgfasttick); break;
+		else if ( arg == 35 ) push(avgfasttick);
 #endif
 /* - 48 reserved, don't use */
-		case 48: push(id); break;
-		case 49: push(idd); break;
-		case 50: push(od); break;
-		case 51: push(odd); break;
-		default: push(0);
-		}
-		break;	
+		else if ( arg == 48 ) push(id);
+		else if ( arg == 49 ) push(idd);
+		else if ( arg == 50 ) push(od);
+		else if ( arg == 51 ) push(odd);
+		else push(0);
+	}	
 /* access to properties of stream 1 - serial	*/
-	case 1:
-		push(serialstat(arg));
-		break;
+	else if ( fn == 1 ) push(serialstat(arg));
 /* access to properties of stream 2 - display and keyboard */			
-	case 2: 
+	else if ( fn == 2 ) {
 #if defined(DISPLAYDRIVER) || defined(GRAPHDISPLAYDRIVER)
 		push(dspstat(arg));
 #elif defined(ARDUINOVGA)
@@ -8240,41 +8251,28 @@ void xusr() {
 #else 
 		push(0);
 #endif
-		break;
+	}
 /* access to properties of stream 4 - printer */
 #ifdef HASSERIAL1		
-	case 4: 
-		push(prtstat(arg));	
-		break;			
+	else if ( fn == 4 )	push(prtstat(arg));	
 #endif	
 /* access to properties of stream 7 - wire */
 #if defined(HASWIRE)	
-	case 7: 
-		push(wirestat(arg));	
-		break;			
+	else if ( fn == 7 )	push(wirestat(arg));	
 #endif
 /* access to properties of stream 8 - radio */
 #ifdef HASRF24	
-	case 8: 
-		push(radiostat(arg));	
-		break;			
+	else if ( fn == 8 )	push(radiostat(arg));	
 #endif
 /* access to properties of stream 9 - mqtt */
 #ifdef HASMQTT	
-	case 9: 
-		push(mqttstat(arg));	
-		break;			
+	else if ( fn == 9 )	push(mqttstat(arg));	
 #endif
 /* access to properties of stream 16 - file */
 #ifdef FILESYSTEMDRIVER	
-	case 16: 
-		push(fsstat(arg));	
-		break;			
+	else if ( fn == 16 ) push(fsstat(arg));	
 #endif
-	case 32:
-/* user function 32 and beyond can be used freely */
-/* all USR values not assigned return 0 */
-	default:
+	else {
 		if (fn>31) push(usrfunction(fn, v)); else push(0);
 	}
 }
@@ -8287,9 +8285,8 @@ void xcall() {
 	int r;
 
 	if (!expectexpr()) return;
-	r=pop();
-	switch(r) {
-	case 0:
+	r = pop();
+	if ( r == 0) {
 /* flush the EEPROM dummy and the output file and then exit */
 		eflush();  
 		ofileclose();
@@ -8297,17 +8294,14 @@ void xcall() {
 		vgaend();  /* clean up if you have played with the framebuffer */
 #endif
 		restartsystem();
-		break;
+	}
 /* restart the filesystem - only test code */
-	case 1:
-		fsbegin();
-		break;
+	else if ( r == 1 ) fsbegin();
 /* call values to 31 reserved! */
-	default:
+	else {
 /* your custom code into usrcall() */
 		if (r > 31) usrcall(r); else { error(EORANGE); return; }
 		nexttoken();
-		return;		
 	}
 }
 
@@ -8332,10 +8326,13 @@ void nextdatarecord() {
 
 /* data at zero means we need to init it, by searching the first data record */
 	if (data == 0) {
-		here=0;
-		while (here<top && token!=TDATA) gettoken();
-		data=here;
-		datarc=1;
+		here = 0;
+		while (here < top && token != TDATA) gettoken();
+		#if TRACE_PRINTF
+		printf("[nextdatarecord] %d\n", token);
+		#endif
+		data = here;
+		datarc = 1;
 	} 
 
 processdata:
@@ -8357,21 +8354,43 @@ processdata:
 /* we process the data record by setting the here pointer to data and search with gettoken */
 	here=data;
 	gettoken();
-	if (token == '-') {s=-1; gettoken();}
+	#if TRACE_PRINTF
+	printf("[nextdatarecord2] %d\n", token);
+	#endif
+	if (token == '-') {
+		s = -1;
+		gettoken();
+		#if TRACE_PRINTF
+		printf("[nextdatarecord3] %d\n", token);
+		#endif
+	}
 	if (token == NUMBER || token == STRING) goto enddatarecord;
 	if (token == ',') {
 		gettoken();
-		if (token == '-') {s=-1; gettoken();}
+		#if TRACE_PRINTF
+		printf("[nextdatarecord4] %d\n", token);
+		#endif
+		if (token == '-') {
+			s = -1;
+			gettoken();
+			#if TRACE_PRINTF
+			printf("[nextdatarecord4] %d\n", token);
+			#endif
+		}
 		if (token != NUMBER && token != STRING) {
 			error(EUNKNOWN);  
-			here=h;
+			here = h;
 			return;
 		}
 		goto enddatarecord;
 	}
 
 	if (termsymbol()) {
-		while (here<top && token!=TDATA) gettoken();
+		while (here < top && token != TDATA)
+			gettoken();
+		#if TRACE_PRINTF
+		printf("[nextdatarecord5] %d\n", token);
+		#endif
 		data=here;
 		goto processdata;
 	}
@@ -8439,12 +8458,11 @@ nextdata:
 	if (!USELONGJUMP && er) return;
 
 /* assign the value to the lhs - somewhat redundant code to assignment */
-	switch (token) {
-	case NUMBER:
+	if ( token == NUMBER ) {
 /* a number is stored on the stack */
 		assignnumber2(&lhs, x);
-		break;
-	case STRING:	
+	}
+	else if ( token == STRING ) {
 		if (lhs.name.token != STRINGVAR) {
 /* we read a string into a numerical variable */
 			if (sr.address) assignnumber2(&lhs, memread2(sr.address));
@@ -8476,8 +8494,8 @@ nextdata:
 			setstringlength(&lhs.name, newlength, lhs.j);
 
 		}
-		break;
-	default:
+	}
+	else {
 		error(EUNKNOWN);
 		return;
 	}
@@ -8753,21 +8771,20 @@ void xon(){
 		ERROR and EVENT can also be used without the ON */
 	
 	nexttoken();
-	switch(token) {
 #ifdef HASERRORHANDLING
-	case TERROR:
+	if ( token == TERROR ) {
 		xerror();
 		return;
+	}
 #endif
 #ifdef HASEVENTS
-	case TEVENT:
+	if ( token == TEVENT ) {
 		xevent();
 		return;
-#endif
-	default:
-		expression();
-		if (!USELONGJUMP && er) return;
 	}
+#endif
+	expression();
+	if (!USELONGJUMP && er) return;
 
 /* the result of the condition, can be any number even large */
 	cr=pop();
@@ -8797,7 +8814,9 @@ void xon(){
 	while (args) {
 		tmp=pop();
 		if (args == ci) {
-			if (tmp < 0) er=ELINE;
+			if (tmp < 0) {
+				er=ELINE;
+			}
 			line=tmp;
 		}
 		args--;
@@ -8817,6 +8836,9 @@ void xon(){
 	if (!USELONGJUMP && er) return;
 
 	findline(line);
+	#if TRACE_PRINTF
+	printf("[xon]\n");
+	#endif
 	if (!USELONGJUMP && er) return;
 
 /* goto in interactive mode switched to RUN mode
@@ -9017,48 +9039,41 @@ void xcase() {
 
 void statement(){
 	mem_t xc;
-
 	if (DEBUG) bdebug("statement \n"); 
-
 /* we can long jump out out any function now, making error handling easier */
 /* if we return here with a long jump, only the error handler is triggered */
 /* this mechanism always branches to the highest context */
 #if USELONGJUMP == 1
 	if (fncontext == 0) if (setjmp(sthook)) goto errorhandler;
 #endif
-
 /* the core loop processing commands */
 	while (token != EOL) {
 #ifdef HASSTEFANSEXT
 /* debug level 1 happens only in the statement loop */
-#if DEBUG_LVLS
 		if (debuglevel == 1) { debugtoken(); outcr(); }
 #endif
-#endif
-		switch(token){
-		case ':':
-		case LINENUMBER:
+		register token_t t = token;
+		#if TRACE_PRINTF
+		printf("token: %d\n", t);
+		#endif
+		if ( t == ':' || t == LINENUMBER ) {
 			nexttoken();
-			break;
+			#if TRACE_PRINTF
+			printf("token2: %d\n", token);
+			#endif
+		}
 /* Palo Alto BASIC language set + BREAK */
-		case TPRINT:
-			xprint();
-			break;
-		case TLET:
+		else if ( t == TPRINT ) xprint();
+		else if ( t == TLET ) {
 			nexttoken();
 			if ((token != ARRAYVAR) && (token != STRINGVAR) && (token != VARIABLE)) {
 				error(EUNKNOWN);
 				break;
 			}
-		case STRINGVAR:
-		case ARRAYVAR:
-		case VARIABLE:	
-			assignment();
-			break;
-		case TINPUT:
-			xinput();
-			break;
-		case TRETURN:
+		}
+		else if ( t == STRINGVAR || t == ARRAYVAR || t == VARIABLE ) assignment();
+		else if ( t == TINPUT )	xinput();
+		else if ( t == TRETURN ) {
 #ifndef HASMULTILINEFUNCTIONS
 			xreturn();
 #else 
@@ -9070,33 +9085,21 @@ void statement(){
 			} else 
 				xreturn();
 #endif
-			break;
+		}
 #ifndef HASMULTILINEFUNCTIONS
-		case TGOSUB:
-		case TGOTO:
-			xgoto();	
-			break;
+		else if ( t == TGOSUB || t == TGOTO ) xgoto();	
 #else 
-		case TGOSUB:
+		else if ( t == TGOSUB ) {
 			if (fncontext > 0) { error(EFUN); return; }
-		case TGOTO:
 			xgoto();
-			break;
+		}
+		else if ( t == TGOTO ) xgoto();
 #endif
-		case TIF:
-			xif();
-			break;
-		case TFOR:
-			xfor();
-			break;		
-		case TNEXT:
-			xnext();
-			break;
-		case TBREAK:
-			xbreak();
-			break;
-		case TSTOP:
-		case TEND:		/* return here because new input is needed, end as a block end is handles elsewhere */
+		else if ( t == TIF ) xif();
+		else if ( t == TFOR ) xfor();
+		else if ( t == TNEXT ) xnext();
+		else if ( t == TBREAK ) xbreak();
+		else if ( t == TSTOP || t == TEND ) {		/* return here because new input is needed, end as a block end is handles elsewhere */
 			*ibuffer=0;	/* clear ibuffer - this is a hack */
 			st=SINT;		/* switch to interactive mode */
 			eflush(); 	/* if there is an EEPROM dummy, flush it here (protects flash storage!) */
@@ -9108,250 +9111,146 @@ void statement(){
 			*ibuffer=0;	/* clear ibuffer - this is a hack */
 			st=SINT;		/* switch to interactive mode */
 			return;
-		case TLIST:		
-			xlist();
-			break;
-		case TNEW: 		/* return here because new input is needed */
+		}
+		else if ( t == TLIST ) xlist();
+		else if ( t == TNEW ) {		/* return here because new input is needed */
 			xnew();
 			return;
-		case TCONT:		/* cont behaves differently in interactive and in run mode */
+		}
+		else if ( t == TCONT ) {	/* cont behaves differently in interactive and in run mode */
 			if (st==SRUN || st==SERUN) {
 				xcont();
-				break;
+				goto b;
 			}		/* no break here, because interactively CONT=RUN minus CLR */
-		case TRUN:
 			xrun();
 			return;	
-		case TREM:
-			xrem();
-			break;
+		}
+		else if ( t == TRUN ) {
+			xrun();
+			return;
+		}	
+		else if ( t == TREM ) xrem();
 /* Apple 1 language set */
 #ifdef HASAPPLE1
-		case TDIM:
-			xdim();
-			break;
-		case TCLR:
-			xclr();
-			break;
-		case TTAB:
-		case TSPC:
-			xtab();
-			break;	
-		case TPOKE:
-			xpoke();
-			break;
+		else if ( t == TDIM ) xdim();
+		else if ( t == TCLR ) xclr();
+		else if ( t == TTAB || t == TSPC ) xtab();
+		else if ( t == TPOKE ) xpoke();
 #endif
 /* Stefan's tinybasic additions */
-		case TSAVE:
-			xsave();
-			break;
-		case TLOAD: 
+		else if ( t == TSAVE ) xsave();
+		else if ( t == TLOAD ) {
 			xload(0);
 			if (st == SINT) return; /* interactive load doesn't like break as the ibuffer is messed up; */
-			else break;
+		}
 #ifdef HASSTEFANSEXT
-		case TDUMP:
-			xdump();
-			break;	
-		case TGET:
-			xget();
-			break;
-		case TPUT:
-			xput();
-			break;			
-		case TSET:
-			xset();
-			break;
-		case TNETSTAT:
-			xnetstat();
-			break;
-		case TCLS:
-			ax=od;
+		else if ( t == TDUMP ) xdump();
+		else if ( t == TGET ) xget();
+		else if ( t == TPUT ) xput();
+		else if ( t == TSET ) xset();
+		else if ( t == TNETSTAT ) xnetstat();
+		else if ( t == TCLS ) {
+			ax = od;
 /* if we have a display it is the default for CLS */
 #if defined(DISPLAYDRIVER) || defined(GRAPHDISPLAYDRIVER)		
-			od=ODSP;
+			od = ODSP;
 #endif
 #if VT52
 			outch(12);
 #else
 			clrScr(0);
 #endif
-			od=ax;
+			od = ax;
 			nexttoken();
-			break;
-		case TLOCATE:
-			xlocate();
-			break;
+		}
+		else if ( t == TLOCATE ) xlocate();
 /* low level functions as part of Stefan's extension */
-		case TCALL:
-			xcall();
-			break;	
+		else if ( t == TCALL ) xcall();
 #endif
 /* Arduino IO */
 #ifdef HASARDUINOIO
-		case TDWRITE:
-			xdwrite();
-			break;	
-		case TAWRITE:
-			xawrite();
-			break;
-		case TPINM:
-			xpinm();
-			break;
-		case TDELAY:
-			xdelay();
-			break;
+		else if ( t == TDWRITE ) xdwrite();
+		else if ( t == TAWRITE ) xawrite();
+		else if ( t == TPINM ) 	xpinm();
+		else if ( t == TDELAY )	xdelay();
 #ifdef HASTONE
-		case TTONE:
-			xtone();
-			break;	
+		else if ( t == TTONE ) xtone();
 #endif
 #ifdef HASPULSE
-		case TPULSE:
-			xpulse();
-			break;
+		else if ( t == TPULSE )	xpulse();
 #endif
 #endif
 /* BASIC DOS function */
 #ifdef HASFILEIO
-		case TCATALOG:
-			xcatalog();
-			break;
-		case TDELETE:
-			xdelete();
-			break;
-		case TOPEN:
-			xopen();
-			break;
-		case TCLOSE:
-			xclose();
-			break;
-		case TFDISK:
-			xfdisk();
-			break;
+		else if ( t == TCATALOG ) xcatalog();
+		else if ( t == TDELETE ) xdelete();
+		else if ( t == TOPEN ) xopen();
+		else if ( t == TCLOSE )	xclose();
+		else if ( t == TFDISK )	xfdisk();
 #endif
 /* graphics */
 #ifdef HASGRAPH
-		case TCOLOR:
-			xcolor();
-			break;
-		case TPLOT:
-			xplot();
-			break;
-		case TLINE:
-			xline();
-			break;
-		case TRECT:
-			xrect();
-			break;
-		case TCIRCLE:
-			xcircle();
-			break;
-		case TFRECT:
-			xfrect();
-			break;
-		case TFCIRCLE:
-			xfcircle();
-			break;
+		else if ( t == TCOLOR )	xcolor();
+		else if ( t == TPLOT ) xplot();
+		else if ( t == TLINE ) xline();
+		else if ( t == TRECT ) xrect();
+		else if ( t == TCIRCLE ) xcircle();
+		else if ( t == TFRECT ) xfrect();
+		else if ( t == TFCIRCLE ) xfcircle();
 #endif
 #ifdef HASDARTMOUTH
-		case TDATA:
-			xdata();
-			break;
-		case TREAD:
-			xread();
-			break;
-		case TRESTORE:
-			xrestore();
-			break;
-		case TDEF:
-			xdef();
-			break;
-		case TON:
-			xon();
-			break;
+		else if ( t == TDATA ) xdata();
+		else if ( t == TREAD ) xread();
+		else if ( t == TRESTORE ) xrestore();
+		else if ( t == TDEF ) xdef();
+		else if ( t == TON ) xon();
 #ifdef HASMULTILINEFUNCTIONS
-		case TFN:
-			xfn(1);
-			break;
-		case TFEND:
+		else if ( t == TFN ) xfn(1);
+		else if ( t == TFEND ) {
 /* we leave the statement loop and return to the calling expression() */
 /* if the function is ended with FEND we return 0 */ 
 			if (fncontext == 0) { error(EFUN); return; } 
 			else { push(0); return; } 
-			break;
+		}
 #endif
 #endif
 #ifdef HASSTEFANSEXT
-		case TELSE:
-			xelse();
-			break;
+		else if ( t == TELSE ) xelse();
 #endif
 #ifdef HASDARKARTS
-		case TEVAL:
-			xeval();
-			break;
+		else if ( t == TEVAL ) xeval();
 #endif
 #ifdef HASERRORHANDLING
-		case TERROR:
-			xerror();
-			break;
+		else if ( t == TERROR )	xerror();
 #endif
 #ifdef HASIOT
-		case TSLEEP:
-			xsleep();
-			break;	
-		case TWIRE:
-			xwire();
-			break;
+		else if ( t == TSLEEP )	xsleep();
+		else if ( t == TWIRE ) xwire();
 #endif
 #ifdef HASTIMER
-		case TAFTER:
-		case TEVERY:
-			xtimer();
-			break;
+		else if ( t == TAFTER || t == TEVERY ) xtimer();
 #endif
 #ifdef HASEVENTS
-		case TEVENT:
-			xevent();
-			break;
+		else if ( t == TEVENT )	xevent();
 #endif
 #ifdef HASSTRUCT
-		case TWHILE:
-			xwhile();
-			break;
-		case TWEND:
-			xwend();
-			break;
-		case TREPEAT:
-			xrepeat();
-			break;				
-		case TUNTIL:
-			xuntil();
-			break;				
-		case TSWITCH:
-			xswitch();
-			break;	
-		case TCASE:
-			xcase();
-			break;	
-		case TSWEND:
-		case TDO:
-		case TDEND:
-			nexttoken();
-			break;
+		else if ( t == TWHILE ) xwhile();
+		else if ( t == TWEND ) xwend();
+		else if ( t == TREPEAT ) xrepeat();
+		else if ( t == TUNTIL )	xuntil();
+		else if ( t == TSWITCH ) xswitch();
+		else if ( t == TCASE ) xcase();
+		else if ( t == TSWEND || t == TDO || t == TDEND ) nexttoken();
 #endif
 #ifdef HASEDITOR
-		case TEDIT:
-			xedit();
-			break;
+		else if ( t == TEDIT ) xedit();
 #endif
-		default:
+		else {
 /*  strict syntax checking */
 			error(EUNKNOWN);
 			goto errorhandler;
 		}
-
+b:
 
 /* 
  * after each statement we check on a break character 
@@ -9406,21 +9305,19 @@ errorhandler:
 			if (st != SINT) {
 				erh=er;
 				er=0;
-				switch(berrorh.type) {
-					case TCONT:
-						while(!termsymbol()) nexttoken(); 
-						break;
-					case TGOTO:
-						findline(berrorh.linenumber);
-						berrorh.type=0;
-						berrorh.linenumber=0;
-						if (er) return;
-						break;
-					case 0:
-						return;
-					default:
-						nexttoken();
-				} 
+				register mem_t m = berrorh.type;
+				if ( !m ) return;
+				if ( m == TCONT ) while(!termsymbol()) nexttoken(); 
+				else if ( m == TGOTO ) {
+					#if TRACE_PRINTF
+					printf("[statement] before timer to %d\n", after_timer.linenumber);
+					#endif
+					findline(berrorh.linenumber);
+					berrorh.type=0;
+					berrorh.linenumber=0;
+					if (er) return;
+				}
+				else nexttoken();
 			} else 
 				return;
 		}
@@ -9452,6 +9349,9 @@ errorhandler:
 						if (token == LINENUMBER) here-=(1+sizeof(address_t));	
 						pushgosubstack(0);
 					}
+					#if TRACE_PRINTF
+					printf("[statement] after timer to %d\n", after_timer.linenumber);
+					#endif
 					findline(after_timer.linenumber);
           			if (er) return; 
 				}
@@ -9466,6 +9366,9 @@ errorhandler:
 							pushgosubstack(0);
 							if (er) return;
 						}
+						#if TRACE_PRINTF
+						printf("[statement] timer to %d\n", every_timer.linenumber);
+						#endif
 						findline(every_timer.linenumber);
 						if (er) return; 
 				}
@@ -9478,26 +9381,32 @@ errorhandler:
 		if ((token == LINENUMBER || token == ':' || token == TNEXT) && (st == SERUN || st == SRUN)) {
 /* interrupts */
 			if (events_enabled && fncontext == 0) {
-				for (ax=0; ax<EVENTLISTSIZE; ax++) {
+				for (ax = 0; ax < EVENTLISTSIZE; ++ax) {
 					if (eventlist[ievent].pin && eventlist[ievent].enabled && eventlist[ievent].active) {
 						if (eventlist[ievent].type == TGOSUB) {
-							if (token == TNEXT || token == ':') here--;
-							if (token == LINENUMBER) here-=(1+sizeof(address_t));	
+							if (token == TNEXT || token == ':') --here;
+							if (token == LINENUMBER) here -= (1 + sizeof(address_t));	
 							pushgosubstack(TEVENT);
 							if (er) return;
 						}
+						#if TRACE_PRINTF
+						printf("[statement] lookup for %d\n", eventlist[ievent].linenumber);
+						#endif
 						findline(eventlist[ievent].linenumber);  
 						if (er) return; 
-						eventlist[ievent].active=0;
+						eventlist[ievent].active = 0;
 						enableevent(eventlist[ievent].pin); /* events are disabled in the interrupt function, here they are activated again */
-						events_enabled=0; /* once we have jumped, we keep the events in BASIC off until reenabled by the program*/
+						events_enabled = 0; /* once we have jumped, we keep the events in BASIC off until reenabled by the program*/
 						break;
 					}
-					ievent=(ievent+1)%EVENTLISTSIZE;
+					ievent =(ievent + 1) % EVENTLISTSIZE;
 				}
 			}
 		}
-#endif			
+#endif
+		#if TRACE_PRINTF
+		printf("token3: %d\n", token);
+		#endif
 	}
 }
 
@@ -9629,9 +9538,6 @@ void loop() {
 #ifndef ARDUINO
 int main(void){
     cmd_ctx_t* ctx = get_cmd_ctx();
-	if (ctx->argc < 2) {
-		printf("Interactive mode is temporary unsupported\n");
-	}
 /* save the arguments if there are any */
 #ifdef HASARGS
 	bargc = ctx->argc;
@@ -9643,51 +9549,12 @@ int main(void){
 	while (!marked_to_exit) {
 		loop();
 	}
-	#if DEBUG
-	printf("Done. Cleanup mem: %ph\n", mem);
+	#if TRACE_PRINTF
+	printf("Done. Cleanup mem: [%ph]\n", mem);
 	#endif
 	free(mem);
 }
 #endif
-
-/*
- * Arduino style function for non BASIC code to run on the MCU. 
- * All code that needs to run on the MCU independently can be put here.
- * It works more or less just like the normal loop() and setup().
- * 
- * This is meant for robotics and other device control type of stuff
- * 	on the Arduino platform. 
- *
- * On POSIX systems I/O is blocking and therefore bloop() is not called
- * 	consistently. 
- * 
- * Rules of the game: 
- * - bsetup() is called once during interpreter startup after all 
- *    IO subsystems are started and before the BASIC main memory is 
- *    allocated. Allocate memory here. Do not allocate a lot of memory 
- *    in bloop().
- * - Never start or restart I/O functions of BASIC in bsetup(), 
- *    no Wire.begin(), Serial.begin() etc. If BASIC also uses this
- *    BASIC handles the I/O startup. Things that BASIC does not use 
- *    can be started here.
- * - bloop() is called after every token, during I/O polling and in 
- *    DELAY functions. 
- * - The typical call frequency of bloop() is 20 microseconds or faster.
- *    This is fairly constant and reliable.
- * - The interpreter is robust against code in bloop() that needs a lot 
- *    of CPU time. It will simply slow down but it will not break, 
- *    unless(!) other I/O systems like network also need background CPU time 
- *    and you block bloop for a long time. As a rule of thumb, on network systems
- *    bloop() should return after 1 ms. After bloop() has returned, the interpreter
- *    tries to handle network and USB update stuff. 
- * - Never use delay() in bloop(). Set a counter. Look at the tone 
- *    emulation code for examples. 
- * - Never ever call BASIC functions from bloop(). BASIC function will 
- *    eventually call byield() which calls bloop() and so forth. 
- *    If you need to communicate data into BASIC, use the BASIC main 
- *    memory, variables or the USR function mechanism.
- * - Avoid allocating a lot of memory in bloop().
- */
 
 int _init(void) {
   /* put your setup code here, to run once: */
@@ -9714,9 +9581,7 @@ int _init(void) {
 	#endif
 	reltab = 0;
 	lowercasenames = 0;
-#if DEBUG_LVLS
-	debuglevel = 0;
-#endif
+	debuglevel = DEFAULT_DEBUG_LVL;
 #ifdef HASDARTMOUTH
 	data = 0;
 	datarc = 1;
@@ -9735,6 +9600,7 @@ int _init(void) {
 	nevents = 0;
 	ievent = 0;
 	events_enabled = 1;
+	memset(eventlist, 0, sizeof(bevent_t) * EVENTLISTSIZE);
 #endif
 #ifdef HASERRORHANDLING
 	berrorh.linenumber = 0;

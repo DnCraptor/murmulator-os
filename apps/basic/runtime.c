@@ -233,11 +233,8 @@ int cheof(int c) { if ((c == -1) || (c == 255)) return 1; else return 0; }
 
 /* the generic inch code reading one character from a stream */
 char inch() {
-  switch(id) {
-  case ONULL:
-    return bufferread();
-  case ISERIAL:
-    return serialread();   
+  if ( id == ONULL ) return bufferread();
+  if ( id == ISERIAL ) return serialread();   
 #ifdef POSIXPRT
   case ISERIAL1:
     return prtread();
@@ -264,10 +261,8 @@ char inch() {
     return mqttread();
 #endif
 #ifdef FILESYSTEMDRIVER
-  case IFILE:
-    return fileread();
-#endif      
-  }
+  if ( id == IFILE ) return fileread();
+#endif
   return 0;
 }
 
@@ -277,14 +272,10 @@ char inch() {
  * for many streams this is just mapped to avail
  */
 char checkch(){
-  switch (id) {
-  case ONULL:
-    return buffercheckch();
-  case ISERIAL:
-    return serialcheckch();
+  if ( id == ONULL ) return buffercheckch();
+  if ( id == ISERIAL ) return serialcheckch();
 #ifdef FILESYSTEMDRIVER
-  case IFILE:
-    return fileavailable();
+  if ( id == IFILE ) return fileavailable();
 #endif
 #ifdef HASRF24
   case IRADIO:
@@ -302,25 +293,19 @@ char checkch(){
   case ISERIAL1:
     return prtcheckch(); 
 #endif
-  case IKEYBOARD:
 #if defined(HASKEYBOARD)  || defined(HASKEYPAD)
+  if ( id == IKEYBOARD )
     return kbdcheckch(); /* here no display read as this is only for break and scroll control */
 #endif
-    break;
-  }
   return 0;
 }
 
 /* character availability */
 uint16_t availch(){
-  switch (id) {
-  case ONULL:
-    return bufferavailable();
-  case ISERIAL:
-    return serialavailable(); 
+  if ( id == ONULL ) return bufferavailable();
+  if ( id == ISERIAL ) return serialavailable(); 
 #ifdef FILESYSTEMDRIVER
-  case IFILE:
-    return fileavailable();
+  if ( id == IFILE ) return fileavailable();
 #endif
 #ifdef HASRF24
   case IRADIO:
@@ -338,17 +323,16 @@ uint16_t availch(){
   case ISERIAL1:
     return prtavailable();
 #endif
-  case IKEYBOARD:
+  
 #if defined(HASKEYBOARD) || defined(HASKEYPAD) || defined(HASVT52)
 #if defined(HASVT52)
+  if ( id == IKEYBOARD )
     if (vt52avail()) return vt52avail(); /* if the display has a message, read it */
 #endif
 #if defined(HASKEYBOARD) || defined(HASKEYPAD) 
-    return kbdavailable();
+  if ( id == IKEYBOARD ) return kbdavailable();
 #endif
 #endif
-    break;
-  }
   return 0;
 }
 
@@ -438,12 +422,8 @@ printf("[%d] %s\n", b[0], b + 1);
  *  input until a terminal character is reached
  */
 uint16_t ins(char *b, uint16_t nb) {
-  switch(id) {
-  case ONULL:
-    return bufferins(b, nb);
-  case ISERIAL:
-    return serialins(b, nb);
-    break;
+  if ( id == ONULL ) return bufferins(b, nb);
+  if ( id == ISERIAL ) return serialins(b, nb);
 #if defined(HASKEYBOARD) || defined(HASKEYPAD)
   case IKEYBOARD:
     return kbdins(b, nb);
@@ -465,13 +445,11 @@ uint16_t ins(char *b, uint16_t nb) {
     return mqttins(b, nb);  
 #endif
 #ifdef FILESYSTEMDRIVER
-  case IFILE:
-    return consins(b, nb);
+  if ( id == IFILE ) return consins(b, nb);
 #endif
-  default:
-    b[0]=0; b[1]=0;
-    return 0;
-  }  
+  b[0] = 0;
+  b[1] = 0;
+  return 0;
 }
 
 /*
@@ -489,23 +467,15 @@ void outch(char c) {
     if (c == 10) charcount[od-1]=0;
   }
 #endif
-
-  switch(od) {
-  case ONULL:
-    bufferwrite(c);
-    break;
-  case OSERIAL:
-    serialwrite(c);
-    break;
+  if ( od == ONULL ) bufferwrite(c);
+  else if ( od == OSERIAL ) serialwrite(c);
 #ifdef POSIXPRT
   case OPRT:
     prtwrite(c);
     break;
 #endif    
 #ifdef FILESYSTEMDRIVER
-  case OFILE:
-    filewrite(c);
-    break;
+  else if ( od == OFILE ) filewrite(c);
 #endif
 #if defined(ARDUINOVGA)
   case ODSP: 
@@ -521,9 +491,6 @@ void outch(char c) {
     mqttwrite(c); /* buffering for the PRINT command */
     break;
 #endif
-  default:
-    break;
-  }
   byield(); /* yield after every character for ESP8266 */
 }
 
@@ -534,34 +501,37 @@ void outch(char c) {
  */
 void outs(char *ir, uint16_t l){
   uint16_t i;
-
-  switch (od) {
 #ifdef HASRF24
-  case ORADIO:
+  if ( od == ORADIO ) {
     radioouts(ir, l);
-    break;
+    byield(); /* triggers yield after each character output */
+    return;
+  }
 #endif
 #if (defined(HASWIRE) && defined(HASFILEIO))
-  case OWIRE:
+  if ( od == OWIRE ) {
     wireouts(ir, l);
-    break;
+    byield(); /* triggers yield after each character output */
+    return;
+  }
 #endif
 #ifdef POSIXMQTT
-  case OMQTT:
+  if ( od == OMQTT ) {
     mqttouts(ir, l);
-     break;
+    byield(); /* triggers yield after each character output */
+    return;
+  }
 #endif
 #ifdef GRAPHDISPLAYDRIVER
-  case ODSP:
+  if ( od == ODSP ) {
     dspouts(ir, l);
-    break;
-#endif
-  default:
-    for(i=0; i<l; i++) outch(ir[i]);
+    byield(); /* triggers yield after each character output */
+    return;
   }
+#endif
+  for(i = 0; i < l; ++i) outch(ir[i]);
   byield(); /* triggers yield after each character output */
 }
-
 
 /*  handling time, remember when we started, needed in millis() */
 struct timeb start_time;
@@ -630,7 +600,9 @@ inline static void restartsystem() {
   marked_to_exit = true;
   //exit(0);
 }
-inline static void activatesleep(long t) {}
+inline static void activatesleep(long t) {
+  vTaskDelay(t);
+}
 
 /* 
  * start the SPI bus 
@@ -1441,24 +1413,21 @@ inline static void bufferbegin() {}
 /* write to the buffer, works only until 127 
   uses vt52 style commands to handle the buffer content*/
 inline static void bufferwrite(char c) {
-  if (!nullbuffer) return;
-  switch (c) {
-  case 12: /* clear screen */
-    nullbuffer[nullbuffer[0]+1]=0;
-    nullbuffer[0]=0;
-    break;
-  case 10: 
-  case 13: /* cr and lf ignored */
-    break;
-  case 8: /* backspace */
-    if (nullbuffer[0]>0) nullbuffer[0]--;
-    break;
-  default:
-    if (nullbuffer[0] < nullbufsize-1 && nullbuffer[0] < 127) {
+  if ( !nullbuffer ) return;
+  if ( c == 12 ) { /* clear screen */
+    nullbuffer[nullbuffer[0] + 1] = 0;
+    nullbuffer[0] = 0;
+  }
+  else if ( c == 10 || c == 13 ) { /* cr and lf ignored */
+  }
+  else if ( c == 8 ){ /* backspace */
+    if (nullbuffer[0] > 0) nullbuffer[0]--;
+  }
+  else {
+    if (nullbuffer[0] < nullbufsize - 1 && nullbuffer[0] < 127) {
       nullbuffer[++nullbuffer[0]]=c;
-      nullbuffer[nullbuffer[0]+1]=0; /* null terminate */
+      nullbuffer[nullbuffer[0] + 1]=0; /* null terminate */
     }    
-    break;
   }
 }
 
@@ -1634,10 +1603,8 @@ inline static void dspsetbgcolor(uint8_t co) {
 
 /* vt52 state engine, a smaller version of the Arduino code*/
 void dspvt52(char* c) {
-  
 /* reading and processing multi byte commands */
-  switch (vt52s) {
-    case 'Y':
+    if (vt52s == 'Y') {
       if (dspesc == 2) { 
         dspsetcursory(vt52number(*c));
         dspesc=1; 
@@ -1649,124 +1616,97 @@ void dspvt52(char* c) {
         *c=0; 
       }
       vt52s=0; 
-      break;
-    case 'b':
+    }
+    else if (vt52s == 'b') {
       dspsetfgcolor(vt52number(*c));
       *c=0;
       vt52s=0;
-      break;
-    case 'c':
+    }
+    else if (vt52s == 'c') {
       dspsetbgcolor(vt52number(*c));
       *c=0;
       vt52s=0;
-      break;
-  }
- 
+    }
+
 /* commands of the terminal in text mode */
-  switch (*c) {
-    case 'v': /* GEMDOS / TOS extension enable wrap */
-      break;
-    case 'w': /* GEMDOS / TOS extension disable wrap */
-      break;
-    case '^': /* Printer extensions - print on */
-      break;
-    case '_': /* Printer extensions - print off */
-      break;
-    case 'W': /* Printer extensions - print without display on */
-      break;
-    case 'X': /* Printer extensions - print without display off */
-      break;
-    case 'V': /* Printer extensions - print cursor line */
-      break;
-    case ']': /* Printer extension - print screen */
-      break;
-    case 'F': /* enter graphics mode */
-      break;
-    case 'G': /* exit graphics mode */
-      break;
-    case 'Z': // Ident 
-      break;
-    case '=': // alternate keypad on 
-    case '>': // alternate keypad off 
-      break;
-    case 'b': // GEMDOS / TOS extension text color 
-    case 'c': // GEMDOS / TOS extension background color 
+  register char t = *c;
+  if (t == 'b' || t == 'c' ) {
       vt52s=*c;
       dspesc=1;
       *c=0;
       return;
-    case 'e': // GEMDOS / TOS extension enable cursor
-      break;
-    case 'f': // GEMDOS / TOS extension disable cursor 
-      break;
-    case 'p': // GEMDOS / TOS extension reverse video 
-      break;
-    case 'q': // GEMDOS / TOS extension normal video 
-      break;
-    case 'A': // cursor up
-      sendcsi();
-      putchar('A');
-      break;
-    case 'B': // cursor down 
-      sendcsi();
-      putchar('B');
-      break;
-    case 'C': // cursor right 
-      sendcsi();
-      putchar('C');
-      break; 
-    case 'D': // cursor left 
-      sendcsi();
-      putchar('D');
-      break;
-    case 'E': // GEMDOS / TOS extension clear screen 
+  }
+  if (t == 'E') { // GEMDOS / TOS extension clear screen 
       *c=12; 
       dspesc=0;
       return;
-    case 'H': // cursor home 
+  }
+  if (t == 'H') { // cursor home 
       *c=2;
       dspesc=0;
-      return;  
-    case 'Y': // Set cursor position 
+      return;
+  }
+  if (t == 'Y') { // Set cursor position 
       vt52s='Y';
       dspesc=2;
       *c=0;
       return;
-    case 'J': // clear to end of screen 
+  }
+  if (t == 'A') { // cursor up
       sendcsi();
-      putchar('J');
-      break;
-    case 'd': // GEMDOS / TOS extension clear to start of screen 
+      putchar('A');
+      goto e;
+  }
+  if (t == 'B') { // cursor down 
       sendcsi();
-      putchar('1'); putchar('J');
-      break;
-    case 'K': // clear to the end of line
+      putchar('B');
+      goto e;
+  }
+  if (t == 'C') { // cursor right 
       sendcsi();
-      putchar('K');
-      break;
-    case 'l': // GEMDOS / TOS extension clear line 
+      putchar('C');
+      goto e;
+  }
+  if (t == 'D') { // cursor left 
       sendcsi();
-      putchar('2'); putchar('K');
-      break;
-    case 'o': // GEMDOS / TOS extension clear to start of line
-      sendcsi();
-      putchar('1'); putchar('K');
-      break;
-    case 'k': // GEMDOS / TOS extension restore cursor
-      break;
-    case 'j': // GEMDOS / TOS extension save cursor
-      break;
-    case 'I': // reverse line feed
+      putchar('D');
+      goto e;
+  }
+  if (t == 'I') { // reverse line feed
       putchar(27);
       putchar('M');
-      break;
-    case 'L': // Insert line
-      break;
-    case 'M': // Delete line - questionable 
+      goto e;
+  }
+  if (t == 'M') { // Delete line - questionable 
       sendcsi();
       putchar('2'); putchar('K');
-      break;
+      goto e;
   }
+  if (t == 'J') { // clear to end of screen 
+      sendcsi();
+      putchar('J');
+      goto e;
+  }
+  if (t == 'd') { // GEMDOS / TOS extension clear to start of screen 
+      sendcsi();
+      putchar('1'); putchar('J');
+      goto e;
+  }
+  if (t == 'K') { // clear to the end of line
+      sendcsi();
+      putchar('K');
+      goto e;
+  }
+  if (t == 'l') { // GEMDOS / TOS extension clear line 
+      sendcsi();
+      putchar('2'); putchar('K');
+      goto e;
+  }
+  if (t == 'o') { // GEMDOS / TOS extension clear to start of line
+      sendcsi();
+      putchar('1'); putchar('K');
+  }
+e:
   dspesc=0;
   *c=0;
 }
@@ -1795,19 +1735,21 @@ void serialwrite(char c) {
   style characters 12 for CLS and 2 for HOME to ANSI, makes 
   BASIC programs more compatible */
 #ifdef POSIXTERMINAL
-  switch (c) {
 /* form feed is clear screen - compatibility with Arduino code */
-    case 12:
+  if (c == 12) {
       sendcsi();
-      putchar('2'); putchar('J');
+      putchar('2');
+      putchar('J');
+      goto tw;
+  }
 /* home sequence in the arduino code */
-    case 2: 
+  if (c == 2) {
+tw:
       sendcsi();
       putchar('H');
       return;
   }
 #endif
-
 /* finally send the plain character */  
   putchar(c);
 }
