@@ -31,6 +31,9 @@ static volatile uint32_t lastCleanableScanCode;
 static volatile uint32_t lastSavedScanCode;
 static bool hidePannels = false;
 
+static int cmd_history_idx = -2;
+
+
 typedef enum sort_type {
     BY_NAME_ASC = 0,
     BY_NAME_DESC,
@@ -51,13 +54,13 @@ static volatile bool upPressed = false;
 static volatile bool downPressed = false;
 
 // TODO:
-static bool is_dendy_joystick = true;
+static const bool is_dendy_joystick = true;
 #define DPAD_STATE_DELAY 200
 static int nespad_state_delay = DPAD_STATE_DELAY;
 static uint8_t nespad_state, nespad_state2;
 static bool mark_to_exit_flag = false;
 
-static string_t* s_cmd = 0;
+static string_t* s_cmd;
 
 inline static void nespad_read() {
     nespad_stat(&nespad_state, &nespad_state2);
@@ -171,6 +174,7 @@ static void fi_deallocator(file_info_t* p) {
 static file_info_t* selected_file(file_panel_desc_t* p, bool with_refresh);
 
 int _init(void) {
+    s_cmd = 0;
     hidePannels = false;
 
     ctrlPressed = false;
@@ -180,11 +184,12 @@ int _init(void) {
     upPressed = false;
     downPressed = false;
 
-    is_dendy_joystick = true;
     nespad_state_delay = DPAD_STATE_DELAY;
     nespad_state = nespad_state2 = 0;
     mark_to_exit_flag = false;
     scan_code_cleanup();
+
+    cmd_history_idx = -2;
 }
 
 inline static void m_cleanup() {
@@ -948,9 +953,10 @@ static void draw_cmd_line(void) {
     graphics_set_con_pos(0, CMD_Y_POS);
     graphics_set_con_color(13, 0);
     FIL* e = get_stderr(); // TODO: direct draw?
-    fprintf(e, "[%s]", get_ctx_var(get_cmd_ctx(), CD));
+    const char* cd = get_ctx_var(get_cmd_ctx(), CD);
+    fprintf(e, "[%s]", cd ? cd : "NULL");
     graphics_set_con_color(7, 0);
-    fprintf(e, "> %s", s_cmd->p);
+    fprintf(e, "> %s", s_cmd->p ? s_cmd->p : "NULL");
     graphics_set_con_color(pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
 }
 
@@ -1066,6 +1072,7 @@ static void collect_files(file_panel_desc_t* p) {
     while(f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
         m_add_file(pfileInfo);
     }
+    free(pfileInfo);
     f_closedir(pdir);
     free(pdir);
     if (p->sort_type != BY_NOTHING) {
@@ -1236,10 +1243,10 @@ static inline void redraw_current_panel() {
 }
 
 inline static cmd_ctx_t* new_ctx(cmd_ctx_t* src) {
-    cmd_ctx_t* res = (cmd_ctx_t*)pvPortMalloc(sizeof(cmd_ctx_t));
+    cmd_ctx_t* res = (cmd_ctx_t*)malloc(sizeof(cmd_ctx_t));
     memset(res, 0, sizeof(cmd_ctx_t));
     if (src->vars_num && src->vars) {
-        res->vars = (vars_t*)pvPortMalloc( sizeof(vars_t) * src->vars_num );
+        res->vars = (vars_t*)malloc( sizeof(vars_t) * src->vars_num );
         res->vars_num = src->vars_num;
         for (size_t i = 0; i < src->vars_num; ++i) {
             if (src->vars[i].value) {
@@ -1372,7 +1379,7 @@ inline static bool prepare_ctx(string_t* pcmd, cmd_ctx_t* ctx) {
         #ifdef DEBUG
             printf("[prepare_ctx] stdout: '%s'; append: %d\n", std_out_file->p, append);
         #endif
-        ctx->std_out = calloc(1, sizeof(FIL));
+        ctx->std_out = (FIL*)malloc(sizeof(FIL));
         if (FR_OK != f_open(ctx->std_out, std_out_file->p, FA_WRITE | (append ? FA_OPEN_APPEND : FA_CREATE_ALWAYS))) {
             printf("Unable to open file: '%s'\n", std_out_file->p);
             delete_string(std_out_file);
@@ -1571,8 +1578,6 @@ inline static void handle_pagedown_pressed() {
     fill_panel(psp);
     scan_code_processed();
 }
-
-static int cmd_history_idx = -2;
 
 inline static int history_steps(cmd_ctx_t* ctx) {
     char* tmp = get_ctx_var(ctx, TEMP);
@@ -1793,13 +1798,13 @@ inline static void handle_tab_pressed() {
     select_left_panel();
 }
 
-inline static void restore_console(cmd_ctx_t* ctx) {
+static void op_console(cmd_ctx_t* ctx, FRFpvUpU_ptr_t fn, BYTE mode) {
     char* tmp = get_ctx_var(ctx, TEMP);
     if(!tmp) tmp = "";
     size_t cdl = strlen(tmp);
     char * mc_con_file = concat(tmp, _mc_con);
     FIL* pfh = (FIL*)malloc(sizeof(FIL));
-    if (FR_OK != f_open(pfh, mc_con_file, FA_READ)) {
+    if (FR_OK != f_open(pfh, mc_con_file, mode)) {
         goto r;
     }
     char* b = get_buffer();
@@ -1808,33 +1813,19 @@ inline static void restore_console(cmd_ctx_t* ctx) {
     uint8_t bit = get_screen_bitness();
     size_t sz = (w * h * bit) >> 3;
     UINT rb;
-    f_read(pfh, b, sz, &rb);
+    fn(pfh, b, sz, &rb);
     f_close(pfh);
 r:
     free(pfh);
     free(mc_con_file);
 }
 
+inline static void restore_console(cmd_ctx_t* ctx) {
+    op_console(ctx, f_read, FA_READ);
+}
+
 inline static void save_console(cmd_ctx_t* ctx) {
-    char* tmp = get_ctx_var(ctx, TEMP);
-    if(!tmp) tmp = "";
-    size_t cdl = strlen(tmp);
-    char * mc_con_file = concat(tmp, _mc_con);
-    FIL* pfh = (FIL*)malloc(sizeof(FIL));
-    if (FR_OK != f_open(pfh, mc_con_file, FA_CREATE_ALWAYS | FA_WRITE)) {
-        goto r;
-    }
-    char* b = get_buffer();
-    uint32_t w = get_screen_width();
-    uint32_t h = get_screen_height();
-    uint8_t bit = get_screen_bitness();
-    size_t sz = (w * h * bit) >> 3;
-    UINT wb;
-    f_write(pfh, b, sz, &wb);
-    f_close(pfh);
-r:
-    free(pfh);
-    free(mc_con_file);
+    op_console(ctx, f_write, FA_CREATE_ALWAYS | FA_WRITE);
 }
 
 inline static void hide_pannels() {
