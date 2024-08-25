@@ -296,20 +296,20 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             auto yfh = y / fh;
             auto glyph_line = y - yfh * fh;
             if (yfh == pos_y && glyph_line >= fh - 2) {
-                register xc = pos_x >> 1;
+                register xc = pos_x;
                 register xi = 0;
                 register cntr = 0;
                 auto fw = font_width;
                 for (register int x = 0; x < 320 / 2; ++x, ++cntr, ++cntr) { // 2 записи на байт
                     register uint16_t t = *input_buffer_8bit++; // t - 2 записи, 4-битный цвет
-                    if (cntr == fw) {
-                        ++xi; ++xi; cntr = 0;
+                    if (cntr >= fw) {
+                        ++xi;
+                        cntr = 0;
                     }
                     if (xi == xc) {
                         *output_buffer_16bit++ = (c << 8) | c;
                         *output_buffer_16bit++ = (c << 8) | c;
                     } else {
-                        register uint8_t t = *input_buffer_8bit++; // t - 2 записи, 4-битный цвет
                         uint16_t c16 = txt_palette[(t & 15)];
                         *output_buffer_16bit++ = (c16 << 8) | (c16 & 0xFF);
                         c16 = txt_palette[(t >> 4) & 15];
