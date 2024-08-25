@@ -45,12 +45,14 @@
  * POSIXWIRING: use the (deprectated) wiring code for gpio on Raspberry Pi
  * POSIXPIGPIO: use the pigpio library on a Raspberry PI 
  */
-
+#define MURMULATOR
+// TODO:
+//#define POSIXFRAMEBUFFER
 #define POSIXTERMINAL
 #define POSIXVT52TOANSI
 #undef POSIXSIGNALS
 #undef POSIXNONBLOCKING
-#undef POSIXFRAMEBUFFER
+//#undef POSIXFRAMEBUFFER
 #undef POSIXWIRE
 #undef POSIXMQTT
 #undef POSIXWIRING
@@ -107,6 +109,10 @@
 
 /* we can do graphics and tell language.h that we can */
 #ifdef POSIXFRAMEBUFFER
+#define DISPLAYHASGRAPH
+#endif
+
+#ifdef MURMULATOR
 #define DISPLAYHASGRAPH
 #endif
 

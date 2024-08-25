@@ -454,102 +454,101 @@ typedef struct {
  */
 
 /* event types and functions */
-void bintroutine0();
-void bintroutine1();
-void bintroutine2();
-void bintroutine3();
-mem_t enableevent(mem_t);
+static void bintroutine0();
+static void bintroutine1();
+static void bintroutine2();
+static void bintroutine3();
+static mem_t enableevent(mem_t);
 inline static void disableevent(mem_t);
-mem_t eventindex(mem_t);
-mem_t addevent(mem_t, mem_t, mem_t, address_t);
+static mem_t eventindex(mem_t);
+static mem_t addevent(mem_t, mem_t, mem_t, address_t);
 void deleteevent(mem_t);
-volatile bevent_t* findevent(mem_t);
 
 /* make room for BASIC */
-address_t ballocmem(); 
+static address_t ballocmem(); 
 
 /* handle files im EEPROM */
-void eload();
-void esave();
+inline static void eload();
+inline static void esave();
 
 /* the variable heap from Apple 1 BASIC */
-address_t bmalloc(name_t*, address_t);
-address_t bfind(name_t*);
-address_t bfree(name_t*);
+static address_t bmalloc(name_t*, address_t);
+static address_t bfind(name_t*);
+static address_t bfree(name_t*);
 
 /* normal variables of number_t */
-number_t getvar(name_t*);
-void setvar(name_t*, number_t);
-void clrvars();
+static number_t getvar(name_t*);
+static void setvar(name_t*, number_t);
+static void clrvars();
 
 /* the new set of functions for memory access */
-number_t getnumber(address_t, memreader_t);
-address_t getaddress(address_t, memreader_t); 
-stringlength_t getstrlength(address_t, memreader_t);
-void setnumber(address_t, memwriter_t, number_t);
-void setaddress(address_t, memwriter_t, address_t);
-void setstrlength(address_t, memwriter_t, stringlength_t);
+static number_t getnumber(address_t, memreader_t);
+static address_t getaddress(address_t, memreader_t); 
+inline static stringlength_t getstrlength(address_t, memreader_t);
+static void setnumber(address_t, memwriter_t, number_t);
+static void setaddress(address_t, memwriter_t, address_t);
+static void setstrlength(address_t, memwriter_t, stringlength_t);
 
 /* setting names */
-address_t setname_heap(address_t, name_t*);
-address_t setname_pgm(address_t, name_t*);
-address_t getname(address_t, name_t*, memreader_t);
-mem_t cmpname(name_t*, name_t*);
-void zeroname(name_t*);
-void zeroheap(heap_t*);
+inline static address_t setname_heap(address_t, name_t*);
+static address_t setname_pgm(address_t, name_t*);
+static address_t getname(address_t, name_t*, memreader_t);
+static mem_t cmpname(name_t*, name_t*);
+static void zeroname(name_t*);
+static void zeroheap(heap_t*);
 
 /* array and string handling */
 /* the multidim extension is experimental, here only 2 array dimensions implemented as test */
-address_t createarray(name_t*, address_t, address_t);
-void array(lhsobject_t*, mem_t, number_t*);
-address_t createstring(name_t*, address_t, address_t);
-void getstring(bstring_t*, name_t*, address_t, address_t);
-void setstringlength(name_t*, address_t, address_t);
+static address_t createarray(name_t*, address_t, address_t);
+static void array(lhsobject_t*, mem_t, number_t*);
+static address_t createstring(name_t*, address_t, address_t);
+static void getstring(bstring_t*, name_t*, address_t, address_t);
+static void setstringlength(name_t*, address_t, address_t);
 
 /* the user defined extension functions */
-number_t getusrvar();
-void setusrvar(number_t);
-number_t getusrarray(address_t);
-void setusrarray(address_t, number_t);
-void makeusrstring();
-number_t usrfunction(address_t, number_t);
-void usrcall(address_t);
+//inline static number_t getusrvar();
+#define getusrvar() (0)
+//void setusrvar(number_t);
+#define setusrvar(x)
+//number_t getusrarray(address_t);
+#define getusrarray(x) (0)
+//void setusrarray(address_t, number_t);
+#define setusrarray(x, y)
+void makeusrstring(); // TODO: investigate (size of elf32)
+//number_t usrfunction(address_t, number_t);
+#define usrfunction(x, y) (0)
+//void usrcall(address_t);
+#define usrcall(x)
 
 /* get keywords and tokens from PROGMEM */
-char* getkeyword(address_t);
-char* getmessage(char);
-token_t gettokenvalue(address_t);
-void printmessage(char);
+static char* getkeyword(address_t);
+static char* getmessage(char);
+static token_t gettokenvalue(address_t);
+static void printmessage(char);
 
 /* error handling */
-void error(token_t);
-void reseterror();
-void debugtoken();
-void bdebug(const char*);
+static void error(token_t);
+void reseterror(); // TODO: 2
+static void debugtoken();
+static void bdebug(const char*);
 
 /* the arithemtic stack */
-void push(number_t);
-number_t pop();
-address_t popaddress();
-void drop();
-void clearst();
+static void push(number_t);
+static number_t pop();
+static address_t popaddress();
+inline static void clearst();
 
 /* READ DATA handling */
-void clrdata();
+static void clrdata();
 
-/* FOR NEXT GOSUB stacks */
-void pushforstack(name_t*, number_t, number_t);
-void popforstack(name_t*, number_t*, number_t*);
-void dropforstack();
-// inline static void clrforstack();
-void pushgosubstack(mem_t);
-void popgosubstack();
-void dropgosubstack();
-void clrgosubstack();
+inline static void clrforstack();
+static void pushgosubstack(mem_t);
+static void popgosubstack();
+static void clrgosubstack();
 
 /* handling location rewinds */
-void pushlocation(blocation_t*);
-void poplocation(blocation_t*); 
+static void pushlocation(blocation_t*);
+void poplocation(blocation_t*);  // TODO 5
 
 /* signal handling */
 void signalon();
@@ -557,22 +556,22 @@ void signaloff();
 void signalhandler(int);
 
 /* output */
-void outcr();
-void outspc();
-void outsc(const char*);
-void outscf(const char *, index_t);
+inline static void outcr();
+inline static void outspc();
+static void outsc(const char*);
+inline static void outscf(const char *, index_t);
 
 /* output a name */
-void outname(name_t*);
+static void outname(name_t*);
 
 /* I/O of number_t - floats and integers */
-address_t parsenumber(char*, number_t*);
-address_t parsenumber2(char*, number_t*);
-address_t writenumber(char*, wnumber_t); 
+static address_t parsenumber(char*, number_t*);
+static address_t parsenumber2(char*, number_t*);
+static address_t writenumber(char*, wnumber_t); 
 address_t writenumber2(char*, number_t);
 address_t tinydtostrf(number_t, index_t, char*);
-int innumber(number_t*, char*, address_t);
-void outnumber(number_t);
+static int innumber(number_t*, char*, address_t);
+static void outnumber(number_t);
 
 /* 	
  * Layer 1 functions, provide data and do the heavy lifting 
@@ -581,56 +580,55 @@ void outnumber(number_t);
  */
 
 /* lexical analysis */
-void whitespaces();
-void nexttoken();
+static void whitespaces();
+static void nexttoken();
 
 /* storing and retrieving programs */
 char nomemory(number_t);
-void storetoken(); 
-mem_t memread(address_t);
-mem_t memread2(address_t);
-void memwrite2(address_t, mem_t);
-mem_t beread(address_t);
+static void storetoken(); 
+static mem_t memread(address_t);
+inline static mem_t memread2(address_t);
+static void memwrite2(address_t, mem_t);
+inline static mem_t beread(address_t);
 void gettoken();
-void firstline();
-void nextline();
+static void nextline();
 
-void clrlinecache();
-void addlinecache(address_t, address_t);
-address_t findinlinecache(address_t);
-void findline(address_t);
-address_t myline(address_t);
-void moveblock(address_t, address_t, address_t);
-void zeroblock(address_t, address_t);
-void diag();
-void storeline();
+static void clrlinecache();
+static void addlinecache(address_t, address_t);
+static address_t findinlinecache(address_t);
+static void findline(address_t);
+static address_t myline(address_t);
+static void moveblock(address_t, address_t, address_t);
+inline static void zeroblock(address_t, address_t);
+static void diag();
+static void storeline();
 
 /* read arguments from the token stream and process them */
-char termsymbol();
-char expect(token_t, mem_t);
-char expectexpr();
-void parsearguments();
-void parsenarguments(char);
-void parsesubscripts();
-void parsefunction(void (*)(), short);
-void parseoperator(void (*)());
-void parsesubstring();
+static char termsymbol();
+static char expect(token_t, mem_t);
+static char expectexpr();
+static void parsearguments();
+static void parsenarguments(char);
+static void parsesubscripts();
+static void parsefunction(void (*)(), short);
+static void parseoperator(void (*)());
+//void parsesubstring();
 
 /* mathematics and other functions for int and float */
-void xabs();
-void xsgn();
-void xpeek();
-void xmap();
-number_t rnd(); 
-void xrnd();
-void sqr();
-void xpow();
+static void xabs();
+static void xsgn();
+static void xpeek();
+static void xmap();
+//number_t rnd(); 
+static void xrnd();
+static void sqr();
+static void xpow();
 number_t bpow(number_t, number_t);
 
 /* string values and string evaluation */
-void parsestringvar(bstring_t*, lhsobject_t*);
-char stringvalue(bstring_t*);
-void streval();
+static void parsestringvar(bstring_t*, lhsobject_t*);
+static char stringvalue(bstring_t*);
+static void streval();
 
 /* floating point functions */
 void xsin();
@@ -642,17 +640,17 @@ void xexp();
 void xint();
 
 /* expression evaluation */
-void factor();
-void power();
-void term();
-void addexpression();
+static void factor();
+static void power();
+static void term();
+static void addexpression();
 void compexpression();
-void notexpression();
-void andexpression();
-void expression();
+static void notexpression();
+static void andexpression();
+static void expression();
 
 /* real time clock string stuff */
-void rtcmkstr();
+inline static void rtcmkstr();
 
 /* 
  * Layer 2 - statements and functions 
@@ -661,130 +659,129 @@ void rtcmkstr();
 
 /* basic commands of the core language set */
 void xprint();
-void getstringtobuffer(bstring_t*, char*, stringlength_t);
-void lefthandside(lhsobject_t*);
+#ifdef USEMEMINTERFACE
+static void getstringtobuffer(bstring_t*, char*, stringlength_t);
+#endif
+static void lefthandside(lhsobject_t*);
 void assignnumber(lhsobject_t, number_t);
-void assignstring(bstring_t*, bstring_t*, stringlength_t);
-void assignment();
-void showprompt();
+static void assignstring(bstring_t*, bstring_t*, stringlength_t);
+static void assignment();
+static void showprompt();
 void xinput();
-void xgoto();
-void xreturn();
-void xif();
+static void xgoto();
+static void xreturn();
+static void xif();
 
 /* FOR NEXT loops */
 void findnextcmd();
-void findbraket(token_t, token_t);
-void xfor();
-void xbreak();
-void xcont();
-void xnext();
+static void findbraket(token_t, token_t);
+static void xfor();
+static void xbreak();
+static void xcont();
+static void xnext();
 
 /* WHILE WEND*/
-void xwhile();
-void xwend();
+static void xwhile();
+static void xwend();
 
 /* REPEAT UNTIL */
-void xrepeat();
-void xuntil();
+static void xrepeat();
+static void xuntil();
 
 /* control commands and misc */
-void outputtoken();
-void xlist();
-void xrun();
-void xnew();
+static void outputtoken();
+static void xlist();
+static void xrun();
+static void xnew();
 void xrem();
-void xclr();
-void xdim();
-void xpoke();
-void xtab();
-void xdump();
-void dumpmem(address_t, address_t, char);
-void xlocate();
+static void xclr();
+static void xdim();
+static void xpoke();
+static void xtab();
+static void xdump();
+static void dumpmem(address_t, address_t, char);
+static void xlocate();
 
 /* file access and other i/o */
-void stringtobuffer(char*, bstring_t*);
-void getfilename(char*, char);
-void xsave();
-void xload(const char*);
-void xget();
-void xput();
-void xset();
-void xnetstat();
+static void stringtobuffer(char*, bstring_t*);
+static void getfilename(char*, char);
+static void xsave();
+static void xload(const char*);
+static void xget();
+static void xput();
+static void xset();
+static void xnetstat();
 
 /* Arduino IO control interface */
-void xaread();
-void xdread();
-void xdwrite();
-void xawrite();
-void xpinm();
-void xdelay();
-void xtone();
-void btone(int);
-void bpulsein();
+static void xaread();
+static void xdread();
+static void xdwrite();
+static void xawrite();
+static void xpinm();
+static void xdelay();
+static void xtone();
+static void bpulsein();
 
 /* graphics commands */
-void xcolor();
-void xplot();
+static void xcolor();
+static void xplot();
 void xline();
 void xrect();
-void xcircle();
+static void xcircle();
 void xfrect();
-void xfcircle();
+static void xfcircle();
 
 /* the darkarts */
-void xmalloc();
-void xfind();
-void xeval();
+static void xmalloc();
+static void xfind();
+static void xeval();
 
 /* IoT commands */
-void xavail();
-void xfsensor();
-void xsleep();
-void xwire();
-void xfwire();
+static void xavail();
+static void xfsensor();
+static void xsleep();
+static void xwire();
+static void xfwire();
 
 /* timers */
-void xafter();
-void xevent();
+static void xevent();
 
 /* File I/O functions */
-char streq(const char*, char*);
-void xcatalog();
-void xdelete();
-void xopen();
-void xfopen();
-void xclose();
-void xfdisk();
+static char streq(const char*, char*);
+static void xcatalog();
+static void xdelete();
+static void xopen();
+static void xfopen();
+static void xclose();
+static void xfdisk();
 
 /* low level access functions */
-void xcall();
-void xusr();
+static void xcall();
+static void xusr();
 
 /* the dartmouth stuff */
-void xdata();
-void nextdatarecord();
-void xread();
-void xrestore();
-void xdef();
-void xfn(mem_t);
-void xon();
+static void xdata();
+static void nextdatarecord();
+static void xread();
+static void xrestore();
+static void xdef();
+static void xfn(mem_t);
+static void xon();
 
 /* timers and interrupts */
-void xtimer();
+static void xtimer();
 void resettimer(btimer_t*);
 
 /* structured BASIC extensions */
-void xwhile();
-void xwend(); 
-void xrepeat();
-void xuntil();
-void xswitch();
-void xcase();
-void xendswitch();
+static void xwhile();
+static void xwend(); 
+static void xrepeat();
+static void xuntil();
+static void xswitch();
+static void xcase();
 
 /* the editor */
-void xedit(); 
+static void xedit(); 
 
 /* the statement loop */
-void statement();
+static void statement();

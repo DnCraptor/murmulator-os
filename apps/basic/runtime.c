@@ -229,10 +229,10 @@ void iodefaults() {
  */ 
 
 /* this is odd ;-) */
-int cheof(int c) { if ((c == -1) || (c == 255)) return 1; else return 0; }
+static int cheof(int c) { if ((c == -1) || (c == 255)) return 1; else return 0; }
 
 /* the generic inch code reading one character from a stream */
-char inch() {
+static char inch() {
   if ( id == ONULL ) return bufferread();
   if ( id == ISERIAL ) return serialread();   
 #ifdef POSIXPRT
@@ -271,7 +271,7 @@ char inch() {
  * normally only used for interrupting a program,
  * for many streams this is just mapped to avail
  */
-char checkch(){
+static char checkch(){
   if ( id == ONULL ) return buffercheckch();
   if ( id == ISERIAL ) return serialcheckch();
 #ifdef FILESYSTEMDRIVER
@@ -301,7 +301,7 @@ char checkch(){
 }
 
 /* character availability */
-uint16_t availch(){
+static uint16_t availch(){
   if ( id == ONULL ) return bufferavailable();
   if ( id == ISERIAL ) return serialavailable(); 
 #ifdef FILESYSTEMDRIVER
@@ -348,7 +348,7 @@ uint16_t availch(){
  *    then 64 bytes 
  */
  
-uint16_t inb(char *b, int16_t nb) {
+static uint16_t inb(char *b, int16_t nb) {
   long m;
   uint16_t z;
   int16_t i = 0; // check this 
@@ -381,7 +381,7 @@ uint16_t inb(char *b, int16_t nb) {
 /*
  * reading from the console with inch, local echo is handled by the terminal
  */
-uint16_t consins(char *b, uint16_t nb) {
+static uint16_t consins(char *b, uint16_t nb) {
   char c;
   uint16_t z;
 
@@ -421,7 +421,7 @@ printf("[%d] %s\n", b[0], b + 1);
  *  all other streams are read using consins() for character by character
  *  input until a terminal character is reached
  */
-uint16_t ins(char *b, uint16_t nb) {
+static uint16_t ins(char *b, uint16_t nb) {
   if ( id == ONULL ) return bufferins(b, nb);
   if ( id == ISERIAL ) return serialins(b, nb);
 #if defined(HASKEYBOARD) || defined(HASKEYPAD)
@@ -456,7 +456,7 @@ uint16_t ins(char *b, uint16_t nb) {
  * outch() outputs one character to a stream
  * block oriented i/o like in radio not implemented here
  */
-void outch(char c) {
+static void outch(char c) {
 
 /* do we have a MS style tab command, then count characters on stream 1-4 but not in fileio */
 /* this does not work for control characters - needs to go to vt52 later */
@@ -499,7 +499,7 @@ void outch(char c) {
  *  default is a character by character operation, block 
  *  oriented write needs special functions
  */
-void outs(char *ir, uint16_t l){
+static void outs(char *ir, uint16_t l){
   uint16_t i;
 #ifdef HASRF24
   if ( od == ORADIO ) {
@@ -535,7 +535,7 @@ void outs(char *ir, uint16_t l){
 
 /*  handling time, remember when we started, needed in millis() */
 struct timeb start_time;
-void timeinit() { ftime(&start_time); }
+static void timeinit() { ftime(&start_time); }
 
 /* starting wiring for raspberry 
 void wiringbegin() {
@@ -668,11 +668,11 @@ inline static void vgawrite(char c){}
  * his thesis: http://members.chello.at/%7Eeasyfilter/Bresenham.pdf
  * 
  */
-#include <sys/fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/fb.h>
-#include <sys/mman.h>
-#include <string.h>
+///#include <sys/fcntl.h>
+///#include <sys/ioctl.h>
+///#include <linux/fb.h>
+///#include <sys/mman.h>
+///#include <string.h>
 
 /* 'global' variables to store screen info */
 char *framemem = 0;
@@ -1286,7 +1286,7 @@ inline static char fileread(){
   return c;
 }
 
-uint8_t ifileopen(const char* filename) {
+static uint8_t ifileopen(const char* filename) {
   ifile = (FIL*)malloc(sizeof(FIL));
   if (f_open(ifile, filename, FA_READ) == FR_OK) return 1;
   free(ifile);
@@ -1294,7 +1294,7 @@ uint8_t ifileopen(const char* filename) {
   return 0;
 }
 
-void ifileclose(){
+static void ifileclose(){
   if (ifile) {
     f_close(ifile);
     free(ifile);
@@ -1302,7 +1302,7 @@ void ifileclose(){
   }
 }
 
-uint8_t ofileopen(const char* filename, const char* m){
+static uint8_t ofileopen(const char* filename, const char* m){
   ofile = (FIL*)malloc(sizeof(FIL));
   if (f_open(ofile, filename, m[0] == 'w' ? (FA_WRITE | FA_CREATE_ALWAYS) : FA_OPEN_APPEND) == FR_OK) return 1;
   free(ofile);
@@ -1602,7 +1602,7 @@ inline static void dspsetbgcolor(uint8_t co) {
 }
 
 /* vt52 state engine, a smaller version of the Arduino code*/
-void dspvt52(char* c) {
+static void dspvt52(char* c) {
 /* reading and processing multi byte commands */
     if (vt52s == 'Y') {
       if (dspesc == 2) { 
@@ -1713,9 +1713,9 @@ e:
 #endif
 
 
-uint16_t serialins(char* b, uint16_t nb) { return consins(b, nb); }
+static uint16_t serialins(char* b, uint16_t nb) { return consins(b, nb); }
 
-void serialwrite(char c) { 
+static void serialwrite(char c) { 
 
 /* the vt52 state engine */
 #ifdef POSIXVT52TOANSI
@@ -2015,44 +2015,44 @@ char wireread() {
 }
 
 #else
-void wirebegin() {}
-uint8_t wirestat(uint8_t c) {return 0; }
-void wireopen(char s, uint8_t m) {}
-uint16_t wireins(char *b, uint8_t l) { b[0]=0; return 0; }
-void wireouts(char *b, uint8_t l) {}
-uint16_t wireavailable() { return 1; }
-int16_t wirereadbyte(uint8_t port) { return 0; }
-void wirewritebyte(uint8_t  port, int16_t data) { return; }
-void wirewriteword(uint8_t port, int16_t data1, int16_t data2) { return; }
+static void wirebegin() {}
+static uint8_t wirestat(uint8_t c) { return 0; }
+static void wireopen(char s, uint8_t m) {}
+static uint16_t wireins(char *b, uint8_t l) { b[0]=0; return 0; }
+static void wireouts(char *b, uint8_t l) {}
+static uint16_t wireavailable() { return 1; }
+static int16_t wirereadbyte(uint8_t port) { return 0; }
+static void wirewritebyte(uint8_t  port, int16_t data) { return; }
+static void wirewriteword(uint8_t port, int16_t data1, int16_t data2) { return; }
 /* just a helper to make GET work, wire is string oriented */
-char wireread() { return 0; }
+static char wireread() { return 0; }
 #endif
 
 /* 
  *  Read from the radio interface, radio is always block 
  *  oriented. 
  */
-uint8_t radiostat(uint8_t c) {return 0; }
-void radioset(uint8_t s) {}
-uint16_t radioins(char *b, uint8_t nb) { b[0]=0; b[1]=0; return 0; }
-void radioouts(char *b, uint8_t l) {}
-void iradioopen(const char *filename) {}
-void oradioopen(const char *filename) {}
-uint16_t radioavailable() { return 0; }
-char radioread() { return 0; }
+static uint8_t radiostat(uint8_t c) {return 0; }
+static void radioset(uint8_t s) {}
+static uint16_t radioins(char *b, uint8_t nb) { b[0]=0; b[1]=0; return 0; }
+static void radioouts(char *b, uint8_t l) {}
+static void iradioopen(const char *filename) {}
+static void oradioopen(const char *filename) {}
+static uint16_t radioavailable() { return 0; }
+static char radioread() { return 0; }
 
 /* Arduino sensors */
-void sensorbegin() {}
-float sensorread(uint8_t s, uint8_t v) {return 0;};
+static void sensorbegin() {}
+static float sensorread(uint8_t s, uint8_t v) {return 0;};
 
 
 /* 
  *  event handling wrappers, to keep Arduino specifics out of BASIC
  */
 
-uint8_t pintointerrupt(uint8_t pin) { return 0; }
-void attachinterrupt(uint8_t inter, void (*f)(), uint8_t mode) {}
-void detachinterrupt(uint8_t pin) {}
+static uint8_t pintointerrupt(uint8_t pin) { return 0; }
+static void attachinterrupt(uint8_t inter, void (*f)(), uint8_t mode) {}
+static void detachinterrupt(uint8_t pin) {}
 
 /*
  * Experimental code to simulate 64kb SPI SRAM modules
@@ -2116,8 +2116,8 @@ void fasttickerprofile() {
 
 // TODO: ensure how to handle it...
 int ftime (struct timeb* t) {
-  t->time = 0; // TODO: time_t
-  t->millitm = 0; // unsigned short
+  t->time = 1722902400; // 6 Aug 2024
+  t->millitm = millis(); // unsigned short
   t->timezone = 0; // short
   t->dstflag = 0; // short
 }

@@ -448,15 +448,15 @@ const char* const message[] PROGMEM = {
  * 		stringlength type. Currently only 1 byte and 2 bytes are tested.
  */
 #ifdef HASFLOAT
-const number_t maxnum=16777216; 
+const number_t maxnum = 16777216; 
 #else
 const number_t maxnum=(number_t)~((number_t)1<<(sizeof(number_t)*8-1));
 #endif
-const int numsize=sizeof(number_t);
-const int addrsize=sizeof(address_t);
-const int eheadersize=sizeof(address_t)+1;
-const int strindexsize=sizeof(stringlength_t); /* default in the meantime, strings up to unsigned 16 bit length */
-const address_t maxaddr=(address_t)(~0); 
+const int numsize = sizeof(number_t);
+const int addrsize = sizeof(address_t);
+const int eheadersize = sizeof(address_t) + 1;
+const int strindexsize = sizeof(stringlength_t); /* default in the meantime, strings up to unsigned 16 bit length */
+const address_t maxaddr = (address_t)(~0); 
 
 /*
  *	The basic interpreter is implemented as a stack machine
@@ -466,17 +466,17 @@ const address_t maxaddr=(address_t)(~0);
 
 /* the stack, all BASIC arithmetic is done here */
 //number_t stack[STACKSIZE];
-accu_t stack[STACKSIZE];
-address_t sp=0; 
+static accu_t stack[STACKSIZE];
+static address_t sp = 0;
 
 /* a small buffer to process string arguments, mostly used for Arduino PROGMEM and string functions */
 /* use with care as it is used in some string functions */
-char sbuffer[SBUFSIZE];
+static char sbuffer[SBUFSIZE];
 
 /* the input buffer, the lexer can tokenize this and run from it, bi is an index to this.
    bi must be global as it is the program cursor in interactive mode */
 char ibuffer[BUFSIZE] = "\0";
-char *bi;
+static char *bi;
 
 /* a static array of variables A-Z for the small systems that have no heap */
 #ifndef HASAPPLE1
@@ -687,10 +687,10 @@ const number_t epsilon = 0;
  */
 
 /* the millis function for BASIC */
-void bmillis() {
+inline static void bmillis() {
 	number_t m;
 /* millis is processed as integer and is cyclic mod maxnumber and not cast to float!! */
-	m=(number_t) (millis()/(unsigned long)pop() % (unsigned long)maxnum);
+	m = (number_t) (millis() / (unsigned long)pop() % (unsigned long)maxnum);
 	push(m); 
 }
 
@@ -707,45 +707,39 @@ void bmillis() {
  *
  */
 #if MEMSIZE == 0 && !(defined(SPIRAMINTERFACE))
-address_t ballocmem() { 
-
-/* on most platforms we know the free memory for BASIC, this comes from runtime */
-	long m=freememorysize();
-
-/* we subtract some language feature depended things, this is only needed on
+static address_t ballocmem() {
+	/* on most platforms we know the free memory for BASIC, this comes from runtime */
+	long m = freememorysize();
+	/* we subtract some language feature depended things, this is only needed on
 	small Arduino boards with memories below 16kb */
 	if (m < 16000) {
 #ifdef HASAPPLE1
-		m-=64; /* strings cost memory */
+		m -= 64; /* strings cost memory */
 #endif
 #ifdef USELONGJUMP
-		m-=160; /* odd but true on Ardunio UNO and the like */
+		m -= 160; /* odd but true on Ardunio UNO and the like */
 #endif
 #ifdef HASFLOAT 
-	  	m-=96;
+	  	m -= 96;
 #endif
 #ifdef HASGRAPH
-  		m-=256; 
+  		m -= 256; 
 #endif		
 	}
-
-/* and keep fingers crossed here */
-	if (m<0) m=128;
-
-/* we allocate as much as address_t can handle */
-	if (m>maxaddr) m=maxaddr;
-
-/* try to allocate the memory */
-	mem=(mem_t*)malloc(m);
-	if (mem != 0) return m-1;
-
-/* fallback if allocation failed, 128 bytes */
-	mem=(mem_t*)malloc(128);
-	if (mem != 0) return 128; else return 0;
-
+	/* and keep fingers crossed here */
+	if (m < 0) m = 128;
+	/* we allocate as much as address_t can handle */
+	if (m > maxaddr) m = maxaddr;
+	/* try to allocate the memory */
+	mem = (mem_t*)malloc(m);
+	if (mem != 0) return m - 1;
+	/* fallback if allocation failed, 128 bytes */
+	mem = (mem_t*)malloc(128);
+	if (mem != 0) return 128;
+	else return 0;
 }
 #else 
-address_t ballocmem(){ return MEMSIZE-1; };
+inline static address_t ballocmem(){ return MEMSIZE - 1; };
 #endif
 
 /*
@@ -769,7 +763,7 @@ inline static void beupdate(address_t a, mem_t v) {
 }
 
 /* save a file to EEPROM, disabled if we use the EEPROM directly */
-void esave() {
+inline static void esave() {
 #ifndef EEPROMMEMINTERFACE
 	address_t a=0;
 	
@@ -801,7 +795,7 @@ void esave() {
 }
 
 /* load a file from EEPROM, disabled if the use the EEPROM directly */
-void eload() {
+inline static void eload() {
 #ifndef EEPROMMEMINTERFACE
 	address_t a=0;
 
@@ -871,7 +865,7 @@ inline static char autorun() {
  * 
  */
 
-address_t bmalloc(name_t* name, address_t l) {
+static address_t bmalloc(name_t* name, address_t l) {
 	address_t payloadsize;     /* the payload size */
 	address_t heapheadersize = sizeof(name_t) + addrsize; /* this is only used to estimate the free space, it is the maximum */
 	address_t b=himem; /* the current position on the heap, we store it in case of errors */
@@ -959,7 +953,7 @@ address_t bmalloc(name_t* name, address_t l) {
 	return bfind_object.address;
 }
 
-address_t bfind(name_t* name) {
+static address_t bfind(name_t* name) {
 	address_t b, b0;
 	address_t i=0;
 
@@ -1023,7 +1017,7 @@ address_t bfind(name_t* name) {
 }
 
 /* reimplementation bfree with name interface */
-address_t bfree(name_t* name) {
+static address_t bfree(name_t* name) {
 	address_t b;
 	address_t i;
 
@@ -1057,7 +1051,7 @@ inline static address_t blength(name_t* name) {
 #endif /* HASAPPLE1 */
 
 /* reimplementation of getvar and setvar with name_t */
-number_t getvar(name_t *name){
+static number_t getvar(name_t *name){
 	address_t a;
 
 	if (DEBUG) { outsc("* getvar "); outname(name); outspc(); outcr(); }
@@ -1116,7 +1110,7 @@ number_t getvar(name_t *name){
 }
 
 /* set and create a variable */
-void setvar(name_t *name, number_t v){
+static void setvar(name_t *name, number_t v){
 	address_t a;
 
 	if (DEBUG) { outsc("* setvar "); outname(name); outspc(); outnumber(v); outcr(); }
@@ -1204,7 +1198,7 @@ void setvar(name_t *name, number_t v){
 }
 
 /* clr all variables */
-void clrvars() {
+static void clrvars() {
 
 /* delete all static variables */
 	address_t i;
@@ -1242,12 +1236,12 @@ void clrvars() {
  * This way, types in runtime.c can be changed without changing the
  * BASIC interpreter code.
  */
-mem_t beread(address_t a) {
+inline static mem_t beread(address_t a) {
 	return eread(a);
 }
 
 /* a generic memory reader for numbers  */
-number_t getnumber(address_t m, memreader_t f) {
+static number_t getnumber(address_t m, memreader_t f) {
 	mem_t i;
 	accu_t z;
 
@@ -1256,7 +1250,7 @@ number_t getnumber(address_t m, memreader_t f) {
 }
 
 /* same for addresses */
-address_t getaddress(address_t m, memreader_t f) {
+static address_t getaddress(address_t m, memreader_t f) {
 	mem_t i;
 	accu_t z;
 
@@ -1265,7 +1259,7 @@ address_t getaddress(address_t m, memreader_t f) {
 }
 
 /* same for strings  */
-stringlength_t getstrlength(address_t m, memreader_t f) {
+inline static stringlength_t getstrlength(address_t m, memreader_t f) {
 	mem_t i;
 	accu_t z;
 
@@ -1275,7 +1269,7 @@ stringlength_t getstrlength(address_t m, memreader_t f) {
 }
 
 /* set a number at a memory location, new version */
-void setnumber(address_t m, memwriter_t f, number_t v){
+static void setnumber(address_t m, memwriter_t f, number_t v){
 	mem_t i;
 	accu_t z;
 
@@ -1284,21 +1278,21 @@ void setnumber(address_t m, memwriter_t f, number_t v){
 }
 
 /* set an address at a memory location */
-void setaddress(address_t m, memwriter_t f, address_t a){
+static void setaddress(address_t m, memwriter_t f, address_t a){
 	mem_t i;
 	accu_t z;
-
-	z.a=a;
-	for (i=0; i<addrsize; i++) f(m++, z.c[i]);
+	z.a = a;
+	for (i=0; i<addrsize; i++)
+		f(m++, z.c[i]);
 }
 
 /* set a stringlength at a memory location */
-void setstrlength(address_t m, memwriter_t f, stringlength_t s){
+static void setstrlength(address_t m, memwriter_t f, stringlength_t s){
 	mem_t i;
 	accu_t z;
-
-	z.s=s;
-	for (i=0; i<strindexsize; i++) f(m++, z.c[i]);
+	z.s = s;
+	for (i=0; i<strindexsize; i++)
+		f(m++, z.c[i]);
 }
 
 /* 
@@ -1369,7 +1363,7 @@ void outname(name_t* name) {
 
 #else
 /* this one is for the heap were we count down writing*/	
-address_t setname_heap(address_t m, name_t* name) {
+inline static address_t setname_heap(address_t m, name_t* name) {
 	mem_t l;
 	for(l=name->l; l>0; l--) memwrite2(m--, name->c[l-1]);
 	memwrite2(m--, name->l);
@@ -1377,7 +1371,7 @@ address_t setname_heap(address_t m, name_t* name) {
 }
 
 /* this one is for the pgm were we count up writing */
-address_t setname_pgm(address_t m, name_t* name) {
+static address_t setname_pgm(address_t m, name_t* name) {
 	mem_t l;
 	memwrite2(m++, name->l);
 	for(l=0; l<name->l; l++) memwrite2(m++, name->c[l]);
@@ -1385,7 +1379,7 @@ address_t setname_pgm(address_t m, name_t* name) {
 }
 
 /* get a name from a memory location */
-address_t getname(address_t m, name_t* name, memreader_t f) {
+static address_t getname(address_t m, name_t* name, memreader_t f) {
 	mem_t l;
 	name->l=f(m++);
 
@@ -1396,7 +1390,7 @@ address_t getname(address_t m, name_t* name, memreader_t f) {
 }
 
 /* compare two names */
-mem_t cmpname(name_t* a, name_t* b) {
+static mem_t cmpname(name_t* a, name_t* b) {
 	mem_t l;
 	if (a->l != b->l) return 0;
 	for(l=0; l<a->l; l++) if (a->c[l] != b->c[l]) return 0;
@@ -1404,21 +1398,21 @@ mem_t cmpname(name_t* a, name_t* b) {
 }	
 
 /* zero a name and a heap object */
-void zeroname(name_t* name) {
+static void zeroname(name_t* name) {
 	mem_t l;
 	name->l=0;
 	for(l=0; l<MAXNAME; l++) name->c[l]=0;
 	name->token=0;
 }
 
-void zeroheap(heap_t* heap) {
+static void zeroheap(heap_t* heap) {
 	heap->address=0;
 	heap->size=0;
 	zeroname(&heap->name);
 }
 
 /* output a name */
-void outname(name_t* name) {
+static void outname(name_t* name) {
 	mem_t l;
 	for(l=0; l<name->l; l++) outch(name->c[l]);
 }
@@ -1437,7 +1431,7 @@ void outname(name_t* name) {
  * 0-n elements like in Microsoft BASIC.
  * 
  */
-address_t createarray(name_t* variable, address_t i, address_t j) {
+static address_t createarray(name_t* variable, address_t i, address_t j) {
 	address_t a;
 
 /* if we want to me MS compatible, the array ranges from 0-n */
@@ -1478,7 +1472,7 @@ address_t createarray(name_t* variable, address_t i, address_t j) {
  * and j the second index. This is inconsistent with the use in strings. Will be fixed 
  * when a true indexing type is introduced. 
  */
-void array(lhsobject_t* object, mem_t getset, number_t* value) {
+static void array(lhsobject_t* object, mem_t getset, number_t* value) {
 	address_t a; /* the address of the array element */
 	address_t h; /* the number of elements in the array */
 	address_t l=arraylimit; /* the lower limit, defaults to the arraylimit, here for further use */
@@ -1603,7 +1597,7 @@ void array(lhsobject_t* object, mem_t getset, number_t* value) {
  * String objects are either plain strings or arrays. In case of arrays
  * the number of strings is stored at the end of the array.
  */
-address_t createstring(name_t* variable, address_t i, address_t j) {
+static address_t createstring(name_t* variable, address_t i, address_t j) {
 #ifdef HASAPPLE1
 	address_t a;
 	
@@ -1652,7 +1646,7 @@ address_t createstring(name_t* variable, address_t i, address_t j) {
 
 /* helpers to handle strings */
 /* Stores a C string to a BASIC string variable */
-void storecstring(address_t ax, address_t s, char* b) {
+static void storecstring(address_t ax, address_t s, char* b) {
 	address_t k; 
 
 	for (k=0; k < s-strindexsize && b[k] != 0; k++) memwrite2(ax+k+strindexsize, b[k]); 
@@ -1660,7 +1654,7 @@ void storecstring(address_t ax, address_t s, char* b) {
 }
 
 /* length of a c string up to a limit l */
-address_t cstringlength(char* c, address_t l) {
+inline static address_t cstringlength(char* c, address_t l) {
 	address_t a;
 
 	while(a < l && c[a] != 0) a++;
@@ -1668,7 +1662,7 @@ address_t cstringlength(char* c, address_t l) {
 }
 
 /* get a memory pointer to a string, new version */
-void getstring(bstring_t* strp, name_t* name, address_t b, address_t j) {	
+static void getstring(bstring_t* strp, name_t* name, address_t b, address_t j) {	
 	address_t k, zt;
 	address_t ax;
 
@@ -1697,8 +1691,8 @@ void getstring(bstring_t* strp, name_t* name, address_t b, address_t j) {
 		}
 		if ( c == 'U' ) {
 			makeusrstring(); /* a user definable special string in sbuffer */
-			strp->ir=sbuffer+b;
-			strp->length=sbuffer[0];
+			strp->ir = sbuffer+b;
+			strp->length = sbuffer[0];
 			return;
 		}
 #ifdef HASCLOCK
@@ -1798,7 +1792,7 @@ void getstring(bstring_t* strp, name_t* name, address_t b, address_t j) {
 
 /* reimplementation with name_t */
 /* set the length of a string */
-void setstringlength(name_t* name, address_t l, address_t j) {
+static void setstringlength(name_t* name, address_t l, address_t j) {
 	address_t a; 
 	stringlength_t stringdim;
 
@@ -1842,7 +1836,7 @@ void setstringlength(name_t* name, address_t l, address_t j) {
 
 /* the BASIC string mechanism for real time clocks, create a string with the clock data */
 #ifdef HASCLOCK
-void rtcmkstr() {
+inline static void rtcmkstr() {
 	int cc = 1;
 	int t;
 
@@ -1902,12 +1896,12 @@ void rtcmkstr() {
  */
 
 /* read or write the variable @U, you can do anything you want here */
-number_t getusrvar() { return 0; }
-void setusrvar(number_t v) {return; }
+//inline static number_t getusrvar() { return 0; }
+//void setusrvar(number_t v) { return; }
 
 /* read or write the array @U(), you can do anything you want here */
-number_t getusrarray(address_t i) {return 0;}
-void setusrarray(address_t i, number_t v) {return; }
+// number_t getusrarray(address_t i) { return 0;}
+// void setusrarray(address_t i, number_t v) { return; }
 
 /* make the usr string from @U$, this function can be called multiple times for one operation */
 void makeusrstring() {
@@ -1925,10 +1919,10 @@ void makeusrstring() {
 }
 
 /* USR with arguments > 31 calls this */
-number_t usrfunction(address_t i, number_t v) { return 0; }
+// number_t usrfunction(address_t i, number_t v) { return 0; }
 
 /* CALL with arguments > 31 calls this */
-void usrcall(address_t i) { return; }
+// void usrcall(address_t i) { return; }
 
 /*
  *  Layer 0 - keyword handling - PROGMEM logic goes here
@@ -1942,7 +1936,7 @@ void usrcall(address_t i) { return; }
  *  keywords and messages from PROGMEM on Arduino. Other systems
  *  use the keyword array directly.
  */ 
-char* getkeyword(address_t i) {
+static char* getkeyword(address_t i) {
 
 	if (DEBUG) { outsc("** getkeyword from index "); outnumber(i); outcr(); }
 
@@ -1955,7 +1949,7 @@ char* getkeyword(address_t i) {
 }
 
 /* messages are read from the message array */
-char* getmessage(char i) {
+static char* getmessage(char i) {
 	if (i >= sizeof(message) || i < 0) return 0;
 #ifndef ARDUINOPROGMEM
 	return (char *) message[i];
@@ -1966,7 +1960,7 @@ char* getmessage(char i) {
 }
 
 /* tokens read here are token_t constructed from multi byte sequences */
-token_t gettokenvalue(address_t i) {
+static token_t gettokenvalue(address_t i) {
 	if (i >= sizeof(tokens)) return 0;
 #ifndef ARDUINOPROGMEM
 	return tokens[i];
@@ -1980,7 +1974,7 @@ token_t gettokenvalue(address_t i) {
 }
 
 /* print a message directly to the default outpur stream */
-void printmessage(char i){
+static void printmessage(char i){
 #ifndef HASERRORMSG
 	if (i > EGENERAL) return;
 #endif
@@ -2006,7 +2000,7 @@ inline static void clrforstack() {
  * reseterror() sets the error state to normal and end the 
  * run loop.
  */ 
-void error(token_t e){
+static void error(token_t e){
 	address_t i;
 	/* store the error number */
 	er = e;
@@ -2082,7 +2076,7 @@ void reseterror() {
 	st=SINT;
 }
 
-void debugtoken(){
+static void debugtoken(){
 	outsc("* "); 
 	if (debuglevel > 2) { outnumber(here); outsc(" * "); }
 	if (token == EOL) {
@@ -2108,7 +2102,7 @@ void debugtoken(){
 	outputtoken();
 }
 
-void bdebug(const char *c){
+static void bdebug(const char *c){
 	outch('*');
 	outspc();
 	outsc(c); 
@@ -2122,7 +2116,7 @@ void bdebug(const char *c){
  *
  *	push(), pop(), clearst() handle the stack
  */
-void push(number_t t){
+static void push(number_t t){
 
 	if (DEBUG) {
 		outsc("** push sp= "); outnumber(sp); outcr(); 
@@ -2140,7 +2134,7 @@ void push(number_t t){
 		stack[sp++].n=t;
 }
 
-number_t pop(){
+static number_t pop(){
 
 	if (DEBUG) {
 		outsc("** pop sp= "); outnumber(sp); outcr(); 
@@ -2151,8 +2145,8 @@ number_t pop(){
 
 	return stack[--sp].n;	
 }
-
-void pushaddress2(address_t a) {
+/*
+inline static void pushaddress2(address_t a) {
 
 	if (DEBUG) {
 		outsc("** push sp= "); outnumber(sp); outcr(); 
@@ -2165,7 +2159,7 @@ void pushaddress2(address_t a) {
 		stack[sp++].a=a;
 }
 
-address_t popaddress2() {
+inline static address_t popaddress2() {
 
 	if (DEBUG) {
 		outsc("** pop sp= "); outnumber(sp); outcr(); 
@@ -2201,10 +2195,10 @@ index_t popinteger() {
 
 	return stack[--sp].i;
 }
-
+*/
 
 /* this one gets a positive integer from the stack and traps the error*/
-address_t popaddress(){
+static address_t popaddress() {
 	number_t tmp = 0;
 
 	tmp=pop();
@@ -2212,21 +2206,22 @@ address_t popaddress(){
 	return (address_t) tmp;
 }
 
-void clearst(){
+inline static void clearst() {
 	sp = 0;
 }
 
-/* these are not really stack operations but a way to handle temp char data */
+/* these are not really stack operations but a way to handle temp char data
 address_t charsp; 
 
 void pushchar(char ch) {}
 
 char popchar() { return 0; }
+*/
 
 /*
  * clear the cursor for the READ/DATA mechanism
  */
-void clrdata() {
+static void clrdata() {
 #ifdef HASDARTMOUTH
 	data = 0;
 #endif
@@ -2239,7 +2234,7 @@ void clrdata() {
  */
 
 /* the new stack type for loops */
-void pushloop(name_t* name, token_t t, address_t here, number_t to, number_t step) {
+static void pushloop(name_t* name, token_t t, address_t here, number_t to, number_t step) {
 	address_t i;
 
 	if (DEBUG) {
@@ -2305,7 +2300,7 @@ void pushloop(name_t* name, token_t t, address_t here, number_t to, number_t ste
 }
 
 /* what is the active loop */
-bloop_t* activeloop() {
+static bloop_t* activeloop() {
 	if (loopsp>0) {
 		return &loopstack[loopsp-1];
 	} else {
@@ -2314,7 +2309,7 @@ bloop_t* activeloop() {
 	}
 }
 
-void droploop() {
+static void droploop() {
 	if (loopsp>0) {
 		loopsp--;
 	} else {
@@ -2324,7 +2319,7 @@ void droploop() {
 }
 
 /* GOSUB stack handling */
-void pushgosubstack(mem_t a){
+static void pushgosubstack(mem_t a){
 	if (gosubsp < GOSUBDEPTH) {
 		gosubstack[gosubsp]=here;
 #ifdef HASEVENTS
@@ -2335,7 +2330,7 @@ void pushgosubstack(mem_t a){
 		error(TGOSUB);
 }
 
-void popgosubstack(){
+static void popgosubstack(){
 	if (gosubsp>0) {
 		gosubsp--;
 	} else {
@@ -2344,25 +2339,16 @@ void popgosubstack(){
 	} 
 	here=gosubstack[gosubsp];
 }
-
-void dropgosubstack(){
-	if (gosubsp>0) {
-		gosubsp--;
-	} else {
-		error(TGOSUB);
-	} 
-}
-
-void clrgosubstack() {
-	gosubsp=0;
+static void clrgosubstack() {
+	gosubsp = 0;
 }
 
 /* two helper commands for structured BASIC, without the GOSUB stack */
 
-void pushlocation(blocation_t* l) {
-	if (st == SINT) l->location=bi-ibuffer;
-	else  l->location=here;
-	l->token=token;
+static void pushlocation(blocation_t* l) {
+	if (st == SINT) l->location = bi - ibuffer;
+	else  l->location = here;
+	l->token = token;
 }
 
 void poplocation(blocation_t* l) {
@@ -2374,7 +2360,7 @@ void poplocation(blocation_t* l) {
 /* little helpers of the io functions */
 
 /* send a newline */
-void outcr() {
+inline static void outcr() {
 #ifdef HASSERIAL1
 	if (sendcr) outch('\r');
 #endif
@@ -2382,18 +2368,20 @@ void outcr() {
 } 
 
 /* send a space */
-void outspc() {
+inline static void outspc() {
 	outch(' ');
 }
 
 /* output a zero terminated string - c style */
-void outsc(const char *c){ while (*c != 0) outch(*c++); }
+static void outsc(const char *c) {
+	while (*c != 0)
+		outch(*c++);
+}
 
 /* output a zero terminated string in a formated box padding spaces 
 		needed for catalog output */
-void outscf(const char *c, index_t f){
+inline static void outscf(const char *c, index_t f){
 	int i = 0;
-  
 	while (*c != 0) { outch(*c++); i++; }
 	if (f > i) {
 		f=f-i;
@@ -2407,7 +2395,7 @@ void outscf(const char *c, index_t f){
  *	ugly here, testcode when introducting 
  *	number_t was only 16 bit before
  */
-address_t parsenumber(char *c, number_t *r) {
+static address_t parsenumber(char *c, number_t *r) {
 	address_t nd = 0;
 
 	*r=0;
@@ -2422,7 +2410,7 @@ address_t parsenumber(char *c, number_t *r) {
 
 #ifdef HASFLOAT
 /* a poor man's atof implementation with character count */
-address_t parsenumber2(char *c, number_t *r) {
+static address_t parsenumber2(char *c, number_t *r) {
 	address_t nd = 0;
 	index_t i;
 	number_t fraction = 0;
@@ -2470,7 +2458,7 @@ address_t parsenumber2(char *c, number_t *r) {
  *	the argument type controls the largest displayable integer
  *  default is int but it can be increased without any side effects
  */
-address_t writenumber(char *c, wnumber_t v){
+static address_t writenumber(char *c, wnumber_t v){
 	address_t nd = 0;	
 	index_t i,j;
 	mem_t s = 1;
@@ -2619,7 +2607,7 @@ address_t writenumber2(char *c, number_t vi) {
  * in RUN mode. 
  */
 
-int innumber(number_t *r, char* buffer, address_t k) {
+static int innumber(number_t *r, char* buffer, address_t k) {
 	address_t i = k;
 	mem_t s = 1;
 
@@ -2695,7 +2683,7 @@ int innumber(number_t *r, char* buffer, address_t k) {
 }
 
 /* prints a number */
-void outnumber(number_t n){
+static void outnumber(number_t n){
 	address_t nd, i;
 
 /* number write to sbuffer, remember the number of digits in nd */
@@ -2738,17 +2726,17 @@ void outnumber(number_t n){
  */ 
 
 /* skip whitespaces */
-void whitespaces(){
+static void whitespaces(){
 	while (*bi == ' ' || *bi == '\t') bi++;
 }
 
 /* upper case, don't trust the buildins on microcontrollers */
-char btoupper(char c) {
+static char btoupper(char c) {
 	if (c >= 'a' && c <= 'z') return c-32; else return c;
 }
 
 /* the token stream */
-void nexttoken() {
+static void nexttoken() {
 	address_t k, l, i;
 	char* ir;
 	char quotechar;
@@ -3057,7 +3045,7 @@ char nomemory(number_t b){
 }
 
 /* store a token - check free memory before changing anything */
-void storetoken() {
+static void storetoken() {
 	int i;
 	if (token == LINENUMBER ) {
 		if (nomemory(addrsize+1)) return;
@@ -3121,17 +3109,17 @@ void storetoken() {
  *
  */
 #ifndef USEMEMINTERFACE
-mem_t memread(address_t a) {
+static mem_t memread(address_t a) {
 	if (st != SERUN) {
 		return mem[a];
 	} else {
-		return eread(a+eheadersize);
+		return eread(a + eheadersize);
 	}
 }
 
-mem_t memread2(address_t a) { return mem[a]; }
+inline static mem_t memread2(address_t a) { return mem[a]; }
 
-void memwrite2(address_t a, mem_t c) { mem[a]=c; }
+static void memwrite2(address_t a, mem_t c) { mem[a]=c; }
 #else 
 #if defined(SPIRAMINTERFACE) || defined(SPIRAMSIMULATOR)
 mem_t memread(address_t a) {
@@ -3236,7 +3224,7 @@ void gettoken() {
 	#endif
 }
 
-/* goto the first line of a program */
+/* goto the first line of a program 
 void firstline() {
 	if (top == 0) {
 		ax=0;
@@ -3248,9 +3236,10 @@ void firstline() {
 	printf("[firstline] %d\n", token);
 	#endif
 }
+*/
 
 /* goto the next line, search forward */
-void nextline() {
+static void nextline() {
 	while (here < top) {
 		gettoken();
 		#if TRACE_PRINTF
@@ -3277,20 +3266,20 @@ typedef struct {address_t l; address_t h;} linecacheentry;
 linecacheentry linecache[LINECACHESIZE];
 unsigned char linecachehere = 0;
 
-void clrlinecache() {
+static void clrlinecache() {
 	unsigned char i;
 
 	for(i=0; i<linecachedepth; i++) linecache[i].l=linecache[i].h=0;
 	linecachehere=0;
 }
 
-void addlinecache(address_t l, address_t h) {
+static void addlinecache(address_t l, address_t h) {
 	linecache[linecachehere].l=l; 
 	linecache[linecachehere].h=h;
 	linecachehere=(linecachehere+1)%linecachedepth;
 }
 
-address_t findinlinecache(address_t l){
+static address_t findinlinecache(address_t l){
 	unsigned char i;
 
 	for(i=0; i<linecachedepth && linecache[i].l != 0; i++) {
@@ -3310,7 +3299,7 @@ address_t findinlinecache(address_t l){ return 0; }
  * hence x must be global 
  * (this is the logic of the gettoken mechanism)
  */
-void findline(address_t l) {
+static void findline(address_t l) {
 	address_t a;
 	#if TRACE_PRINTF
 	printf("[findline] %d [%d]\n", token, l);
@@ -3346,7 +3335,7 @@ void findline(address_t l) {
 }
 
 /* finds the line of a location */
-address_t myline(address_t h) {
+static address_t myline(address_t h) {
 	address_t l = 0; 
 	address_t l1 = 0;
 	address_t here2;
@@ -3379,7 +3368,7 @@ address_t myline(address_t h) {
  *	Move a block of storage beginng at b ending at e
  *	to destination d. No error handling here!!
  */
-void moveblock(address_t b, address_t l, address_t d) {
+static void moveblock(address_t b, address_t l, address_t d) {
 	address_t i;
 
 	if (d+l > himem) {
@@ -3393,7 +3382,7 @@ void moveblock(address_t b, address_t l, address_t d) {
 }
 
 /* zero a block of memory */
-void zeroblock(address_t b, address_t l){
+inline static void zeroblock(address_t b, address_t l){
 	address_t i;
 
 	if (b+l > himem) { error(EOUTOFMEMORY); return; }
@@ -3416,9 +3405,9 @@ void zeroblock(address_t b, address_t l){
  *
  *	zeroblock statements commented out after EOL code was fixed
  */
-#ifdef DEBUG
+#if DEBUG
 /* diagnosis function */
-void diag(){
+static void diag(){
 	outsc("top, here, y and x\n");
 	outnumber(top); outspc();
 	outnumber(here); outspc();		
@@ -3426,7 +3415,7 @@ void diag(){
 }
 #endif
 
-void storeline() {
+static void storeline() {
 	const index_t lnlength = addrsize + 1;
 	index_t linelength;
 	number_t newline; 
@@ -3571,25 +3560,25 @@ void storeline() {
  */
 
 /* the terminal symbol it ends a statement list - ELSE is one too as it ends a statement list */
-char termsymbol() {
+static char termsymbol() {
 	return (token == LINENUMBER || token == ':' || token == EOL || token == TELSE);
 }
 
 /* a little helpers - one token expect */ 
-char expect(token_t t, mem_t e) {
+static char expect(token_t t, mem_t e) {
 	nexttoken();
 	if (token != t) {error(e); return 0; } else return 1;
 }
 
 /* a little helpers - expression expect */
-char expectexpr() {
+static char expectexpr() {
 	nexttoken();
 	expression();
 	if (er != 0) return 0; else return 1;
 }
 
 /* parses a list of expression, this may be recursive! */
-void parsearguments() {
+static void parsearguments() {
 	short argsl;
 
 /* begin counting */
@@ -3613,14 +3602,14 @@ void parsearguments() {
 
 
 /* expect exactly n arguments */
-void parsenarguments(char n) {
+static void parsenarguments(char n) {
 	parsearguments();
 	if (args != n) error(EARGS);
 }
 
 /* counts and parses the number of arguments given in brakets, this function 
 	should not advance to the next token because it is called in factor */
-void parsesubscripts() {
+static void parsesubscripts() {
 	blocation_t l;
 
 	args=0;
@@ -3665,14 +3654,14 @@ void parsesubscripts() {
 	expected expressions in the argument list, parsesubscripts
 	should not avance precisely because it is used in factor */
 
-void parsefunction(void (*f)(), short ae){
+static void parsefunction(void (*f)(), short ae){
 	parsesubscripts();
 	if (!USELONGJUMP && er) return;
 	if (args == ae) f(); else error(EARGS);
 }
 
 /* helper function in the recursive decent parser */
-void parseoperator(void (*f)()) {
+static void parseoperator(void (*f)()) {
 	mem_t u=1;
 
 	nexttoken();
@@ -3692,7 +3681,7 @@ void parseoperator(void (*f)()) {
 /* 
  * ABS absolute value 
  */
-void xabs(){
+static void xabs() {
 	number_t x;
 
 	if ((x=pop())<0) { x=-x; }
@@ -3702,7 +3691,7 @@ void xabs(){
 /*
  * SGN evaluates the sign
  */
-void xsgn(){
+static void xsgn() {
 	number_t x;
 
 	x=pop();
@@ -3715,7 +3704,7 @@ void xsgn(){
  * PEEK on an arduino, negative values of peek address 
  * the EEPROM range -1 .. -1024 on an UNO
  */
-void xpeek(){
+static void xpeek(){
 	number_t a;
 
 /* get the argument from the stack because this is a function only */
@@ -3736,7 +3725,7 @@ void xpeek(){
  * MAP Arduino map function, we always cast to long, this 
  * makes it potable for various integer sizes and the float.
  */ 
-void xmap() {
+static void xmap() {
 	long v, in_min, in_max, out_min, out_max;
 
 	out_max=pop();
@@ -3752,7 +3741,7 @@ void xmap() {
  * for float systems, use glibc parameters https://en.wikipedia.org/wiki/Linear_congruential_generator
  */
 
-void xrnd() {
+static void xrnd() {
 	number_t r;
 	mem_t base = randombase; 
 
@@ -3824,7 +3813,7 @@ void sqr(){
 	push(t);
 }
 #else
-void sqr(){
+static void sqr(){
 	push(sqrt(pop()));
 }
 #endif
@@ -3834,7 +3823,7 @@ void sqr(){
  */ 
 
 /* this function is called by POW(a, c) in BASIC */
-void xpow(){
+static void xpow(){
 	number_t n;
 	number_t a;
 
@@ -3875,7 +3864,7 @@ number_t bpow(number_t x, number_t y) {
  * 
  */
 
-void parsestringvar(bstring_t* strp, lhsobject_t* lhs) {
+static void parsestringvar(bstring_t* strp, lhsobject_t* lhs) {
 #ifdef HASAPPLE1
 	blocation_t l;
 	address_t temp;
@@ -3971,7 +3960,7 @@ void parsestringvar(bstring_t* strp, lhsobject_t* lhs) {
  * 
  */
 
-char stringvalue(bstring_t* strp) {
+static char stringvalue(bstring_t* strp) {
 	address_t k, l;
 	address_t i;
 	token_t t;
@@ -4094,7 +4083,7 @@ char stringvalue(bstring_t* strp) {
  * factor - no factor function should nexttoken
  */
 
-void streval(){
+static void streval(){
 	token_t t;
 	address_t k;
 	bstring_t s1, s2;
@@ -4213,7 +4202,7 @@ void xint() {}
  */
 
 /* helpers of factor - array access */
-void factorarray() {
+static void factorarray() {
 	lhsobject_t object;
 	number_t v;
 
@@ -4245,7 +4234,7 @@ void factorarray() {
 }
 
 /* helpers of factor - string length */
-void factorlen() {
+static void factorlen() {
 #ifdef HASAPPLE1
 	address_t a;
 	bstring_t s;
@@ -4294,7 +4283,7 @@ void factorlen() {
 }
 
 /* helpers of factor - the VAL command */
-void factorval() {
+static void factorval() {
 	index_t y;
 	number_t x;
 	bstring_t s;
@@ -4373,7 +4362,7 @@ void factorinstr() {
 }
 #else
 /* the full instr command which can compare two strings  */
-void factorinstr() {
+static void factorinstr() {
 	char ch;
 	address_t a=1; 
 	address_t i=1;
@@ -4459,7 +4448,7 @@ void factorinstr() {
 #endif
 
 /* helpers of factor - the NETSTAT command */
-void factornetstat() {
+static void factornetstat() {
 	address_t x=0;
 
 	if (netconnected()) x=1;
@@ -4468,7 +4457,7 @@ void factornetstat() {
 }
 
 /* helpers of factor - the ASC command, really not needed but for completeness */
-void factorasc() {
+static void factorasc() {
 #ifdef HASAPPLE1
 	bstring_t s;
 	lhsobject_t lhs;
@@ -4501,7 +4490,7 @@ void factorasc() {
 #endif
 }
 
-void factor(){
+static void factor(){
 	if (DEBUG) bdebug("factor\n");
 	if ( token == NUMBER ) {
 		push(x);
@@ -4746,7 +4735,7 @@ void power() {
 }
 #else 
 /* the left associative version */
-void power() { 
+static void power() {
 	if (DEBUG) bdebug("power\n"); 
 	factor();
 	if (!USELONGJUMP && er) return;
@@ -4766,7 +4755,7 @@ nextpower:
 /*
  *	term() evaluates multiplication, division and mod
  */
-void term(){
+static void term(){
 	if (DEBUG) bdebug("term\n"); 
 	power();
 	if (!USELONGJUMP && er) return;
@@ -4811,7 +4800,7 @@ nextfactor:
 }
 
 /* add and subtract */
-void addexpression(){
+static void addexpression(){
 	if (DEBUG) bdebug("addexp\n");
 	if (token != '+' && token != '-') {
 		term();
@@ -4887,7 +4876,7 @@ void compexpression() {
 
 #ifdef HASAPPLE1
 /* boolean NOT */
-void notexpression() {
+static void notexpression() {
 	if (DEBUG) bdebug("notexp\n");
 	if (token == TNOT) {
 		nexttoken();
@@ -4900,7 +4889,7 @@ void notexpression() {
 }
 
 /* boolean AND and at the same time bitwise */
-void andexpression() {
+static void andexpression() {
 	if (DEBUG) bdebug("andexp\n");
 	notexpression();
 	if (!USELONGJUMP && er) return;
@@ -4912,7 +4901,7 @@ void andexpression() {
 }
 
 /* expression function and boolean OR at the same time bitwise !*/
-void expression(){
+static void expression(){
 	if (DEBUG) bdebug("exp\n"); 
 	andexpression();
 	if (!USELONGJUMP && er) return;
@@ -5057,7 +5046,7 @@ cont:
  */
 
 /* the new lefthandsite code */
-void lefthandside(lhsobject_t* lhs) {
+static void lefthandside(lhsobject_t* lhs) {
 
 /* just to provide it for parsestringvar to reuse the righthandside code */
 	address_t temp;
@@ -5125,7 +5114,7 @@ void lefthandside(lhsobject_t* lhs) {
 }
 
 /* assign a number to a left hand side we have parsed */
-void assignnumber2(lhsobject_t* lhs, number_t x) {
+static void assignnumber2(lhsobject_t* lhs, number_t x) {
 	bstring_t sr;
 
 /* depending on the variable type, assign the value */
@@ -5156,7 +5145,7 @@ void assignnumber2(lhsobject_t* lhs, number_t x) {
 /*
  *	LET - the core assigment function, this is different from other BASICs
  */
-void assignment() {
+static void assignment() {
 	address_t newlength, copybytes;
 	mem_t s;
 	index_t k;
@@ -5273,7 +5262,7 @@ addstring:
  * Another complication is the mixed situation of BASIC memory strings 
  * and C memory strings.
  */
-void assignstring(bstring_t* sl, bstring_t* sr, stringlength_t copybytes) {
+static void assignstring(bstring_t* sl, bstring_t* sr, stringlength_t copybytes) {
 	stringlength_t k;
 
 /* if we have a memory model that needs the mem interface, go through the addresses by default 
@@ -5325,7 +5314,7 @@ void assignstring(bstring_t* sl, bstring_t* sr, stringlength_t copybytes) {
  * and does not support arrays. The code is redudant to assignment and read. 
  * It also does not support comma separated lists of values to be input.
  */
-void showprompt() {
+static void showprompt() {
 	outsc("? ");
 }
 
@@ -5530,7 +5519,7 @@ resetinput:
  *
  *	GOTO and GOSUB function for a simple one statement goto
  */
-void xgoto() {
+static void xgoto() {
 	token_t t=token;
 	number_t x;
 
@@ -5556,7 +5545,7 @@ void xgoto() {
 /*
  *	RETURN retrieves here from the gosub stack
  */
-void xreturn(){ 
+static void xreturn(){ 
 	popgosubstack();
 	if (DEBUG) { outsc("** restored location "); outnumber(here); outcr(); }
 	if (!USELONGJUMP && er) return;
@@ -5570,7 +5559,7 @@ void xreturn(){
 /* 
  *	IF statement together with THEN 
  */
-void xif() {
+static void xif() {
 	mem_t nl=0;
 	
 	if (!expectexpr()) return;
@@ -5644,7 +5633,7 @@ processelse:
 /* if else is encountered in the statement line, the rest of the code is skipped 
  		as else code execution is triggered in the xif function */
 #ifdef HASSTEFANSEXT
-void xelse() {
+static void xelse() {
 	mem_t nl=0;
 
 #ifndef HASSTRUCT
@@ -5688,7 +5677,7 @@ void xelse() {
  *  SWITCH SWEND
  *  
  */
-void findbraket(token_t bra, token_t ket){
+static void findbraket(token_t bra, token_t ket){
 	address_t fnc = 0;
 
 	while (1) {
@@ -5724,7 +5713,7 @@ void findbraket(token_t bra, token_t ket){
  *	This is different from many other BASICS as FOR can be used 
  *	as an open loop with no boundary
  */
-void xfor(){
+static void xfor() {
 	name_t variable;
 	number_t begin=1;
 	number_t to=maxnum;
@@ -5800,7 +5789,7 @@ void xfor(){
  *	BREAK - an apocryphal feature here is the BREAK command ending a loop
  */
 #ifdef HASSTRUCT
-void xbreak(){
+static void xbreak() {
 	bloop_t* loop;
 
 	loop=activeloop();
@@ -5836,7 +5825,7 @@ void xbreak(){
  * advance to next and the continue to process
  */
 #ifdef HASSTRUCT
-void xcont() {
+static void xcont() {
 	bloop_t* loop;
 
 	loop = activeloop();
@@ -5862,7 +5851,7 @@ void xcont() {
 
 /* reimplementation of xnext without change of the stack in a running loop */
 
-void xnext(){
+static void xnext(){
 	name_t variable; /* this is a potential variable argument of next */	
 	number_t value; 
 	bloop_t* loop;
@@ -5932,7 +5921,7 @@ void xnext(){
  * list does a minimal formatting with a simple heuristic.
  * 
  */
-void outputtoken() {
+static void outputtoken() {
 	address_t i;
 
 	if (token == EOL) return;
@@ -6007,7 +5996,7 @@ ex:
  *
  */
 
-void listlines(address_t b, address_t e) {
+static void listlines(address_t b, address_t e) {
 	mem_t oflag=0;
 
 /* global variables controlling outputtoken, reset to default */
@@ -6042,7 +6031,7 @@ void listlines(address_t b, address_t e) {
 
 }
 
-void xlist(){
+static void xlist() {
 	address_t b, e;
 
 /* get the argument */
@@ -6082,7 +6071,7 @@ void xlist(){
  * length as some platforms have a signed char and some 
  * don't.
  */
-void xedit(){
+static void xedit(){
 	mem_t ood = od;
 	address_t line;
 	address_t l;
@@ -6218,7 +6207,7 @@ endnosave:
 /*
  *	RUN and CONTINUE are the same function
  */
-void xrun(){
+static void xrun(){
 	if (token == TCONT) {
 		st = SRUN;
 		nexttoken();
@@ -6277,7 +6266,7 @@ void xrun(){
  * restbasicstate() is a helper, it keeps the memory intact
  * 	this is needed for EEPROM direct memory 
  */
-void resetbasicstate() {
+static void resetbasicstate() {
 
  	if (DEBUG) { outsc("** BASIC state reset \n"); }
  
@@ -6309,7 +6298,7 @@ void resetbasicstate() {
   
 }
  
-void xnew(){ 
+static void xnew(){ 
 
 /* reset the state of the interpreter */
 	resetbasicstate();
@@ -6359,7 +6348,7 @@ void xrem() {
 /* 
  *	CLR - clearing variable space
  */
-void xclr() {
+static void xclr() {
 
 #ifdef HASDARKARTS
 	name_t variable;
@@ -6436,7 +6425,7 @@ next:
 /* 
  *	DIM - the dimensioning of arrays and strings from Apple 1 BASIC
  */
-void xdim(){
+static void xdim(){
 	name_t variable;
 	address_t x;
 	address_t y=1; 
@@ -6515,7 +6504,7 @@ nextvariable:
  *  on 16bit systems, the address is signed, so we can only go up to 32767.
  *  If the address is negative, we poke into the EEPROM. 
  */
-void xpoke(){
+static void xpoke(){
 	number_t a, v; 
 
 /* get the address and the value */
@@ -6540,7 +6529,7 @@ void xpoke(){
  *	TAB - spaces command of Apple 1 BASIC 
  * 		charcount mechanism for relative tab if HASMSTAB is set
  */
-void xtab(){
+static void xtab(){
 	address_t a;
 	token_t t = token;
 
@@ -6568,7 +6557,7 @@ void xtab(){
  * locate the curor on the screen 
  */
 
-void xlocate() {
+static void xlocate() {
 	address_t cx, cy; 
 
 	nexttoken();
@@ -6610,7 +6599,7 @@ void xlocate() {
 /*
  *	DUMP - memory dump program
  */
-void xdump() {
+static void xdump() {
 	address_t a, x;
 	char eflag = 0;
 
@@ -6643,7 +6632,7 @@ void xdump() {
 /*
  * helper of DUMP, wrote the memory out
  */
-void dumpmem(address_t r, address_t b, char eflag) {
+static void dumpmem(address_t r, address_t b, char eflag) {
 	address_t j, i;	
 	address_t k;
 	mem_t c;
@@ -6676,7 +6665,7 @@ void dumpmem(address_t r, address_t b, char eflag) {
  *	creates a C string from a BASIC string
  *	after reading a BASIC string 
  */
-void stringtobuffer(char *buffer, bstring_t* s) {
+static void stringtobuffer(char *buffer, bstring_t* s) {
 	index_t i = s->length;
 
 	if (i >= SBUFSIZE) i=SBUFSIZE-1;
@@ -6684,16 +6673,18 @@ void stringtobuffer(char *buffer, bstring_t* s) {
 	while (i >= 0) { buffer[i]=s->ir[i]; i--; }
 }
 
+#ifdef USEMEMINTERFACE
 /* helper for the memintercase code */
-void getstringtobuffer(bstring_t* strp, char *buffer, stringlength_t maxlen) {
+static void getstringtobuffer(bstring_t* strp, char *buffer, stringlength_t maxlen) {
 	stringlength_t i;
 
 	for (i=0; i<strp->length && i<maxlen; i++) buffer[i]=memread2(strp->address+i);
 	strp->ir=buffer;
 }
+#endif
 
 /* get a file argument */
-void getfilename(char *buffer, char d) {
+static void getfilename(char *buffer, char d) {
 	index_t s;
 	char *sbuffer;
 	bstring_t sr;
@@ -6736,7 +6727,7 @@ void getfilename(char *buffer, char d) {
  * with the filename in it. We avoid a string buffer in the calling commands 
  * like SAVE and LOAD. 
  */
-char* getfilename2(char d) {
+static char* getfilename2(char d) {
 	mem_t s;
 	bstring_t sr;
 
@@ -6770,7 +6761,7 @@ char* getfilename2(char d) {
 /*
  *	SAVE a file either to disk or to EEPROM
  */
-void xsave() {
+static void xsave() {
 	// char filename[SBUFSIZE];
 	char *filename;
 	address_t here2;
@@ -6838,7 +6829,7 @@ void xsave() {
  * or without, in the latter case the filename is read from the token stream
  * with getfilename.
  */
-void xload(const char* f) {
+static void xload(const char* f) {
 	// char filename[SBUFSIZE];
 	char* filename;
 	char ch;
@@ -6934,7 +6925,7 @@ void xload(const char* f) {
 /*
  *	GET just one character from input 
  */
-void xget(){
+static void xget(){
 
 /* identifier of the lefthandside */
 	lhsobject_t lhs;
@@ -6980,7 +6971,7 @@ void xget(){
 /*
  *	PUT writes one character to an output stream
  */
-void xput(){
+static void xput(){
 	mem_t ood=od;
 	index_t i;
 
@@ -7008,7 +6999,7 @@ void xput(){
 }
 
 /* setpersonality is a helper of xset */
-void setpersonality(index_t p) {
+static void setpersonality(index_t p) {
 #ifdef HASAPPLE1
 /* a Microsoft like BASIC have arrays starting at 0 with n+1 elements and no substrings, MS type RND */
 	if ( p == 'm' || p == 'M' ) {
@@ -7048,7 +7039,7 @@ void setpersonality(index_t p) {
  *	control command setting certain properties
  *	syntax, currently it is only SET expression, expression
  */
-void xset(){
+static void xset(){
 	address_t function;
 	index_t argument;
 	nexttoken();
@@ -7155,7 +7146,7 @@ void xset(){
 /*
  *	NETSTAT - network status command, rudimentary
  */
-void xnetstat(){
+static void xnetstat(){
 #if defined(HASMQTT)
 
 	nexttoken();
@@ -7205,18 +7196,18 @@ void xnetstat(){
  *  This is done for portability for raspberry pi and other systems
  */
 
-void xaread(){ 
+static void xaread(){ 
 	push(aread(popaddress())); 
 }
 
-void xdread(){ 
+static void xdread(){ 
 	push(dread(popaddress())); 
 }
 
  /*
   *	DWRITE - digital write 
   */
-void xdwrite(){
+static void xdwrite(){
  	address_t x,y;
 
 	nexttoken();
@@ -7231,7 +7222,7 @@ void xdwrite(){
 /*
  * AWRITE - analog write 
  */
-void xawrite(){
+static void xawrite(){
 	address_t x,y;
 
 	nexttoken();
@@ -7247,7 +7238,7 @@ void xawrite(){
 /*
  * PINM - pin mode
  */
-void xpinm(){
+static void xpinm(){
 	address_t x,y;
 
 	nexttoken();
@@ -7267,7 +7258,7 @@ void xpinm(){
  * handles all the yielding and timing functions 
  * 
  */
-void xdelay(){
+static void xdelay(){
 	nexttoken();
 	parsenarguments(1);
 	if (!USELONGJUMP && er) return;
@@ -7277,7 +7268,7 @@ void xdelay(){
 /* tone if the platform has it -> BASIC command PLAY */
 #ifdef HASTONE
 /* play a tone */
-void xtone(){
+static void xtone(){
 	address_t d = 0;
 	address_t v = 100;
 	address_t f, p;
@@ -7301,7 +7292,7 @@ void xtone(){
 
 /* pulse output - pin, duration, [value], [repetitions, delay] */
 #ifdef HASPULSE
-void xpulse(){
+static void xpulse(){
 	address_t pin, duration;
 	address_t val = 1;
 	address_t interval = 0;
@@ -7326,7 +7317,7 @@ void xpulse(){
 }
 
 /* read a pulse, units given by bpulseunit - default 10 microseconds */
-void bpulsein() { 
+static void bpulsein() { 
 	address_t x,y;
 	unsigned long t, pt;
   
@@ -7344,7 +7335,7 @@ void bpulsein() {
 /*
  *	COLOR setting, accepting one or 3 arguments
  */
-void xcolor() {
+static void xcolor() {
 	int r, g, b;
 	nexttoken();
 	parsearguments();
@@ -7362,7 +7353,7 @@ void xcolor() {
 /*
  * PLOT a pixel on the screen
  */
-void xplot() {
+static void xplot() {
 	int x0, y0;
 
 	nexttoken();
@@ -7402,7 +7393,7 @@ void xrect() {
 	rect(x0, y0, x1, y1);
 }
 
-void xcircle() {
+static void xcircle() {
 	int x0, y0, r;
 
 	nexttoken();
@@ -7427,7 +7418,7 @@ void xfrect() {
 	frect(x0, y0, x1, y1);
 }
 
-void xfcircle() {
+static void xfcircle() {
 	int x0, y0, r;
 
 	nexttoken();
@@ -7444,7 +7435,7 @@ void xfcircle() {
 /*
  * MALLOC allocates a chunk of memory 
  */
-void xmalloc() {
+static void xmalloc() {
 	address_t s;
  	address_t a;
 	name_t name;
@@ -7469,7 +7460,7 @@ void xmalloc() {
  * xfind can find things in the variable name space and the buffer space
  */
 
-void xfind() {
+static void xfind() {
 	address_t a;
 	address_t n;
 
@@ -7516,7 +7507,7 @@ cont:
  *	which are not caught (and cannot be). All FOR loops and RETURN 
  *	vectors break if EVAL inserts in their range
  */
-void xeval(){
+static void xeval(){
 	address_t i, l;
 	address_t mline, line;
 	bstring_t s;
@@ -7580,7 +7571,7 @@ void xeval(){
 /* 
  * AVAIL of a stream - are there characters in the stream
  */
-void xavail() {
+static void xavail() {
 	mem_t oid=id;
 
 	id=popaddress();
@@ -7592,7 +7583,7 @@ void xavail() {
 /* 
  * IoT functions - sensor reader, experimentral
  */
-void xfsensor() {
+static void xfsensor() {
 	address_t s, a;
 
 	a=popaddress();
@@ -7608,7 +7599,7 @@ void xfsensor() {
  * in hardware-*.h
  */
 
-void xsleep() {
+static void xsleep() {
 	nexttoken();
 	parsenarguments(1);
 	if (!USELONGJUMP && er) return; 
@@ -7619,7 +7610,7 @@ void xsleep() {
  * single byte wire access - keep it simple 
  */
 
-void xwire() {
+static void xwire() {
 	short port, data1, data2;
 
 	nexttoken();
@@ -7643,7 +7634,7 @@ void xwire() {
 #endif
 }
 
-void xfwire() {
+static void xfwire() {
 #if defined(HASWIRE) || defined(HASSIMPLEWIRE) 
 	push(wirereadbyte(pop()));
 #else 
@@ -7656,7 +7647,7 @@ void xfwire() {
  * Error handling function.
  */
 #ifdef HASERRORHANDLING
-void xerror() {
+static void xerror() {
 	berrorh.type = 0;
 	erh = 0;
 	nexttoken();
@@ -7684,7 +7675,7 @@ void resettimer(btimer_t* t) {
 	t->linenumber = 0;
 }
 
-void xtimer() {
+static void xtimer() {
 	token_t t;
 	btimer_t* timer;
 	/* do we deal with every or after */
@@ -7740,31 +7731,31 @@ void xtimer() {
  */
 
 /* interrupts in BASIC fire once and then disable themselves, BASIC reenables them */
-void bintroutine0() {
+static void bintroutine0() {
 	eventlist[0].active=1;
 	detachinterrupt(eventlist[0].pin); 
 }
-void bintroutine1() {
+static void bintroutine1() {
 	eventlist[1].active=1;
 	detachinterrupt(eventlist[1].pin); 
 }
-void bintroutine2() {
+static void bintroutine2() {
 	eventlist[2].active=1;
 	detachinterrupt(eventlist[2].pin); 
 }  
-void bintroutine3() {
+static void bintroutine3() {
 	eventlist[3].active=1;
 	detachinterrupt(eventlist[3].pin); 
 }
 
-mem_t eventindex(mem_t pin) {
+static mem_t eventindex(mem_t pin) {
  	mem_t i;
 
 	for(i=0; i<EVENTLISTSIZE; i++ ) if (eventlist[i].pin == pin) return i; 
 	return -1;
 }
 
-mem_t enableevent(mem_t pin){
+static mem_t enableevent(mem_t pin){
 	mem_t inter;
 	mem_t i;
 /* do we have the data */
@@ -7788,14 +7779,13 @@ inline static void disableevent(mem_t pin) {
 }
 
 /* the event BASIC commands */
-void initevents() {
+static void initevents() {
 	mem_t i;
 
 	for(i=0; i<EVENTLISTSIZE; i++) eventlist[i].pin=-1;
 }
 
-
-void xevent() {
+static void xevent() {
 	mem_t pin, mode;
 	mem_t type=0;
 	address_t line=0;
@@ -7877,7 +7867,7 @@ void xevent() {
 }
 
 /* handling the event list */
-mem_t addevent(mem_t pin, mem_t mode, mem_t type, address_t linenumber) {
+static mem_t addevent(mem_t pin, mem_t mode, mem_t type, address_t linenumber) {
 	int i;
 
 /* is the event already there */
@@ -7927,7 +7917,7 @@ void deleteevent(mem_t pin) {
  */
 
 /* string match helper in catalog */
-char streq(const char *s, char *m){
+static char streq(const char *s, char *m){
 	short i=0;
 
 	while (m[i]!=0 && s[i]!=0 && i < SBUFSIZE){
@@ -7940,7 +7930,7 @@ char streq(const char *s, char *m){
 /*
  *	CATALOG - basic directory function
  */
-void xcatalog() {
+static void xcatalog() {
 #if defined(FILESYSTEMDRIVER) 
 	char filename[SBUFSIZE];
 	const char *name;
@@ -7971,7 +7961,7 @@ void xcatalog() {
 /*
  *	DELETE a file
  */
-void xdelete() {
+static void xdelete() {
 #if defined(FILESYSTEMDRIVER)
 	char filename[SBUFSIZE];
 
@@ -7988,7 +7978,7 @@ void xdelete() {
 /*
  *	OPEN a file or I/O stream - very raw mix of different functions
  */
-void xopen() {
+static void xopen() {
 #if defined(FILESYSTEMDRIVER) || defined(HASRF24) || defined(HASMQTT) || defined(HASWIRE) || defined(HASSERIAL1)
 	char stream = IFILE; /* default is file operation */
 	char* filename;
@@ -8088,7 +8078,7 @@ void xopen() {
 /*
  *	OPEN as a function, currently only implemented for MQTT
  */
-void xfopen() {
+static void xfopen() {
 	address_t stream = popaddress();
 	if (stream == 9) push(mqttstate()); else push(0);
 }
@@ -8096,7 +8086,7 @@ void xfopen() {
 /*
  *	CLOSE a file or stream 
  */
-void xclose() {
+static void xclose() {
 #if defined(FILESYSTEMDRIVER) || defined(HASRF24) || defined(HASMQTT) || defined(HASWIRE)
 	char stream = IFILE;
 	char mode;
@@ -8130,7 +8120,7 @@ void xclose() {
 /*
  * FDISK - format internal disk storages of RP2040, ESP and the like
  */
-void xfdisk() {
+static void xfdisk() {
 #if defined(FILESYSTEMDRIVER)
 	nexttoken();
 	parsearguments();
@@ -8156,7 +8146,7 @@ void xfdisk() {
  * mechanisms. All other values are free and can be used
  * for individual functions - see case 32 for an example.
  */
-void xusr() {
+static void xusr() {
 	address_t fn;
 	number_t v;
 	int arg;
@@ -8281,7 +8271,7 @@ void xusr() {
 /*
  * CALL currently only to exit the interpreter
  */
-void xcall() {
+static void xcall() {
 	int r;
 
 	if (!expectexpr()) return;
@@ -8310,14 +8300,14 @@ void xcall() {
 /*
  * DATA is simply skipped when encountered as a command
  */
-void xdata() {
+static void xdata() {
 	while (!termsymbol()) nexttoken();
 }
 
 /* 
  * for READ find the next data record, helper of READ
  */
-void nextdatarecord() {
+static void nextdatarecord() {
 	address_t h;
 	mem_t s=1;
 
@@ -8414,7 +8404,7 @@ enddatarecord:
 /*
  *	READ - find data records and insert them to variables
  */
-void xread(){
+static void xread(){
 	token_t t0;	/* remember the left hand side token until the end of the statement, type of the lhs */
 
 	lhsobject_t lhs;
@@ -8517,7 +8507,7 @@ nextdata:
 /*
  *	RESTORE sets the data pointer to zero right now 
  */
-void xrestore(){
+static void xrestore(){
 	short rec;
 
 	nexttoken();
@@ -8553,7 +8543,7 @@ void xrestore(){
  * DEF a function, functions are tokenized as FN ARRAYVAR to make
  * name processing easy.
  */
-void xdef(){
+static void xdef(){
 	address_t a;
 
 	name_t function; /* the name of the function */
@@ -8655,7 +8645,7 @@ void xdef(){
  * 
  * The new function code has local variable capability of the new heap.
  */
-void xfn(mem_t m) {
+static void xfn(mem_t m) {
 	address_t a;
 	address_t h1, h2;
 	name_t variable;
@@ -8761,7 +8751,7 @@ void xfn(mem_t m) {
  *	ON is a bit like IF  
  */
 
-void xon(){
+static void xon(){
 	number_t cr, tmp;
 	int ci;
 	token_t t;
@@ -8851,7 +8841,7 @@ void xon(){
 /* the structured BASIC extensions, WHILE, UNTIL, and SWITCH */
 
 #ifdef HASSTRUCT
-void xwhile() {
+static void xwhile() {
 
 /* what? */
 	if (DEBUG) { outsc("** in while "); outnumber(here); outspc(); outnumber(token); outcr(); }
@@ -8875,7 +8865,7 @@ void xwhile() {
 	}
 }
 
-void xwend() {
+static void xwend() {
 	blocation_t l;
 	bloop_t* loop;
 
@@ -8903,7 +8893,7 @@ void xwend() {
 	} 
 }
 
-void xrepeat() {
+static void xrepeat() {
 	/* what? */
 	if (DEBUG) { outsc("** in repeat "); outnumber(here); outspc(); outnumber(token); outcr(); }
 
@@ -8917,7 +8907,7 @@ void xrepeat() {
 	nexttoken();
 }
 
-void xuntil() {
+static void xuntil() {
 	blocation_t l;
 	bloop_t* loop;
 
@@ -8953,7 +8943,7 @@ void xuntil() {
 	nexttoken(); /* a bit of evil here, hobling over termsymbols */
 }
 
-void xswitch() {
+static void xswitch() {
 	number_t r;
 	mem_t match = 0;
 	mem_t swcount = 0;
@@ -9013,7 +9003,7 @@ void xswitch() {
 
 /* a nacked case statement always seeks the end of the switch, 
 	currently SWITCH statements cannot be nested.  */
-void xcase() {
+static void xcase() {
 	while (token != EOL) {
 		nexttoken();
 		if (token == TSWEND) break;
@@ -9037,7 +9027,7 @@ void xcase() {
  *	at end of a line. 
  */
 
-void statement(){
+static void statement(){
 	mem_t xc;
 	if (DEBUG) bdebug("statement \n"); 
 /* we can long jump out out any function now, making error handling easier */
@@ -9413,7 +9403,7 @@ errorhandler:
 /*
  *	the setup routine - Arduino style
  */
-void setup() {
+static void setup() {
 /* start measureing time */
 	timeinit();
 
@@ -9481,7 +9471,7 @@ void setup() {
 /* 
  *	the loop routine for interactive input 
  */
-void loop() {
+static void loop() {
 
 /*
  *	autorun state was found in setup, autorun now but only once
@@ -9559,6 +9549,7 @@ int main(void){
 int _init(void) {
   /* put your setup code here, to run once: */
 	sp = 0; 
+	memset(stack, 0, sizeof(accu_t) * STACKSIZE);
 	ibuffer[0] = 0;
 	loopsp = 0;
 	gosubsp = 0;

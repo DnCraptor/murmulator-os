@@ -79,14 +79,14 @@
  */
 // void ioinit();
 void iodefaults();
-int cheof(int);
-char inch();
-char checkch();
-uint16_t availch();
-uint16_t inb(char*, int16_t);
-uint16_t ins(char*, uint16_t);
-void outch(char);
-void outs(char*, uint16_t);
+static int cheof(int);
+static char inch();
+static char checkch();
+static uint16_t availch();
+static uint16_t inb(char*, int16_t);
+static uint16_t ins(char*, uint16_t);
+static void outch(char);
+static void outs(char*, uint16_t);
 
 /* 
  *  Global variables of the runtime env, visible to BASIC
@@ -138,7 +138,7 @@ extern uint8_t bsystype;
  * BASIC calls these functions once to start the timing, wiring, and signal handling.
  */
 
-void timeinit();	/* handling time - part of the Arduino core - only needed on POSIX OSes */
+static void timeinit();	/* handling time - part of the Arduino core - only needed on POSIX OSes */
 //void wiringbegin();	/* starting wiring is only needed on raspberry */
 void signalon();	/* POSIX signals - not needed on Ardunino */
 
@@ -401,7 +401,7 @@ dspbuffer_t dspgetc(uint8_t);
 void vt52wiringcommand(uint8_t);
 
 /* the vt52 state engine */
-void dspvt52(char*);
+static void dspvt52(char*);
 
 
 /* these functions are used to access the display 
@@ -542,9 +542,9 @@ inline static uint8_t fsstat(uint8_t);
 inline static void filewrite(char);
 inline static char fileread();
 inline static int fileavailable(); /* is int because some of the fs do this */
-uint8_t ifileopen(const char*);
-void ifileclose();
-uint8_t ofileopen(const char*, const char*);
+static uint8_t ifileopen(const char*);
+static void ifileclose();
+static uint8_t ofileopen(const char*, const char*);
 void ofileclose();
 
 /*
@@ -642,7 +642,7 @@ inline static uint16_t serialins(char*, uint16_t); /* read a line from serial */
  * this code needs to go to the main interpreter section after 
  * thorough rewrite
  */
-uint16_t consins(char *, uint16_t);
+static uint16_t consins(char *, uint16_t);
 
 inline static void prtbegin(); /* second serial port */
 inline static char prtopen(char*, uint16_t); /* the open functions are not needed here */
@@ -666,25 +666,25 @@ inline static uint16_t prtins(char*, uint16_t);
  * library
  */ 
 
-void wirebegin();
-void wireslavebegin(uint8_t);
-uint8_t wirestat(uint8_t); /* wire status - just checks if wire is compiled */
-uint16_t wireavailable(); /* available characters - test code ecapsulation prep for slave*/
-void wireonreceive(int h); /* eventhandler for received data */
-void wireonrequest(); /* event handler for request, deliver the message and forget the buffer */ 
+static void wirebegin();
+static void wireslavebegin(uint8_t);
+static uint8_t wirestat(uint8_t); /* wire status - just checks if wire is compiled */
+static uint16_t wireavailable(); /* available characters - test code ecapsulation prep for slave*/
+static void wireonreceive(int h); /* eventhandler for received data */
+static void wireonrequest(); /* event handler for request, deliver the message and forget the buffer */ 
 
 /*
  *	as a master open sets the slave id for the communication
  *	no extra begin while we stay master
  */
-void wireopen(char, uint8_t);
-char wireread(); /* */
-void wirewrite(char c); /* */
-uint16_t wireins(char*, uint8_t);  /* input an entire string */
-void wireouts(char*, uint8_t); /* send an entire string - truncate radically */
-int16_t wirereadbyte(uint8_t);
-void wirewritebyte(uint8_t, int16_t);
-void wirewriteword(uint8_t, int16_t, int16_t);
+static void wireopen(char, uint8_t);
+static char wireread(); /* */
+static void wirewrite(char c); /* */
+static uint16_t wireins(char*, uint8_t);  /* input an entire string */
+static void wireouts(char*, uint8_t); /* send an entire string - truncate radically */
+static int16_t wirereadbyte(uint8_t);
+static void wirewritebyte(uint8_t, int16_t);
+static void wirewriteword(uint8_t, int16_t, int16_t);
 
 /* 
  *	Read from the radio interface, radio is always block 
@@ -697,12 +697,12 @@ void wirewriteword(uint8_t, int16_t, int16_t);
  *	binary data.
  */
 
-uint8_t radiostat(uint8_t); 
-uint64_t pipeaddr(const char*); /* generate a uint64_t pipe address from the filename string for RF24 */
-uint16_t radioins(char*, uint8_t); /* read an entire string */
-void radioouts(char *, uint8_t); /* write to radio, no character mode here */
-uint16_t radioavailable(); /* radio available */
-char radioread();
+static uint8_t radiostat(uint8_t); 
+static uint64_t pipeaddr(const char*); /* generate a uint64_t pipe address from the filename string for RF24 */
+static uint16_t radioins(char*, uint8_t); /* read an entire string */
+static void radioouts(char *, uint8_t); /* write to radio, no character mode here */
+static uint16_t radioavailable(); /* radio available */
+static char radioread();
 
 /* 
  *	we always read from pipe 1 and use pipe 0 for writing, 
@@ -710,9 +710,9 @@ char radioread();
  *	goes to reading mode after open and is only stopped for 
  *	write
  */
-void iradioopen(const char *);
-void oradioopen(const char *);
-void radioset(uint8_t);
+static void iradioopen(const char *);
+static void oradioopen(const char *);
+static void radioset(uint8_t);
 
 /* 
  *	Arduino Sensor library code 
@@ -721,8 +721,8 @@ void radioset(uint8_t);
  *		is the sensor and the second argument the value.
  *		sensorread(n, 0) checks if the sensorstatus.
  */
-void sensorbegin();
-float sensorread(uint8_t, uint8_t);
+static void sensorbegin();
+static float sensorread(uint8_t, uint8_t);
 
 /*
  * prototypes for the interrupt interface
@@ -732,9 +732,9 @@ float sensorread(uint8_t, uint8_t);
 typedef int PinStatus;
 #endif
 
-uint8_t pintointerrupt(uint8_t);
-void attachinterrupt(uint8_t, void (*f)(), uint8_t);
-void detachinterrupt(uint8_t);
+static uint8_t pintointerrupt(uint8_t);
+static void attachinterrupt(uint8_t, void (*f)(), uint8_t);
+static void detachinterrupt(uint8_t);
 
 /*
  * Experimental code to drive SPI SRAM 
