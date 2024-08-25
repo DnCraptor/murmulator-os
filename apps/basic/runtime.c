@@ -662,36 +662,43 @@ inline static void rgbcolor(uint8_t r, uint8_t g, uint8_t b) {}
 inline static void vgacolor(uint8_t c) {
   _vgacolor = c;
 }
-inline static void plot(int x, int y) {
-  if ( !gd_init() ) {
-    return;
-  }
-  uint8_t color = _vgacolor;
-  uint32_t w = _gd->screen_width();
+static void _plot(int x, int y, uint32_t w, uint32_t h, uint8_t bit, uint8_t* b) {
   if (x < 0 || x > w) return;
-  uint32_t h = _gd->screen_height();
   if (y < 0 || y > h) return;
-  uint8_t bit = _gd->screen_bitness();
-  uint8_t* b = _gd->buffer();
-    #ifdef BUFFER_8_BIT
+  uint8_t color = _vgacolor;
+  #ifdef BUFFER_4_BIT
+    if (bit == 4) {
+        char* bi = b + ((w * y + x) >> 1);
+        *bi = (x & 1) ? (*bi & 15) | (color << 4) : ((*bi & 0xF0)) | color;
+        return;
+    }
+  #endif
+  #ifdef BUFFER_8_BIT
     if (bit == 8) {
         char* bi = b + w * y + x;
         *bi = color;
         return;
     }
-    #endif
-    #ifdef BUFFER_4_BIT
-    if (bit == 4) {
-        char* bi = b + ((w * y + x) >> 1);
-        *bi = (x & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
-        return;
-    }
-    #endif
+  #endif
+}
+inline static void plot(int x, int y) {
+  if ( !gd_init() ) {
+    return;
+  }
+  uint32_t w = _gd->screen_width();
+  uint32_t h = _gd->screen_height();
+  uint8_t bit = _gd->screen_bitness();
+  uint8_t* b = _gd->buffer();
+  _plot(x, y, w, h, bit, b);
 }
 inline static void line(int x0, int y0, int x1, int y1) {
   if ( !gd_init() ) {
     return;
   }
+  uint32_t w = _gd->screen_width();
+  uint32_t h = _gd->screen_height();
+  uint8_t bit = _gd->screen_bitness();
+  uint8_t* b = _gd->buffer();
   int dx, dy, sx, sy;
   int error, e2;
   dx = abs(x0-x1);
@@ -700,7 +707,7 @@ inline static void line(int x0, int y0, int x1, int y1) {
   sy = y0 < y1 ? 1 : -1;
   error = dx + dy;
   while(1) {
-    plot(x0, y0);
+    _plot(x0, y0, w, h, bit, b);
     if (x0 == x1 && y0 == y1) break;
     e2 = 2 * error;
     if (e2 > dy) {
@@ -715,110 +722,39 @@ inline static void line(int x0, int y0, int x1, int y1) {
     }
   }
 }
-inline static void rect(int x1, int y1, int x2, int y2) {
-  if ( !gd_init() ) {
-    return;
-  }
-  uint8_t color = _vgacolor;
-  uint8_t bit = _gd->screen_bitness();
-  uint8_t* b = _gd->buffer();
-  uint32_t w = _gd->screen_width();
-  uint32_t h = _gd->screen_height();
-    #ifdef BUFFER_8_BIT
-    if (bit == 8) {
-        char* sa = b + w * y1; // top line
-        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
-            sa[xi] = color;
-        }
-        sa = b + w * y2; // bottim line
-        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
-            sa[xi] = color;
-        }
-        sa = b + x1; // left line
-        for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
-            sa[w * yi] = color;
-        }
-        sa = b + x2; // right line
-        for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
-            sa[w * yi] = color;
-        }
-        return;
-    }
-    #endif
-    #ifdef BUFFER_4_BIT
-    if (bit == 4) {
-        char* sa = b + ((w * y1) >> 1); // top line
-        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
-            char* bi = sa + (xi >> 1);
-            *bi = (xi & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
-        }
-        sa = b + ((w * y2) >> 1); // bottim line
-        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
-            char* bi = sa + (xi >> 1);
-            *bi = (xi & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
-        }
-        sa = b + (x1 >> 1); // left line
-        for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
-            char* bi = sa + ((w * yi) >> 1);
-            *bi = (x1 & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
-        }
-        sa = b + (x2 >> 1); // right line
-        for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
-            char* bi = sa + ((w * yi) >> 1);
-            *bi = (x2 & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
-        }
-        return;
-    }
-    #endif
+inline static void rect(int x0, int y0, int x1, int y1) {
+  line(x0, y0, x1, y0);
+  line(x1, y0, x1, y1);
+  line(x1, y1, x0, y1);
+  line(x0, y1, x0, y0); 
 }
-inline static void frect(int x1, int y1, int x2, int y2)  {
-  if ( !gd_init() ) {
-    return;
-  }
-  uint8_t color = _vgacolor;
-  uint8_t bit = _gd->screen_bitness();
-  uint8_t* b = _gd->buffer();
-  uint32_t w = _gd->screen_width();
-  uint32_t h = _gd->screen_height();
-    #ifdef BUFFER_8_BIT
-    if (bit == 8) {
-        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
-          for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
-            b[xi + w * yi] = color;
-          }
-        }
-        return;
-    }
-    #endif
-    #ifdef BUFFER_4_BIT
-    if (bit == 4) {
-        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
-          for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
-            char* bi = b + ((xi + w * yi) >> 1);
-            *bi = (xi & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
-          }
-        }
-        return;
-    }
-    #endif
+inline static void frect(int x0, int y0, int x1, int y1) {
+  int dx, sx;
+  int x;
+  sx=x0 < x1 ? 1 : -1;
+  for(x=x0; x != x1; x=x+sx) line(x, y0, x, y1);
 }
 /* Bresenham for circles, based on Alois Zingl's work */
 void circle(int x0, int y0, int r) {
   if ( !gd_init() ) {
     return;
   }
+  uint32_t w = _gd->screen_width();
+  uint32_t h = _gd->screen_height();
+  uint8_t bit = _gd->screen_bitness();
+  uint8_t* b = _gd->buffer();
   int x, y, err;
-  x=-r;
-  y=0; 
-  err=2-2*r;
+  x = -r;
+  y = 0; 
+  err = 2 - 2 * r;
   do {
-    plot(x0-x, y0+y);
-    plot(x0-y, y0-x);
-    plot(x0+x, y0-y);
-    plot(x0+y, y0+x);
-    r=err;
-    if (r <= y) err+=++y*2+1;
-    if (r > x || err > y) err+=++x*2+1;
+    _plot(x0-x, y0+y, w, h, bit, b);
+    _plot(x0-y, y0-x, w, h, bit, b);
+    _plot(x0+x, y0-y, w, h, bit, b);
+    _plot(x0+y, y0+x, w, h, bit, b);
+    r = err;
+    if (r <= y) err += ++y * 2 + 1;
+    if (r > x || err > y) err += ++x * 2 + 1;
   } while (x < 0);
 }
 

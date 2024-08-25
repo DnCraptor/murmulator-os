@@ -17,7 +17,7 @@ enum graphics_mode_t {
     BK_256x256x2, // 1024*768 3-lines->1 4-pixels->1
     BK_512x256x1, // 1024*768 3-lines->1 2-pixels->1
 //    GRAPHICS_320x240x1, // 640*480 with duplicated points/lines 8k for 1-bit
-//    GRAPHICS_320x240x16, // 640*480 with duplicated points/lines 32k for 4 bit
+    GRAPHICS_320x240x16, // 640*480 with duplicated points/lines 32k for 4 bit
     GRAPHICS_320x240x256, // 640*480 with duplicated points/lines 75k for 256 colors
 //    GRAPHICS_640x480x1, // 640*480 38.4k for 1-bit
 //    GRAPHICS_640x480x4, // 640*480 76.8k for 2-bit
@@ -113,6 +113,7 @@ uint32_t get_vga_console_width() {
     switch(graphics_mode) {
         case BK_256x256x2:
         case BK_512x256x1:
+        case GRAPHICS_320x240x16:
         case GRAPHICS_320x240x256:
         case GRAPHICS_640x480x16:
             return text_buffer_width / font_width;
@@ -123,6 +124,7 @@ uint32_t get_vga_console_height() {
     switch(graphics_mode) {
         case BK_256x256x2:
         case BK_512x256x1:
+        case GRAPHICS_320x240x16:
         case GRAPHICS_320x240x256:
         case GRAPHICS_640x480x16:
             return text_buffer_height / font_height;
@@ -157,6 +159,8 @@ size_t vga_buffer_size() {
                 + 256 * 4 * sizeof(uint16_t) + line_size * sizeof(uint32_t);
         case GRAPHICS_320x240x256:
             return (lock_buffer ? 0 : 320 * 240) + line_size * sizeof(uint32_t);
+        case GRAPHICS_320x240x16:
+            return (lock_buffer ? 0 : 320 / 2 * 240) + line_size * sizeof(uint32_t);
         case GRAPHICS_640x480x16:
             return (lock_buffer ? 0 : 640 / 2 * 480) + line_size * sizeof(uint32_t);
         case BK_256x256x2:
@@ -273,6 +277,53 @@ static uint8_t* __time_critical_func(dma_handler_VGA_impl)() {
             for (register int x = 320; x--;) {
                 register uint16_t t = *input_buffer_8bit++; // t - "реальный" 8-битный цвет
                 *output_buffer_16bit++ = (0xc0 | t) << 8 | 0xc0 | t;
+            }
+            return output_buffer;
+        }
+        case GRAPHICS_320x240x16: {
+            line_number = screen_line >> 1;
+            if (screen_line != line_number << 1) { // duplicate lines
+                if (prev_output_buffer) output_buffer = prev_output_buffer;
+                return output_buffer;
+            }
+            prev_output_buffer = output_buffer;
+            y = line_number - graphics_buffer_shift_y;
+            register uint8_t* input_buffer_8bit = &input_buffer[y * text_buffer_width >> 1];
+            register uint16_t* output_buffer_16bit = (uint16_t *)*output_buffer;
+            output_buffer_16bit += shift_picture >> 1;
+            uint16_t c = txt_palette[cursor_color];
+            auto fh = font_height;
+            auto yfh = y / fh;
+            auto glyph_line = y - yfh * fh;
+            if (yfh == pos_y && glyph_line >= fh - 2) {
+                register xc = pos_x >> 1;
+                register xi = 0;
+                register cntr = 0;
+                auto fw = font_width;
+                for (register int x = 0; x < 320 / 2; ++x, ++cntr, ++cntr) { // 2 записи на байт
+                    register uint16_t t = *input_buffer_8bit++; // t - 2 записи, 4-битный цвет
+                    if (cntr == fw) {
+                        ++xi; ++xi; cntr = 0;
+                    }
+                    if (xi == xc) {
+                        *output_buffer_16bit++ = (c << 8) | c;
+                        *output_buffer_16bit++ = (c << 8) | c;
+                    } else {
+                        register uint8_t t = *input_buffer_8bit++; // t - 2 записи, 4-битный цвет
+                        uint16_t c16 = txt_palette[(t & 15)];
+                        *output_buffer_16bit++ = (c16 << 8) | (c16 & 0xFF);
+                        c16 = txt_palette[(t >> 4) & 15];
+                        *output_buffer_16bit++ = (c16 << 8) | (c16 & 0xFF);
+                    }
+                }
+                return output_buffer;
+            }
+            for (register int x = 0; x < 320 / 2; ++x) { // 2 записи на байт
+                register uint8_t t = *input_buffer_8bit++; // t - 2 записи, 4-битный цвет
+                uint16_t c16 = txt_palette[(t & 15)];
+                *output_buffer_16bit++ = (c16 << 8) | (c16 & 0xFF);
+                c16 = txt_palette[(t >> 4) & 15];
+                *output_buffer_16bit++ = (c16 << 8) | (c16 & 0xFF);
             }
             return output_buffer;
         }
@@ -535,6 +586,14 @@ bool vga_set_mode(int mode) {
             font_height = 8;
             font_table = font_6x8;
             break;
+        case GRAPHICS_320x240x16:
+            text_buffer_width = 320;
+            text_buffer_height = 240;
+            bitness = 4;
+            font_width = 6;
+            font_height = 8;
+            font_table = font_6x8;
+            break;
         case GRAPHICS_640x480x16:
             text_buffer_width = 640;
             text_buffer_height = 480;
@@ -559,6 +618,7 @@ bool vga_set_mode(int mode) {
     switch (graphics_mode) {
         case TEXTMODE_53x30:
         case TEXTMODE_80x30:
+        case GRAPHICS_320x240x16:
         case GRAPHICS_320x240x256:
         case GRAPHICS_640x480x16:
             TMPL_LINE8 = 0b11000000;
@@ -650,6 +710,9 @@ bool vga_set_mode(int mode) {
                 context->txt_palette_fast[i * 4 + 2] = (c0) | (c1 << 8);
                 context->txt_palette_fast[i * 4 + 3] = (c1) | (c1 << 8);
             }
+            break;
+        case GRAPHICS_320x240x16:
+            context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(320 >> 1, 240);
             break;
         case GRAPHICS_320x240x256:
             context->graphics_buffer = lock_buffer ? vga_context->graphics_buffer : pvPortCalloc(320, 240);

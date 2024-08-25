@@ -101,7 +101,12 @@ cpu [NNN] - change freq. to NNN MHz (it may hang on such action)<br/>
 mem - show current memory state<br/>
 set - show or set environment variables<br/>
 export - put variable into system context<br/>
-mode [#] - set video-mode (for now it is supported 0 - 53x30, 1 - 80x30, 2 - 100x37, 3 - 128x48, 4 - 256x256x2-bit, 5 - 512x256x1-bit, 6 - 320x240x8-bit, 7 - 640x480x4-bit - for VGA, 0 - 53x30 and 1 - 80x30, 2 - 320x240x4-bit for HDMI, and only 0 - 53x30 for TV)<br/>
+mode [#] - set video-mode, for now it is supported:<br/>
+<li>
+ <ul>0 - 53x30, 1 - 80x30, 2 - 100x37, 3 - 128x48, 4 - 256x256x2-bit, 5 - 512x256x1-bit, 6 - 320x240x4-bit, 7 - 320x240x8-bit, 8 - 640x480x4-bit - for VGA</ul>
+ <ul>0 - 53x30 and 1 - 80x30, 2 - 320x240x4-bit for HDMI</ul>
+ <ul>0 - 53x30 for TV (RGB)</ul>
+</li>
 less - show not more than one page of other command in pipe, like ls | less<br/>
 hex [file]/[@addr] - show file or RAM as hexidecimal dump<br/>
 tail [-n #] [file] - show specified (or 10) last lines from the file<br/>
