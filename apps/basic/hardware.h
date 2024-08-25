@@ -46,13 +46,11 @@
  * POSIXPIGPIO: use the pigpio library on a Raspberry PI 
  */
 #define MURMULATOR
-// TODO:
-//#define POSIXFRAMEBUFFER
 #define POSIXTERMINAL
 #define POSIXVT52TOANSI
 #undef POSIXSIGNALS
 #undef POSIXNONBLOCKING
-//#undef POSIXFRAMEBUFFER
+#undef POSIXFRAMEBUFFER
 #undef POSIXWIRE
 #undef POSIXMQTT
 #undef POSIXWIRING
@@ -114,6 +112,8 @@
 
 #ifdef MURMULATOR
 #define DISPLAYHASGRAPH
+#define BUFFER_8_BIT
+#define BUFFER_4_BIT
 #endif
 
 /* after run behaviour on POSIX systems, 1 to terminate if started

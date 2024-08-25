@@ -288,6 +288,29 @@ const char* tmp = "ZX Murmulator (RP2040) OS v." MOS_VERSION_STR;
 
 extern "C" void mallocFailedHandler() {
     gouta("WARN: malloc failed\n");
+    {
+        HeapStats_t stat;
+        vPortGetHeapStats(&stat);
+        goutf(
+            "Heap memory: %d (%dK)\n"
+            " available bytes total: %d (%dK)\n"
+            "         largets block: %d (%dK)\n",
+            configTOTAL_HEAP_SIZE, configTOTAL_HEAP_SIZE >> 10,
+            stat.xAvailableHeapSpaceInBytes, stat.xAvailableHeapSpaceInBytes >> 10,
+            stat.xSizeOfLargestFreeBlockInBytes, stat.xSizeOfLargestFreeBlockInBytes >> 10
+        );
+        goutf(
+            "        smallest block: %d (%dK)\n"
+            "           free blocks: %d\n"
+            "    min free remaining: %d (%dK)\n"
+            "           allocations: %d\n"
+            "                 frees: %d\n",
+            stat.xSizeOfSmallestFreeBlockInBytes, stat.xSizeOfSmallestFreeBlockInBytes >> 10,
+            stat.xNumberOfFreeBlocks,
+            stat.xMinimumEverFreeBytesRemaining, stat.xMinimumEverFreeBytesRemaining >> 10,
+            stat.xNumberOfSuccessfulAllocations, stat.xNumberOfSuccessfulFrees
+        );
+    }
 }
 
 extern "C" void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {

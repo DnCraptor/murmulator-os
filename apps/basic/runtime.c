@@ -638,6 +638,208 @@ inline static void dspsetscrollmode(uint8_t c, uint8_t l) {}
 inline static void dspsetcursor(uint8_t c) {}
 
 #ifndef POSIXFRAMEBUFFER
+#ifdef MURMULATOR
+graphics_driver_t* _gd;
+uint8_t _vgacolor;
+static bool gd_init(void) {
+  if (!_gd) {
+    _gd = get_graphics_driver();
+    if ( _gd->is_text() ) {
+      printf("Select some graphics mode...\n");
+    }
+    else {
+      uint8_t bit = _gd->screen_bitness();
+      if ( bit != 4 && bit != 8 ) {
+        printf("Unsupportef graphics mode.\nIt is required to use 8 or 4-bit buffer.\n");
+      }
+    } 
+  }
+  uint8_t bit = _gd->screen_bitness();
+  return !_gd->is_text() && (bit == 4 || bit == 8);
+}
+/* these are the graphics commands */
+inline static void rgbcolor(uint8_t r, uint8_t g, uint8_t b) {}
+inline static void vgacolor(uint8_t c) {
+  _vgacolor = c;
+}
+inline static void plot(int x, int y) {
+  if ( !gd_init() ) {
+    return;
+  }
+  uint8_t color = _vgacolor;
+  uint32_t w = _gd->screen_width();
+  if (x < 0 || x > w) return;
+  uint32_t h = _gd->screen_height();
+  if (y < 0 || y > h) return;
+  uint8_t bit = _gd->screen_bitness();
+  uint8_t* b = _gd->buffer();
+    #ifdef BUFFER_8_BIT
+    if (bit == 8) {
+        char* bi = b + w * y + x;
+        *bi = color;
+        return;
+    }
+    #endif
+    #ifdef BUFFER_4_BIT
+    if (bit == 4) {
+        char* bi = b + ((w * y + x) >> 1);
+        *bi = (x & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
+        return;
+    }
+    #endif
+}
+inline static void line(int x0, int y0, int x1, int y1) {
+  if ( !gd_init() ) {
+    return;
+  }
+  int dx, dy, sx, sy;
+  int error, e2;
+  dx = abs(x0-x1);
+  sx = x0 < x1 ? 1 : -1;
+  dy =- abs(y1-y0);
+  sy = y0 < y1 ? 1 : -1;
+  error = dx + dy;
+  while(1) {
+    plot(x0, y0);
+    if (x0 == x1 && y0 == y1) break;
+    e2 = 2 * error;
+    if (e2 > dy) {
+      if (x0 == x1) break;
+      error = error + dy;
+      x0 = x0 + sx;
+    }
+    if (e2 <= dx) {
+      if (y0 == y1) break;
+      error = error + dx;
+      y0 = y0 + sy;
+    }
+  }
+}
+inline static void rect(int x1, int y1, int x2, int y2) {
+  if ( !gd_init() ) {
+    return;
+  }
+  uint8_t color = _vgacolor;
+  uint8_t bit = _gd->screen_bitness();
+  uint8_t* b = _gd->buffer();
+  uint32_t w = _gd->screen_width();
+  uint32_t h = _gd->screen_height();
+    #ifdef BUFFER_8_BIT
+    if (bit == 8) {
+        char* sa = b + w * y1; // top line
+        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
+            sa[xi] = color;
+        }
+        sa = b + w * y2; // bottim line
+        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
+            sa[xi] = color;
+        }
+        sa = b + x1; // left line
+        for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
+            sa[w * yi] = color;
+        }
+        sa = b + x2; // right line
+        for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
+            sa[w * yi] = color;
+        }
+        return;
+    }
+    #endif
+    #ifdef BUFFER_4_BIT
+    if (bit == 4) {
+        char* sa = b + ((w * y1) >> 1); // top line
+        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
+            char* bi = sa + (xi >> 1);
+            *bi = (xi & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
+        }
+        sa = b + ((w * y2) >> 1); // bottim line
+        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
+            char* bi = sa + (xi >> 1);
+            *bi = (xi & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
+        }
+        sa = b + (x1 >> 1); // left line
+        for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
+            char* bi = sa + ((w * yi) >> 1);
+            *bi = (x1 & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
+        }
+        sa = b + (x2 >> 1); // right line
+        for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
+            char* bi = sa + ((w * yi) >> 1);
+            *bi = (x2 & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
+        }
+        return;
+    }
+    #endif
+}
+inline static void frect(int x1, int y1, int x2, int y2)  {
+  if ( !gd_init() ) {
+    return;
+  }
+  uint8_t color = _vgacolor;
+  uint8_t bit = _gd->screen_bitness();
+  uint8_t* b = _gd->buffer();
+  uint32_t w = _gd->screen_width();
+  uint32_t h = _gd->screen_height();
+    #ifdef BUFFER_8_BIT
+    if (bit == 8) {
+        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
+          for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
+            b[xi + w * yi] = color;
+          }
+        }
+        return;
+    }
+    #endif
+    #ifdef BUFFER_4_BIT
+    if (bit == 4) {
+        for (unsigned xi = x1; xi <= x2 && xi < w; ++xi) {
+          for (unsigned yi = y1; yi <= y2 && yi < h; ++yi) {
+            char* bi = b + ((xi + w * yi) >> 1);
+            *bi = (xi & 1) ? ((*bi & 0xF0)) | color : (*bi & 15) | (color << 4);
+          }
+        }
+        return;
+    }
+    #endif
+}
+/* Bresenham for circles, based on Alois Zingl's work */
+void circle(int x0, int y0, int r) {
+  if ( !gd_init() ) {
+    return;
+  }
+  int x, y, err;
+  x=-r;
+  y=0; 
+  err=2-2*r;
+  do {
+    plot(x0-x, y0+y);
+    plot(x0-y, y0-x);
+    plot(x0+x, y0-y);
+    plot(x0+y, y0+x);
+    r=err;
+    if (r <= y) err+=++y*2+1;
+    if (r > x || err > y) err+=++x*2+1;
+  } while (x < 0);
+}
+
+/* for filled circles draw lines instead of points */
+void fcircle(int x0, int y0, int r) {
+  if ( !gd_init() ) {
+    return;
+  }
+  int x, y, err;
+  x=-r;
+  y=0; 
+  err=2-2*r;
+  do {
+    line(x0-x, y0+y, x0+x, y0+y);
+    line(x0+x, y0-y, x0-x, y0-y);
+    r=err;
+    if (r <= y) err+=++y*2+1;
+    if (r > x || err > y) err+=++x*2+1;
+  } while (x < 0);
+}
+#else
 /* these are the graphics commands */
 inline static void rgbcolor(uint8_t r, uint8_t g, uint8_t b) {}
 inline static void vgacolor(uint8_t c) {}
@@ -651,6 +853,7 @@ inline static void fcircle(int x0, int y0, int r) {}
 /* stubs for the vga code part analogous to ESP32 */
 inline static void vgabegin(){}
 inline static void vgawrite(char c){}
+#endif
 #else
 /* 
  * This is the first draft of the linux framebuffer code 
@@ -668,11 +871,11 @@ inline static void vgawrite(char c){}
  * his thesis: http://members.chello.at/%7Eeasyfilter/Bresenham.pdf
  * 
  */
-///#include <sys/fcntl.h>
-///#include <sys/ioctl.h>
-///#include <linux/fb.h>
-///#include <sys/mman.h>
-///#include <string.h>
+#include <sys/fcntl.h>
+#include <sys/ioctl.h>
+#include <linux/fb.h>
+#include <sys/mman.h>
+#include <string.h>
 
 /* 'global' variables to store screen info */
 char *framemem = 0;
@@ -2156,5 +2359,9 @@ void init_runtime(void) {
   fasttickcalls = 0;
   avgfasttick = 0;
   devfasttick = 0;
+#endif
+#ifdef MURMULATOR
+  _gd = NULL;
+  _vgacolor = 7;
 #endif
 }
