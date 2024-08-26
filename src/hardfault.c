@@ -69,7 +69,11 @@ static uint32_t cpu_find_memory_size(char *base, uint32_t block, uint32_t maxsiz
 }
 
 uint32_t get_cpu_ram_size(void) {
-    return cpu_find_memory_size((char *)0x20000000, 4096, 300*1024);
+    static uint32_t once = 0;
+    if (!once) {
+        once = cpu_find_memory_size((char *)0x20000000, 4096, 300*1024);
+    }
+    return once;
 }
 
 #include <hardware/flash.h>
@@ -81,11 +85,15 @@ uint32_t get_cpu_flash_size(void) {
     return 1 << rx[3];
 }
 
-void get_cpu_flash_jedec_id(uint8_t rx[4]) {
-    uint8_t tx[4] = {0x9f};
-    multicore_lockout_start_blocking();
-    const uint32_t ints = save_and_disable_interrupts();
-    flash_do_cmd(tx, rx, 4);
-    restore_interrupts(ints);
-    multicore_lockout_end_blocking();
+void get_cpu_flash_jedec_id(uint8_t _rx[4]) {
+    static uint8_t rx[4] = {0};
+    if (rx[0] == 0) {
+        uint8_t tx[4] = {0x9f};
+        multicore_lockout_start_blocking();
+        const uint32_t ints = save_and_disable_interrupts();
+        flash_do_cmd(tx, rx, 4);
+        restore_interrupts(ints);
+        multicore_lockout_end_blocking();
+    }
+    *(unsigned*)_rx = *(unsigned*)rx;
 }
