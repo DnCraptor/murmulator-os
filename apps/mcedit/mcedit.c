@@ -689,8 +689,14 @@ inline static void handle_right_pressed(void) {
     m_window();
 }
 
+static void handle_end_pressed(void);
+
 inline static void handle_left_pressed(void) {
     if (hidePannels || col_n == 0) {
+        if (line_n != 0) {
+            --line_n;
+            handle_end_pressed();
+        }
         return;
     }
     if (col_s == col_n) {
@@ -706,7 +712,7 @@ inline static void handle_home_pressed(void) {
     m_window();
 }
 
-inline static void handle_end_pressed(void) {
+static void handle_end_pressed(void) {
     string_t* s = list_get_data_at(lst, line_n);
     if (!s) {
         col_s = 0;
