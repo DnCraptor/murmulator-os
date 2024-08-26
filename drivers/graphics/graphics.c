@@ -366,12 +366,12 @@ void goutf(const char *__restrict str, ...) {
     FIL* f = get_stdout();
     va_list ap;
 //#if DEBUG_HEAP_SIZE
-    char buf[512];
+    char buf[256];
 //#else
 //    char* buf = (char*)pvPortMalloc(512);
 //#endif
     va_start(ap, str);
-    vsnprintf(buf, 512, str, ap); // TODO: optimise (skip)
+    vsnprintf(buf, 256, str, ap); // TODO: optimise (skip)
     va_end(ap);
     if (!f) {
         gouta(buf);
@@ -583,9 +583,7 @@ void common_set_con_color(uint8_t color, uint8_t bgcolor) {
     con_bgcolor = bgcolor;
 }
 
-static char* common_rollup(char* t_buf, uint32_t width) {
-    char* b = get_buffer();
-    uint32_t height = get_console_height();
+static char* common_rollup(char* b, char* t_buf, uint32_t width, uint32_t height) {
     if (pos_y >= height - 1) {
         memmove(b, b + width * 2, width * (height - 2) * 2);
         t_buf = b + width * (height - 2) * 2;
@@ -600,9 +598,8 @@ static char* common_rollup(char* t_buf, uint32_t width) {
 
 extern uint16_t txt_palette[16];
 
-static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor, uint16_t c) {
+static void common_print_char(uint8_t* graphics_buffer, uint32_t width, uint32_t height, uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor, uint16_t c) {
     uint8_t bit = get_screen_bitness();
-    uint32_t height = get_screen_height();
     uint8_t* pE = graphics_buffer + ((width * height * bit) >> 3);
     if (bit == 8) {
         uint8_t* p0 = graphics_buffer + width * y * font_height + x * font_width;
@@ -761,6 +758,7 @@ void common_print(char* buf) {
         return;
     }
     uint32_t width = get_screen_width();
+    uint32_t height = get_screen_height();
     char c;
     if (!is_buffer_text()) {
         while (c = *buf++) {
@@ -775,9 +773,9 @@ void common_print(char* buf) {
                 pos_x = 0;
                 pos_y++;
                 graphics_rollup(graphics_buffer, width);
-                common_print_char(graphics_buffer, width, pos_x, pos_y, con_color, con_bgcolor, c);
+                common_print_char(graphics_buffer, width, height, pos_x, pos_y, con_color, con_bgcolor, c);
             } else {
-                common_print_char(graphics_buffer, width, pos_x, pos_y, con_color, con_bgcolor, c);
+                common_print_char(graphics_buffer, width, height, pos_x, pos_y, con_color, con_bgcolor, c);
             }
             pos_x++;
         }
@@ -789,14 +787,14 @@ void common_print(char* buf) {
         if (c == '\n') {
             pos_x = 0;
             pos_y++;
-            t_buf = common_rollup(t_buf, width);
+            t_buf = common_rollup(graphics_buffer, t_buf, width, height);
             continue;
         }
         pos_x++;
         if (pos_x >= width) {
             pos_x = 0;
             pos_y++;
-            t_buf = common_rollup(t_buf, width);
+            t_buf = common_rollup(graphics_buffer, t_buf, width, height);
             *t_buf++ = c;
             *t_buf++ = con_bgcolor << 4 | con_color & 0xF;
             pos_x++;
@@ -811,19 +809,20 @@ void common_backspace(void) {
     char* graphics_buffer = get_buffer();
     if (!graphics_buffer) return;
     uint32_t width = get_screen_width();
+    uint32_t height = get_screen_height();
     if (!is_buffer_text()) {
      //   common_print_char(graphics_buffer, width, pos_x, pos_y, ' ');
         pos_x--;
         if (pos_x < 0) {
             pos_x = width / font_width;
-            common_print_char(graphics_buffer, width, pos_x, pos_y, con_color, con_bgcolor, ' ');
+            common_print_char(graphics_buffer, width, height, pos_x, pos_y, con_color, con_bgcolor, ' ');
             --pos_y;
             --pos_x;
             if (pos_y < 0) {
                 pos_y = 0;
             }
         }
-        common_print_char(graphics_buffer, width, pos_x, pos_y, con_color, con_bgcolor, ' ');
+        common_print_char(graphics_buffer, width, height, pos_x, pos_y, con_color, con_bgcolor, ' ');
         return;
     }
     pos_x--;
@@ -843,10 +842,11 @@ void common_draw_text(const char* string, int x, int y, uint8_t color, uint8_t b
     char* graphics_buffer = get_buffer();
     if (!graphics_buffer) return;
     uint32_t width = get_screen_width();
+    uint32_t height = get_screen_height();
     if (!is_buffer_text()) {
         for (int xi = x; xi < width * 2; ++xi) {
             if (!(*string)) break;
-            common_print_char(graphics_buffer, width, xi, y, color, bgcolor, *string++);
+            common_print_char(graphics_buffer, width, height, xi, y, color, bgcolor, *string++);
         }
         return;
     }

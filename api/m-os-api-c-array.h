@@ -26,7 +26,7 @@ inline static void delete_array(array_t* arr) {
     for (size_t i = 0; i < arr->size; ++i) {
         arr->deallocator(arr->p[i]);
     }
-    free(arr->alloc);
+    free(arr->p);
     free(arr);
 }
 

@@ -196,7 +196,7 @@ void set_ctx_var(cmd_ctx_t* ctx, const char* key, const char* val) {
 }
 
 char* get_ctx_var(cmd_ctx_t* ctx, const char* key) {
-  //  taskENTER_CRITICAL();
+    taskENTER_CRITICAL();
     char* res = NULL;
     for (size_t i = 0; i < ctx->vars_num; ++i) {
         if (0 == strcmp(key, ctx->vars[i].key)) {
@@ -204,7 +204,7 @@ char* get_ctx_var(cmd_ctx_t* ctx, const char* key) {
             break;
         }
     }
-  //  taskEXIT_CRITICAL();
+    taskEXIT_CRITICAL();
     return res;
 }
 

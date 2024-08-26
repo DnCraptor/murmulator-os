@@ -179,7 +179,8 @@ void * pvPortMalloc( size_t xWantedSize )
     BlockLink_t * pxNewBlockLink;
     void * pvReturn = NULL;
     size_t xAdditionalRequiredSize;
-
+//xWantedSize += 3; // ensure alligned to 4
+//xWantedSize &= 0xFFFFFFFC;
     if( xWantedSize > 0 )
     {
       //  if (xWantedSize < 4) xWantedSize = 4; // TODO: align?
@@ -453,11 +454,12 @@ void * pvPortCalloc( size_t xNum,
 
     if( heapMULTIPLY_WILL_OVERFLOW( xNum, xSize ) == 0 )
     {
-        pv = pvPortMalloc( xNum * xSize );
+        size_t sz = xNum * xSize;
+        pv = pvPortMalloc( sz );
 
         if( pv != NULL )
         {
-            ( void ) memset( pv, 0, xNum * xSize );
+            ( void ) memset( pv, 0, sz );
         }
     }
 

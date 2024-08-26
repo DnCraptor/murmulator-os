@@ -1747,7 +1747,6 @@ int main(void) {
     set_usb_detached_handler(usb_detached_handler);
 
     start_manager(ctx);
-
     set_usb_detached_handler(NULL);
     set_scancode_handler(scancode_handler);
     delete_array(files_info_arr);
@@ -1758,7 +1757,6 @@ int main(void) {
     free(left_panel);
     free(pcs);
     delete_string(s_cmd);
-
     return 0;
 }
 

@@ -20,8 +20,9 @@ inline static void type_char(char c) {
 }
 
 inline static void prompt(cmd_ctx_t* ctx) {
+    const char* cd = get_ctx_var(ctx, "CD");
     graphics_set_con_color(13, 0);
-    printf("[%s]", get_ctx_var(ctx, "CD"));
+    printf("[%s]", cd);
     graphics_set_con_color(7, 0);
     printf("$ ");
 }
@@ -65,6 +66,13 @@ int main(void) {
     show_logo(false);
     cmd_ctx_t* ctx = get_cmd_ctx();
     cleanup_ctx(ctx);
+/*
+    if (ctx->vars_num && ctx->vars) {
+        for (size_t i = 0; i < ctx->vars_num; ++i) {
+            printf("[%s][%s]\n", ctx->vars[i].key, ctx->vars[i].value);
+        }
+    }
+*/
     s_cmd = new_string_v();
     prompt(ctx);
     cmd_history_idx = -2;
