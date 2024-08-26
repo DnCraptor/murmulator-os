@@ -1,6 +1,10 @@
 #include "cmd.h"
 #include <string.h>
 
+const char TEMP[] = "TEMP";
+const char _mc_con[] = ".mc.con";
+const char _cmd_history[] = ".cmd_history";
+
 static cmd_ctx_t ctx = { 0 };
 static size_t TOTAL_HEAP_SIZE = configTOTAL_HEAP_SIZE;
 
@@ -368,10 +372,10 @@ void cmd_tab(cmd_ctx_t* ctx, string_t* s_cmd) {
 }
 
 int history_steps(cmd_ctx_t* ctx, int cmd_history_idx, string_t* s_cmd) {
-    char* tmp = get_ctx_var(ctx, "TEMP");
+    char* tmp = get_ctx_var(ctx, TEMP);
     if(!tmp) tmp = "";
     size_t cdl = strlen(tmp);
-    char * cmd_history_file = concat(tmp, ".cmd_history");
+    char * cmd_history_file = concat(tmp, _cmd_history);
     FIL* pfh = (FIL*)pvPortMalloc(sizeof(FIL));
     int idx = 0;
     UINT br;
@@ -452,10 +456,10 @@ inline static void tokenize_cmd(list_t* lst, string_t* pcmd, cmd_ctx_t* ctx) {
 }
 
 inline static void cmd_write_history(cmd_ctx_t* ctx, string_t* s_cmd) {
-    char* tmp = get_ctx_var(ctx, "TEMP");
+    char* tmp = get_ctx_var(ctx, TEMP);
     if(!tmp) tmp = "";
     size_t cdl = strlen(tmp);
-    char * cmd_history_file = concat(tmp, ".cmd_history");
+    char * cmd_history_file = concat(tmp, _cmd_history);
     FIL* pfh = (FIL*)pvPortMalloc(sizeof(FIL));
     f_open(pfh, cmd_history_file, FA_OPEN_ALWAYS | FA_WRITE | FA_OPEN_APPEND);
     UINT br;
@@ -610,4 +614,22 @@ bool cmd_enter_helper(cmd_ctx_t* ctx, string_t* s_cmd) {
     cleanup_ctx(ctx); // base ctx to be there
 r2:
     return false;
+}
+
+void op_console(cmd_ctx_t* ctx, FRFpvUpU_ptr_t fn, BYTE mode) {
+    char* tmp = get_ctx_var(ctx, TEMP);
+    if(!tmp) tmp = "";
+    size_t cdl = strlen(tmp);
+    char * mc_con_file = concat(tmp, _mc_con);
+    FIL* pfh = (FIL*)pvPortMalloc(sizeof(FIL));
+    if (FR_OK != f_open(pfh, mc_con_file, mode)) {
+        goto r;
+    }
+    size_t sz = (get_screen_width() * get_screen_height() * get_screen_bitness()) >> 3;
+    UINT rb;
+    fn(pfh, get_buffer(), sz, &rb);
+    f_close(pfh);
+r:
+    vPortFree(pfh);
+    vPortFree(mc_con_file);
 }

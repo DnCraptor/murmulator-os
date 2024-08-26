@@ -902,6 +902,12 @@ inline static bool set_usb_detached_handler(usb_detached_handler_t h) {
     return ((fn_ptr_t)_sys_table_ptrs[236])(h);
 }
 
+typedef FRESULT (*FRFpvUpU_ptr_t)(FIL*, void*, UINT, UINT*);
+inline static void op_console(cmd_ctx_t* ctx, FRFpvUpU_ptr_t fn, BYTE mode) {
+    typedef void (*fn_ptr_t)(cmd_ctx_t* ctx, FRFpvUpU_ptr_t fn, BYTE mode);
+    ((fn_ptr_t)_sys_table_ptrs[237])(ctx, fn, mode);
+}
+
 #ifdef __cplusplus
 }
 #include "m-os-api-cpp-string.h"

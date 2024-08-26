@@ -538,47 +538,11 @@ inline static void handle_tab_pressed() {
 }
 
 inline static void restore_console(cmd_ctx_t* ctx) {
-    char* tmp = get_ctx_var(ctx, TEMP);
-    if(!tmp) tmp = "";
-    size_t cdl = strlen(tmp);
-    char * mc_con_file = concat(tmp, _mc_con);
-    FIL* pfh = (FIL*)malloc(sizeof(FIL));
-    if (FR_OK != f_open(pfh, mc_con_file, FA_READ)) {
-        goto r;
-    }
-    char* b = get_buffer();
-    uint32_t w = get_screen_width();
-    uint32_t h = get_screen_height();
-    uint8_t bit = get_screen_bitness();
-    size_t sz = (w * h * bit) >> 3;
-    UINT rb;
-    f_read(pfh, b, sz, &rb);
-    f_close(pfh);
-r:
-    free(pfh);
-    free(mc_con_file);
+    op_console(ctx, f_read, FA_READ);
 }
 
 inline static void save_console(cmd_ctx_t* ctx) {
-    char* tmp = get_ctx_var(ctx, TEMP);
-    if(!tmp) tmp = "";
-    size_t cdl = strlen(tmp);
-    char * mc_con_file = concat(tmp, _mc_con);
-    FIL* pfh = (FIL*)malloc(sizeof(FIL));
-    if (FR_OK != f_open(pfh, mc_con_file, FA_CREATE_ALWAYS | FA_WRITE)) {
-        goto r;
-    }
-    char* b = get_buffer();
-    uint32_t w = get_screen_width();
-    uint32_t h = get_screen_height();
-    uint8_t bit = get_screen_bitness();
-    size_t sz = (w * h * bit) >> 3;
-    UINT wb;
-    f_write(pfh, b, sz, &wb);
-    f_close(pfh);
-r:
-    free(pfh);
-    free(mc_con_file);
+    op_console(ctx, f_write, FA_CREATE_ALWAYS | FA_WRITE);
 }
 
 inline static void hide_pannels() {
@@ -659,6 +623,7 @@ int main(void) {
         fprintf(ctx->std_err, "Unexpected number of arguemts: %d\n", ctx->argc);
         return 1;
     }
+    graphics_set_con_pos(-1, 0);
     MAX_WIDTH = get_console_width();
     MAX_HEIGHT = get_console_height();
     F_BTN_Y_POS = TOTAL_SCREEN_LINES - 1;
@@ -687,6 +652,7 @@ int main(void) {
 
     set_scancode_handler(scancode_handler);
     free(pcs);
+    graphics_set_con_pos(0, PANEL_LAST_Y);
 
     return 0;
 }

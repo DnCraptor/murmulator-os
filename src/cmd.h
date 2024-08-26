@@ -90,6 +90,9 @@ void cmd_tab(cmd_ctx_t* ctx, string_t* s_cmd);
 int history_steps(cmd_ctx_t* ctx, int cmd_history_idx, string_t* s_cmd);
 bool cmd_enter_helper(cmd_ctx_t* ctx, string_t* s_cmd);
 
+typedef FRESULT (*FRFpvUpU_ptr_t)(FIL*, void*, UINT, UINT*);
+void op_console(cmd_ctx_t* ctx, FRFpvUpU_ptr_t fn, BYTE mode);
+
 #ifdef __cplusplus
 }
 #endif

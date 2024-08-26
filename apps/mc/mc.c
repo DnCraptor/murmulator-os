@@ -5,9 +5,7 @@
 
 const char CD[] = "CD";
 const char TEMP[] = "TEMP";
-const char _mc_con[] = ".mc.con";
 const char _mc_res[] = ".mc.res";
-const char _cmd_history[] = ".cmd_history";
 
 static void m_window();
 static void redraw_window();
@@ -1467,28 +1465,6 @@ inline static void handle_tab_pressed() {
         return;
     }
     select_left_panel();
-}
-
-static void op_console(cmd_ctx_t* ctx, FRFpvUpU_ptr_t fn, BYTE mode) {
-    char* tmp = get_ctx_var(ctx, TEMP);
-    if(!tmp) tmp = "";
-    size_t cdl = strlen(tmp);
-    char * mc_con_file = concat(tmp, _mc_con);
-    FIL* pfh = (FIL*)malloc(sizeof(FIL));
-    if (FR_OK != f_open(pfh, mc_con_file, mode)) {
-        goto r;
-    }
-    char* b = get_buffer();
-    uint32_t w = get_screen_width();
-    uint32_t h = get_screen_height();
-    uint8_t bit = get_screen_bitness();
-    size_t sz = (w * h * bit) >> 3;
-    UINT rb;
-    fn(pfh, b, sz, &rb);
-    f_close(pfh);
-r:
-    free(pfh);
-    free(mc_con_file);
 }
 
 inline static void restore_console(cmd_ctx_t* ctx) {

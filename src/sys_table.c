@@ -313,6 +313,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     history_steps, // 234
     cmd_enter_helper, // 235
     set_usb_detached_handler, // 236
+    op_console, // 237
     // TODO:
     0
 };
