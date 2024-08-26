@@ -2,7 +2,7 @@
 
 int main(void) {
     HeapStats_t* stat = malloc(sizeof(HeapStats_t));
-    vTaskSuspendAll();
+    // vTaskSuspendAll();
     uint32_t flash32 = get_cpu_flash_size();
     uint32_t ram32 = get_cpu_ram_size();
     uint32_t sz = psram_size();
@@ -41,7 +41,7 @@ int main(void) {
             stat->xMinimumEverFreeBytesRemaining, stat->xMinimumEverFreeBytesRemaining >> 10,
             stat->xNumberOfSuccessfulAllocations, stat->xNumberOfSuccessfulFrees
     );
-    xTaskResumeAll();
+    // xTaskResumeAll();
     free(stat);
     return 0;
 }

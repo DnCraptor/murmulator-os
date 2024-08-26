@@ -187,7 +187,7 @@ static void load_config_sys() {
                 t = next_token(t);
                 int cpu = atoi(t);
                 if (cpu > 123 && cpu < 450) {
-                    set_overclocking(cpu * 1000);
+                    set_last_overclocking(cpu * 1000);
                 }
             } else if (strcmp(t, BASE) == 0) {
                 t = next_token(t);
@@ -216,7 +216,9 @@ static void load_config_sys() {
         init_vram(t2);
         vPortFree(t2);
     }
-   // overclocking();
+    uint32_t overclocking = get_overclocking_khz();
+    set_sys_clock_khz(overclocking, true);
+    set_last_overclocking(overclocking);
 }
 
 extern "C" void vCmdTask(void *pv) {
@@ -489,7 +491,10 @@ static void init(void) {
 
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
     sleep_ms(10);
-    set_sys_clock_khz(get_overclocking_khz(), true);
+
+    uint32_t overclocking = get_overclocking_khz();
+    set_sys_clock_khz(overclocking, true);
+    set_last_overclocking(overclocking);
 
     keyboard_init();
     nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
