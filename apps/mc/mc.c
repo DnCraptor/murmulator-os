@@ -847,6 +847,10 @@ static fn_1_12_tbl_t fn_1_12_tbl_ctrl = {
     '1', '2', "      ", do_nothing
 };
 
+static void usb_detached_handler() {
+    redraw_window();
+}
+
 static void turn_usb_off(uint8_t cmd) {
     if (tud_msc_ejected()) return;
     usb_driver(false);
@@ -1740,9 +1744,11 @@ int main(void) {
     files_info_arr = new_array_v(fi_allocator, fi_deallocator, NULL);
     scancode_handler = get_scancode_handler();
     set_scancode_handler(scancode_handler_impl);
+    set_usb_detached_handler(usb_detached_handler);
 
     start_manager(ctx);
 
+    set_usb_detached_handler(NULL);
     set_scancode_handler(scancode_handler);
     delete_array(files_info_arr);
     free(line);

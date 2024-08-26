@@ -896,6 +896,12 @@ inline static FILINFO* readdir(DIR* d, FILINFO* fi) {
     return NULL;
 }
 
+typedef void (*usb_detached_handler_t)(void);
+inline static bool set_usb_detached_handler(usb_detached_handler_t h) {
+    typedef bool (*fn_ptr_t)(usb_detached_handler_t);
+    return ((fn_ptr_t)_sys_table_ptrs[236])(h);
+}
+
 #ifdef __cplusplus
 }
 #include "m-os-api-cpp-string.h"

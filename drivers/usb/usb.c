@@ -51,6 +51,13 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 void led_blinking_task(void);
 void cdc_task(void);
 
+static usb_detached_handler_t usb_detached_handler = NULL;
+
+bool set_usb_detached_handler(usb_detached_handler_t h) {
+    if (usb_detached_handler) return false;
+    usb_detached_handler = h;
+}
+
 static void usb_task(void *pv) {
     while (!tud_msc_ejected()) {
         pico_usb_drive_heartbeat();
@@ -62,6 +69,7 @@ static void usb_task(void *pv) {
         vTaskDelay(1);
     }
     vTaskDelete(NULL);
+    if (usb_detached_handler) usb_detached_handler();
 }
 
 void usb_driver(bool on) {

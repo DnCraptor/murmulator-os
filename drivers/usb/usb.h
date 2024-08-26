@@ -20,4 +20,7 @@ enum {
 int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize);
 void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_size);
 
+typedef void (*usb_detached_handler_t)(void);
+bool set_usb_detached_handler(usb_detached_handler_t h);
+
 #endif
