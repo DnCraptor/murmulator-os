@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 19
+#define M_API_VERSION 20
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
@@ -906,5 +906,20 @@ inline static FILINFO* readdir(DIR* d, FILINFO* fi) {
 #include "m-os-api-c-array.h"
 #include "m-os-api-c-string.h"
 #include "m-os-api-c-list.h"
+
+inline static void cmd_tab(cmd_ctx_t* ctx, string_t* s_cmd) {
+    typedef void (*fn_ptr_t)(cmd_ctx_t* ctx, string_t* s_cmd);
+    ((fn_ptr_t)_sys_table_ptrs[233])(ctx, s_cmd);
+}
+
+inline static int history_steps(cmd_ctx_t* ctx, int cmd_history_idx, string_t* s_cmd) {
+    typedef int (*fn_ptr_t)(cmd_ctx_t* ctx, int cmd_history_idx, string_t* s_cmd);
+    return ((fn_ptr_t)_sys_table_ptrs[234])(ctx, cmd_history_idx, s_cmd);
+}
+
+inline static bool cmd_enter_helper(cmd_ctx_t* ctx, string_t* s_cmd) {
+    typedef bool (*fn_ptr_t)(cmd_ctx_t* ctx, string_t* s_cmd);
+    return ((fn_ptr_t)_sys_table_ptrs[235])(ctx, s_cmd);
+}
 
 #endif

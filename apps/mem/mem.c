@@ -2,10 +2,12 @@
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
+    vTaskSuspendAll();
     uint32_t flash32 = get_cpu_flash_size();
     uint32_t ram32 = get_cpu_ram_size();
     uint32_t sz = psram_size();
     size_t free_sz = xPortGetFreeHeapSize();
+    xTaskResumeAll();
     fprintf(ctx->std_out,
             "SRAM size : %d (%dK) bytes (%dK free)\n"
             "FLASH size: %d (%dK) bytes (%dK free)\n"

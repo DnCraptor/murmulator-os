@@ -308,6 +308,10 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     __aeabi_f2uiz, // 230
     __aeabi_fcmple, // 231
     memmove, // 232
+    // API v.20
+    cmd_tab, // 233
+    history_steps, // 234
+    cmd_enter_helper, // 235
     // TODO:
     0
 };

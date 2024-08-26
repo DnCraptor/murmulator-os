@@ -921,7 +921,6 @@ static void redraw_window() {
     m_window();
     fill_panel(left_panel);
     fill_panel(right_panel);
-    draw_cmd_line();
     bottom_line();
 }
 

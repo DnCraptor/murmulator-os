@@ -501,3 +501,13 @@ inline static void vPortFree(void * pv) {
     typedef void (*vPortFree_ptr_t)( void * pv );
     ((vPortFree_ptr_t)_sys_table_ptrs[33])(pv);
 }
+
+inline static void vTaskSuspendAll( void ) {
+    typedef void (*v_ptr_t)( void  );
+    ((v_ptr_t)_sys_table_ptrs[_vTaskSuspendAllPtrIdx])();
+}
+
+inline static BaseType_t xTaskResumeAll( void ) {
+    typedef BaseType_t (*v_ptr_t)( void  );
+    return ((v_ptr_t)_sys_table_ptrs[_xTaskResumeAllPtrIdx])();
+}

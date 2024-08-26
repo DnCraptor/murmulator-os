@@ -80,6 +80,16 @@ char* concat2(const char* s1, size_t sz, const char* s2);
 char* copy_str(const char* s);
 void show_logo(bool with_top);
 
+
+// helpers for `cmd` and `mc` to reduce their size
+#include "FreeRTOS.h"
+#include "task.h"
+#include "../../api/m-os-api-c-string.h"
+
+void cmd_tab(cmd_ctx_t* ctx, string_t* s_cmd);
+int history_steps(cmd_ctx_t* ctx, int cmd_history_idx, string_t* s_cmd);
+bool cmd_enter_helper(cmd_ctx_t* ctx, string_t* s_cmd);
+
 #ifdef __cplusplus
 }
 #endif

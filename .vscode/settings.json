@@ -16,6 +16,7 @@
         "fnt8x16.h": "c",
         "font6x8.h": "c",
         "cstdio": "c",
-        "usb.h": "c"
+        "usb.h": "c",
+        "m-os-api-c-list.h": "c"
     }
 }

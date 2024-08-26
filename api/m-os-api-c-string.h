@@ -1,4 +1,5 @@
 #ifndef M_API_C_STRING
+#define M_API_C_STRING
 
 typedef struct string {
     size_t size; // string size excluding end-0
@@ -6,53 +7,50 @@ typedef struct string {
     char* p;
 } string_t;
 
-inline static string_t* new_string_v(void) {
-    string_t* res = malloc(sizeof(string_t));
+static string_t* new_string_v(void) {
+    string_t* res = (string_t*)pvPortMalloc(sizeof(string_t));
     res->size = 0,
     res->alloc = 16;
-    res->p = malloc(16);
+    res->p = (char*)pvPortMalloc(16);
     res->p[0] = 0;
     return res;
 }
 
-inline static string_t* string_subsrt(string_t* s, size_t start, size_t len) {
+static string_t* string_subsrt(string_t* s, size_t start, size_t len) {
     if (s->size < start) return NULL;
-    string_t* res = malloc(sizeof(string_t));
+    string_t* res = (string_t*)pvPortMalloc(sizeof(string_t));
     res->alloc = len + 1;
-    res->p = malloc(len + 1);
+    res->p = (char*)pvPortMalloc(len + 1);
     strncpy(res->p, s->p + start, len);
     res->size = strlen(res->p);
     res->p[len] = 0;
     return res;
 }
 
-inline static void delete_string(string_t* s) {
-    free(s->p);
-    free(s);
+static void delete_string(string_t* s) {
+    vPortFree(s->p);
+    vPortFree(s);
 }
 
-inline static string_t* new_string_cc(const char* s) {
-    string_t* res = malloc(sizeof(string_t));
+static string_t* new_string_cc(const char* s) {
+    string_t* res = (string_t*)pvPortMalloc(sizeof(string_t));
     res->size = strlen(s);
     res->alloc = res->size + 1;
-    res->p = malloc(res->alloc);
+    res->p = (char*)pvPortMalloc(res->alloc);
     strncpy(res->p, s, res->alloc);
     return res;
 }
 
-inline static void string_reseve(string_t* s, size_t alloc) {
+static void string_reseve(string_t* s, size_t alloc) {
     if (s->alloc >= alloc) return; // already more or eq. than requested
-    char* n_p = malloc(alloc);
+    char* n_p = (char*)pvPortMalloc(alloc);
     strncpy(n_p, s->p, s->alloc);
-    free(s->p);
+    vPortFree(s->p);
     s->p = n_p;
     s->alloc = alloc;
 }
 
-inline static void string_push_back_c(string_t* s, const char c) {
-    #ifdef DEBUG
-        printf("[string_push_back_c] [%s]<-[%c]\n", s->p, c);
-    #endif
+static void string_push_back_c(string_t* s, const char c) {
     if (!c) return;
     if (s->size + 1 == s->alloc) {
         string_reseve(s, s->alloc + 16);
@@ -61,7 +59,7 @@ inline static void string_push_back_c(string_t* s, const char c) {
     s->p[++s->size] = 0;
 }
 
-inline static void string_push_back_cc(string_t* s, const char* cs) {
+static void string_push_back_cc(string_t* s, const char* cs) {
     if(!cs) return;
     size_t cs_sz = strlen(cs);
     if(!cs_sz) return;
@@ -74,7 +72,7 @@ inline static void string_push_back_cc(string_t* s, const char* cs) {
     s->size = sz;
 }
 
-inline static void string_push_back_cs(string_t* s, const string_t* cs) {
+static void string_push_back_cs(string_t* s, const string_t* cs) {
     if(!cs) return;
     size_t sz = s->size + cs->size;
     if (sz >= s->alloc) {
@@ -85,7 +83,7 @@ inline static void string_push_back_cs(string_t* s, const string_t* cs) {
     s->size = sz;
 }
 
-inline void string_clip(string_t* s, size_t idx) {
+static void string_clip(string_t* s, size_t idx) {
     if (idx >= s->size) return;
     for (size_t i = idx; i <= s->size; ++i) {
         s->p[i] = s->p[i + 1];
@@ -93,7 +91,7 @@ inline void string_clip(string_t* s, size_t idx) {
     if (s->size) --s->size;
 }
 
-inline void string_resize(string_t* s, size_t sz) {
+static void string_resize(string_t* s, size_t sz) {
     if (sz >= s->alloc) {
         string_reseve(s, sz + 1);
     }
@@ -101,7 +99,7 @@ inline void string_resize(string_t* s, size_t sz) {
     s->size = sz;
 }
 
-inline void string_insert_c(string_t* s, char c, size_t idx) {
+static void string_insert_c(string_t* s, char c, size_t idx) {
     string_reseve(s, idx + 1);
     if (idx >= s->size) {
         size_t sps = idx - s->size;
@@ -117,7 +115,7 @@ inline void string_insert_c(string_t* s, char c, size_t idx) {
     s->p[++s->size] = 0;
 }
 
-inline string_t* string_split_at(string_t* s, size_t idx) {
+static string_t* string_split_at(string_t* s, size_t idx) {
     if (idx >= s->size) {
         return new_string_v();
     }
@@ -127,7 +125,7 @@ inline string_t* string_split_at(string_t* s, size_t idx) {
     return res;
 }
 
-inline void string_replace_cs(string_t* s, const char* cs) {
+static void string_replace_cs(string_t* s, const char* cs) {
     size_t sz = strlen(cs);
     if (sz >= s->alloc) {
         string_reseve(s, sz + 1);
@@ -137,7 +135,7 @@ inline void string_replace_cs(string_t* s, const char* cs) {
     s->size = sz;
 }
 
-inline void string_replace_ss(string_t* s, const string_t* ss) {
+static void string_replace_ss(string_t* s, const string_t* ss) {
     size_t sz = ss->size;
     if (sz >= s->alloc) {
         string_reseve(s, sz + 1);
@@ -150,7 +148,9 @@ inline void string_replace_ss(string_t* s, const string_t* ss) {
 inline static const char* c_str(const string_t* s) {
     return s->p;
 }
+
 inline static size_t c_strlen(const string_t* s) {
     return s->size;
 }
+
 #endif
