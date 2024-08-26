@@ -531,9 +531,6 @@ inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
 inline static void cmd_backspace() {
 }
 
-inline static void cmd_tab(cmd_ctx_t* ctx) {
-}
-
 inline static void handle_tab_pressed() {
     if (hidePannels) {
         return;
