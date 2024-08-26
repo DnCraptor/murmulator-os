@@ -329,17 +329,12 @@ extern "C" void show_logo(bool with_top) {
     uint32_t sz = strlen(tmp);
     uint32_t sps = (w - sz) / 2;
 
-    for(uint32_t x = 0; x < sps; ++x) {
+    for(uint32_t x = 0; x < w; ++x) {
         if(with_top) draw_text(" ", x, 0, 13, 1);
         draw_text(" ", x, y, 13, 1);
     }
     if(with_top) draw_text(tmp, sps, 0, 13, 1);
     draw_text(tmp, sps, y, 13, 1);
-    for(uint32_t x = sps + sz; x < w; ++x) {
-        if(with_top) draw_text(" ", x, 0, 13, 1);
-        draw_text(" ", x, y, 13, 1);
-    }
-
     graphics_set_con_color(7, 0); // TODO: config
 }
 
