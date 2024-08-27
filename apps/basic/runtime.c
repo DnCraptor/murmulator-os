@@ -595,7 +595,8 @@ inline static long freeRam() {
 /* 
  * the sleep and restart functions
  */
-bool marked_to_exit;
+volatile bool marked_to_exit;
+
 inline static void restartsystem() {
   marked_to_exit = true;
   //exit(0);

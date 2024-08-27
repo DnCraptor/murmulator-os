@@ -579,6 +579,7 @@ bool load_app(cmd_ctx_t* ctx) {
     uint32_t _fini_idx = 0xFFFFFFFF;
     uint32_t main_idx = 0xFFFFFFFF;
     uint32_t req_idx = 0xFFFFFFFF;
+    uint32_t sig_idx = 0xFFFFFFFF;
     // TODO: precalc req. size
     uint16_t max_sects = pehdr->sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
     bootb_ctx->sect_entries = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
@@ -606,6 +607,8 @@ bool load_app(cmd_ctx_t* ctx) {
                 _fini_idx = i;
             } else if (0 == strcmp("main", gfn)) {
                 main_idx = i;
+            } else if (0 == strcmp("signal", gfn)) {
+                sig_idx = i;
             }
         }
     }
@@ -613,6 +616,7 @@ bool load_app(cmd_ctx_t* ctx) {
     bootb_ctx->bootb[1] = load_sec2mem_wrapper(pctx, _init_idx);
     bootb_ctx->bootb[2] = load_sec2mem_wrapper(pctx, main_idx);
     bootb_ctx->bootb[3] = load_sec2mem_wrapper(pctx, _fini_idx);
+    bootb_ctx->bootb[4] = load_sec2mem_wrapper(pctx, sig_idx);
     vPortFree(psym);
 e3:
     vPortFree(strtab);
@@ -641,6 +645,8 @@ e1:
     }
     return true;
 }
+
+volatile bootb_ptr_t bootb_sync_signal = NULL;
 
 static void exec_sync(cmd_ctx_t* ctx) {
     #if DEBUG_APP_LOAD
@@ -684,8 +690,11 @@ static void exec_sync(cmd_ctx_t* ctx) {
     }
     #if DEBUG_APP_LOAD
     goutf("EXEC main: [%p]\n", bootb_ctx->bootb[2]);
+    goutf("EXEC signal: [%p]\n", bootb_sync_signal);
     #endif
+    bootb_sync_signal = bootb_ctx->bootb[4];
     int res = bootb_ctx->bootb[2] ? bootb_ctx->bootb[2]() : -3;
+    bootb_sync_signal = NULL;
     #if DEBUG_APP_LOAD
     goutf("EXEC RET_CODE: %d -> _fini: %p\n", res, bootb_ctx->bootb[3]);
     #endif
@@ -738,4 +747,105 @@ void exec(cmd_ctx_t* ctx) {
         }
         ctx = pipe_ctx;
     } while(ctx);
+}
+
+void mallocFailedHandler() {
+    gouta("WARN: malloc failed\n");
+    {
+        HeapStats_t stat;
+        vPortGetHeapStats(&stat);
+        goutf(
+            "Heap memory: %d (%dK)\n"
+            " available bytes total: %d (%dK)\n"
+            "         largets block: %d (%dK)\n",
+            configTOTAL_HEAP_SIZE, configTOTAL_HEAP_SIZE >> 10,
+            stat.xAvailableHeapSpaceInBytes, stat.xAvailableHeapSpaceInBytes >> 10,
+            stat.xSizeOfLargestFreeBlockInBytes, stat.xSizeOfLargestFreeBlockInBytes >> 10
+        );
+        goutf(
+            "        smallest block: %d (%dK)\n"
+            "           free blocks: %d\n"
+            "    min free remaining: %d (%dK)\n"
+            "           allocations: %d\n"
+            "                 frees: %d\n",
+            stat.xSizeOfSmallestFreeBlockInBytes, stat.xSizeOfSmallestFreeBlockInBytes >> 10,
+            stat.xNumberOfFreeBlocks,
+            stat.xMinimumEverFreeBytesRemaining, stat.xMinimumEverFreeBytesRemaining >> 10,
+            stat.xNumberOfSuccessfulAllocations, stat.xNumberOfSuccessfulFrees
+        );
+    }
+}
+
+void overflowHook( TaskHandle_t pxTask, char *pcTaskName ) {
+    goutf("WARN: stack overflow on task: '%s'\n", pcTaskName);
+}
+
+void vCmdTask(void *pv) {
+    const TaskHandle_t th = xTaskGetCurrentTaskHandle();
+    cmd_ctx_t* ctx = get_cmd_startup_ctx();
+    vTaskSetThreadLocalStoragePointer(th, 0, ctx);
+    while(1) {
+        if (!ctx->argc && !ctx->argv) {
+            ctx->argc = 1;
+            ctx->argv = (char**)pvPortMalloc(sizeof(char*));
+            char* comspec = get_ctx_var(ctx, "COMSPEC");
+            ctx->argv[0] = copy_str(comspec);
+            if(ctx->orig_cmd) vPortFree(ctx->orig_cmd);
+            ctx->orig_cmd = copy_str(comspec);
+        }
+        // goutf("Lookup for: %s\n", ctx->orig_cmd);
+        // goutf("be [%p]\n", xPortGetFreeHeapSize());
+        bool b_exists = exists(ctx);
+        // goutf("ae [%p]\n", xPortGetFreeHeapSize());
+        if (b_exists) {
+            size_t len = strlen(ctx->orig_cmd); // TODO: more than one?
+            // goutf("Command found: %s\n", ctx->orig_cmd);
+            if (len > 3 && strcmp(ctx->orig_cmd + len - 4, ".uf2") == 0) {
+                if(load_firmware(ctx->orig_cmd)) { // TODO: by ctx
+                    ctx->stage = LOAD;
+                    run_app(ctx->orig_cmd);
+                    ctx->stage = EXECUTED;
+                    cleanup_ctx(ctx);
+                } else {
+                    goutf("Unable to execute command: '%s' (failed to load it)\n", ctx->orig_cmd);
+                    ctx->stage = INVALIDATED;
+                    goto e;
+                }
+            } else if(is_new_app(ctx)) {
+                // gouta("Command has appropriate format\n");
+                if (load_app(ctx)) {
+                    // goutf("Load passed for: %s\n", ctx->orig_cmd);
+                    exec(ctx);
+                   // while(!__getch());
+                    // goutf("Exec passed for: %s\n", ctx->orig_cmd);
+                } else {
+                    goutf("Unable to execute command: '%s' (failed to load it)\n", ctx->orig_cmd);
+                    ctx->stage = INVALIDATED;
+                    goto e;
+                }
+            } else {
+                goutf("Unable to execute command: '%s' (unknown format)\n", ctx->orig_cmd);
+                ctx->stage = INVALIDATED;
+                goto e;
+            }
+        } else {
+            goutf("Illegal command: '%s'\n", ctx->orig_cmd);
+            ctx->stage = INVALIDATED;
+            goto e;
+        }
+        // repair system context
+        ctx = get_cmd_startup_ctx();
+        vTaskSetThreadLocalStoragePointer(th, 0, ctx);
+        continue;
+e:
+        if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
+            cleanup_ctx(ctx);
+        }
+    }
+    vTaskDelete( NULL );
+}
+
+// support sygnal for current "sync_ctx" context only for now
+void app_signal(void) {
+    if (bootb_sync_signal) bootb_sync_signal();
 }

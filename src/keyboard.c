@@ -4,6 +4,7 @@
 #include "ps2.h"
 #include "ff.h"
 #include "cmd.h"
+#include "app.h"
 #include "overclock.h"
 
 static kbd_state_t ks = { 0 };
@@ -257,8 +258,9 @@ bool __scratch_y("kbd_driver_text") handleScancode(const uint32_t ps2scancode) {
             }
         }
         if (cp866_handler) cp866_handler(c, ps2scancode);
-        if (ks.bCtrlPressed && ps2scancode == 0x2E) {
+        if (ks.bCtrlPressed && ps2scancode == 0x2E) { // Ctrl+C
             __c = -1; // EOF
+            app_signal();
         } else {
             __c = c;
         }

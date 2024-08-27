@@ -9037,7 +9037,7 @@ static void statement(){
 	if (fncontext == 0) if (setjmp(sthook)) goto errorhandler;
 #endif
 /* the core loop processing commands */
-	while (token != EOL) {
+	while ( token != EOL && !marked_to_exit ) {
 #ifdef HASSTEFANSEXT
 /* debug level 1 happens only in the statement loop */
 		if (debuglevel == 1) { debugtoken(); outcr(); }
@@ -9617,4 +9617,9 @@ int _init(void) {
 
 int __required_m_api_verion(void) {
     return M_API_VERSION;
+}
+
+// only SIGKILL is supported for now
+int signal(void) {
+	marked_to_exit = true;
 }

@@ -18,6 +18,7 @@
         "cstdio": "c",
         "usb.h": "c",
         "m-os-api-c-list.h": "c",
-        "rp2040_config.h": "c"
+        "rp2040_config.h": "c",
+        "app.h": "c"
     }
 }
