@@ -1,8 +1,6 @@
 #include "m-os-api.h"
 #include "m-os-api-sdtfn.h"
 
-volatile bool marked_to_exit;
-
 /*
 from https://eax.me/scala-wav/
 Смещение   Байт  Описание
@@ -396,14 +394,4 @@ e2:
 e1:
     free(f);
     return res;
-}
-
-int __required_m_api_verion(void) {
-    return M_API_VERSION;
-}
-
-// only SIGKILL is supported for now
-int signal(void) {
-	marked_to_exit = true;
-    return 0;
 }

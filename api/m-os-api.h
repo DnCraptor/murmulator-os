@@ -964,6 +964,20 @@ inline static int kill(uint32_t task_n) {
     return ((fn_ptr_t)_sys_table_ptrs[244])(task_n);
 }
 
+#ifndef marked_to_exit
+volatile bool marked_to_exit;
+
+int __required_m_api_verion(void) {
+    return M_API_VERSION;
+}
+
+// only SIGKILL is supported for now
+int signal(void) {
+	marked_to_exit = true;
+    return 0;
+}
+#endif
+
 #ifdef __cplusplus
 }
 #include "m-os-api-cpp-string.h"
