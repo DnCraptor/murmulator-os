@@ -1121,7 +1121,13 @@ char mqttread() {return 0;};
 inline static uint16_t aread(uint8_t p) { return 0; }
 inline static uint8_t dread(uint8_t p) { return 0; }
 inline static void awrite(uint8_t p, uint16_t v){}
+#ifdef MURMULATOR
+inline static void dwrite(uint8_t p, uint8_t v) {
+  gpio_put(p, v > 0);
+}
+#else
 inline static void dwrite(uint8_t p, uint8_t v){}
+#endif
 inline static void pinm(uint8_t p, uint8_t m){}
 
 /* wrapper around pulsein */
