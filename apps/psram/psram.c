@@ -1,14 +1,19 @@
 #include "m-os-api.h"
 #include <hardware/timer.h>
 
+volatile bool marked_to_exit;
+
 int main(void) {
+    marked_to_exit = false;
     FIL * f = get_stdout();
     uint32_t sz = psram_size();
     fgoutf(f, "PSRAM size: %d bytes\n", sz);
+    if (marked_to_exit) return 0;
 
     uint8_t rx8[8];
     psram_id(rx8);
     fgoutf(f, "MF ID: %02x; KGD: %02x; EID: %02x%02x-%02x%02x-%02x%02x\n", rx8[0], rx8[1], rx8[2], rx8[3], rx8[4], rx8[5], rx8[6], rx8[7]);
+    if (marked_to_exit) return 0;
 
     uint32_t a = 0;
     uint32_t begin = time_us_32();
@@ -19,6 +24,7 @@ int main(void) {
     double d = 1.0;
     double speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "8-bit line write speed: %f MBps\n", speed);
+    if (marked_to_exit) return 0;
     begin = time_us_32();
     for (a = 0; a < sz; ++a) {
         if ((a & 0xFF) != read8psram(a)) {
@@ -29,6 +35,7 @@ int main(void) {
     elapsed = time_us_32() - begin;
     speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "8-bit line read speed: %f MBps\n", speed);
+    if (marked_to_exit) return 0;
 
     begin = time_us_32();
     for (a = 0; a < sz; a += 2) {
@@ -37,6 +44,7 @@ int main(void) {
     elapsed = time_us_32() - begin;
     speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "16-bit line write speed: %f MBps\n", speed);
+    if (marked_to_exit) return 0;
 
     begin = time_us_32();
     for (a = 0; a < sz; a += 2) {
@@ -48,6 +56,7 @@ int main(void) {
     elapsed = time_us_32() - begin;
     speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "16-bit line read speed: %f MBps\n", speed);
+    if (marked_to_exit) return 0;
 
     begin = time_us_32();
     for (a = 0; a < sz; a += 4) {
@@ -56,6 +65,7 @@ int main(void) {
     elapsed = time_us_32() - begin;
     speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "32-bit line write speed: %f MBps\n", speed);
+    if (marked_to_exit) return 0;
 
     begin = time_us_32();
     for (a = 0; a < sz; a += 4) {
@@ -72,4 +82,9 @@ int main(void) {
 
 int __required_m_api_verion(void) {
     return M_API_VERSION;
+}
+
+// only SIGKILL is supported for now
+int signal(void) {
+	marked_to_exit = true;
 }
