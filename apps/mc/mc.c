@@ -1427,7 +1427,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             else if (c == CHAR_CODE_ENTER) enter_pressed();
             else if (c == CHAR_CODE_ESC) esc_pressed();
             else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
-            else type_char(c);
+            else if (c != CHAR_CODE_EOF) type_char(c);
         }
 
         if (is_dendy_joystick) {
@@ -1562,6 +1562,7 @@ int main(void) {
     set_usb_detached_handler(usb_detached_handler);
 
     start_manager(ctx);
+
     set_usb_detached_handler(NULL);
     set_scancode_handler(scancode_handler);
     delete_array(files_info_arr);

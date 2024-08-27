@@ -426,6 +426,7 @@ inline static bool run_new_app(cmd_ctx_t* c) {
 #define CHAR_CODE_ENTER '\n'
 #define CHAR_CODE_TAB   '\t'
 #define CHAR_CODE_ESC   0x1B
+#define CHAR_CODE_EOF   0xFF
 
 inline static char getch(void) {
     typedef char (*fn_ptr_t)(void);

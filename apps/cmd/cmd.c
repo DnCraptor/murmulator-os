@@ -95,7 +95,8 @@ int main(void) {
                     //goutf("[%s]EXIT to exec, stage: %d\n", ctx->curr_dir, ctx->stage);
                     return 0;
                 }
-            } else type_char(c);
+            }
+            else if (c != CHAR_CODE_EOF) type_char(c);
         }
     }
     __unreachable();
