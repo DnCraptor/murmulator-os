@@ -633,3 +633,32 @@ r:
     vPortFree(pfh);
     vPortFree(mc_con_file);
 }
+
+bool f_read_str(FIL* f, char* buf, size_t lim) {
+    UINT br;
+    if (f_read(f, buf, lim, &br) != FR_OK || br == 0) {
+        return false;
+    }
+    if (buf[0] == '\r') {
+        for (size_t i = 1; i < br; ++i) {
+            buf[i - 1] = buf[i];
+            if(buf[i] == '\n') {
+               if (i != 1 && buf[i - 2] == '\r') buf[i - 2] = 0;
+                buf[i - 1] = 0;
+                f_lseek(f, f_tell(f) + i - br);
+                return true;
+            }
+        }
+    }
+    for (size_t i = 0; i < br; ++i) {
+        if(buf[i] == '\n') {
+            if (i != 0 && buf[i - 1] == '\r') buf[i - 1] = 0;
+            buf[i] = 0;
+            f_lseek(f, f_tell(f) + i + 1 - br);
+            return true;
+        }
+    }
+    buf[br - 1] = 0;
+    f_lseek(f, f_tell(f) - 1);
+    return true;
+}

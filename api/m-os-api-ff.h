@@ -266,5 +266,12 @@ inline static FRESULT f_open_pipe(FIL* to, FIL* from) {
 inline static bool f_eof(FIL* fp) {
 	return ((int)((fp)->fptr == (fp)->obj.objsize));
 }
+
+inline static bool f_read_str(FIL* f, char* buf, size_t lim) {
+    typedef bool (*fn_ptr_t)(FIL* f, char* buf, size_t lim);
+    return ((fn_ptr_t)_sys_table_ptrs[238])(f, buf, lim);
+}
+
+
 #define feof(f) f_eof(f)
 #define remove(f) f_unlink(f)

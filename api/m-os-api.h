@@ -908,6 +908,56 @@ inline static void op_console(cmd_ctx_t* ctx, FRFpvUpU_ptr_t fn, BYTE mode) {
     ((fn_ptr_t)_sys_table_ptrs[237])(ctx, fn, mode);
 }
 
+typedef struct color_schema {
+    uint8_t BACKGROUND_FIELD_COLOR;
+    uint8_t FOREGROUND_FIELD_COLOR;
+    uint8_t HIGHLIGHTED_FIELD_COLOR;
+    uint8_t BACKGROUND_F1_12_COLOR;
+    uint8_t FOREGROUND_F1_12_COLOR;
+    uint8_t BACKGROUND_F_BTN_COLOR;
+    uint8_t FOREGROUND_F_BTN_COLOR;
+    uint8_t BACKGROUND_CMD_COLOR;
+    uint8_t FOREGROUND_CMD_COLOR;
+    uint8_t BACKGROUND_SEL_BTN_COLOR;
+    uint8_t FOREGROUND_SELECTED_COLOR;
+    uint8_t BACKGROUND_SELECTED_COLOR;
+} color_schema_t;
+
+inline static 
+void draw_label(color_schema_t* pcs, int left, int top, int width, char* txt, bool selected, bool highlighted) {
+    typedef void (*fn_ptr_t)(color_schema_t* pcs, int left, int top, int width, char* txt, bool selected, bool highlighted);
+    ((fn_ptr_t)_sys_table_ptrs[239])(pcs, left, top, width, txt, selected, highlighted);
+}
+
+typedef struct line {
+   int8_t off;
+   char* txt;
+} line_t;
+
+typedef struct lines {
+   uint8_t sz;
+   uint8_t toff;
+   line_t* plns;
+} lines_t;
+
+inline static 
+void draw_box(color_schema_t* pcs, int left, int top, int width, int height, const char* title, const lines_t* plines) {
+    typedef void (*fn_ptr_t)(color_schema_t* pcs, int left, int top, int width, int height, const char* title, const lines_t* plines);
+    ((fn_ptr_t)_sys_table_ptrs[240])(pcs, left, top, width, height, title, plines);
+}
+
+inline static 
+void draw_panel(color_schema_t* pcs, int left, int top, int width, int height, char* title, char* bottom) {
+    typedef void (*fn_ptr_t)(color_schema_t* pcs, int left, int top, int width, int height, char* title, char* bottom);
+    ((fn_ptr_t)_sys_table_ptrs[241])(pcs, left, top, width, height, title, bottom);
+}
+
+inline static 
+void draw_button(color_schema_t* pcs, int left, int top, int width, const char* txt, bool selected) {
+    typedef void (*fn_ptr_t)(color_schema_t* pcs, int left, int top, int width, const char* txt, bool selected);
+    ((fn_ptr_t)_sys_table_ptrs[242])(pcs, left, top, width, txt, selected);
+}
+
 #ifdef __cplusplus
 }
 #include "m-os-api-cpp-string.h"

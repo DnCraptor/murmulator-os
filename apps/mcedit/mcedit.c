@@ -3,17 +3,6 @@
 const char TEMP[] = "TEMP";
 const char _mc_con[] = ".mc.con";
 
-typedef struct line {
-   int8_t off;
-   char* txt;
-} line_t;
-
-typedef struct lines {
-   uint8_t sz;
-   uint8_t toff;
-   line_t* plns;
-} lines_t;
-
 static void m_window();
 static void redraw_window();
 static void bottom_line();
@@ -74,20 +63,6 @@ typedef struct fn_1_12_tbl_rec {
 #define BTNS_COUNT 12
 typedef fn_1_12_tbl_rec_t fn_1_12_tbl_t[BTNS_COUNT];
 
-typedef struct color_schema {
-    uint8_t BACKGROUND_FIELD_COLOR;
-    uint8_t FOREGROUND_FIELD_COLOR;
-    uint8_t HIGHLIGHTED_FIELD_COLOR;
-    uint8_t BACKGROUND_F1_12_COLOR;
-    uint8_t FOREGROUND_F1_12_COLOR;
-    uint8_t BACKGROUND_F_BTN_COLOR;
-    uint8_t FOREGROUND_F_BTN_COLOR;
-    uint8_t BACKGROUND_CMD_COLOR;
-    uint8_t FOREGROUND_CMD_COLOR;
-    uint8_t BACKGROUND_SEL_BTN_COLOR;
-    uint8_t FOREGROUND_SELECTED_COLOR;
-    uint8_t BACKGROUND_SELECTED_COLOR;
-} color_schema_t;
 static color_schema_t* pcs;
 
 void* memset(void* p, int v, size_t sz) {
@@ -121,125 +96,6 @@ int _init(void) {
     scan_code_cleanup();
 }
 
-static bool f_read_str(FIL* f, char* buf, size_t lim) { // TODO: API
-    UINT br;
-    if (f_read(f, buf, lim, &br) != FR_OK || br == 0) {
-        return false;
-    }
-    if (buf[0] == '\r') {
-        for (size_t i = 1; i < br; ++i) {
-            buf[i - 1] = buf[i];
-            if(buf[i] == '\n') {
-               if (i != 1 && buf[i - 2] == '\r') buf[i - 2] = 0;
-                buf[i - 1] = 0;
-                f_lseek(f, f_tell(f) + i - br);
-                return true;
-            }
-        }
-    }
-    for (size_t i = 0; i < br; ++i) {
-        if(buf[i] == '\n') {
-            if (i != 0 && buf[i - 1] == '\r') buf[i - 1] = 0;
-            buf[i] = 0;
-            f_lseek(f, f_tell(f) + i + 1 - br);
-            return true;
-        }
-    }
-    buf[br - 1] = 0;
-    f_lseek(f, f_tell(f) - 1);
-    return true;
-}
-
-static void draw_label(int left, int top, int width, char* txt, bool selected, bool highlighted) {
-    char line[MAX_WIDTH + 2];
-    bool fin = false;
-    for (int i = 0; i < width; ++i) {
-        if (!fin) {
-            if (!txt[i]) {
-                fin = true;
-                line[i] = ' ';
-            } else {
-                line[i] = txt[i];
-            }
-        } else {
-            line[i] = ' ';
-        }
-    }
-    line[width] = 0;
-    int fgc = selected ? pcs->FOREGROUND_SELECTED_COLOR : highlighted ? pcs->HIGHLIGHTED_FIELD_COLOR : pcs->FOREGROUND_FIELD_COLOR;
-    int bgc = selected ? pcs->BACKGROUND_SELECTED_COLOR : pcs->BACKGROUND_FIELD_COLOR;
-    draw_text(line, left, top, fgc, bgc);
-}
-
-
-static void draw_panel(int left, int top, int width, int height, char* title, char* bottom) {
-    if (hidePannels) return;
-    char line[MAX_WIDTH + 2];
-    // top line
-    for(int i = 1; i < width - 1; ++i) {
-        line[i] = 0xCD; // ═
-    }
-    line[0]         = 0xC9; // ╔
-    line[width - 1] = 0xBB; // ╗
-    line[width]     = 0;
-    draw_text(line, left, top, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR); 
-    if (title) {
-        int sl = strlen(title);
-        if (width - 4 < sl) {
-            title -= width + 4; // cat title
-            sl -= width + 4;
-        }
-        int title_left = left + (width - sl) / 2;
-        snprintf(line, MAX_WIDTH, " %s ", title);
-        draw_text(line, title_left, top, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-    }
-    // middle lines
-    memset(line, ' ', width);
-    line[0]         = 0xBA; // ║
-    line[width - 1] = 0xBA;
-    line[width]     = 0;
-    for (int y = top + 1; y < top + height - 1; ++y) {
-        draw_text(line, left, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-    }
-    // bottom line
-    for(int i = 1; i < width - 1; ++i) {
-        line[i] = 0xCD; // ═
-    }
-    line[0]         = 0xC8; // ╚
-    line[width - 1] = 0xBC; // ╝
-    line[width]     = 0;
-    draw_text(line, left, top + height - 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-    if (bottom) {
-        int sl = strlen(bottom);
-        if (width - 4 < sl) {
-            bottom -= width + 4; // cat bottom
-            sl -= width + 4;
-        } 
-        int bottom_left = (width - sl) / 2;
-        snprintf(line, MAX_WIDTH, " %s ", bottom);
-        draw_text(line, bottom_left, top + height - 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-    }
-}
-
-static void draw_box(int left, int top, int width, int height, const char* title, const lines_t* plines) {
-    draw_panel(left, top, width, height, title, 0);
-    int y = top + 1;
-    for (int i = y; y < top + height - 1; ++y) {
-        draw_label(left + 1, y, width - 2, "", false, false);
-    }
-    for (int i = 0, y = top + 1 + plines->toff; i < plines->sz; ++i, ++y) {
-        const line_t * pl = plines->plns + i;
-        uint8_t off;
-        if (pl->off < 0) {
-            size_t len = strnlen(pl->txt, MAX_WIDTH);
-            off = width - 2 > len ? (width - len) >> 1 : 0;
-        } else {
-            off = pl->off;
-        }
-        draw_label(left + 1 + off, y, width - 2 - off, pl->txt, false, false);
-    }
-}
-
 static void do_nothing(uint8_t cmd) {
     char line[32];
     snprintf(line, MAX_WIDTH, "CMD: F%d", cmd + 1);
@@ -248,35 +104,9 @@ static void do_nothing(uint8_t cmd) {
         { -1, line }
     };
     const lines_t lines = { 2, 3, lns };
-    draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Info", &lines);
+    draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Info", &lines);
     vTaskDelay(1500);
     redraw_window();
-}
-
-static void draw_button(int left, int top, int width, const char* txt, bool selected) {
-    int len = strlen(txt);
-    if (len > 39) return;
-    char tmp[40];
-    int start = (width - len) / 2;
-    for (int i = 0; i < start; ++i) {
-        tmp[i] = ' ';
-    }
-    bool fin = false;
-    int j = 0;
-    for (int i = start; i < width; ++i) {
-        if (!fin) {
-            if (!txt[j]) {
-                fin = true;
-                tmp[i] = ' ';
-            } else {
-                tmp[i] = txt[j++];
-            }
-        } else {
-            tmp[i] = ' ';
-        }
-    }
-    tmp[width] = 0;
-    draw_text(tmp, left, top, pcs->FOREGROUND_F_BTN_COLOR, selected ? pcs->BACKGROUND_SEL_BTN_COLOR : pcs->BACKGROUND_F_BTN_COLOR);
 }
 
 static bool m_prompt(const char* txt) {
@@ -287,10 +117,10 @@ static bool m_prompt(const char* txt) {
     size_t width = MAX_WIDTH > 60 ? 60 : 40;
     size_t shift = MAX_WIDTH > 60 ? 10 : 0;
     size_t x = (MAX_WIDTH - width) >> 1;
-    draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Are you sure?", &lines);
+    draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Are you sure?", &lines);
     bool yes = true;
-    draw_button(x + shift + 6, 12, 11, "Yes", yes);
-    draw_button(x + shift + 25, 12, 10, "No", !yes);
+    draw_button(pcs, x + shift + 6, 12, 11, "Yes", yes);
+    draw_button(pcs, x + shift + 25, 12, 10, "No", !yes);
     while(1) {
         char c = getch_now();
         if (c) {
@@ -305,8 +135,8 @@ static bool m_prompt(const char* txt) {
         }
         if (c == CHAR_CODE_TAB || leftPressed || rightPressed) { // TODO: own msgs cycle
             yes = !yes;
-            draw_button(x + shift + 6, 12, 11, "Yes", yes);
-            draw_button(x + shift + 25, 12, 10, "No", !yes);
+            draw_button(pcs, x + shift + 6, 12, 11, "Yes", yes);
+            draw_button(pcs, x + shift + 25, 12, 10, "No", !yes);
             leftPressed = rightPressed = false;
             scan_code_cleanup();
         }
@@ -323,7 +153,7 @@ static void m_info(uint8_t cmd) {
         { 1, " Let edit this file and do not miss to save it using F2 button." }
     };
     lines_t lines = { 2, 0, plns };
-    draw_box(5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
+    draw_box(pcs, 5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
     char c;
     do {
         c = getch();
@@ -438,7 +268,7 @@ static void m_window() {
     if (hidePannels) return;
     char buff[64];
     cmd_ctx_t* ctx = get_cmd_ctx();
-    draw_panel(0, PANEL_TOP_Y, MAX_WIDTH, PANEL_LAST_Y + 1, ctx->argv[1], 0);
+    draw_panel(pcs, 0, PANEL_TOP_Y, MAX_WIDTH, PANEL_LAST_Y + 1, ctx->argv[1], 0);
 
     size_t y = 1;
     size_t line = 0;
@@ -882,7 +712,7 @@ inline static void start_editor(cmd_ctx_t* ctx) {
             { -1, line }
         };
         const lines_t lines = { 2, 3, lns };
-        draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+        draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
         vTaskDelay(1500);
         return false;
     }

@@ -126,6 +126,38 @@ uint8_t graphics_get_font_height(void);
 bool graphics_set_font(uint8_t, uint8_t);
 bool graphics_set_ext_font(uint8_t*, uint8_t, uint8_t);
 
+typedef struct color_schema {
+    uint8_t BACKGROUND_FIELD_COLOR;
+    uint8_t FOREGROUND_FIELD_COLOR;
+    uint8_t HIGHLIGHTED_FIELD_COLOR;
+    uint8_t BACKGROUND_F1_12_COLOR;
+    uint8_t FOREGROUND_F1_12_COLOR;
+    uint8_t BACKGROUND_F_BTN_COLOR;
+    uint8_t FOREGROUND_F_BTN_COLOR;
+    uint8_t BACKGROUND_CMD_COLOR;
+    uint8_t FOREGROUND_CMD_COLOR;
+    uint8_t BACKGROUND_SEL_BTN_COLOR;
+    uint8_t FOREGROUND_SELECTED_COLOR;
+    uint8_t BACKGROUND_SELECTED_COLOR;
+} color_schema_t;
+
+typedef struct line {
+   int8_t off;
+   char* txt;
+} line_t;
+
+typedef struct lines {
+   uint8_t sz;
+   uint8_t toff;
+   line_t* plns;
+} lines_t;
+
+
+void draw_label(color_schema_t* pcs, int left, int top, int width, char* txt, bool selected, bool highlighted);
+void draw_box(color_schema_t* pcs, int left, int top, int width, int height, const char* title, const lines_t* plines);
+void draw_panel(color_schema_t* pcs, int left, int top, int width, int height, char* title, char* bottom);
+void draw_button(color_schema_t* pcs, int left, int top, int width, const char* txt, bool selected);
+
 #ifdef __cplusplus
 }
 #endif

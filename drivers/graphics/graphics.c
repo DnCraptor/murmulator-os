@@ -863,3 +863,117 @@ void common_draw_text(const char* string, int x, int y, uint8_t color, uint8_t b
 const uint8_t textmode_palette[16] = {
     200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215
 };
+
+void draw_label(color_schema_t* pcs, int left, int top, int width, char* txt, bool selected, bool highlighted) {
+    char line[width + 2];
+    bool fin = false;
+    for (int i = 0; i < width; ++i) {
+        if (!fin) {
+            if (!txt[i]) {
+                fin = true;
+                line[i] = ' ';
+            } else {
+                line[i] = txt[i];
+            }
+        } else {
+            line[i] = ' ';
+        }
+    }
+    line[width] = 0;
+    int fgc = selected ? pcs->FOREGROUND_SELECTED_COLOR : highlighted ? pcs->HIGHLIGHTED_FIELD_COLOR : pcs->FOREGROUND_FIELD_COLOR;
+    int bgc = selected ? pcs->BACKGROUND_SELECTED_COLOR : pcs->BACKGROUND_FIELD_COLOR;
+    draw_text(line, left, top, fgc, bgc);
+}
+
+void draw_box(color_schema_t* pcs, int left, int top, int width, int height, const char* title, const lines_t* plines) {
+    draw_panel(pcs, left, top, width, height, title, 0);
+    int y = top + 1;
+    for (int i = y; y < top + height - 1; ++y) {
+        draw_label(pcs, left + 1, y, width - 2, "", false, false);
+    }
+    for (int i = 0, y = top + 1 + plines->toff; i < plines->sz; ++i, ++y) {
+        const line_t * pl = plines->plns + i;
+        uint8_t off;
+        if (pl->off < 0) {
+            size_t len = strnlen(pl->txt, width);
+            off = width - 2 > len ? (width - len) >> 1 : 0;
+        } else {
+            off = pl->off;
+        }
+        draw_label(pcs, left + 1 + off, y, width - 2 - off, pl->txt, false, false);
+    }
+}
+
+void draw_panel(color_schema_t* pcs, int left, int top, int width, int height, char* title, char* bottom) {
+    char line[width + 2];
+    // top line
+    for(int i = 1; i < width - 1; ++i) {
+        line[i] = 0xCD; // ═
+    }
+    line[0]         = 0xC9; // ╔
+    line[width - 1] = 0xBB; // ╗
+    line[width]     = 0;
+    draw_text(line, left, top, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR); 
+    if (title) {
+        int sl = strlen(title);
+        if (width - 4 < sl) {
+            title -= width + 4; // cat title
+            sl -= width + 4;
+        }
+        int title_left = left + (width - sl) / 2;
+        snprintf(line, width, " %s ", title);
+        draw_text(line, title_left, top, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+    }
+    // middle lines
+    memset(line, ' ', width);
+    line[0]         = 0xBA; // ║
+    line[width - 1] = 0xBA;
+    line[width]     = 0;
+    for (int y = top + 1; y < top + height - 1; ++y) {
+        draw_text(line, left, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+    }
+    // bottom line
+    for(int i = 1; i < width - 1; ++i) {
+        line[i] = 0xCD; // ═
+    }
+    line[0]         = 0xC8; // ╚
+    line[width - 1] = 0xBC; // ╝
+    line[width]     = 0;
+    draw_text(line, left, top + height - 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+    if (bottom) {
+        int sl = strlen(bottom);
+        if (width - 4 < sl) {
+            bottom -= width + 4; // cat bottom
+            sl -= width + 4;
+        } 
+        int bottom_left = (width - sl) / 2;
+        snprintf(line, width, " %s ", bottom);
+        draw_text(line, bottom_left, top + height - 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
+    }
+}
+
+void draw_button(color_schema_t* pcs, int left, int top, int width, const char* txt, bool selected) {
+    int len = strlen(txt);
+    if (len > 39) return;
+    char tmp[40];
+    int start = (width - len) / 2;
+    for (int i = 0; i < start; ++i) {
+        tmp[i] = ' ';
+    }
+    bool fin = false;
+    int j = 0;
+    for (int i = start; i < width; ++i) {
+        if (!fin) {
+            if (!txt[j]) {
+                fin = true;
+                tmp[i] = ' ';
+            } else {
+                tmp[i] = txt[j++];
+            }
+        } else {
+            tmp[i] = ' ';
+        }
+    }
+    tmp[width] = 0;
+    draw_text(tmp, left, top, pcs->FOREGROUND_F_BTN_COLOR, selected ? pcs->BACKGROUND_SEL_BTN_COLOR : pcs->BACKGROUND_F_BTN_COLOR);
+}

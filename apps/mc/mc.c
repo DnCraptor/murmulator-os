@@ -111,32 +111,6 @@ static file_panel_desc_t* left_panel;
 static file_panel_desc_t* right_panel;
 static file_panel_desc_t* psp;
 
-typedef struct color_schema {
-    uint8_t BACKGROUND_FIELD_COLOR;
-    uint8_t FOREGROUND_FIELD_COLOR;
-    uint8_t HIGHLIGHTED_FIELD_COLOR;
-    uint8_t BACKGROUND_F1_12_COLOR;
-    uint8_t FOREGROUND_F1_12_COLOR;
-    uint8_t BACKGROUND_F_BTN_COLOR;
-    uint8_t FOREGROUND_F_BTN_COLOR;
-    uint8_t BACKGROUND_CMD_COLOR;
-    uint8_t FOREGROUND_CMD_COLOR;
-    uint8_t BACKGROUND_SEL_BTN_COLOR;
-    uint8_t FOREGROUND_SELECTED_COLOR;
-    uint8_t BACKGROUND_SELECTED_COLOR;
-} color_schema_t;
-
-typedef struct line {
-   int8_t off;
-   char* txt;
-} line_t;
-
-typedef struct lines {
-   uint8_t sz;
-   uint8_t toff;
-   line_t* plns;
-} lines_t;
-
 static color_schema_t* pcs;
 
 typedef struct {
@@ -194,96 +168,6 @@ inline static void m_cleanup() {
     array_resize(files_info_arr, 0);
 }
 
-static void draw_label(int left, int top, int width, char* txt, bool selected, bool highlighted) {
-    char line[MAX_WIDTH + 2];
-    bool fin = false;
-    for (int i = 0; i < width; ++i) {
-        if (!fin) {
-            if (!txt[i]) {
-                fin = true;
-                line[i] = ' ';
-            } else {
-                line[i] = txt[i];
-            }
-        } else {
-            line[i] = ' ';
-        }
-    }
-    line[width] = 0;
-    int fgc = selected ? pcs->FOREGROUND_SELECTED_COLOR : highlighted ? pcs->HIGHLIGHTED_FIELD_COLOR : pcs->FOREGROUND_FIELD_COLOR;
-    int bgc = selected ? pcs->BACKGROUND_SELECTED_COLOR : pcs->BACKGROUND_FIELD_COLOR;
-    draw_text(line, left, top, fgc, bgc);
-}
-
-
-static void draw_panel(int left, int top, int width, int height, char* title, char* bottom) {
-    if (hidePannels) return;
-    char line[MAX_WIDTH + 2];
-    // top line
-    for(int i = 1; i < width - 1; ++i) {
-        line[i] = 0xCD; // ═
-    }
-    line[0]         = 0xC9; // ╔
-    line[width - 1] = 0xBB; // ╗
-    line[width]     = 0;
-    draw_text(line, left, top, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR); 
-    if (title) {
-        int sl = strlen(title);
-        if (width - 4 < sl) {
-            title -= width + 4; // cat title
-            sl -= width + 4;
-        }
-        int title_left = left + (width - sl) / 2;
-        snprintf(line, MAX_WIDTH, " %s ", title);
-        draw_text(line, title_left, top, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-    }
-    // middle lines
-    memset(line, ' ', width);
-    line[0]         = 0xBA; // ║
-    line[width - 1] = 0xBA;
-    line[width]     = 0;
-    for (int y = top + 1; y < top + height - 1; ++y) {
-        draw_text(line, left, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-    }
-    // bottom line
-    for(int i = 1; i < width - 1; ++i) {
-        line[i] = 0xCD; // ═
-    }
-    line[0]         = 0xC8; // ╚
-    line[width - 1] = 0xBC; // ╝
-    line[width]     = 0;
-    draw_text(line, left, top + height - 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-    if (bottom) {
-        int sl = strlen(bottom);
-        if (width - 4 < sl) {
-            bottom -= width + 4; // cat bottom
-            sl -= width + 4;
-        } 
-        int bottom_left = (width - sl) / 2;
-        snprintf(line, MAX_WIDTH, " %s ", bottom);
-        draw_text(line, bottom_left, top + height - 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-    }
-}
-
-static void draw_box(int left, int top, int width, int height, const char* title, const lines_t* plines) {
-    draw_panel(left, top, width, height, title, 0);
-    int y = top + 1;
-    for (int i = y; y < top + height - 1; ++y) {
-        draw_label(left + 1, y, width - 2, "", false, false);
-    }
-    for (int i = 0, y = top + 1 + plines->toff; i < plines->sz; ++i, ++y) {
-        const line_t * pl = plines->plns + i;
-        uint8_t off;
-        if (pl->off < 0) {
-            size_t len = strnlen(pl->txt, MAX_WIDTH);
-            off = width - 2 > len ? (width - len) >> 1 : 0;
-        } else {
-            off = pl->off;
-        }
-        draw_label(left + 1 + off, y, width - 2 - off, pl->txt, false, false);
-    }
-}
-
 static void do_nothing(uint8_t cmd) {
     if (hidePannels) return;
     snprintf(line, MAX_WIDTH, "CMD: F%d", cmd + 1);
@@ -292,7 +176,7 @@ static void do_nothing(uint8_t cmd) {
         { -1, line }
     };
     const lines_t lines = { 2, 3, lns };
-    draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Info", &lines);
+    draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Info", &lines);
     vTaskDelay(1500);
     redraw_window();
 }
@@ -381,7 +265,7 @@ static void m_delete_file(uint8_t cmd) {
                 { -1, line }
             };
             const lines_t lines = { 3, 2, lns };
-            draw_box(x, 7, width, 10, "Error", &lines);
+            draw_box(pcs, x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         } else {
             psp->indexes[psp->level].selected_file_idx--;
@@ -456,32 +340,6 @@ static FRESULT m_copy_recursive(const char* path, const char* dest) {
     return res;
 }
 
-static void draw_button(int left, int top, int width, const char* txt, bool selected) {
-    int len = strlen(txt);
-    if (len > 39) return;
-    char tmp[40];
-    int start = (width - len) / 2;
-    for (int i = 0; i < start; ++i) {
-        tmp[i] = ' ';
-    }
-    bool fin = false;
-    int j = 0;
-    for (int i = start; i < width; ++i) {
-        if (!fin) {
-            if (!txt[j]) {
-                fin = true;
-                tmp[i] = ' ';
-            } else {
-                tmp[i] = txt[j++];
-            }
-        } else {
-            tmp[i] = ' ';
-        }
-    }
-    tmp[width] = 0;
-    draw_text(tmp, left, top, pcs->FOREGROUND_F_BTN_COLOR, selected ? pcs->BACKGROUND_SEL_BTN_COLOR : pcs->BACKGROUND_F_BTN_COLOR);
-}
-
 static bool m_prompt(const char* txt) {
     const line_t lns[1] = {
         { -1, txt },
@@ -490,10 +348,10 @@ static bool m_prompt(const char* txt) {
     size_t width = MAX_WIDTH > 60 ? 60 : 40;
     size_t shift = MAX_WIDTH > 60 ? 10 : 0;
     size_t x = (MAX_WIDTH - width) >> 1;
-    draw_box(x, 7, width, 10, "Are you sure?", &lines);
+    draw_box(pcs, x, 7, width, 10, "Are you sure?", &lines);
     bool yes = true;
-    draw_button(x + shift + 6, 12, 11, "Yes", yes);
-    draw_button(x + shift + 25, 12, 10, "No", !yes);
+    draw_button(pcs, x + shift + 6, 12, 11, "Yes", yes);
+    draw_button(pcs, x + shift + 25, 12, 10, "No", !yes);
     while(1) {
         bool tabPressed = false;
         char c = getch_now();
@@ -540,8 +398,8 @@ static bool m_prompt(const char* txt) {
         }
         if (tabPressed || leftPressed || rightPressed) { // TODO: own msgs cycle
             yes = !yes;
-            draw_button(x + shift + 6, 12, 11, "Yes", yes);
-            draw_button(x + shift + 25, 12, 10, "No", !yes);
+            draw_button(pcs, x + shift + 6, 12, 11, "Yes", yes);
+            draw_button(pcs, x + shift + 25, 12, 10, "No", !yes);
             tabPressed = leftPressed = rightPressed = false;
             scan_code_cleanup();
         }
@@ -554,7 +412,7 @@ static void no_selected_file() {
         { -1, "Pls. select some file for this action" },
     };
     const lines_t lines = { 1, 3, lns };
-    draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Info", &lines);
+    draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Info", &lines);
     sleep_ms(1500);
     redraw_window();
 }
@@ -594,7 +452,7 @@ static void m_copy_file(uint8_t cmd) {
                 { -1, line }
             };
             const lines_t lines = { 3, 2, lns };
-            draw_box(x, 7, width, 10, "Error", &lines);
+            draw_box(pcs, x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         }
         delete_string(s_dest);
@@ -617,7 +475,7 @@ static void m_info(uint8_t cmd) {
         { 1, "tba" }
     };
     lines_t lines = { 2, 0, plns };
-    draw_box(5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
+    draw_box(pcs, 5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
     nespad_state_delay = DPAD_STATE_DELAY;
     char c = 0;
     while(c != CHAR_CODE_ESC && c != CHAR_CODE_ENTER) {
@@ -650,8 +508,8 @@ static void m_mk_dir(uint8_t cmd) {
     int y = MAX_HEIGHT / 2 - 1;
     int width = MAX_WIDTH - 8;
     graphics_set_con_pos(x, y);
-    draw_panel(2, y - 2, width + 4, 5, "DIR NAME", 0);
-    draw_label(4, y, width, s_dir->p, true, true);
+    draw_panel(pcs, 2, y - 2, width + 4, 5, "DIR NAME", 0);
+    draw_label(pcs, 4, y, width, s_dir->p, true, true);
     while(1) {
         char c = getch();
         if (c == CHAR_CODE_ESC) {
@@ -667,7 +525,7 @@ static void m_mk_dir(uint8_t cmd) {
             }
             graphics_set_con_pos(--x, y);
             string_resize(s_dir, s_dir->size - 1);
-            draw_label(4, y, width, s_dir->p, true, true);
+            draw_label(pcs, 4, y, width, s_dir->p, true, true);
         }
         if (c == CHAR_CODE_ENTER) {
             break;
@@ -683,7 +541,7 @@ static void m_mk_dir(uint8_t cmd) {
         }
         string_push_back_c(s_dir, c);
         graphics_set_con_pos(++x, y);
-        draw_label(4, y, width, s_dir->p, true, true);
+        draw_label(pcs, 4, y, width, s_dir->p, true, true);
     }
     if (s_dir->size) {
         f_mkdir(s_dir->p);
@@ -728,7 +586,7 @@ static void m_move_file(uint8_t cmd) {
                 { -1, line }
             };
             const lines_t lines = { 3, 2, lns };
-            draw_box(x, 7, width, 10, "Error", &lines);
+            draw_box(pcs, x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         }
         delete_string(s_dest);
@@ -935,7 +793,7 @@ inline static bool m_opendir(
             { -1, "It is not a folder!" }
         };
         const lines_t lines = { 1, 4, lns };
-        draw_box((MAX_WIDTH - 60) / 2, 7, 60, 10, "Warning", &lines);
+        draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Warning", &lines);
         vTaskDelay(1500);
         redraw_window();
         return false;
@@ -1121,7 +979,7 @@ static void fill_panel(file_panel_desc_t* p) {
     int selected_file_idx = pp->selected_file_idx;
     int width = p->width;
     if (start_file_offset == 0 && p->s_path->size > 1) {
-        draw_label(p->left + 1, y, width - 2, "..", p == psp && selected_file_idx == y, true);
+        draw_label(pcs, p->left + 1, y, width - 2, "..", p == psp && selected_file_idx == y, true);
         y++;
         p->files_number++;
     }
@@ -1131,13 +989,13 @@ static void fill_panel(file_panel_desc_t* p) {
             char* filename = fp->s_name->p;
             snprintf(line, MAX_WIDTH >> 1, "%s/%s", p->s_path->p, filename);
             bool selected = p == psp && selected_file_idx == y;
-            draw_label(p->left + 1, y, width - 2, filename, selected, fp->fattr & AM_DIR);
+            draw_label(pcs, p->left + 1, y, width - 2, filename, selected, fp->fattr & AM_DIR);
             y++;
         }
         p->files_number++;
     }
     for (; y <= LAST_FILE_LINE_ON_PANEL_Y; ++y) {
-        draw_label(p->left + 1, y, p->width - 2, "", false, false);
+        draw_label(pcs, p->left + 1, y, p->width - 2, "", false, false);
     }
     file_info_t* fp = selected_file(p, false);
     if (fp) {
@@ -1150,7 +1008,7 @@ static void fill_panel(file_panel_desc_t* p) {
         line[width]     = 0;
         draw_text(line, p->left, PANEL_LAST_Y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
         if (fp->fattr & AM_DIR) {
-            draw_label(p->left + (width >> 1) - 3, PANEL_LAST_Y, 7, " <DIR> ", false, false);
+            draw_label(pcs, p->left + (width >> 1) - 3, PANEL_LAST_Y, 7, " <DIR> ", false, false);
         } else {
             char t[p->width];
             if (fp->fsize > 100*1024*1024) {
@@ -1161,7 +1019,7 @@ static void fill_panel(file_panel_desc_t* p) {
                 snprintf(t, width, " %d B ", (uint32_t)fp->fsize);
             }
             size_t sz = strnlen(t, width);
-            draw_label(p->left + (width >> 1) - (sz >> 1), PANEL_LAST_Y, sz, t, false, false);
+            draw_label(pcs, p->left + (width >> 1) - (sz >> 1), PANEL_LAST_Y, sz, t, false, false);
         }
     }
     if (p == psp) {
@@ -1185,9 +1043,9 @@ inline static void select_left_panel() {
 static void m_window() {
     if (hidePannels) return;
     snprintf(line, (MAX_WIDTH >> 1) - 4, "SD:%s", left_panel->s_path->p);
-    draw_panel( 0, PANEL_TOP_Y, MAX_WIDTH >> 1, PANEL_LAST_Y + 1, line, 0);
+    draw_panel(pcs, 0, PANEL_TOP_Y, MAX_WIDTH >> 1, PANEL_LAST_Y + 1, line, 0);
     snprintf(line, (MAX_WIDTH >> 1) - 4, "SD:%s", right_panel->s_path->p);
-    draw_panel(MAX_WIDTH >> 1, PANEL_TOP_Y, MAX_WIDTH - (MAX_WIDTH >> 1), PANEL_LAST_Y + 1, line, 0);
+    draw_panel(pcs, MAX_WIDTH >> 1, PANEL_TOP_Y, MAX_WIDTH - (MAX_WIDTH >> 1), PANEL_LAST_Y + 1, line, 0);
 }
 
 static scancode_handler_t scancode_handler;
@@ -1236,7 +1094,7 @@ r:
 static inline void redraw_current_panel() {
     if (!hidePannels) {
         snprintf(line, (MAX_WIDTH >> 1) - 4, "SD:%s", psp->s_path->p);
-        draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
+        draw_panel(pcs, psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
         fill_panel(psp);
         set_ctx_var(get_cmd_ctx(), CD, psp->s_path->p);
     }

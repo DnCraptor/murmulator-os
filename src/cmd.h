@@ -92,6 +92,7 @@ bool cmd_enter_helper(cmd_ctx_t* ctx, string_t* s_cmd);
 
 typedef FRESULT (*FRFpvUpU_ptr_t)(FIL*, void*, UINT, UINT*);
 void op_console(cmd_ctx_t* ctx, FRFpvUpU_ptr_t fn, BYTE mode);
+bool f_read_str(FIL* f, char* buf, size_t lim);
 
 #ifdef __cplusplus
 }

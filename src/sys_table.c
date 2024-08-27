@@ -314,6 +314,11 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     cmd_enter_helper, // 235
     set_usb_detached_handler, // 236
     op_console, // 237
+    f_read_str, // 238
+    draw_label, // 239
+    draw_box, // 240
+    draw_panel, // 241
+    draw_button, // 242
     // TODO:
     0
 };
