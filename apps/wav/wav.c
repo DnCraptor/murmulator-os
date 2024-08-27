@@ -1,6 +1,8 @@
 #include "m-os-api.h"
 #include "m-os-api-sdtfn.h"
 
+volatile bool marked_to_exit;
+
 /*
 from https://eax.me/scala-wav/
 Смещение   Байт  Описание
@@ -187,6 +189,7 @@ inline static void hex(uint32_t off, const char* buf, UINT rb) {
 }
 
 int main(void) {
+    marked_to_exit = false;
     cmd_ctx_t* ctx = get_cmd_ctx();
     if (ctx->argc < 2 || ctx->argc > 3) {
 e0:
@@ -320,7 +323,7 @@ e0:
     pipe2cleanup = 0;
     last_created = 0;;
 
-    while (getch_now() != CHAR_CODE_ESC) {
+    while (getch_now() != CHAR_CODE_ESC && !marked_to_exit) {
         vPortGetHeapStats(stat);
         while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + reserve) { // some msg? or break;
         //    vTaskDelay(1);
@@ -397,4 +400,10 @@ e1:
 
 int __required_m_api_verion(void) {
     return M_API_VERSION;
+}
+
+// only SIGKILL is supported for now
+int signal(void) {
+	marked_to_exit = true;
+    return 0;
 }

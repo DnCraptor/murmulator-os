@@ -320,6 +320,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     draw_panel, // 241
     draw_button, // 242
     uxTaskGetSystemState, // 243
+    kill, // 244
     // TODO:
     0
 };

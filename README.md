@@ -1,5 +1,5 @@
 # murmulator-os
-ZX Murmulator OS v.0.2.4<br/>
+ZX Murmulator OS v.0.2.5<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
@@ -85,19 +85,18 @@ So it will be possible to call draw_text the same way as for case graphics.h and
 
 # M-OS commands
 cls - clear screen<br/>
-dir / ls [dir] - show directory content<br/>
+dir / ls [dir] - show directory content. Use Ctrl+C to interrupt.<br/>
 rm / del / era [file] - remove file (or empty directory)<br/>
 cd [dir] - change current directory<br/>
 cp [file1] [file2] - copy file1 as file2<br/>
 mkdir [dir] - create directory<br/>
-cat / type [file] - type file<br/>
+cat / type [file] - type file. Use Ctrl+C to interrupt.<br/>
 rmdir [dir] - remove directory (recurive)<br/>
 elfinfo [file] - provide .elf file info<br/>
-psram - provide some psram info<br/>
-swap - provide some swap info<br/>
-sram - reference speed of swap base SRAM<br/>
-cpu - show current CPU freq. and dividers<br/>
-cpu [NNN] - change freq. to NNN MHz (it may hang on such action)<br/>
+psram - provide some psram info. Use Ctrl+C to interrupt.<br/>
+swap - provide some swap info. Use Ctrl+C to interrupt.<br/>
+sram - reference speed of swap base SRAM. Use Ctrl+C to interrupt.<br/>
+cpu - show current CPU freq. and dividers, `cpu [NNN]` - change freq. to NNN MHz (it may hang on such action)<br/>
 mem - show current memory state<br/>
 set - show or set environment variables<br/>
 export - put variable into system context<br/>
@@ -107,9 +106,9 @@ mode [#] - set video-mode, for now it is supported:<br/>
  <ul>0 - 53x30 and 1 - 80x30, 2 - 320x240x4-bit for HDMI</ul>
  <ul>0 - 53x30 for TV (RGB)</ul>
 </li>
-less - show not more than one page of other command in pipe, like ls | less<br/>
-hex [file]/[@addr] - show file or RAM as hexidecimal dump<br/>
-tail [-n #] [file] - show specified (or 10) last lines from the file<br/>
+less - show not more than one page of other command in pipe, like `ls | less`. Use Ctrl+C for exit.<br/>
+hex [file]/[@addr] - show file or RAM as hexidecimal dump. Use Ctrl+C to interrupt.<br/>
+tail [-n #] [file] - show specified (or 10) last lines from the file. Use Ctrl+C to interrupt.<br/>
 usb [on/off] - start a process to mount murmulator CD-card as USB-drive (NESPAD [B] button in mc)<br/>
 mc - Murmulator Commander, use [CTRL]+[O] to show console, and [CTRL]+[Enter] for fast type current file path<br/>
 mcview [file] - Murmulator Commander Viewer<br/>
@@ -118,9 +117,10 @@ mv [from_file_name] [to_file_name] - move/rename the file<br/>
 gmode [#] - simple graphics mode test<br/>
 font [width] [height] - show/set font size for graphics modes, like `font 6 8`<br/>
 blimp [n1] [n2] - simple sound test. [n1] number of cycles, [n2] OS ticks between high and low levels (1/freq.)<br/>
-wav [file] - simple .wav files player (tested on 8 kHz 1-channel 16-bit files)<br/>
-basic [file] - tiny basic interperator implementation (by Stefan Lenz, see https://github.com/slviajero/tinybasic for more info)<br/>
-ps - list of "processes" (FreeRTOS tasks)<br/>
+wav [file] - simple .wav files player (tested on 8 kHz 1-channel 16-bit files). Use Ctrl+C to interrupt.<br/>
+basic [file] - tiny basic interperator implementation (by Stefan Lenz, see https://github.com/slviajero/tinybasic for more info). Use Ctrl+C to interrupt.<br/>
+ps - list of "processes" (FreeRTOS tasks).<br/>
+kill [n] - send SIGKILL to a "process" (FreeRTOS task), [n] - task number returned by the `ps` utility.<br/>
 <br/>
 [cmd] &gt; [file] - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format (NESPAD [A] button in mc)<br/>

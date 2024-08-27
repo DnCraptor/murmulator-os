@@ -959,6 +959,11 @@ void draw_button(color_schema_t* pcs, int left, int top, int width, const char* 
     ((fn_ptr_t)_sys_table_ptrs[242])(pcs, left, top, width, txt, selected);
 }
 
+inline static int kill(uint32_t task_n) {
+    typedef int (*fn_ptr_t)(uint32_t);
+    return ((fn_ptr_t)_sys_table_ptrs[244])(task_n);
+}
+
 #ifdef __cplusplus
 }
 #include "m-os-api-cpp-string.h"

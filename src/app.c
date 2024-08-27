@@ -849,3 +849,24 @@ e:
 void app_signal(void) {
     if (bootb_sync_signal) bootb_sync_signal();
 }
+
+int kill(uint32_t task_number) {
+    configRUN_TIME_COUNTER_TYPE ulTotalRunTime, ulStatsAsPercentage;
+    volatile UBaseType_t uxArraySize = uxTaskGetNumberOfTasks();
+    TaskStatus_t *pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
+    uxArraySize = uxTaskGetSystemState( pxTaskStatusArray, uxArraySize, &ulTotalRunTime );
+    int res = 0;
+    for ( UBaseType_t x = 0; x < uxArraySize; x++ ) {
+        if (pxTaskStatusArray[ x ].xTaskNumber == task_number) {
+            res = 1;
+            cmd_ctx_t* ctx = (cmd_ctx_t*) pvTaskGetThreadLocalStoragePointer(pxTaskStatusArray[ x ].xHandle, 0);
+            if (ctx && ctx->pboot_ctx && ctx->pboot_ctx->bootb[4]) {
+                ctx->pboot_ctx->bootb[4](); // signal
+                res = 2;
+            }
+            break;
+        }
+    }
+    vPortFree( pxTaskStatusArray );
+    return res;
+}
