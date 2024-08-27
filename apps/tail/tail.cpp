@@ -1,40 +1,10 @@
 #include "m-os-api.h"
 
+volatile bool marked_to_exit;
+
 extern "C" void* memset(void* p, int v, size_t sz) {
     typedef void* (*fn)(void *, int, size_t);
     return ((fn)_sys_table_ptrs[142])(p, v, sz);
-}
-/*
-extern "C" void _ZdlPvj(void* p) { // TODO: lookup for a case ...
-    printf("_ZdlPvj [%p]\n");
-    free(p);
-}
-*/
-static volatile bool ctrlPressed;
-static volatile bool cPressed;
-static volatile scancode_handler_t scancode_handler;
-
-static bool scancode_handler_impl(const uint32_t ps2scancode) { // core ?
-    switch ((uint8_t)ps2scancode & 0xFF) {
-      case 0x1D:
-        ctrlPressed = true;
-        break;
-      case 0x9D:
-        ctrlPressed = false;
-        break;
-      case 0x2E:
-        cPressed = true;
-        break;
-      case 0xAE:
-        cPressed = false;
-        break;
-      default:
-        break;
-    }
-    if (scancode_handler) {
-        return scancode_handler(ps2scancode);
-    }
-    return false;
 }
 
 inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
@@ -52,8 +22,8 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
     char* buf = new char[512];
     size_t curr_line = 0;
     size_t lines = 0;
-    size_t rb;
-    while(f_read(f, buf, 512, &rb) == FR_OK && rb > 0) {
+    UINT rb;
+    while(f_read(f, buf, 512, &rb) == FR_OK && rb > 0 && !marked_to_exit) {
         for (size_t i = 0; i < rb; ++i) {
             char c = buf[i];
             if (c == '\r') continue;
@@ -72,7 +42,9 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
     delete[] buf;
     f_close(f);
     delete f;
-
+    if (marked_to_exit) {
+        printf("Interrupted\n");
+    }
     printf("Total lines: %d; show lines: %d\n", lines, len);
     bool empty_last = (0 == p[curr_line].size());
     for (size_t cl = (empty_last ? curr_line + 1 : curr_line); cl < (empty_last ? len + 1 : len); ++cl) {
@@ -86,21 +58,15 @@ inline static int tail(cmd_ctx_t* ctx, const char * fn, size_t len) {
 }
 
 inline static int monitor(const char * fn) {
-    ctrlPressed = false;
-    cPressed = false;
-    scancode_handler = get_scancode_handler();
-    set_scancode_handler(scancode_handler_impl);
-
     printf("Not yet implemented mode. Press: Ctrl+C\n");
-    while (!ctrlPressed || !cPressed) {
-        
+    while (!marked_to_exit) {
+        vTaskDelay(100);
     }    
-
-    set_scancode_handler(scancode_handler);
     return 0;
 }
 
 int main(void) {
+    marked_to_exit = false;
     cmd_ctx_t* ctx = get_cmd_ctx();
     if (ctx->argc == 0) {
         fprintf(ctx->std_err, "ATTTENTION! BROKEN EXECUTION CONTEXT [%p]!\n", ctx);
@@ -134,4 +100,10 @@ e2:
 
 extern "C" int __required_m_api_verion(void) {
     return M_API_VERSION;
+}
+
+// only SIGKILL is supported for now
+extern "C" int signal(void) {
+	marked_to_exit = true;
+    return 0;
 }

@@ -87,4 +87,5 @@ int __required_m_api_verion(void) {
 // only SIGKILL is supported for now
 int signal(void) {
 	marked_to_exit = true;
+    return 0;
 }

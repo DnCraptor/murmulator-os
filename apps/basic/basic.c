@@ -9543,6 +9543,7 @@ int main(void){
 	printf("Done. Cleanup mem: [%ph]\n", mem);
 	#endif
 	free(mem);
+    return 0;
 }
 #endif
 
@@ -9622,4 +9623,5 @@ int __required_m_api_verion(void) {
 // only SIGKILL is supported for now
 int signal(void) {
 	marked_to_exit = true;
+    return 0;
 }
