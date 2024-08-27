@@ -1,5 +1,7 @@
 #include "m-os-api.h"
 
+volatile bool marked_to_exit;
+
 inline static void hex(uint32_t off, const char* buf, UINT rb) {
     for (unsigned i = 0; i < rb; i += 16) {
         printf("%08X  ", off + i);
@@ -63,7 +65,8 @@ int main() {
     }
     UINT rb;
     char* buf = (char*)pvPortMalloc(512);
-    while(f_read(f, buf, 512, &rb) == FR_OK && rb > 0) {
+    marked_to_exit = false;
+    while(f_read(f, buf, 512, &rb) == FR_OK && rb > 0 && !marked_to_exit) {
         hex(off, buf, rb);
         off += rb;
     }
@@ -75,4 +78,9 @@ int main() {
 
 int __required_m_api_verion(void) {
     return M_API_VERSION;
+}
+
+// only SIGKILL is supported for now
+int signal(void) {
+	marked_to_exit = true;
 }
