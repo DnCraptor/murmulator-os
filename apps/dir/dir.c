@@ -1,6 +1,8 @@
 #include "m-os-api.h"
 #include "m-os-api-sdtfn.h"
 
+volatile bool marked_to_exit;
+
 static bool sort_by_size(cmd_ctx_t* ctx) {
     if (ctx->argc < 2) {
         return false;
@@ -70,6 +72,7 @@ static int m_comp2(const void* pe1, const void* pe2) {
 }
 
 int main(void) {
+    marked_to_exit = false;
     cmd_ctx_t* ctx = get_cmd_ctx();
     char* d = get_dir(ctx);
     bool _sort_by_size = sort_by_size(ctx);
@@ -80,14 +83,16 @@ int main(void) {
         return;
     }
     if (strlen(d) > 1) {
+        graphics_set_con_color(13, 0);
         printf("D ..\n");
+        graphics_set_con_color(7, 0);
     }
     arr = new_array_v(NULL, fi_deallocator, NULL);
 
     int files = 0;
     int folders = 0;
     FILINFO* pfileInfo = (FILINFO*)malloc(sizeof(FILINFO));
-    while (f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
+    while (f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0' && !marked_to_exit) {
         array_push_back(arr, new_file_info(pfileInfo));
         if (pfileInfo->fattrib & AM_DIR) {
             ++folders;
@@ -98,9 +103,10 @@ int main(void) {
     free(pfileInfo);
     f_closedir(pdir);
     free(pdir);
+    if (marked_to_exit) goto e;
     // sort by std C-fn
     qsort(arr->p, arr->size, sizeof(void*), _sort_by_size ? m_comp2 : m_comp1);
-    for (size_t i = 0; i < arr->size; ++i) {
+    for (size_t i = 0; i < arr->size && !marked_to_exit; ++i) {
         file_info_t* pfileInfo = (file_info_t*)array_get_at(arr, i);
         char tmp[] = "..... ";
         if (pfileInfo->fattrib & AM_DIR) {
@@ -116,13 +122,23 @@ int main(void) {
         while(*t == '0' && t[1] != ' ') {
             *t++ = ' ';
         }
-        printf("%s %s %s\n", (pfileInfo->fattrib & AM_DIR) ? "D" : " ", tmp, pfileInfo->s_name->p);
+        graphics_set_con_color(13, 0); // TODO: less??
+        printf("%s %s ", (pfileInfo->fattrib & AM_DIR) ? "D" : " ", tmp);
+        graphics_set_con_color(7, 0);
+        printf("%s\n", pfileInfo->s_name->p);
     }
-    delete_array(arr);
     printf("    Total: %d files, %d folders.\n", files, folders);
+e:
+    delete_array(arr);
     return 0;
 }
 
 int __required_m_api_verion(void) {
     return M_API_VERSION;
+}
+
+// only SIGKILL is supported for now
+int signal(void) {
+	marked_to_exit = true;
+    return 0;
 }
