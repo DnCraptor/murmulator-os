@@ -511,3 +511,19 @@ inline static BaseType_t xTaskResumeAll( void ) {
     typedef BaseType_t (*v_ptr_t)( void  );
     return ((v_ptr_t)_sys_table_ptrs[_xTaskResumeAllPtrIdx])();
 }
+
+inline static UBaseType_t uxTaskGetNumberOfTasks( void ) {
+    typedef UBaseType_t (*v_ptr_t)( void  );
+    return ((v_ptr_t)_sys_table_ptrs[_uxTaskGetNumberOfTasksPtrIdx])();
+}
+
+inline static
+UBaseType_t uxTaskGetSystemState( TaskStatus_t * const pxTaskStatusArray,
+                                  const UBaseType_t uxArraySize,
+                                  configRUN_TIME_COUNTER_TYPE * const pulTotalRunTime
+) {
+    typedef UBaseType_t (*v_ptr_t)( TaskStatus_t * const pxTaskStatusArray,
+                                  const UBaseType_t uxArraySize,
+                                  configRUN_TIME_COUNTER_TYPE * const pulTotalRunTime  );
+    return ((v_ptr_t)_sys_table_ptrs[243])(pxTaskStatusArray, uxArraySize, pulTotalRunTime);
+}

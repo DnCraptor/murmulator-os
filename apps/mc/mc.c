@@ -1289,25 +1289,6 @@ inline static void cmd_backspace() {
     gbackspace();
 }
 
-inline static char* next_on(char* l, char *bi, bool in_quotas) {
-    char *b = bi;
-    while(*l && *b && *l == *b) {
-        if (*b == ' ' && !in_quotas) break;
-        l++;
-        b++;
-    }
-    if (*l == 0 && !in_quotas) {
-        char* bb = b;
-        while(*bb) {
-            if (*bb == ' ') {
-                return bi;
-            }
-            bb++;
-        }
-    }
-    return *l == 0 ? b : bi;
-}
-
 inline static void type_char(char c) {
     putc(c);
     string_push_back_c(s_cmd, c);
