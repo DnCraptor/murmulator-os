@@ -105,4 +105,9 @@ typedef struct {
 static inline unsigned time_us_32(void) {
     return timer_hw->timerawl;
 }
+static inline unsigned time(unsigned x) {
+// TODO: ???
+    return timer_hw->timerawl;
+}
+
 #endif

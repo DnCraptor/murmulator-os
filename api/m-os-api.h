@@ -964,6 +964,33 @@ inline static int kill(uint32_t task_n) {
     return ((fn_ptr_t)_sys_table_ptrs[244])(task_n);
 }
 
+// TODO: separate header
+static unsigned ___srand___;
+inline static void srand(unsigned x) {
+    ___srand___ = x;
+}
+static int rand(void) {
+	___srand___ = (31421 * ___srand___ + 6927) & 0xffff;
+	return ___srand___ / 0x10000 + 1;
+}
+
+// TODO: move to API
+static int memcmp( const void *buffer1, const void *buffer2, size_t count ) {
+    register uint8_t* b1 = (uint8_t*)buffer1;
+    register uint8_t* b2 = (uint8_t*)buffer2;
+    register uint8_t* be = (uint8_t*)buffer1 + count;
+    while (b1 < be) {
+        register uint8_t v1 = *b1++;
+        register uint8_t v2 = *b2++;
+        if (v1 == v2) continue;
+        if (v1 > v2) return -1;
+        return 1;
+    }
+    return 0;
+}
+
+#define abs(x) (x > 0 ? x : -x)
+
 #ifndef marked_to_exit
 volatile bool marked_to_exit;
 
