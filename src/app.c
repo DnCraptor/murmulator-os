@@ -253,44 +253,22 @@ static void add_sec(load_sec_ctx* ctx, char* del_addr, char* prg_addr, uint16_t 
 }
 
 inline static uint8_t* sec_align(uint32_t sz, uint8_t* *pdel_addr, uint32_t a) {
-    uint8_t* res = 0;
+    uint8_t* res = (uint8_t*)pvPortMalloc(sz);
     if (a == 0 || a == 1) {
-        res = (uint8_t*)pvPortMalloc(sz);
         *pdel_addr = res;
         return res;
     }
-    if (a == (1 << 1)) {
-        res = (uint8_t*)pvPortMalloc(sz);
-        if ((uint32_t)res & 1) {
-            vPortFree(res);
-            res = (uint8_t*)pvPortMalloc(sz + 1);
-            *pdel_addr = res;
-            if ((uint32_t)res & 1) {
-                ++res;
-            }
-        } else {
-            *pdel_addr = res;
+    if ((uint32_t)res & (a - 1)) {
+        vPortFree(res);
+        res = (uint8_t*)pvPortMalloc(sz + (a - 1));
+        *pdel_addr = res;
+        if ((uint32_t)res & (a - 1)) {
+            res = ((uint32_t)res & (0xFFFFFFFF ^ (a - 1))) + a;
         }
-        return res;
+    } else {
+        *pdel_addr = res;
     }
-    for (uint8_t b = 2; b < 32; b++) {
-        if (a == (1 << b)) {
-            res = (uint8_t*)pvPortMalloc(sz);
-            if ((uint32_t)res & (a - 1)) {
-                vPortFree(res);
-                res = (uint8_t*)pvPortMalloc(sz + (a - 1));
-                *pdel_addr = res;
-                if ((uint32_t)res & (a - 1)) {
-                    res = ((uint32_t)res & (0xFFFFFFFF ^ (a - 1))) + a;
-                }
-            } else {
-                *pdel_addr = res;
-            }
-            return res;
-        }
-    }
-    goutf("WARN: Unsupported allignment: %d\n", a);
-    return (uint8_t*)pvPortMalloc(sz);
+    return res;
 }
 
 static const char* st_spec_sec(uint16_t st) {

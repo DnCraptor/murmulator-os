@@ -83,22 +83,6 @@ const init_mix_levels ay::mix_levels[] =
 { 0.33, 1.0, 0.67, 0.67, 1.0, 0.33 }  //AY_CBA
 };
 
-ay::ay()
-{
-    for(unsigned long i = 0; i < sizeof_array(ay::levels_ay); i++)
-    {
-        ay::levels_ay[i] = (ay::init_levels_ay[i / 2]) / (float)6;
-        ay::levels_ym[i] = (ay::init_levels_ym[i]) / (float)6;
-    }
-    songinfo = 0;
-	chip_nr = 0;
-    ayReset();
-}
-
-ay::~ay()
-{
-}
-
 void ay::SetMixType(AYMixTypes mixType)
 {
     if (mixType >= 0 && mixType < sizeof(mix_levels) / sizeof(mix_levels[0]))

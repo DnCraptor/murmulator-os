@@ -67,13 +67,21 @@ typedef enum _ay_mix_types {
 class ay
 {
 public:
-    ay();
-    ~ay();
+    ay() {
+        for(unsigned long i = 0; i < sizeof_array(ay::levels_ay); i++) {
+            ay::levels_ay[i] = (ay::init_levels_ay[i / 2]) / (float)6;
+            ay::levels_ym[i] = (ay::init_levels_ym[i]) / (float)6;
+        }
+        songinfo = 0;
+	    chip_nr = 0;
+        ayReset();
+    }
+    inline ~ay() {}
     void ayReset();
     void ayWrite(unsigned char reg, unsigned char val);
     unsigned char ayRead(unsigned char reg);
     unsigned long ayProcess(unsigned char *stream, unsigned long len);
-    void chnlMute(unsigned long chnl, bool mute)
+    inline void chnlMute(unsigned long chnl, bool mute)
     {
         switch(chnl)
         {
@@ -91,7 +99,7 @@ public:
         }
     }
     ;
-    bool chnlMuted(unsigned long chnl)
+    inline bool chnlMuted(unsigned long chnl)
     {
         switch(chnl)
         {
@@ -106,7 +114,7 @@ public:
         }
     }
     ;
-    float GetVolume(unsigned long chnl)
+    inline float GetVolume(unsigned long chnl)
     {
         switch(chnl)
         {
@@ -121,7 +129,7 @@ public:
         }
     }
     ;
-    void SetVolume(unsigned long chnl, float new_volume)
+    inline void SetVolume(unsigned long chnl, float new_volume)
     {
         new_volume = new_volume > 1 ? 1 : (new_volume < 0 ? 0 : new_volume);
         switch(chnl)
@@ -141,7 +149,7 @@ public:
 
     }
     ;
-    const unsigned char *GetRegs()
+    inline const unsigned char *GetRegs()
     {
         return regs;
     }

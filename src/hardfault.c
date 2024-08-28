@@ -82,7 +82,7 @@ uint32_t get_cpu_ram_size(void) {
 uint32_t get_cpu_flash_size(void) {
     uint8_t rx[4] = {0};
     get_cpu_flash_jedec_id(rx);
-    return 1 << rx[3];
+    return 1u << rx[3];
 }
 
 void get_cpu_flash_jedec_id(uint8_t _rx[4]) {

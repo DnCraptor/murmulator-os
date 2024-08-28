@@ -26,6 +26,9 @@
 #include "nespad.h"
 #include "sound.h"
 
+// TODO: think about it
+//extern int __cxa_pure_virtual();
+
 FATFS* get_mount_fs(); // only one FS is supported foe now
 
 // to cleanup BOOTA memory region on the MOS flashing
@@ -329,6 +332,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     __aeabi_dcmpeq, // 249
     __aeabi_ui2d, // 250
     __aeabi_dcmplt, // 251
+//    __cxa_pure_virtual, // 252
     // TODO:
     0
 };

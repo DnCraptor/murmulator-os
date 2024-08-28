@@ -361,8 +361,8 @@ inline static void vPortGetHeapStats( HeapStats_t * pxHeapStats ) {
     ((fn_ptr_t)_sys_table_ptrs[110])(pxHeapStats);
 }
 
-inline static uint32_t get_cpu_ram_size() {
-    typedef uint32_t (*fn_ptr_t)();
+inline static uint32_t get_cpu_ram_size(void) {
+    typedef uint32_t (*fn_ptr_t)(void);
     return ((fn_ptr_t)_sys_table_ptrs[111])();
 }
 inline static uint32_t get_cpu_flash_size() {
