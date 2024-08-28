@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MOS_API_MATH
+#define MOS_API_MATH
 
 // use it to resolve issues like memset and/or memcpy are not found on elf32 obj execution attempt
 
@@ -104,7 +105,41 @@ unsigned __aeabi_uidivmod(unsigned x, unsigned y) {
     typedef int (*fn)(unsigned, unsigned);
     return ((fn)_sys_table_ptrs[228])(x, y);
 }
+double __aeabi_dmul(double x, double y) {
+    typedef double (*fn)(double, double);
+    return ((fn)_sys_table_ptrs[245])(x, y);
+}
+double __aeabi_ddiv(double x, double y) {
+    typedef double (*fn)(double, double);
+    return ((fn)_sys_table_ptrs[246])(x, y);
+}
+double __aeabi_dadd(double x, double y) {
+    typedef double (*fn)(double, double);
+    return ((fn)_sys_table_ptrs[247])(x, y);
+}
+double __aeabi_i2d(int x) {
+    typedef double (*fn)(int);
+    return ((fn)_sys_table_ptrs[248])(x);
+}
+double __aeabi_dcmpeq(double x, double y) {
+    typedef double (*fn)(double, double);
+    return ((fn)_sys_table_ptrs[249])(x, y);
+}
+double __aeabi_ui2d(unsigned x) {
+    typedef double (*fn)(unsigned);
+    return ((fn)_sys_table_ptrs[250])(x);
+}
+double __aeabi_dcmplt(double x, double y) {
+    typedef double (*fn)(double, double);
+    return ((fn)_sys_table_ptrs[251])(x, y);
+}
+double __aeabi_dcmpgt(double x, double y) {
+    typedef double (*fn)(double, double);
+    return ((fn)_sys_table_ptrs[251])(y, x);
+}
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

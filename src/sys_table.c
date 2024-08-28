@@ -326,6 +326,9 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     __aeabi_ddiv, // 246
     __aeabi_dadd, // 247
     __aeabi_i2d, // 248
+    __aeabi_dcmpeq, // 249
+    __aeabi_ui2d, // 250
+    __aeabi_dcmplt, // 251
     // TODO:
     0
 };
