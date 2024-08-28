@@ -122,6 +122,7 @@ basic [file] - tiny basic interperator implementation (by Stefan Lenz, see https
 ps - list of "processes" (FreeRTOS tasks).<br/>
 kill [n] - send SIGKILL to a "process" (FreeRTOS task), [n] - task number returned by the `ps` utility.<br/>
 dhrystone [n] [kHz] - small performance test (see: https://github.com/DnCraptor/arm_benchmarks)<br/>
+whetstone [n] - MIPS (whetstone) performance test (see: https://github.com/DnCraptor/arm_benchmarks)<br/>
 <br/>
 [cmd] &gt; [file] - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format (NESPAD [A] button in mc)<br/>

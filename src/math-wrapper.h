@@ -51,3 +51,5 @@ extern unsigned __aeabi_f2uiz(float); //             float (single precision) to
 extern int __aeabi_fcmple(float, float); //         result (1, 0) denotes (<=, ?>) [2], use for C <=
 extern double __aeabi_dmul(double, double);
 extern double __aeabi_ddiv(double, double);
+extern double __aeabi_dadd(double, double);
+extern double __aeabi_i2d(int);
