@@ -49,3 +49,5 @@ extern unsigned __aeabi_uidiv(unsigned, unsigned );
 extern float __aeabi_ui2f(unsigned);
 extern unsigned __aeabi_f2uiz(float); //             float (single precision) to unsigned C-style conversion [3]
 extern int __aeabi_fcmple(float, float); //         result (1, 0) denotes (<=, ?>) [2], use for C <=
+extern double __aeabi_dmul(double, double);
+extern double __aeabi_ddiv(double, double);

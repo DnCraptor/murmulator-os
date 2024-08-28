@@ -1,5 +1,5 @@
 # murmulator-os
-ZX Murmulator OS v.0.2.5<br/>
+ZX Murmulator OS v.0.2.6<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
@@ -121,6 +121,7 @@ wav [file] - simple .wav files player (tested on 8 kHz 1-channel 16-bit files). 
 basic [file] - tiny basic interperator implementation (by Stefan Lenz, see https://github.com/slviajero/tinybasic for more info). Use Ctrl+C to interrupt.<br/>
 ps - list of "processes" (FreeRTOS tasks).<br/>
 kill [n] - send SIGKILL to a "process" (FreeRTOS task), [n] - task number returned by the `ps` utility.<br/>
+dhrystone [n] [kHz] - small performance test (see: https://github.com/DnCraptor/arm_benchmarks)<br/>
 <br/>
 [cmd] &gt; [file] - output redirection to file<br/>
 [ENTER] - start command / flash and run .uf2 file in "demo" format (NESPAD [A] button in mc)<br/>

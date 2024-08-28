@@ -252,23 +252,45 @@ static void add_sec(load_sec_ctx* ctx, char* del_addr, char* prg_addr, uint16_t 
     // debug_sections(ctx->psections_list);
 }
 
-inline static uint32_t sec_align(uint32_t addr, uint32_t a) {
-    if (a == 0 || a == 1) return addr;
+inline static uint8_t* sec_align(uint32_t sz, uint8_t* *pdel_addr, uint32_t a) {
+    uint8_t* res = 0;
+    if (a == 0 || a == 1) {
+        res = (uint8_t*)pvPortMalloc(sz);
+        *pdel_addr = res;
+        return res;
+    }
     if (a == (1 << 1)) {
-        //goutf("%ph alliged to %ph by %d\n", addr, (addr & 1) ? addr + 1 : addr, a);
-        return (addr & 1) ? addr + 1 : addr;
+        res = (uint8_t*)pvPortMalloc(sz);
+        if ((uint32_t)res & 1) {
+            vPortFree(res);
+            res = (uint8_t*)pvPortMalloc(sz + 1);
+            *pdel_addr = res;
+            if ((uint32_t)res & 1) {
+                ++res;
+            }
+        } else {
+            *pdel_addr = res;
+        }
+        return res;
     }
     for (uint8_t b = 2; b < 32; b++) {
         if (a == (1 << b)) {
-            if (addr & (a - 1)) {
-                //goutf("%ph alliged to %ph by %d\n", addr, (addr & (0xFFFFFFFF ^ (a - 1))) + a, a);
-                return (addr & (0xFFFFFFFF ^ (a - 1))) + a;
+            res = (uint8_t*)pvPortMalloc(sz);
+            if ((uint32_t)res & (a - 1)) {
+                vPortFree(res);
+                res = (uint8_t*)pvPortMalloc(sz + (a - 1));
+                *pdel_addr = res;
+                if ((uint32_t)res & (a - 1)) {
+                    res = ((uint32_t)res & (0xFFFFFFFF ^ (a - 1))) + a;
+                }
+            } else {
+                *pdel_addr = res;
             }
-            return addr;
+            return res;
         }
     }
-    goutf("Unsupported allignment: %d\n", a);
-    return addr;
+    goutf("WARN: Unsupported allignment: %d\n", a);
+    return (uint8_t*)pvPortMalloc(sz);
 }
 
 static const char* st_spec_sec(uint16_t st) {
@@ -375,18 +397,26 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         return prg_addr;
     }
     UINT rb;
-    char* del_addr = 0;
+    uint8_t* del_addr = 0;
     elf32_shdr* psh = (elf32_shdr*)pvPortMalloc(sizeof(elf32_shdr));
     if (f_lseek(c->f2, c->pehdr->sh_offset + sizeof(elf32_shdr) * sec_num) == FR_OK &&
         f_read(c->f2, psh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)
     ) {
         // todo: enough space?
-        uint32_t sz = psh->sh_size;
-        del_addr = (char*)pvPortMalloc(sz);
-        prg_addr = sec_align((uint32_t)del_addr, psh->sh_addralign);
-        if (f_lseek(c->f2, psh->sh_offset) == FR_OK &&
-            f_read(c->f2, prg_addr, psh->sh_size, &rb) == FR_OK && rb == psh->sh_size
-        ) {
+
+        prg_addr = sec_align(psh->sh_size, &del_addr, psh->sh_addralign);
+        FRESULT r = f_lseek(c->f2, psh->sh_offset);
+        if (r != FR_OK) {
+            goutf("f_lseek->[%d] failed: %d\n", psh->sh_offset, r);
+        } else {
+            r = f_read(c->f2, prg_addr, psh->sh_size, &rb);
+            if (r != FR_OK) {
+                goutf("f_read->[%p](%d) failed: %d (sz: %d)\n", prg_addr, psh->sh_size, r, rb);
+            } else if (rb != psh->sh_size) {
+                goutf("f_read->[%p](%d) passed: %d (sz: %d)\n", prg_addr, psh->sh_size, r, rb);
+            }
+        }
+        if (r == FR_OK && rb == psh->sh_size) {
             #if DEBUG_APP_LOAD
             goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, prg_addr);
             #endif
@@ -466,7 +496,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                 }
             }
         } else {
-            goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, del_addr);
+            goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, psh->sh_size, del_addr);
             prg_addr = 0;
             goto e1;
         }

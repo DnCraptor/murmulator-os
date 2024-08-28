@@ -321,6 +321,9 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     draw_button, // 242
     uxTaskGetSystemState, // 243
     kill, // 244
+    // API v.21
+    __aeabi_dmul, // 245
+    __aeabi_ddiv, // 246
     // TODO:
     0
 };
