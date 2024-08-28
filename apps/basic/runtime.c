@@ -2207,4 +2207,6 @@ void init_runtime(void) {
   _gd = NULL;
   _vgacolor = 7;
 #endif
+  ofile = 0;
+  ifile = 0;
 }

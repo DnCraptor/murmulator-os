@@ -28,8 +28,6 @@ static volatile bool downPressed = false;
 static volatile bool homePressed = false;
 static volatile bool endPressed = false;
 
-static bool mark_to_exit_flag = false;
-
 static size_t line_s = 0;
 static size_t col_s = 0;
 static size_t line_n = 0;
@@ -88,7 +86,7 @@ int _init(void) {
     homePressed = false;
     endPressed = false;
 
-    mark_to_exit_flag = false;
+    marked_to_exit = false;
     line_s = 0;
     col_s = 0;
     line_n = 0;
@@ -143,8 +141,8 @@ static bool m_prompt(const char* txt) {
     }
 }
 
-static void mark_to_exit(uint8_t cmd) {
-    mark_to_exit_flag = true;
+static void do_mark_to_exit(uint8_t cmd) {
+    marked_to_exit = true;
 }
 
 static void m_info(uint8_t cmd) {
@@ -190,7 +188,7 @@ static fn_1_12_tbl_t fn_1_12_tbl = {
     ' ', '7', "      ", do_nothing,
     ' ', '8', "      ", do_nothing,
     ' ', '9', "      ", do_nothing,
-    '1', '0', " Exit ", mark_to_exit,
+    '1', '0', " Exit ", do_mark_to_exit,
     '1', '1', "      ", do_nothing,
     '1', '2', "      ", do_nothing
 };
@@ -205,7 +203,7 @@ static fn_1_12_tbl_t fn_1_12_tbl_alt = {
     ' ', '7', "      ", do_nothing,
     ' ', '8', "      ", do_nothing,
     ' ', '9', "      ", do_nothing,
-    '1', '0', " Exit ", mark_to_exit,
+    '1', '0', " Exit ", do_mark_to_exit,
     '1', '1', "      ", do_nothing,
     '1', '2', "      ", do_nothing
 };
@@ -220,7 +218,7 @@ static fn_1_12_tbl_t fn_1_12_tbl_ctrl = {
     ' ', '7', "      ", do_nothing,
     ' ', '8', "      ", do_nothing,
     ' ', '9', "      ", do_nothing,
-    '1', '0', " Exit ", mark_to_exit,
+    '1', '0', " Exit ", do_mark_to_exit,
     '1', '1', "      ", do_nothing,
     '1', '2', "      ", do_nothing
 };
@@ -607,7 +605,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             else if (c == CHAR_CODE_TAB) handle_tab_pressed();
             else if (c == CHAR_CODE_ENTER) enter_pressed();
             else if (c == CHAR_CODE_ESC) {
-                mark_to_exit(9);
+                marked_to_exit = true;
                 scan_code_processed();
             }
             else if (ctrlPressed && (c == 'o' || c == 'O' || c == 0x99 /*Щ*/ || c == 0xE9 /*щ*/)) hide_pannels();
@@ -679,7 +677,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
                 scan_code_processed();
             }
         }
-        if(mark_to_exit_flag) {
+        if(marked_to_exit) {
             restore_console(ctx);
             return;
         }
@@ -799,8 +797,4 @@ int main(void) {
     free(pcs);
 
     return 0;
-}
-
-int __required_m_api_verion(void) {
-    return M_API_VERSION;
 }

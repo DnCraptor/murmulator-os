@@ -155,7 +155,7 @@ inline static unsigned long millis();
 #include <float.h>
 
 /* time stuff */
-#include <time.h>
+//#include <time.h>
 #include <sys/types.h>
 #include <sys/timeb.h>
 
