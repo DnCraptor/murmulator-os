@@ -667,8 +667,9 @@ static void _plot(int x, int y, uint32_t w, uint32_t h, uint8_t bit, uint8_t* b)
   uint8_t color = _vgacolor;
   #ifdef BUFFER_4_BIT
     if (bit == 4) {
+        color &= 0x0F;
         char* bi = b + ((w * y + x) >> 1);
-        *bi = (x & 1) ? (*bi & 15) | (color << 4) : ((*bi & 0xF0)) | color;
+        *bi = (x & 1) ? ((*bi & 0x0F) | (color << 4)) : ((*bi & 0xF0) | color);
         return;
     }
   #endif
@@ -741,10 +742,14 @@ inline static void rect(int x0, int y0, int x1, int y1) {
   line(x0, y1, x0, y0);
 }
 inline static void frect(int x0, int y0, int x1, int y1) {
-  int dx, sx;
-  int x;
-  sx=x0 < x1 ? 1 : -1;
-  for(x=x0; x != x1; x=x+sx) line(x, y0, x, y1);
+  if (x0 > x1) {
+    int t = x0;
+    x0 = x1;
+    x1 = t;
+  }
+  for(int xi = x0; xi <= x1; ++xi) {
+    line(xi, y0, xi, y1);
+  }
 }
 /* Bresenham for circles, based on Alois Zingl's work */
 void circle(int x0, int y0, int r) {
