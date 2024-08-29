@@ -941,8 +941,8 @@ static address_t bmalloc(name_t* name, address_t l) {
 	bfind_object.name=*name;
 	bfind_object.size=payloadsize;
 
-/* himem is the next free byte now again */
-	himem=b;
+	/* himem is the next free byte now again */
+	himem = b;
 
 	if (DEBUG) { 
 		outsc("** bmalloc returns "); outnumber(bfind_object.address); 
@@ -1031,11 +1031,11 @@ static address_t bfree(name_t* name) {
 
 	if (DEBUG) { outsc("** bfree found "); outnumber(b); outcr(); }
 
-/* clear the entire memory area */
-	for (i=himem; i<=b+bfind_object.size-1; i++) memwrite2(i, 0);
+	/* clear the entire memory area */
+	for (i=himem; i <= b + bfind_object.size - 1; ++i) memwrite2(i, 0);
 
-/* set the number of variables to the new value */
-	himem=b+bfind_object.size-1;
+	/* set the number of variables to the new value */
+	himem = b + bfind_object.size - 1;
 
 	if (DEBUG) { outsc("** bfree returns "); outnumber(himem); outcr(); }
 
@@ -1208,16 +1208,14 @@ static void clrvars() {
 	for (i=0; i<VARSIZE; i++) vars[i]=0;
 #endif
 
-/* then set the entire mem area to zero */
-	for (i=himem; i<memsize; i++) memwrite2(i, 0);
-
-/* reset the heap start*/
-	himem=memsize;
-
-/* and clear the cache */
-#ifdef HASAPPLE1
+	/* then set the entire mem area to zero */
+	for (i = himem; i < memsize; ++i) memwrite2(i, 0);
+	/* reset the heap start*/
+	himem = memsize;
+	/* and clear the cache */
+	#ifdef HASAPPLE1
 	zeroheap(&bfind_object);
-#endif
+	#endif
 }
 
 /* 
@@ -1475,8 +1473,8 @@ static address_t createarray(name_t* variable, address_t i, address_t j) {
 static void array(lhsobject_t* object, mem_t getset, number_t* value) {
 	address_t a; /* the address of the array element */
 	address_t h; /* the number of elements in the array */
-	address_t l=arraylimit; /* the lower limit, defaults to the arraylimit, here for further use */
-	address_t dim=1; /* the array dimension */
+	address_t l = arraylimit; /* the lower limit, defaults to the arraylimit, here for further use */
+	address_t dim = 1; /* the array dimension */
 
 	if (DEBUG) {
 		outsc("* array2: accessing "); 
@@ -1523,11 +1521,25 @@ static void array(lhsobject_t* object, mem_t getset, number_t* value) {
 			return;
 		}
 		if ( c ==  0 ) { 
-			h=(himem-top)/numsize;
-			a=himem-numsize*(object->i+1)+1; 
-			if (object->i < 0 || a < top) { error(EORANGE); return; }
-			if (getset == 'g') *value=getnumber(a, memread2); 
-			else if (getset == 's') setnumber(a, memwrite2, *value);	
+			h = (himem - top) / numsize;
+			a = himem - numsize * (object->i + 1) + 1;
+			if (object->i < 0 || a < top) {
+				error(EORANGE);
+				return;
+			}
+			if (getset == 'g') {
+				*value = getnumber(a, memread2);
+				#if DEBUG
+				printf("GET o->i: %d a: %d *value: %ff\n", object->i, a, *value);
+				#endif
+			}
+			else if (getset == 's') {
+				number_t t = *value;
+				#if DEBUG
+				printf("SET o->i: %d a: %d *value: %ff\n", object->i, a, t);
+				#endif
+				setnumber(a, memwrite2, t);
+			}
 			return;
 		}
 		if ( c == 'M' ) {
@@ -5171,7 +5183,8 @@ static void assignment() {
 	if ( t == VARIABLE || t == ARRAYVAR ) {
 		expression();
 		if (!USELONGJUMP && er) return;
-		assignnumber2(&lhs, pop());
+		number_t x = pop();
+		assignnumber2(&lhs, x);
 	}
 #ifdef HASAPPLE1
 /* the lefthandside is a string variable, try evaluate the righthandside as a stringvalue */
@@ -6309,10 +6322,10 @@ static void xnew(){
 		 outsc(" bytes \n");
 	}
 
-/* program memory back to zero and variable heap cleared */
-	himem=memsize;
+	/* program memory back to zero and variable heap cleared */
+	himem = memsize;
 	zeroblock(0, memsize);
-	top=0;
+	top = 0;
 
 /* on EEPROM systems also clear the stored state and top */
 #ifdef EEPROMMEMINTERFACE
@@ -9419,7 +9432,7 @@ static void setup() {
  */
 	himem=memsize=ballocmem()+(elength()-eheadersize);
 #else
-	himem=memsize=ballocmem();
+	himem = (memsize = ballocmem());
 #endif
 #endif
 
@@ -9529,12 +9542,15 @@ int main(void){
 		loop();
 	}
 	#if TRACE_PRINTF
-	printf("Done. Cleanup mem: [%ph]\n", mem);
+	printf("Cleanup mem, closing files...\n");
 	#endif
 	ofileclose();
 	ifileclose();
 	rootclose();
 	free(mem);
+	#if TRACE_PRINTF
+	printf("Done.\n");
+	#endif
     return 0;
 }
 #endif

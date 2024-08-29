@@ -1331,6 +1331,7 @@ inline static char fileread(){
 }
 
 static uint8_t ifileopen(const char* filename) {
+  if (ifile) ifileclose();
   ifile = (FIL*)malloc(sizeof(FIL));
   if (f_open(ifile, filename, FA_READ) == FR_OK) return 1;
   free(ifile);
@@ -1346,7 +1347,8 @@ static void ifileclose(){
   }
 }
 
-static uint8_t ofileopen(const char* filename, const char* m){
+static uint8_t ofileopen(const char* filename, const char* m) {
+  if (ofile) ofileclose;
   ofile = (FIL*)malloc(sizeof(FIL));
   if (f_open(ofile, filename, m[0] == 'w' ? (FA_WRITE | FA_CREATE_ALWAYS) : FA_OPEN_APPEND) == FR_OK) return 1;
   free(ofile);
@@ -1383,6 +1385,8 @@ struct ffblk *bffblk;
 
 inline static void rootopen() {
 #ifndef MSDOS
+  rootclose();
+  rootfileclose();
   root = opendir ("/");
   file = (FILINFO*)malloc(sizeof(FILINFO));
 #else 
@@ -1401,7 +1405,7 @@ inline static uint8_t rootnextfile() {
 
 inline static uint8_t rootisfile() {
 #if !defined(MSDOS) && !defined(MINGW)
-  return (file->fattrib != AM_DIR);
+  return file ? (file->fattrib != AM_DIR) : 0;
 #else
   return 1;
 #endif
@@ -1409,7 +1413,7 @@ inline static uint8_t rootisfile() {
 
 inline static const char* rootfilename() { 
 #ifndef MSDOS
-  return (file->fname);
+  return file ? file->fname : "";
 #else
   return (bffblk->ff_name);
 #endif  
@@ -1423,13 +1427,21 @@ inline static uint32_t rootfilesize() {
 #endif
 }
 
-inline static void rootfileclose() {}
-inline static void rootclose(){
-#ifndef MSDOS
+inline static void rootfileclose() {
   if (file) {
     free(file);
-    (void) closedir(root);
+    file = 0;
   }
+}
+inline static void rootclose(){
+#ifndef MSDOS
+  if (root) {
+printf("2\n");
+    closedir(root);
+printf("3\n");
+    root = 0;
+  }
+  rootfileclose();
 #endif  
 }
 
@@ -2209,4 +2221,6 @@ void init_runtime(void) {
 #endif
   ofile = 0;
   ifile = 0;
+  root = 0;
+  file = 0;
 }
