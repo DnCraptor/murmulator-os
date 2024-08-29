@@ -43,7 +43,7 @@ static string_t* new_string_cc(const char* s) {
 
 static string_t* new_string_cs(const string_t* s) {
     string_t* res = (string_t*)pvPortMalloc(sizeof(string_t));
-    res->size = strlen(s->size + 1);
+    res->size = s->size;
     res->alloc = s->size + 1;
     res->p = (char*)pvPortMalloc(res->alloc);
     strncpy(res->p, s->p, res->alloc);

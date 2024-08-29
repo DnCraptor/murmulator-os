@@ -100,7 +100,7 @@ typedef struct file_panel_desc {
     int width;
     int files_number;
     string_t* s_path;
-    indexes_t indexes[16]; // TODO: some ext. limit logic
+    indexes_t indexes[16]; // TODO: some ext. limit logic or tree_t usage
     int level;
     sort_type_t sort_type;
     list_t* selected_files_lst;
@@ -124,12 +124,22 @@ typedef struct {
 static array_t* files_info_arr = NULL; // of file_info_t*
 
 static file_info_t* new_file_info(FILINFO* fi) {
-    file_info_t* res = (file_info_t*)calloc(sizeof(file_info_t), 1);
+    file_info_t* res = (file_info_t*)malloc(sizeof(file_info_t));
     res->s_name = new_string_cc(fi->fname);
     res->fsize = fi->fsize;
     res->fdate = fi->fdate;
     res->ftime = fi->ftime;
     res->fattr = fi->fattrib;
+    return res;
+}
+
+static file_info_t* file_info_copy(file_info_t* fi) {
+    file_info_t* res = (file_info_t*)malloc(sizeof(file_info_t));
+    res->s_name = new_string_cs(fi->s_name);
+    res->fsize = fi->fsize;
+    res->fdate = fi->fdate;
+    res->ftime = fi->ftime;
+    res->fattr = fi->fattr;
     return res;
 }
 
@@ -220,6 +230,7 @@ static FRESULT m_unlink_recursive(char * path) {
     FILINFO* pfileInfo = (FILINFO*) malloc(sizeof(FILINFO));
     string_t* s_path = new_string_v();
     while(f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
+        gouta(".");
         construct_full_name(s_path, path, pfileInfo->fname); // TODO: s_name (modify ff)
         if (pfileInfo->fattrib & AM_DIR) {
             res = m_unlink_recursive(s_path->p);
@@ -238,24 +249,43 @@ static FRESULT m_unlink_recursive(char * path) {
 
 static void m_delete_file(uint8_t cmd) {
     if (hidePannels) return;
-#if EXT_DRIVES_MOUNT
-    if (psp->in_dos) {
-        // TODO:
-        do_nothing(cmd);
-        return;
-    }
-#endif
+    size_t mselsz = psp->selected_files_lst->size;
     file_info_t* fp = selected_file(psp, true);
-    if (!fp) {
+    if (!mselsz && !fp) {
        no_selected_file();
        return;
     }
     string_t* s_path = new_string_cc("Remove '");
-    string_push_back_cs(s_path, fp->s_name);
-    string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder?" : "' file?");
+    if (mselsz) {
+        char mselsz_s[16];
+        snprintf(mselsz_s, 16, "%d", mselsz);
+        string_push_back_cc(s_path, mselsz_s);
+        string_push_back_cc(s_path, " files?");
+    } else {
+        string_push_back_cs(s_path, fp->s_name);
+        string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder?" : "' file?");
+    }
     if (m_prompt(s_path->p)) {
-        construct_full_name_s(s_path, psp->s_path, fp->s_name);
-        FRESULT result = fp->fattr & AM_DIR ? m_unlink_recursive(s_path->p) : f_unlink(s_path->p);
+        FRESULT result;
+        if (mselsz) {
+            list_t* lst = psp->selected_files_lst;
+            node_t* i = lst->last;
+            while(i) {
+                node_t* prev = i->prev;
+                if ( i->data ) {
+                    file_info_t* fi = (file_info_t*)i->data;
+                    construct_full_name_s(s_path, psp->s_path, fi->s_name);
+                    result = fi->fattr & AM_DIR ? m_unlink_recursive(s_path->p) : f_unlink(s_path->p);
+                    gouta(".");
+                    if (result != FR_OK) break;
+                    list_erase_node(lst, i);
+                }
+                i = prev;
+            }
+        } else {
+            construct_full_name_s(s_path, psp->s_path, fp->s_name);
+            result = fp->fattr & AM_DIR ? m_unlink_recursive(s_path->p) : f_unlink(s_path->p);
+        }
         if (result != FR_OK) {
             size_t width = MAX_WIDTH > 60 ? 60 : 40;
             size_t x = (MAX_WIDTH - width) >> 1;
@@ -273,6 +303,7 @@ static void m_delete_file(uint8_t cmd) {
         }
     }
     delete_string(s_path);
+    // TODO: select last file in the list?
     redraw_window();    
 }
 
@@ -324,6 +355,7 @@ static FRESULT m_copy_recursive(const char* path, const char* dest) {
     string_t* s_path = new_string_v();
     string_t* s_dest = new_string_v();
     while(f_readdir(pdir, pfileInfo) == FR_OK && pfileInfo->fname[0] != '\0') {
+        gouta(".");
         construct_full_name(s_path, path, pfileInfo->fname);
         construct_full_name(s_dest, dest, pfileInfo->fname);
         if (pfileInfo->fattrib & AM_DIR) {
@@ -418,37 +450,63 @@ static void no_selected_file() {
     redraw_window();
 }
 
+static FRESULT m_copy_file_impl(file_info_t* fp) {
+    file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
+    string_t* s_path = new_string_v();
+    string_t* s_dest = new_string_v();
+    construct_full_name_s(s_path, psp->s_path, fp->s_name);
+    construct_full_name_s(s_dest, dsp->s_path, fp->s_name);
+    FRESULT result = fp->fattr & AM_DIR ? m_copy_recursive(s_path->p, s_dest->p) : m_copy(s_path->p, s_dest->p);
+    delete_string(s_dest);
+    delete_string(s_path);
+    return result;
+}
+
 static void m_copy_file(uint8_t cmd) {
     if (hidePannels) return;
-#if EXT_DRIVES_MOUNT
-    if (psp->in_dos) {
-        // TODO:
-        do_nothing(cmd);
-        return;
-    }
-#endif
-    file_info_t* fp = selected_file(psp, true);
-    if (!fp) {
+    size_t mselsz = psp->selected_files_lst->size;
+    file_info_t* fp = !mselsz ? selected_file(psp, true) : 0;
+    if (!mselsz && !fp) {
        no_selected_file();
        return;
     }
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
     string_t* s_path = new_string_cc("Copy '");
-    string_push_back_cs(s_path, fp->s_name);
-    string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder to '" : "' file to '");
+    if (mselsz) {
+        char mselsz_s[16];
+        snprintf(mselsz_s, 16, "%d", mselsz);
+        string_push_back_cc(s_path, mselsz_s);
+        string_push_back_cc(s_path, " files to '");
+    } else {
+        string_push_back_cs(s_path, fp->s_name);
+        string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder to '" : "' file to '");
+    }
     string_push_back_cs(s_path, dsp->s_path);
     string_push_back_cc(s_path, "'?");
-    if (m_prompt(s_path->p)) { // TODO: ask name
-        construct_full_name_s(s_path, psp->s_path, fp->s_name);
-        string_t* s_dest = new_string_v();
-        construct_full_name_s(s_dest, dsp->s_path, fp->s_name);
-        FRESULT result = fp->fattr & AM_DIR ? m_copy_recursive(s_path->p, s_dest->p) : m_copy(s_path->p, s_dest->p);
+    if (m_prompt(s_path->p)) { // TODO: ask name?
+        FRESULT result;
+        if (mselsz) {
+            list_t* lst = psp->selected_files_lst;
+            node_t* i = lst->last;
+            while(i) {
+                node_t* prev = i->prev;
+                if ( i->data ) {
+                    result = m_copy_file_impl(i->data);
+                    gouta(".");
+                    if (result != FR_OK) break;
+                    list_erase_node(lst, i);
+                }
+                i = prev;
+            }
+        } else {
+            result = m_copy_file_impl(fp);
+        }
         if (result != FR_OK) {
             size_t width = MAX_WIDTH > 60 ? 60 : 40;
             size_t x = (MAX_WIDTH - width) >> 1;
             snprintf(line, width - 2, "FRESULT: %d", result);
             const line_t lns[3] = {
-                { -1, "Unable to copy selected item!" },
+                { -1, "Unable to copy selected item(s)!" },
                 { -1, s_path->p },
                 { -1, line }
             };
@@ -456,7 +514,6 @@ static void m_copy_file(uint8_t cmd) {
             draw_box(pcs, x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         }
-        delete_string(s_dest);
     }
     delete_string(s_path);
     redraw_window();
@@ -494,13 +551,6 @@ static void m_info(uint8_t cmd) {
 
 static void m_mk_dir(uint8_t cmd) {
     if (hidePannels) return;
-#if EXT_DRIVES_MOUNT
-    if (psp->in_dos) {
-        // TODO:
-        do_nothing(cmd);
-        return;
-    }
-#endif
     string_t* s_dir = new_string_v();
     construct_full_name(s_dir, psp->s_path->p, "");
     int ox = graphics_con_x();
@@ -552,31 +602,57 @@ static void m_mk_dir(uint8_t cmd) {
     redraw_window();
 }
 
+static FRESULT m_move_file_impl(file_info_t* fp) {
+    file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
+    string_t* s_path = new_string_v();
+    string_t* s_dest = new_string_v();
+    construct_full_name_s(s_path, psp->s_path, fp->s_name);
+    construct_full_name_s(s_dest, dsp->s_path, fp->s_name);
+    FRESULT result = f_rename(s_path->p, s_dest->p);
+    delete_string(s_dest);
+    delete_string(s_path);
+    return result;
+}
+
 static void m_move_file(uint8_t cmd) {
     if (hidePannels) return;
-#if EXT_DRIVES_MOUNT
-    if (psp->in_dos) {
-        // TODO:
-        do_nothing(cmd);
-        return;
-    }
-#endif
-    file_info_t* fp = selected_file(psp, true);
-    if (!fp) {
+    size_t mselsz = psp->selected_files_lst->size;
+    file_info_t* fp = !mselsz ? selected_file(psp, true) : 0;
+    if (!mselsz && !fp) {
        no_selected_file();
        return;
     }
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
     string_t* s_path = new_string_cc("Move '");
-    string_push_back_cs(s_path, fp->s_name);
-    string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder to '" : "' file to '");
+    if (mselsz) {
+        char mselsz_s[16];
+        snprintf(mselsz_s, 16, "%d", mselsz);
+        string_push_back_cc(s_path, mselsz_s);
+        string_push_back_cc(s_path, " files to '");
+    } else {
+        string_push_back_cs(s_path, fp->s_name);
+        string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder to '" : "' file to '");
+    }
     string_push_back_cs(s_path, dsp->s_path);
     string_push_back_cc(s_path, "'?");
     if (m_prompt(s_path->p)) { // TODO: ask name
-        construct_full_name_s(s_path, psp->s_path, fp->s_name);
-        string_t* s_dest = new_string_v();
-        construct_full_name_s(s_dest, dsp->s_path, fp->s_name);
-        FRESULT result = f_rename(s_path->p, s_dest->p);
+        FRESULT result;
+        if (mselsz) {
+            list_t* lst = psp->selected_files_lst;
+            node_t* i = lst->last;
+            while(i) {
+                node_t* prev = i->prev;
+                if ( i->data ) {
+                    result = m_move_file_impl(i->data);
+                    gouta(".");
+                    if (result != FR_OK) break;
+                    list_erase_node(lst, i);
+                }
+                i = prev;
+            }
+        } else {
+            result = m_move_file_impl(fp);
+        }
         if (result != FR_OK) {
             size_t width = MAX_WIDTH > 60 ? 60 : 40;
             size_t x = (MAX_WIDTH - width) >> 1;
@@ -590,7 +666,6 @@ static void m_move_file(uint8_t cmd) {
             draw_box(pcs, x, 7, width, 10, "Error", &lines);
             sleep_ms(2500);
         }
-        delete_string(s_dest);
     }
     delete_string(s_path);
     redraw_window();
@@ -965,7 +1040,7 @@ static bool is_file_selected(file_panel_desc_t* p, file_info_t* fp) {
     node_t* i = lst->last;
     while(i) {
         node_t* prev = i->prev;
-        if ( i->data && 0 == strcmp(c_str(i->data), fp->s_name->p) ) {
+        if ( i->data && 0 == strcmp(((file_info_t*)i->data)->s_name->p, fp->s_name->p) ) {
             return true;
         }
         i = prev;
@@ -977,6 +1052,14 @@ static void fill_panel(file_panel_desc_t* p) {
     if (hidePannels) return;
     collect_files(p);
     indexes_t* pp = &p->indexes[p->level];
+    /* TODO:
+    if (p->files_number < pp->start_file_offset) {
+        pp->start_file_offset = p->files_number - 1;
+        pp->selected_file_idx = p->files_number;
+    }
+    if (p->files_number < pp->start_file_offset + pp->selected_file_idx) {
+        pp->selected_file_idx = p->files_number - pp->start_file_offset;
+    }*/
     if (pp->selected_file_idx < FIRST_FILE_LINE_ON_PANEL_Y) {
         pp->selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
     }
@@ -1144,14 +1227,13 @@ inline static void m_insert_pressed(void) {
     node_t* i = lst->last;
     while(i) {
         node_t* prev = i->prev;
-        if ( i->data && 0 == strcmp(c_str(i->data), fp->s_name->p) ) {
+        if ( i->data && 0 == strcmp(((file_info_t*)i->data)->s_name->p, fp->s_name->p) ) {
             list_erase_node(lst, i);
             goto fin;
         }
         i = prev;
     }
-    string_t* path = new_string_cs(fp->s_name);
-    list_push_back(lst, path);
+    list_push_back(lst, file_info_copy(fp));
 fin:
     handle_down_pressed();
     redraw_current_panel();
@@ -1592,8 +1674,8 @@ int main(void) {
     left_panel->width = MAX_WIDTH >> 1;
     right_panel->left = MAX_WIDTH >> 1;
     right_panel->width = MAX_WIDTH - right_panel->left;
-    left_panel->selected_files_lst = new_list_v(new_string_v, delete_string, NULL);
-    right_panel->selected_files_lst = new_list_v(new_string_v, delete_string, NULL);
+    left_panel->selected_files_lst = new_list_v(fi_allocator, fi_deallocator, NULL);
+    right_panel->selected_files_lst = new_list_v(fi_allocator, fi_deallocator, NULL);
 
     pcs = calloc(1, sizeof(color_schema_t));
     pcs->BACKGROUND_FIELD_COLOR = 1, // Blue
