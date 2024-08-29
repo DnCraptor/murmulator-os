@@ -698,34 +698,47 @@ inline static void line(int x0, int y0, int x1, int y1) {
   uint32_t h = _gd->screen_height();
   uint8_t bit = _gd->screen_bitness();
   uint8_t* b = _gd->buffer();
-  int dx, dy, sx, sy;
-  int error, e2;
-  dx = abs(x0-x1);
-  sx = x0 < x1 ? 1 : -1;
-  dy =- abs(y1-y0);
-  sy = y0 < y1 ? 1 : -1;
-  error = dx + dy;
-  while(1) {
-    _plot(x0, y0, w, h, bit, b);
-    if (x0 == x1 && y0 == y1) break;
-    e2 = 2 * error;
-    if (e2 > dy) {
-      if (x0 == x1) break;
-      error = error + dy;
-      x0 = x0 + sx;
-    }
-    if (e2 <= dx) {
-      if (y0 == y1) break;
-      error = error + dx;
-      y0 = y0 + sy;
+  if (x0 > x1) {
+    int t = x0;
+    x0 = x1;
+    x1 = t;
+  }
+  if (y1 == y0) {
+    for (int xi = x0; xi <= x1; ++xi) {
+      _plot(xi, y0, w, h, bit, b);
     }
   }
+  if (y0 > y1) {
+    int t = y0;
+    y0 = y1;
+    y1 = t;
+  }
+  if (x1 == x0) {
+    for (int yi = y0; yi <= y1; ++yi) {
+      _plot(x0, yi, w, h, bit, b);
+    }
+  }
+  int dx = x1 - x0;
+  int dy = y1 - y0;
+  if (dx > dy) {
+    double dydx = dy / (dx * 1.0);
+    for (int xi = x0; xi <= x1; ++xi) {
+      int yi = y0 + dydx * (xi - x0);
+      _plot(xi, yi, w, h, bit, b);
+    }
+  }
+  double dxdy = dx / (dy * 1.0);
+  for (int yi = y0; yi <= y1; ++yi) {
+    int xi = x0 + dxdy * (yi - y0);
+    _plot(xi, yi, w, h, bit, b);
+  }
 }
+
 inline static void rect(int x0, int y0, int x1, int y1) {
   line(x0, y0, x1, y0);
   line(x1, y0, x1, y1);
   line(x1, y1, x0, y1);
-  line(x0, y1, x0, y0); 
+  line(x0, y1, x0, y0);
 }
 inline static void frect(int x0, int y0, int x1, int y1) {
   int dx, sx;
