@@ -255,13 +255,14 @@ static void m_delete_file(uint8_t cmd) {
        no_selected_file();
        return;
     }
-    string_t* s_path = new_string_cc("Remove '");
+    string_t* s_path = new_string_cc("Remove ");
     if (mselsz) {
         char mselsz_s[16];
         snprintf(mselsz_s, 16, "%d", mselsz);
         string_push_back_cc(s_path, mselsz_s);
         string_push_back_cc(s_path, " files?");
     } else {
+        string_push_back_c(s_path, '\'');
         string_push_back_cs(s_path, fp->s_name);
         string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder?" : "' file?");
     }
@@ -471,13 +472,14 @@ static void m_copy_file(uint8_t cmd) {
        return;
     }
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
-    string_t* s_path = new_string_cc("Copy '");
+    string_t* s_path = new_string_cc("Copy ");
     if (mselsz) {
         char mselsz_s[16];
         snprintf(mselsz_s, 16, "%d", mselsz);
         string_push_back_cc(s_path, mselsz_s);
         string_push_back_cc(s_path, " files to '");
     } else {
+        string_push_back_c(s_path, '\'');
         string_push_back_cs(s_path, fp->s_name);
         string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder to '" : "' file to '");
     }
@@ -623,13 +625,14 @@ static void m_move_file(uint8_t cmd) {
        return;
     }
     file_panel_desc_t* dsp = psp == left_panel ? right_panel : left_panel;
-    string_t* s_path = new_string_cc("Move '");
+    string_t* s_path = new_string_cc("Move ");
     if (mselsz) {
         char mselsz_s[16];
         snprintf(mselsz_s, 16, "%d", mselsz);
         string_push_back_cc(s_path, mselsz_s);
         string_push_back_cc(s_path, " files to '");
     } else {
+        string_push_back_c(s_path, '\'');
         string_push_back_cs(s_path, fp->s_name);
         string_push_back_cc(s_path, fp->fattr & AM_DIR ? "' folder to '" : "' file to '");
     }
@@ -1138,6 +1141,11 @@ static void fill_panel(file_panel_desc_t* p) {
             draw_label(pcs, p->left + (width >> 1) - (sz >> 1), PANEL_LAST_Y, sz, t, false, false);
         }
     }
+    line[0] = pp->start_file_offset ? '^' : 0xBA;
+    line[1] = 0;
+    draw_text(line, p->left + width - 1, 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR); 
+    line[0] = pp->start_file_offset + LAST_FILE_LINE_ON_PANEL_Y < p->files_number ? 'v' : 0xBA;
+    draw_text(line, p->left + width - 1, MAX_HEIGHT - 4, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR); 
     if (p == psp) {
         set_ctx_var(get_cmd_ctx(), CD, psp->s_path->p);
         draw_cmd_line();
