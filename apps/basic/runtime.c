@@ -386,7 +386,14 @@ static uint16_t consins(char *b, uint16_t nb, bool show_it) {
   uint16_t z = 1;
   while(z < nb) {
     c = inch();
-    if (show_it) putc(c);
+    if (show_it) {
+      if (c == CHAR_CODE_BS) {
+        b[z--] = 0x00;
+        gbackspace();
+        continue;
+      }
+      putc(c);
+    }
     if (c == '\r') c = inch();
     if (c == '\n' || cheof(c)) { /* terminal character is either newline or EOF */
       break;
