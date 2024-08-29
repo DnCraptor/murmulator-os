@@ -27,8 +27,6 @@ static volatile bool rightPressed = false;
 static volatile bool upPressed = false;
 static volatile bool downPressed = false;
 
-static bool mark_to_exit_flag = false;
-
 static size_t line_s = 0;
 static size_t line_e = 0;
 
@@ -71,7 +69,7 @@ int _init(void) {
     upPressed = false;
     downPressed = false;
 
-    mark_to_exit_flag = false;
+    marked_to_exit = false;
     line_s = 0;
     line_e = 0;
     scan_code_cleanup();
@@ -120,13 +118,13 @@ static bool m_prompt(const char* txt) {
 }
 
 static void mark_to_exit(uint8_t cmd) {
-    mark_to_exit_flag = true;
+    marked_to_exit = true;
 }
 
 static void m_info(uint8_t cmd) {
     line_t plns[2] = {
-        { 1, " It is ZX Murmulator OS Commander Viewer" },
-        { 1, " Lets review the file you opened ;)" }
+        { 1, " It is Murmulator Viewer" },
+        { 1, " Esc or F10 to Exit" }
     };
     lines_t lines = { 2, 0, plns };
     draw_box(pcs, 5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
@@ -241,17 +239,17 @@ static void m_window() {
     char* buff = malloc(width);
     size_t y = 1;
     size_t line = 0;
-    while (f_read_str(f, buff, width) && y <= height) {
-        if (line >= line_s) {
+    while (f_read_str(f, buff, width)) {
+        if (line >= line_s && y <= height) {
             draw_text(buff, 1, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
             ++y;
+            line_e = line;
         }
         ++line;
     }
-    line_e = line;
 
     size_t free_sz = xPortGetFreeHeapSize();
-    snprintf(buff, width, " Lines: %d-%d ", line_s, line_e);
+    snprintf(buff, width, " Lines: %d-%d of %d", (line_s + 1), (line_e + 1), line);
     draw_text(
         buff,
         2,
@@ -430,7 +428,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
                 scan_code_processed();
             }
         }
-        if(mark_to_exit_flag) {
+        if(marked_to_exit) {
             restore_console(ctx);
             return;
         }
@@ -445,10 +443,6 @@ inline static void start_viewer(cmd_ctx_t* ctx) {
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
-    if (ctx->argc == 0) {
-        fprintf(ctx->std_err, "ATTTENTION! BROKEN EXECUTION CONTEXT [%p]!\n", ctx);
-        return -1;
-    }
     if (ctx->argc > 2) {
         fprintf(ctx->std_err, "Unexpected number of arguemts: %d\n", ctx->argc);
         return 1;
@@ -485,8 +479,4 @@ int main(void) {
     graphics_set_con_pos(0, PANEL_LAST_Y);
 
     return 0;
-}
-
-int __required_m_api_verion(void) {
-    return M_API_VERSION;
 }

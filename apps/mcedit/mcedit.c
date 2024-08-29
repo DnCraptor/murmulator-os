@@ -6,7 +6,6 @@ const char _mc_con[] = ".mc.con";
 static void m_window();
 static void redraw_window();
 static void bottom_line();
-static bool m_prompt(const char* txt);
 
 #define PANEL_TOP_Y 0
 #define FIRST_FILE_LINE_ON_PANEL_Y (PANEL_TOP_Y + 1)
@@ -34,6 +33,7 @@ static size_t line_n = 0;
 static size_t col_n = 0;
 static size_t f_sz;
 static list_t* lst;
+static bool content_changed;
 
 inline static void scan_code_processed() {
   if (lastCleanableScanCode) {
@@ -85,6 +85,7 @@ int _init(void) {
     downPressed = false;
     homePressed = false;
     endPressed = false;
+    content_changed = false;
 
     marked_to_exit = false;
     line_s = 0;
@@ -107,48 +108,14 @@ static void do_nothing(uint8_t cmd) {
     redraw_window();
 }
 
-static bool m_prompt(const char* txt) {
-    const line_t lns[1] = {
-        { -1, txt },
-    };
-    const lines_t lines = { 1, 2, lns };
-    size_t width = MAX_WIDTH > 60 ? 60 : 40;
-    size_t shift = MAX_WIDTH > 60 ? 10 : 0;
-    size_t x = (MAX_WIDTH - width) >> 1;
-    draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Are you sure?", &lines);
-    bool yes = true;
-    draw_button(pcs, x + shift + 6, 12, 11, "Yes", yes);
-    draw_button(pcs, x + shift + 25, 12, 10, "No", !yes);
-    while(1) {
-        char c = getch_now();
-        if (c) {
-            if (c == CHAR_CODE_ENTER) {
-                scan_code_cleanup();
-                return yes;
-            }
-            if (c == CHAR_CODE_ESC) {
-                scan_code_cleanup();
-                return false;
-            }
-        }
-        if (c == CHAR_CODE_TAB || leftPressed || rightPressed) { // TODO: own msgs cycle
-            yes = !yes;
-            draw_button(pcs, x + shift + 6, 12, 11, "Yes", yes);
-            draw_button(pcs, x + shift + 25, 12, 10, "No", !yes);
-            leftPressed = rightPressed = false;
-            scan_code_cleanup();
-        }
-    }
-}
-
 static void do_mark_to_exit(uint8_t cmd) {
     marked_to_exit = true;
 }
 
 static void m_info(uint8_t cmd) {
     line_t plns[2] = {
-        { 1, " It is ZX Murmulator OS Commander Editor" },
-        { 1, " Let edit this file and do not miss to save it using F2 button." }
+        { 1, " It is Murmulator OS Editor" },
+        { 1, " Just edit the file." }
     };
     lines_t lines = { 2, 0, plns };
     draw_box(pcs, 5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
@@ -176,6 +143,7 @@ static void m_save(uint8_t cmd) {
     }
     f_close(f);
     free(f);
+    content_changed = false;
 }
 
 static fn_1_12_tbl_t fn_1_12_tbl = {
@@ -423,6 +391,7 @@ inline static void enter_pressed() {
     col_n = 0;
     col_s = 0;
     handle_down_pressed();
+    content_changed = true;
 }
 
 inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
@@ -441,9 +410,11 @@ inline static void push_char(char c) {
         ++col_s;
     }
     m_window();
+    content_changed = true;
 }
 
 inline static void cmd_backspace() {
+    content_changed = true;
     if (col_n == 0) {
         if (line_n == 0) {
             return;
@@ -492,6 +463,7 @@ inline static void cmd_del() {
         if (!n->next) {
             return;
         }
+        content_changed = true;
         while (col_n != s->size) { // todo: memset
             string_push_back_c(s, ' ');
         }
@@ -500,6 +472,7 @@ inline static void cmd_del() {
         m_window();
         return;
     }
+    content_changed = true;
     if (s->size) {
         string_clip(s, col_n);
     }
@@ -574,6 +547,7 @@ inline static void handle_tab_pressed(void) {
         col_s = col_n - MAX_WIDTH + 3;
     }
     m_window();
+    content_changed = true;
 }
 
 inline static void restore_console(cmd_ctx_t* ctx) {
@@ -678,7 +652,6 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             }
         }
         if(marked_to_exit) {
-            restore_console(ctx);
             return;
         }
     }
@@ -686,6 +659,46 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
 
 static size_t string_size_bytes(string_t* s) {
     return s ? s->size + 1 : 0;
+}
+
+static bool m_prompt(const char* txt) {
+    const line_t lns[1] = {
+        { -1, txt },
+    };
+    const lines_t lines = { 1, 2, lns };
+    size_t width = MAX_WIDTH > 60 ? 60 : 40;
+    size_t shift = MAX_WIDTH > 60 ? 10 : 0;
+    size_t x = (MAX_WIDTH - width) >> 1;
+    draw_box(pcs, x, 7, width, 10, txt, &lines);
+    bool yes = true;
+    draw_button(pcs, x + shift + 6, 12, 11, "Yes", yes);
+    draw_button(pcs, x + shift + 25, 12, 10, "No", !yes);
+    while(1) {
+        bool tabPressed = false;
+        char c = getch_now();
+        if (c) {
+            if (c == CHAR_CODE_ENTER) {
+                scan_code_cleanup();
+                return yes;
+            }
+            if (c == CHAR_CODE_ESC) {
+                scan_code_cleanup();
+                return false;
+            }
+            if (c == CHAR_CODE_TAB) {
+                tabPressed = true;
+            }
+        }
+
+        if (tabPressed || leftPressed || rightPressed) { // TODO: own msgs cycle
+            yes = !yes;
+            draw_button(pcs, x + shift + 6, 12, 11, "Yes", yes);
+            draw_button(pcs, x + shift + 25, 12, 10, "No", !yes);
+            tabPressed = leftPressed = rightPressed = false;
+            scan_code_cleanup();
+        }
+    }
+    __builtin_unreachable;
 }
 
 inline static void start_editor(cmd_ctx_t* ctx) {
@@ -751,7 +764,10 @@ nw:
 
     work_cycle(ctx);
 
-// TODO: ask for save?
+    if ( content_changed && m_prompt("Save it before exit?") ) {
+        m_save(0);
+    }
+    restore_console(ctx);
     delete_list(lst);
 }
 
