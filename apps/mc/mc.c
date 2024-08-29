@@ -1087,8 +1087,20 @@ static void fill_panel(file_panel_desc_t* p) {
             char* filename = fp->s_name->p;
             snprintf(line, MAX_WIDTH >> 1, "%s/%s", p->s_path->p, filename);
             bool selected = p == psp && selected_file_idx == y;
-            bool multiselected = mselsz ? is_file_selected(p, fp) : fp->fattr & AM_DIR;
-            draw_label(pcs, p->left + 1, y, width - 2, filename, selected, multiselected);
+            if ( mselsz && is_file_selected(p, fp) ) {
+                uint8_t fsc = pcs->FOREGROUND_SELECTED_COLOR;
+                uint8_t hfc = pcs->HIGHLIGHTED_FIELD_COLOR;
+                uint8_t ffc = pcs->FOREGROUND_FIELD_COLOR;
+                pcs->FOREGROUND_SELECTED_COLOR = 3;
+                pcs->FOREGROUND_FIELD_COLOR = 6;
+                pcs->HIGHLIGHTED_FIELD_COLOR = 14;
+                draw_label(pcs, p->left + 1, y, width - 2, filename, selected, fp->fattr & AM_DIR);
+                pcs->FOREGROUND_FIELD_COLOR = ffc;
+                pcs->HIGHLIGHTED_FIELD_COLOR = hfc;
+                pcs->FOREGROUND_SELECTED_COLOR = fsc;
+            } else {
+                draw_label(pcs, p->left + 1, y, width - 2, filename, selected, fp->fattr & AM_DIR);
+            }
             y++;
         }
         p->files_number++;
