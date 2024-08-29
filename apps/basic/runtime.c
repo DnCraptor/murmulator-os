@@ -232,7 +232,7 @@ void iodefaults() {
 static int cheof(int c) { if ((c == -1) || (c == 255)) return 1; else return 0; }
 
 /* the generic inch code reading one character from a stream */
-static char inch() {
+static signed char inch() {
   if ( id == ONULL ) return bufferread();
   if ( id == ISERIAL ) return serialread();   
 #ifdef POSIXPRT
@@ -381,24 +381,22 @@ static uint16_t inb(char *b, int16_t nb) {
 /*
  * reading from the console with inch, local echo is handled by the terminal
  */
-static uint16_t consins(char *b, uint16_t nb) {
+static uint16_t consins(char *b, uint16_t nb, bool show_it) {
   char c;
-  uint16_t z;
-
-  z=1;
+  uint16_t z = 1;
   while(z < nb) {
-    c=inch();
-    putc(c); //// <---
-    if (c == '\r') c=inch();
+    c = inch();
+    if (show_it) putc(c);
+    if (c == '\r') c = inch();
     if (c == '\n' || cheof(c)) { /* terminal character is either newline or EOF */
       break;
     } else {
-      b[z++]=c;
+      b[z++] = c;
     } 
   }
-  b[z]=0x00;
+  b[z] = 0x00;
   z--;
-  b[0]=(unsigned char)z;
+  b[0] = (unsigned char)z;
 #ifdef DEBUG
 printf("[%d] %s\n", b[0], b + 1);
 #endif
@@ -421,9 +419,9 @@ printf("[%d] %s\n", b[0], b + 1);
  *  all other streams are read using consins() for character by character
  *  input until a terminal character is reached
  */
-static uint16_t ins(char *b, uint16_t nb) {
+static uint16_t ins(char *b, uint16_t nb, bool show_it) {
   if ( id == ONULL ) return bufferins(b, nb);
-  if ( id == ISERIAL ) return serialins(b, nb);
+  if ( id == ISERIAL ) return serialins(b, nb, show_it);
 #if defined(HASKEYBOARD) || defined(HASKEYPAD)
   case IKEYBOARD:
     return kbdins(b, nb);
@@ -445,7 +443,7 @@ static uint16_t ins(char *b, uint16_t nb) {
     return mqttins(b, nb);  
 #endif
 #ifdef FILESYSTEMDRIVER
-  if ( id == IFILE ) return consins(b, nb);
+  if ( id == IFILE ) return consins(b, nb, show_it);
 #endif
   b[0] = 0;
   b[1] = 0;
@@ -1325,11 +1323,11 @@ inline static void filewrite(char c) {
 }
 
 inline static char fileread(){
-  char c;
+  int c;
   if (ifile) c = fgetc(ifile);
   else { ioer = 1; return 0; }
   if (cheof(c)) ioer = -1;
-  return c;
+  return (char)c;
 }
 
 static uint8_t ifileopen(const char* filename) {
@@ -1364,7 +1362,7 @@ void ofileclose(){
   }
 }
 
-inline static int fileavailable(){ return !feof(ifile); }
+inline static int fileavailable() { return !feof(ifile); }
 
 /*
  * directory handling for the catalog function
@@ -1428,8 +1426,10 @@ inline static uint32_t rootfilesize() {
 inline static void rootfileclose() {}
 inline static void rootclose(){
 #ifndef MSDOS
-  if (file) free(file);
-  (void) closedir(root);
+  if (file) {
+    free(file);
+    (void) closedir(root);
+  }
 #endif  
 }
 
@@ -1759,7 +1759,7 @@ e:
 #endif
 
 
-static uint16_t serialins(char* b, uint16_t nb) { return consins(b, nb); }
+static uint16_t serialins(char* b, uint16_t nb, bool show_it) { return consins(b, nb, show_it); }
 
 static void serialwrite(char c) { 
 

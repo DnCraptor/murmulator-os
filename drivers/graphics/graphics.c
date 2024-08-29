@@ -358,8 +358,14 @@ void draw_window(const char* title, uint32_t x, uint32_t y, uint32_t width, uint
 }
 
 void __putc(char c) {
-    char t[2] = { c, 0 };
-    gouta(t);
+    cmd_ctx_t* ctx = get_cmd_ctx();
+    if (ctx && ctx->std_out) {
+        UINT bw;
+        f_write(ctx->std_out, &c, 1, &bw);
+    } else {
+        char t[2] = { c, 0 };
+        gouta(t);
+    }
 }
 
 void goutf(const char *__restrict str, ...) {

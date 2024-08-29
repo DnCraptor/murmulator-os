@@ -5322,7 +5322,6 @@ static void showprompt() {
  * Reimplementation of input using the same pattern as read and print . 
  */
 void xinput() {
-
 	mem_t oldid = id; /* remember the stream on modify */
 	mem_t prompt = 1; /* determine if we show the prompt */
 	number_t xv; /* for number conversion with innumber */
@@ -5402,8 +5401,8 @@ again:
 /* if we have no buffer or are at the end, read it and set cursor k to the beginning */
 			if (k == 0 || (address_t) buffer[0] < k) { 
 				if (prompt) showprompt();
-				(void) ins(buffer, bufsize); 
-				k=1;
+				(void) ins(buffer, bufsize, !!prompt); 
+				k = 1;
 			}
 
 /* read a number from the buffer and return it, advance the cursor k */
@@ -5473,7 +5472,7 @@ again:
 /* now read the string inplace */
 			if (prompt) showprompt();
 #ifndef USEMEMINTERFACE	
-			newlength=ins(s.ir-1, maxlen);
+			newlength=ins(s.ir-1, maxlen, !!prompt);
 #else
 			newlength=ins(spistrbuf1, maxlen);
 
@@ -6111,7 +6110,7 @@ undo: /* this is the undo point */
 		outcr();
 
 /* get a bunch of editing commands and process them*/
-		i = ins(sbuffer, SBUFSIZE);
+		i = ins(sbuffer, SBUFSIZE, true);
 		for (k = 1; k <= i; ++k) {
 			ch = sbuffer[k];
 			if ( ch == 'q' ) { /* quit the editor*/
@@ -6926,46 +6925,36 @@ void xload(const char* f) {
  *	GET just one character from input 
  */
 static void xget(){
-
-/* identifier of the lefthandside */
+	/* identifier of the lefthandside */
 	lhsobject_t lhs;
-
-	mem_t oid=id;   /* remember the input stream */
-	char ch;
-
+	mem_t oid = id;   /* remember the input stream */
+	signed char ch;
 	nexttoken();
-
-/* modifiers of the get statement */
+	/* modifiers of the get statement */
 	if (token == '&') {
-
-		if (!expectexpr()) return;
-		id=pop();		
-		if (token != ',') {
+		if ( !expectexpr() ) return;
+		id = pop();
+		if ( token != ',' ) {
 			error(EUNKNOWN);
 			return;
 		}
 		nexttoken();
 	}
-
-/* this code evaluates the left hand side - remember type and name */
-	lhs.name=name; 
-
+	/* this code evaluates the left hand side - remember type and name */
+	lhs.name = name; 
 	lefthandside(&lhs);
 	if (!USELONGJUMP && er) return;
-
-/* get the data, non blocking on Arduino */
-	if (availch()) ch=inch(); else ch=0;
-
-/* store the data element as a number expect for */
+	/* get the data, non blocking on Arduino */
+	if ( availch() ) ch = inch();
+	else ch = -1; //0;
+	/* store the data element as a number expect for */
 	assignnumber2(&lhs, ch);
-
-/* but then, strings where we deliver a string with length 0 if there is no data */
-#ifdef HASAPPLE1
+	/* but then, strings where we deliver a string with length 0 if there is no data */
+	#ifdef HASAPPLE1
 	if (lhs.name.token == STRINGVAR && ch == 0 && lhs.ps) setstringlength(&lhs.name, 0, arraylimit);
-#endif
-
-/* restore the output device */
-	id=oid;
+	#endif
+	/* restore the output device */
+	id = oid;
 }
 
 /*
@@ -8128,7 +8117,7 @@ static void xfdisk() {
 	if (args > 1) error(EORANGE);
 	if (args == 0) push(0);
 	outsc("Format disk (y/N)?");
-	(void) consins(sbuffer, SBUFSIZE);
+	(void) consins(sbuffer, SBUFSIZE, true);
 	if (sbuffer[1] == 'y') formatdisk(pop());
 	if (fsstat(1) > 0) outsc("ok\n"); else outsc("fail\n");
 #endif
@@ -9498,7 +9487,7 @@ static void loop() {
 
 /* the prompt and the input request */
 	printmessage(MPROMPT);
-	(void) ins(ibuffer, BUFSIZE-2);
+	(void) ins(ibuffer, BUFSIZE-2, true);
         
 /* tokenize first token from the input buffer */
 	bi=ibuffer;
@@ -9542,6 +9531,9 @@ int main(void){
 	#if TRACE_PRINTF
 	printf("Done. Cleanup mem: [%ph]\n", mem);
 	#endif
+	ofileclose();
+	ifileclose();
+	rootclose();
 	free(mem);
     return 0;
 }

@@ -80,11 +80,11 @@
 // void ioinit();
 void iodefaults();
 static int cheof(int);
-static char inch();
+static signed char inch();
 static char checkch();
 static uint16_t availch();
 static uint16_t inb(char*, int16_t);
-static uint16_t ins(char*, uint16_t);
+static uint16_t ins(char*, uint16_t, bool);
 static void outch(char);
 static void outs(char*, uint16_t);
 
@@ -634,7 +634,7 @@ inline static void serialwrite(char); /* write to a serial stream */
 inline static char serialcheckch(); /* check on a character, needed for breaking */
 inline static uint16_t serialavailable(); /* avail method, needed for AVAIL() */ 
 inline static void serialflush(); /* flush serial */
-inline static uint16_t serialins(char*, uint16_t); /* read a line from serial */
+inline static uint16_t serialins(char*, uint16_t, bool show_it); /* read a line from serial */
 
 /*
  * reading from the console with inch or the picoserial callback
@@ -642,7 +642,7 @@ inline static uint16_t serialins(char*, uint16_t); /* read a line from serial */
  * this code needs to go to the main interpreter section after 
  * thorough rewrite
  */
-static uint16_t consins(char *, uint16_t);
+static uint16_t consins(char *, uint16_t, bool show_it);
 
 inline static void prtbegin(); /* second serial port */
 inline static char prtopen(char*, uint16_t); /* the open functions are not needed here */

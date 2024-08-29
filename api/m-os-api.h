@@ -883,9 +883,14 @@ inline static void fputc(char c, FILE* f) {
 }
 
 inline static int fgetc(FILE* f) {
-    char b[1];
-    UINT br;
-    if (f_read(f, b, 1, &br) == FR_OK && br == 1) return b[0];
+    if (f_eof(f)) return -1;
+    else {
+        char b;
+        UINT br;
+        if (f_read(f, &b, 1, &br) == FR_OK && br == 1) {
+            return b;
+        }
+    }
     return -1;
 }
 
