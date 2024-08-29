@@ -58,7 +58,7 @@ static size_t list_data_bytes(list_t* lst) {
     return res;
 }
 
-static void delete_list(list_t* lst) {
+static void list_cleanup(list_t* lst) {
     node_t* i = lst->last;
     while(i) {
         node_t* prev = i->prev;
@@ -68,6 +68,13 @@ static void delete_list(list_t* lst) {
         vPortFree(i);
         i = prev;
     }
+    lst->first = NULL;
+    lst->last = NULL;
+    lst->size = 0;
+}
+
+static void delete_list(list_t* lst) {
+    list_cleanup(lst);
     vPortFree(lst);
 }
 

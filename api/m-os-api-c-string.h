@@ -41,6 +41,15 @@ static string_t* new_string_cc(const char* s) {
     return res;
 }
 
+static string_t* new_string_cs(const string_t* s) {
+    string_t* res = (string_t*)pvPortMalloc(sizeof(string_t));
+    res->size = strlen(s->size + 1);
+    res->alloc = s->size + 1;
+    res->p = (char*)pvPortMalloc(res->alloc);
+    strncpy(res->p, s->p, res->alloc);
+    return res;
+}
+
 static void string_reseve(string_t* s, size_t alloc) {
     if (s->alloc >= alloc) return; // already more or eq. than requested
     char* n_p = (char*)pvPortMalloc(alloc);

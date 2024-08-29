@@ -5,7 +5,7 @@
 
 const char CD[] = "CD";
 const char TEMP[] = "TEMP";
-const char _mc_res[] = ".mc.res";
+const char _mc_res[] = ".mc.sav";
 
 static void m_window();
 static void redraw_window();
@@ -17,6 +17,7 @@ static bool m_prompt(const char* txt);
 static void no_selected_file();
 static bool cmd_enter(cmd_ctx_t* ctx);
 static void enter_pressed();
+static void handle_down_pressed();
 
 #define PANEL_TOP_Y 0
 #define FIRST_FILE_LINE_ON_PANEL_Y (PANEL_TOP_Y + 1)
@@ -30,7 +31,6 @@ static volatile uint32_t lastSavedScanCode;
 static bool hidePannels = false;
 
 static int cmd_history_idx = -2;
-
 
 typedef enum sort_type {
     BY_NAME_ASC = 0,
@@ -103,6 +103,7 @@ typedef struct file_panel_desc {
     indexes_t indexes[16]; // TODO: some ext. limit logic
     int level;
     sort_type_t sort_type;
+    list_t* selected_files_lst;
 } file_panel_desc_t;
 static void fill_panel(file_panel_desc_t* p);
 static void collect_files(file_panel_desc_t* p);
@@ -959,6 +960,19 @@ static void construct_full_name(string_t* dst, const char* folder, const char* f
     string_push_back_cc(dst, file);
 }
 
+static bool is_file_selected(file_panel_desc_t* p, file_info_t* fp) {
+    list_t* lst = psp->selected_files_lst;
+    node_t* i = lst->last;
+    while(i) {
+        node_t* prev = i->prev;
+        if ( i->data && 0 == strcmp(c_str(i->data), fp->s_name->p) ) {
+            return true;
+        }
+        i = prev;
+    }
+    return false;
+}
+
 static void fill_panel(file_panel_desc_t* p) {
     if (hidePannels) return;
     collect_files(p);
@@ -983,13 +997,15 @@ static void fill_panel(file_panel_desc_t* p) {
         y++;
         p->files_number++;
     }
+    size_t mselsz = p->selected_files_lst->size;
     for(int fn = 0; fn < files_info_arr->size; ++ fn) {
         file_info_t* fp = array_get_at(files_info_arr, fn);
         if (start_file_offset <= p->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
             char* filename = fp->s_name->p;
             snprintf(line, MAX_WIDTH >> 1, "%s/%s", p->s_path->p, filename);
             bool selected = p == psp && selected_file_idx == y;
-            draw_label(pcs, p->left + 1, y, width - 2, filename, selected, fp->fattr & AM_DIR);
+            bool multiselected = mselsz ? is_file_selected(p, fp) : fp->fattr & AM_DIR;
+            draw_label(pcs, p->left + 1, y, width - 2, filename, selected, multiselected);
             y++;
         }
         p->files_number++;
@@ -1007,7 +1023,12 @@ static void fill_panel(file_panel_desc_t* p) {
         line[width - 1] = 0xBC; // ╝
         line[width]     = 0;
         draw_text(line, p->left, PANEL_LAST_Y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
-        if (fp->fattr & AM_DIR) {
+        if (mselsz) {
+            char t[p->width];
+            snprintf(t, width, " Selected: %d ", mselsz);
+            size_t sz = strnlen(t, width);
+            draw_label(pcs, p->left + (width >> 1) - (sz >> 1), PANEL_LAST_Y, sz, t, false, false);
+        } else if (fp->fattr & AM_DIR) {
             draw_label(pcs, p->left + (width >> 1) - 3, PANEL_LAST_Y, 7, " <DIR> ", false, false);
         } else {
             char t[p->width];
@@ -1111,6 +1132,31 @@ static bool cmd_enter(cmd_ctx_t* ctx) {
     return false;
 }
 
+inline static void m_insert_pressed(void) {
+    if (hidePannels) {
+        return;
+    }
+    file_info_t* fp = selected_file(psp, true);
+    if (!fp || !fp->s_name || !fp->s_name->size) {
+        return;
+    }
+    list_t* lst = psp->selected_files_lst;
+    node_t* i = lst->last;
+    while(i) {
+        node_t* prev = i->prev;
+        if ( i->data && 0 == strcmp(c_str(i->data), fp->s_name->p) ) {
+            list_erase_node(lst, i);
+            goto fin;
+        }
+        i = prev;
+    }
+    string_t* path = new_string_cs(fp->s_name);
+    list_push_back(lst, path);
+fin:
+    handle_down_pressed();
+    redraw_current_panel();
+}
+
 static void enter_pressed() {
     if (s_cmd->size && !ctrlPressed) {
         mark_to_exit_flag = cmd_enter(get_cmd_ctx());
@@ -1121,6 +1167,7 @@ static void enter_pressed() {
     }
     file_info_t* fp = selected_file(psp, true);
     if (!fp) { // up to parent dir
+        list_cleanup(psp->selected_files_lst);
         int i = psp->s_path->size;
         while(--i > 0) {
             char c = psp->s_path->p[i];
@@ -1140,6 +1187,7 @@ static void enter_pressed() {
         return;
     }
     if (fp->fattr & AM_DIR) {
+        list_cleanup(psp->selected_files_lst);
         string_t* path = new_string_v();
         construct_full_name_s(path, psp->s_path, fp->s_name);
         string_replace_ss(psp->s_path, path);
@@ -1222,7 +1270,7 @@ inline static void cmd_down(cmd_ctx_t* ctx) {
     gouta(s_cmd->p);
 }
 
-inline static void handle_down_pressed() {
+static void handle_down_pressed() {
     if (hidePannels) {
         cmd_down(get_cmd_ctx());
         return;
@@ -1484,6 +1532,9 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             if (lastSavedScanCode == 0x51) {
                 handle_pagedown_pressed();
             }
+        } else if(sc == 0x52) { // Ins
+            m_insert_pressed();
+            scan_code_processed();
         }
         // TODO:
         //  case 0xCB: // left
@@ -1541,6 +1592,8 @@ int main(void) {
     left_panel->width = MAX_WIDTH >> 1;
     right_panel->left = MAX_WIDTH >> 1;
     right_panel->width = MAX_WIDTH - right_panel->left;
+    left_panel->selected_files_lst = new_list_v(new_string_v, delete_string, NULL);
+    right_panel->selected_files_lst = new_list_v(new_string_v, delete_string, NULL);
 
     pcs = calloc(1, sizeof(color_schema_t));
     pcs->BACKGROUND_FIELD_COLOR = 1, // Blue
@@ -1567,15 +1620,13 @@ int main(void) {
     set_scancode_handler(scancode_handler);
     delete_array(files_info_arr);
     free(line);
+    delete_list(right_panel->selected_files_lst);
     delete_string(right_panel->s_path);
     free(right_panel);
+    delete_list(left_panel->selected_files_lst);
     delete_string(left_panel->s_path);
     free(left_panel);
     free(pcs);
     delete_string(s_cmd);
     return 0;
-}
-
-int __required_m_api_verion(void) {
-    return M_API_VERSION;
 }
