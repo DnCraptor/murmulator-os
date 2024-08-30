@@ -878,6 +878,12 @@ inline static bool m_opendir(
         const lines_t lines = { 1, 4, lns };
         draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Warning", &lines);
         vTaskDelay(1500);
+        left_panel->indexes[0].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
+        right_panel->indexes[0].selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
+        string_replace_cs(left_panel->s_path, "/");
+        string_replace_cs(right_panel->s_path, "/");
+        left_panel->level = 0;
+        right_panel->level = 0;
         redraw_window();
         return false;
     }
@@ -1426,7 +1432,6 @@ inline static void handle_end_pressed() {
         return;
     }
     indexes_t* p = &psp->indexes[psp->level];
-    
     p->start_file_offset = psp->files_number - MAX_HEIGHT + 4;
     if ( p->start_file_offset < 0 ) p->start_file_offset = 0;
     p->selected_file_idx = LAST_FILE_LINE_ON_PANEL_Y - 1;
