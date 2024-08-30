@@ -50,6 +50,8 @@ static volatile bool leftPressed = false;
 static volatile bool rightPressed = false;
 static volatile bool upPressed = false;
 static volatile bool downPressed = false;
+static volatile bool homePressed = false;
+static volatile bool endPressed = false;
 
 // TODO:
 static const bool is_dendy_joystick = true;
@@ -166,6 +168,8 @@ int _init(void) {
     rightPressed = false;
     upPressed = false;
     downPressed = false;
+    homePressed = false;
+    endPressed = false;
 
     nespad_state_delay = DPAD_STATE_DELAY;
     nespad_state = nespad_state2 = 0;
@@ -1189,6 +1193,18 @@ static bool scancode_handler_impl(const uint32_t ps2scancode) { // core ?
     } else if (ps2scancode == 0xE0D0 || (ps2scancode == 0xD0 && !numlock)) {
         downPressed = false;
         goto r;
+    } else if (ps2scancode == 0xE047 || (ps2scancode == 0x47 && !numlock)) {
+        homePressed = true;
+        goto r;
+    } else if (ps2scancode == 0xE0C7 || (ps2scancode == 0xC7 && !numlock)) {
+        homePressed = false;
+        goto r;
+    } else if (ps2scancode == 0xE04F || (ps2scancode == 0x4F && !numlock)) {
+        endPressed = true;
+        goto r;
+    } else if (ps2scancode == 0xE0CF || (ps2scancode == 0xCF && !numlock)) {
+        endPressed = false;
+        goto r;
     }
     register uint8_t sc = (uint8_t)ps2scancode & 0xFF;
     if (sc == 0x4B) {
@@ -1391,6 +1407,31 @@ static void handle_down_pressed() {
         p->start_file_offset += 5;
         fill_panel(psp);    
     }
+    scan_code_processed();
+}
+
+inline static void handle_home_pressed() {
+    if (hidePannels) {
+        return;
+    }
+    indexes_t* p = &psp->indexes[psp->level];
+    p->selected_file_idx = FIRST_FILE_LINE_ON_PANEL_Y;
+    p->start_file_offset = 0;
+    fill_panel(psp);
+    scan_code_processed();
+}
+
+inline static void handle_end_pressed() {
+    if (hidePannels) {
+        return;
+    }
+    indexes_t* p = &psp->indexes[psp->level];
+    
+    p->start_file_offset = psp->files_number - MAX_HEIGHT + 4;
+    if ( p->start_file_offset < 0 ) p->start_file_offset = 0;
+    p->selected_file_idx = LAST_FILE_LINE_ON_PANEL_Y - 1;
+    if ( p->selected_file_idx > psp->files_number ) p->selected_file_idx = psp->files_number;
+    fill_panel(psp);
     scan_code_processed();
 }
 
@@ -1637,6 +1678,18 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
         } else if(sc == 0x52) { // Ins
             m_insert_pressed();
             scan_code_processed();
+        }
+        if (homePressed) {
+            homePressed = false;
+            handle_home_pressed();
+            scan_code_processed();
+            continue;
+        }
+        if (endPressed) {
+            endPressed = false;
+            handle_end_pressed();
+            scan_code_processed();
+            continue;
         }
         // TODO:
         //  case 0xCB: // left
