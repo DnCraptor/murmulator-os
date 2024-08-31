@@ -535,7 +535,7 @@ static void mark_to_exit(uint8_t cmd) {
 static void m_info(uint8_t cmd) {
     if (hidePannels) return;
     line_t plns[2] = {
-        { 1, " It is ZX Murmulator OS Commander" },
+        { 1, " It is Murmulator OS Commander" },
         { 1, "tba" }
     };
     lines_t lines = { 2, 0, plns };

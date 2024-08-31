@@ -1,4 +1,4 @@
-# Stefan's BASIC adaptation for the ZX Murmulator OS
+# Stefan's BASIC adaptation for the Murmulator OS
 
 Original documents:
 

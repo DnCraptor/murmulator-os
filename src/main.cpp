@@ -221,7 +221,7 @@ static void load_config_sys() {
     set_last_overclocking(overclocking);
 }
 
-const char* tmp = "ZX Murmulator (RP2040) OS v." MOS_VERSION_STR;
+const char* tmp = "Murmulator (RP2040) OS v." MOS_VERSION_STR;
 
 #ifdef DEBUG_VGA
 extern "C" char vga_dbg_msg[1024];

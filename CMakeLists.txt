@@ -71,7 +71,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 configure_file(memmap.ld.in memmap.ld @ONLY)
 pico_set_linker_script(${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/memmap.ld)
 
-pico_set_program_name(${PROJECT_NAME} "ZX Murmulator OS")
+pico_set_program_name(${PROJECT_NAME} "Murmulator OS")
 pico_set_program_version(${PROJECT_NAME} "${MOS_VERSION}")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
