@@ -1,9 +1,9 @@
 # murmulator-os
-ZX Murmulator OS v.0.2.6.1<br/>
+Murmulator OS v.0.2.6.1<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
-Sources are "in-progress" state and testing now only on ZX Murmulator devboard with VGA/HDMI/TV(RGB) output.<br/>
+Sources are "in-progress" state and testing now only on Murmulator devboard with VGA/HDMI/TV(RGB) output.<br/>
 Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme<br/>
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
 ![VGA OR hdmi](./assets/vga_hdmi.jpg)
@@ -17,7 +17,7 @@ Let use translate from russian on https://murmulator.ru/types site, for case you
 
 # Current state
 RP2040 core 0: starts FreeRTOS (based on https://github.com/FreeRTOS/FreeRTOS-Community-Supported-Demos/tree/3d475bddf7ac8af425da67cdaa2485e90a57a881/CORTEX_M0%2B_RP2040) <br/>
-RP2040 core 1: starts VGA/HDMI/TV(RGB) driver (based on ZX Murmulator comunity version last used before in https://github.com/xrip/pico-launcher)
+RP2040 core 1: starts VGA/HDMI/TV(RGB) driver (based on Murmulator comunity version last used before in https://github.com/xrip/pico-launcher)
 
 # MOS build hints:
  - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
@@ -40,8 +40,8 @@ in/arm-none-eabi-gcc" "-DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/arm-none-eabi-g++"
 # OS syscalls
 TBA
 
-# ZX Murmulator OS tips
-ZX Murmulator OS (M-OS to make it short) has no specific levels of execution like kernel and application. All code parts (kernel/application) executes on the same level (like it was in good old DOS).<br/>
+# Murmulator OS tips
+Murmulator OS (M-OS to make it short) has no specific levels of execution like kernel and application. All code parts (kernel/application) executes on the same level (like it was in good old DOS).<br/>
 <br/>
 M-OS uses a mono-kernel architecture, it means we have no separate kernel modules, all kernel related code is precompiled, prelinked and preinstalled on hardware. Only application level code is replaceable while kernel is working.<br/>
 <br/>
@@ -49,12 +49,12 @@ M-OS is based on FreeRTOS port for RP2040 (Base version: FreeRTOSv202212.01. Exa
 <br/>
 M-OS manages access to<br/>
  - SRAM (256+4+4KB installed on RP2040),<br/>
- - PSRAM (4-8MB installed on ZX Murmulator board since v.1.3),<br/>
+ - PSRAM (4-8MB installed on Murmulator board since v.1.3),<br/>
  - FLASH ROM (2-16MB installed on Rasperry Pi Pico),<br/>
- - SD-CARD (FAT32, connected to ZX Murmulator board),<br/>
- - VGA/HDMI/TV adapter (222-color schema, installed on ZX Murmulator board),<br/>
- - PS/2 keyboard (connected to ZX Murmulator board),<br/>
- - Kempston (Dendy 8-bit) Joystick (connected to ZX Murmulator board),<br/>
+ - SD-CARD (FAT32, connected to Murmulator board),<br/>
+ - VGA/HDMI/TV adapter (222-color schema, installed on Murmulator board),<br/>
+ - PS/2 keyboard (connected to Murmulator board),<br/>
+ - Kempston (Dendy 8-bit) Joystick (connected to Murmulator board),<br/>
  - Sound devices (PWM 12-bit stereo + "speaker" or TDA1387T/PCM5102A DAC chip in "PCM" build versions)<br/>
 <br/>
 Other types of<br/>
