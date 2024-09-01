@@ -1248,6 +1248,7 @@ static inline void redraw_current_panel() {
 }
 
 static bool cmd_enter(cmd_ctx_t* ctx) {
+    gouta(s_cmd->p);
     putc('\n');
     if ( cmd_enter_helper(ctx, s_cmd) ) {
         return true;
@@ -1334,10 +1335,14 @@ static void enter_pressed() {
         return;
     }
     construct_full_name_s(s_cmd, psp->s_path, fp->s_name);
-    gouta(s_cmd->p);
-
+    static const char os_prefix[] = "murmulator-os-";
+    char *p = s_cmd->p + s_cmd->size - 4;
+    if ( 0 == strncmp(fp->s_name->p, os_prefix, 14) && strncmp(".uf2", p, 4) == 0 ) {
+            string_replace_cs(s_cmd, "os_update \"");
+            m_ext_common(fp);
+            return;
+    }
     if (s_cmd->size >= 4) {
-        char *p = s_cmd->p + s_cmd->size - 4;
         if (strncmp(".wav", p, 4) == 0 || strncmp(".WAV", p, 4) == 0) {
             string_replace_cs(s_cmd, "wav \"");
             m_ext_common(fp);
