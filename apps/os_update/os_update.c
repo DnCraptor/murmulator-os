@@ -1,4 +1,6 @@
 #include "m-os-api.h"
+#include "m-os-api-sdtfn.h"
+#include "m-os-api-math.h"
 
 typedef struct {
     // 32 byte header

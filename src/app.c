@@ -79,10 +79,6 @@ void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offse
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
-void flash_block_wrapper(uint8_t* buffer, size_t flash_target_offset) {
-    flash_block(buffer, flash_target_offset);
-}
-
 bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
 // TODO: dynamic
     FILINFO fi;

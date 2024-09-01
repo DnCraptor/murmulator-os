@@ -195,7 +195,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     concat, // 129
     concat2, // 130
     //
-    flash_block_wrapper, // 131
+    flash_block, // 131
     get_heap_total, // 132
     swap_pages, // 133
     swap_pages_base, // 134
