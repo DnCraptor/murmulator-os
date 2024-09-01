@@ -12,6 +12,8 @@
 #define M_OS_APP_TABLE_BASE ((size_t*)0x10001000ul) // TODO:
 typedef int (*boota_ptr_t)( void *argv );
 
+volatile bool reboot_is_requested = false;
+
 typedef struct {
     // 32 byte header
     uint32_t magicStart0;
@@ -123,13 +125,8 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         fgoutf(&file, "%s\n", pathname);
         f_close(&file);
         fgoutf(get_stdout(), "Reboot is required!\n");
-
-        f_close(get_stdout());
-        f_close(get_stderr());
-        f_unmount("SD");
-
-        watchdog_enable(1, true);
-        while (true) ;
+        reboot_is_requested = true;
+        while(true) ;
     }
     vPortFree(uf2);
     return !boot_replaced;

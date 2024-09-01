@@ -2,6 +2,7 @@
 #include <cstring>
 #include <hardware/pwm.h>
 #include <hardware/clocks.h>
+#include <hardware/watchdog.h>
 #include <hardware/structs/vreg_and_chip_reset.h>
 #include <pico/bootrom.h>
 #include <pico/multicore.h>
@@ -43,6 +44,7 @@ extern "C" FATFS* get_mount_fs() { // only one FS is supported for now
 }
 semaphore vga_start_semaphore;
 static int drv = DEFAULT_VIDEO_DRIVER;
+extern "C" volatile bool reboot_is_requested;
 
 void __time_critical_func(render_core)() {
     multicore_lockout_victim_init();
@@ -50,10 +52,12 @@ void __time_critical_func(render_core)() {
     // graphics_driver_t* gd = get_graphics_driver();
     // install_graphics_driver(gd);
     sem_acquire_blocking(&vga_start_semaphore);
-    while(true) {
+    while(!reboot_is_requested) {
         pcm_call();
         tight_loop_contents();
     }
+    watchdog_enable(1, true);
+    while(true) ;
     __unreachable();
 }
 
