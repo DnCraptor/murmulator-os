@@ -461,6 +461,11 @@ inline static char* concat(const char* s1, const char* s2) {
     return ((fn_ptr_t)_sys_table_ptrs[129])(s1, s2);
 }
 
+inline static void flash_block(uint8_t* buffer, size_t flash_target_offset) {
+    typedef void (*fn_ptr_t)(uint8_t*, size_t);
+    ((fn_ptr_t)_sys_table_ptrs[131])(buffer, flash_target_offset);
+}
+
 inline static size_t get_heap_total() {
     typedef size_t (*fn_ptr_t)();
     return ((fn_ptr_t)_sys_table_ptrs[132])();

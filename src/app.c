@@ -64,6 +64,7 @@ inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expe
     return expected_flash_target_offset;
 }
 
+// TODO: dynamic
 static FIL file;
 static FILINFO fileinfo;
 
@@ -83,12 +84,13 @@ void flash_block_wrapper(uint8_t* buffer, size_t flash_target_offset) {
 }
 
 bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
+// TODO: dynamic
     FILINFO fi;
     if (FR_OK != f_stat(pathname, &fi) || FR_OK != f_open(&file, pathname, FA_READ)) {
         return false;
     }
     UF2_Block_t* uf2 = (UF2_Block_t*)pvPortMalloc(sizeof(UF2_Block_t));
-    char* alloc = (char*)pvPortMalloc(FLASH_SECTOR_SIZE << 1);
+    char* alloc = (char*)pvPortMalloc(FLASH_SECTOR_SIZE << 1); // TODO: aliment by ?
     char* buffer = (char*)((uint32_t)(alloc + FLASH_SECTOR_SIZE - 1) & 0xFFFFFE00); // align 512
 
     uint32_t flash_target_offset = 0;
