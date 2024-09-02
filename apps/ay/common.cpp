@@ -143,7 +143,7 @@ AYFLY_API void *ay_initsongindirect(unsigned char *module, unsigned long sr, uns
     info->file_len = size;
     info->module_len = size;
     unsigned long to_allocate = size < 65536 ? 65536 : size;
-    info->file_data = new unsigned char[to_allocate];
+    info->file_data = (unsigned char*)malloc(to_allocate);
     if(!info->file_data)
     {
         delete info;
@@ -151,7 +151,7 @@ AYFLY_API void *ay_initsongindirect(unsigned char *module, unsigned long sr, uns
     }
     memset(info->file_data, 0, to_allocate);
     memcpy(info->file_data, module, size);
-    info->module = new unsigned char[to_allocate];
+    info->module = (unsigned char*)malloc(to_allocate);
     if(!info->module)
     {
         delete info;
@@ -229,7 +229,7 @@ AYFLY_API void *ay_getsonginfoindirect(unsigned char *module, TFileName type, un
         return 0;
     info->FilePath = type;
     unsigned long to_allocate = size < 65536 ? 65536 : size;
-    info->file_data = new unsigned char[to_allocate];
+    info->file_data = (unsigned char*)malloc(to_allocate);
     if(!info->file_data)
     {
         delete info;
@@ -237,7 +237,7 @@ AYFLY_API void *ay_getsonginfoindirect(unsigned char *module, TFileName type, un
     }
     memset(info->file_data, 0, to_allocate);
     memcpy(info->file_data, module, size);
-    info->module = new unsigned char[to_allocate];
+    info->module = (unsigned char*)malloc(to_allocate);
     if(!info->module)
     {
         delete info;
@@ -566,12 +566,12 @@ AYSongInfo::~AYSongInfo()
     ay_sys_shutdownz80(*this);
     if(module)
     {
-        delete[] module;
+        free(module);
         module = 0;
     }
     if(file_data)
     {
-        delete[] file_data;
+        free(file_data);
         file_data = 0;
     }
 

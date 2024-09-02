@@ -26,6 +26,17 @@ void* memmove(void* dst, const void* src, size_t sz) {
     return ((fn)_sys_table_ptrs[232])(dst, src, sz);
 }
 
+void _exit(int status) { goutf("_exit(%d)\n", status); }
+void _kill(void) { gouta("_kill\n"); }
+int _getpid(void) { gouta("_getpid\n"); return 0; }
+void _sbrk(void) { gouta("_sbrk\n"); }
+void _write(void) { gouta("_write\n"); }
+void _close(void) { gouta("_close\n"); }
+void _fstat(void) { gouta("_fstat\n"); }
+void _isatty(void) { gouta("_isatty\n"); }
+void _lseek(void) { gouta("_lseek\n"); }
+void _read(void) { gouta("_read\n"); }
+
 #ifdef __cplusplus
 }
 #endif

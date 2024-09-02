@@ -45,6 +45,27 @@ enum
     AY_GPIO_B
 };
 
+struct allocator {
+inline void* operator new(size_t sz) {
+    return malloc(sz);
+}
+inline void operator delete(void* p) {
+    return free(p);
+}
+inline void operator delete(void* p, size_t) {
+    return free(p);
+}
+inline void* operator new[](size_t sz) {
+    return malloc(sz);
+}
+inline void operator delete[](void* p) {
+    return free(p);
+}
+inline void operator delete[](void* p, size_t) {
+    return free(p);
+}
+};
+
 struct init_mix_levels
 {
     float a_left;
@@ -64,7 +85,7 @@ typedef enum _ay_mix_types {
   AY_CBA
 } AYMixTypes;
 
-class ay
+class ay : allocator
 {
 public:
     ay() {

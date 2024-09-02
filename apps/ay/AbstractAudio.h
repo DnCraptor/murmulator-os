@@ -21,7 +21,7 @@
 #ifndef AUDIO_H_
 #define AUDIO_H_
 
-class AbstractAudio
+class AbstractAudio : public allocator
 {
 public:
     AbstractAudio(AYSongInfo *info);

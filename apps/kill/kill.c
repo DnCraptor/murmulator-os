@@ -16,14 +16,13 @@ int main() {
         fprintf(ctx->std_err, "Task #%d not found.\n", ps_num);
     }
     else if (res == 1) {
-        fprintf(ctx->std_err, "Task #%d has no SIGKILL support.\n", ps_num);
+        fprintf(ctx->std_err, "Task #%d has no SIGTERM action support (process state was set to SIGTERM).\n", ps_num);
     }
     else if (res == 2) {
-        printf("Task #%d - SIGKILL was sent.\n", ps_num);
+        printf("Task #%d - SIGTERM was sent.\n", ps_num);
+    }
+    else if (res == 3) {
+        printf("Task #%d - cmd context is not defined.\n", ps_num);
     }
     return 0;
-}
-
-int __required_m_api_verion(void) {
-    return M_API_VERSION;
 }

@@ -40,7 +40,8 @@ typedef enum {
     VALID,
     LOAD,
     EXECUTED,
-    INVALIDATED
+    INVALIDATED,
+    SIGTERM
 } cmd_exec_stage_t;
 
 typedef struct cmd_ctx {
@@ -62,7 +63,8 @@ typedef struct cmd_ctx {
 
     struct cmd_ctx* next;
 
-    cmd_exec_stage_t stage;
+    volatile cmd_exec_stage_t stage;
+    void* user_data;
 } cmd_ctx_t;
 
 cmd_ctx_t* get_cmd_startup_ctx(); // system

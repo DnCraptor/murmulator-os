@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 21
+#define M_API_VERSION 22
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
@@ -263,7 +263,8 @@ typedef enum {
     VALID,
     LOAD,
     EXECUTED,
-    INVALIDATED
+    INVALIDATED,
+    SIGTERM
 } cmd_exec_stage_t;
 
 typedef struct cmd_ctx {
@@ -285,8 +286,22 @@ typedef struct cmd_ctx {
 
     struct cmd_ctx* next;
 
-    cmd_exec_stage_t stage;
+    volatile cmd_exec_stage_t stage;
+    void* user_data;
 } cmd_ctx_t;
+
+inline static TaskHandle_t xTaskGetCurrentTaskHandle( void ) {
+    typedef TaskHandle_t (*f_ptr_t)(void);
+    return ((f_ptr_t)_sys_table_ptrs[136])();
+}
+
+inline static
+void vTaskSetThreadLocalStoragePointer( TaskHandle_t xTaskToSet,
+                                        BaseType_t xIndex,
+                                        void* pvValue ) {
+    typedef void (*f_ptr_t)(TaskHandle_t, BaseType_t, void*);
+    ((f_ptr_t)_sys_table_ptrs[23])(xTaskToSet, xIndex, pvValue);
+}
 
 inline static cmd_ctx_t* get_cmd_startup_ctx() {
     typedef cmd_ctx_t* (*f_ptr_t)();
@@ -1001,6 +1016,8 @@ static int memcmp( const void *buffer1, const void *buffer2, size_t count ) {
 
 #define abs(x) (x > 0 ? x : -x)
 
+#ifndef UF2_MODE
+
 #ifndef marked_to_exit
 volatile bool marked_to_exit;
 
@@ -1008,11 +1025,13 @@ int __required_m_api_verion(void) {
     return M_API_VERSION;
 }
 
-// only SIGKILL is supported for now
+// only SIGTERM is supported for now
 int signal(void) {
 	marked_to_exit = true;
     return 0;
 }
+#endif
+
 #endif
 
 #ifdef __cplusplus

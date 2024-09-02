@@ -1,40 +1,3 @@
-#include "ayfly.h"
-
-static char tolower(char c) {
-    if (c >= 'A' && c <= 'Z') {
-        return (c - 'A') + 'a';
-    }
-    // TODO: cp866 chars
-    return c;
-}
-
-int main(void) {
-    marked_to_exit = false;
-    cmd_ctx_t* ctx = get_cmd_ctx();
-    if (ctx->argc < 2 || ctx->argc > 3) {
-e0:
-        fprintf(ctx->std_err,
-            "Usage: ay [file] [bytes]\n"
-            "  where [bytes] - optional param to reserve some RAM for other applications (512 by default).\n"
-        );
-        return 1;
-    }
-    int reserve = 512;
-    if (ctx->argc == 3) {
-        reserve = atoi(ctx->argv[2]);
-        if (!reserve) {
-            goto e0;
-        }
-    }
-    int res = 0;
-    void* p = ay_initsong(ctx->argv[1], 44100);
-    if (!p) {
-        fprintf(ctx->std_err, "ay_initsong returns NULL\n");
-        return -1;
-    }
-    return res;
-}
-
 /***************************************************************************
  *   Copyright (C) 2008 by Deryabin Andrew   				               *
  *   andrew@it-optima.ru                                                   *
@@ -54,6 +17,18 @@ e0:
  *   Free Software Foundation, Inc.,                                       *
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
+#define UF2_MODE
+#include "m-os-api.h"
+#include "m-os-api-sdtfn.h"
+#include "m-os-api-timer.h"
+
+static char tolower(char c) {
+    if (c >= 'A' && c <= 'Z') {
+        return (c - 'A') + 'a';
+    }
+    // TODO: cp866 chars
+    return c;
+}
 
 #include "ayfly.h"
 

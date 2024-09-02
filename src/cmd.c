@@ -57,6 +57,7 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     res->next = src->next; src->next = 0;
     res->stage = src->stage;
     res->ret_code = src->ret_code;
+    res->user_data = 0;
     return res;
 }
 void cleanup_ctx(cmd_ctx_t* src) {
@@ -96,6 +97,10 @@ void cleanup_ctx(cmd_ctx_t* src) {
     src->prev = 0;
     src->next = 0;
     src->stage = INITIAL;
+    if (src->user_data) {
+        vPortFree(src->user_data);
+        src->user_data = 0;
+    }
     // gouta("cleanup_ctx <<\n");
 }
 void remove_ctx(cmd_ctx_t* src) {
@@ -123,6 +128,10 @@ void remove_ctx(cmd_ctx_t* src) {
     }
     cleanup_bootb_ctx(src);
     src->next = 0; // each pipe should remove it by self
+    if (src->user_data) {
+        vPortFree(src->user_data);
+        src->user_data = 0;
+    }
     vPortFree(src);
     // gouta("remove_ctx <<\n");
 }
@@ -541,8 +550,7 @@ inline static bool prepare_ctx(string_t* pcmd, cmd_ctx_t* ctx) {
 }
 
 inline static cmd_ctx_t* new_ctx(cmd_ctx_t* src) {
-    cmd_ctx_t* res = (cmd_ctx_t*)pvPortMalloc(sizeof(cmd_ctx_t));
-    memset(res, 0, sizeof(cmd_ctx_t));
+    cmd_ctx_t* res = (cmd_ctx_t*)pvPortCalloc(1, sizeof(cmd_ctx_t));
     if (src->vars_num && src->vars) {
         res->vars = (vars_t*)pvPortMalloc( sizeof(vars_t) * src->vars_num );
         res->vars_num = src->vars_num;

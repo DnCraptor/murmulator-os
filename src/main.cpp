@@ -382,7 +382,7 @@ static kbd_state_t* process_input_on_boot() {
 #endif
             }
         }
-        sleep_ms(10);
+        sleep_ms(30);
         nespad_read();
     }
     return ks;
@@ -454,7 +454,7 @@ int main() {
     init();
     info(true);
 
-    xTaskCreate(vCmdTask, "cmd", 1024/*x4=4096k*/, NULL, configMAX_PRIORITIES - 1, NULL);
+    xTaskCreate(vCmdTask, "cmd", 1024/*x4=4096*/, NULL, configMAX_PRIORITIES - 1, NULL);
 
     setApplicationMallocFailedHookPtr(mallocFailedHandler);
     setApplicationStackOverflowHookPtr(overflowHook);

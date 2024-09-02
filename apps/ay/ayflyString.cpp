@@ -31,7 +31,7 @@ size_t ayfly_strlen(const AY_CHAR *str)
 
 CayflyString::CayflyString()
 {
-    m_str = new AY_CHAR [1];
+    m_str = (AY_CHAR*)malloc(1);
     m_str[0] = 0;
 
 }
@@ -40,7 +40,7 @@ CayflyString::~CayflyString()
 {
     if(m_str)
     {
-        delete[] m_str;
+        free(m_str);
         m_str = 0;
     }
 }
@@ -48,7 +48,7 @@ CayflyString::~CayflyString()
 CayflyString::CayflyString(const AY_CHAR *str)
 {
     size_t len = ayfly_strlen(str);
-    m_str = new AY_CHAR [len + 1];
+    m_str = (AY_CHAR*)malloc(len + 1);
     memcpy(m_str, str, len * sizeof(AY_CHAR));
     m_str[len] = 0;
 
@@ -57,7 +57,7 @@ CayflyString::CayflyString(const AY_CHAR *str)
 CayflyString::CayflyString(const CayflyString & str)
 {    
     size_t len = ayfly_strlen(str.c_str());
-    m_str = new AY_CHAR [len + 1];
+    m_str = (AY_CHAR*)malloc(len + 1);
     memcpy(m_str, str.c_str(), len * sizeof(AY_CHAR));
     m_str[len] = 0;
 }
@@ -71,11 +71,11 @@ CayflyString& CayflyString::operator =(const AY_CHAR *str)
 {
     if(m_str)
     {
-        delete[] m_str;
+        free(m_str);
         m_str = 0;
     }
     size_t len = ayfly_strlen(str);
-    m_str = new AY_CHAR [len + 1];
+    m_str = (AY_CHAR*)malloc(len + 1);
     memcpy(m_str, str, len * sizeof(AY_CHAR));    
     m_str[len] = 0;
     return *this;

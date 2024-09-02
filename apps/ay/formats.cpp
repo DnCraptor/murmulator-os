@@ -93,13 +93,13 @@ TFileName ay_sys_getstr(const unsigned char *str, unsigned long length)
 #else
 CayflyString ay_sys_getstr(const unsigned char *str, unsigned long length)
 {
-    char *str_new = new char [length + 1];
+    char *str_new = (char*)malloc(length + 1);
     if(!str_new)
         return CayflyString(TXT(""));
     memset(str_new, 0, length + 1);
     memcpy(str_new, str, length);        
     CayflyString cstr(str_new);
-    delete str_new;
+    free(str_new);
     return cstr;
 }
 #endif
@@ -193,14 +193,14 @@ unsigned char *osRead(const TFileName filePath, unsigned long *data_len)
 {
     unsigned char *fileData = 0;
 #ifdef M_API_VERSION
-    FILINFO* fi = new FILINFO();
+    FILINFO* fi = (FILINFO*)malloc(sizeof(FILINFO));
     if ( FR_OK != f_stat(filePath.c_str(), fi) ) {
-        delete fi;
+        free(fi);
         return fileData;
     }
     uint32_t sz = (uint32_t)fi->fsize & 0xFFFFFFFF;
-    delete fi;
-    FIL* f  = new FIL();
+    free(fi);
+    FIL* f  = (FIL*)malloc(sizeof(FIL));
     if ( FR_OK == f_open(f, filePath.c_str(), FA_READ) ) {
         // TODO: control RAM
         fileData = (unsigned char*)malloc(sz);
@@ -209,18 +209,18 @@ unsigned char *osRead(const TFileName filePath, unsigned long *data_len)
         *data_len = br;
         f_close(f);
     }
-    delete(f);
+    free(f);
 #else
 
 #ifndef __SYMBIAN32__
     FILE *f;
 #if !defined(WINDOWS) && defined(UNICODE)
     size_t len = filePath.length() * 6;
-    char *mb_str = new char[len + 1];
+    char *mb_str = (char*)malloc(len + 1);
     if(!mb_str)
     {
         *data_len = 0;
-        delete[] fileData;
+        free(fileData);
         return 0;
     }
     mbstate_t mbstate;
@@ -229,7 +229,7 @@ unsigned char *osRead(const TFileName filePath, unsigned long *data_len)
     size_t cnt_conv = wcsrtombs(mb_str, &wc_str, len, &mbstate);
     mb_str[cnt_conv] = 0;
     f = fopen(mb_str, "rb");
-    delete[] mb_str;
+    free(mb_str);
 #else
 #if defined(WINDOWS) && defined(UNICODE)
     f = _wfopen(filePath.c_str(), TXT("rb"));
@@ -317,7 +317,7 @@ out:
 long ay_sys_detect(AYSongInfo &info)
 {
     long player = -1;
-    unsigned char *tmp_module = new unsigned char[info.file_len];
+    unsigned char *tmp_module = (unsigned char*)malloc(info.file_len);
     if(!tmp_module)
         return -1;
     memcpy(tmp_module, info.file_data, info.file_len);
@@ -329,7 +329,7 @@ long ay_sys_detect(AYSongInfo &info)
                 break;
         }
     }
-    delete[] tmp_module;
+    free(tmp_module);
 
     if(player >= sizeof_array(Players))
     {
@@ -434,10 +434,10 @@ bool ay_sys_readfromfile(AYSongInfo &info)
     info.module_len = data_len;
 
     unsigned long to_allocate = info.file_len < 65536 ? 65536 : info.file_len;
-    info.module = new unsigned char[to_allocate];
+    info.module = (unsigned char*)malloc(to_allocate);
     if(!info.module)
     {
-        delete[] info.file_data;
+        free(info.file_data);
         info.file_data = 0;
         return false;
     }

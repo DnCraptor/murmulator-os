@@ -23,9 +23,6 @@
 
 #if 1
 
-#include "m-os-api.h"
-#include "m-os-api-sdtfn.h"
-#include "m-os-api-timer.h"
 
 #define ANSI
 #define AY_CHAR char
@@ -173,7 +170,7 @@ typedef void (*AYWRITE_CALLBACK)(void *song, unsigned long chip, unsigned char r
 
 #define NUMBER_OF_AYS 2
 
-struct AYSongInfo
+struct AYSongInfo : allocator
 {
 #ifndef __SYMBIAN32__
     AY_TXT_TYPE Author; /* Song author */

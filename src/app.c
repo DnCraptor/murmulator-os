@@ -806,7 +806,10 @@ void vCmdTask(void *pv) {
             if (len > 3 && strcmp(ctx->orig_cmd + len - 4, ".uf2") == 0) {
                 if(load_firmware(ctx->orig_cmd)) { // TODO: by ctx
                     ctx->stage = LOAD;
-                    run_app(ctx->orig_cmd);
+                    vTaskSetThreadLocalStoragePointer(th, 0, ctx);
+                    //run_app(ctx->orig_cmd);
+                    int res = ((boota_ptr_t)M_OS_APP_TABLE_BASE[0])(ctx->orig_cmd); // TODO: 0 - 2nd page, what exactly page used by app?
+                    goutf("RET_CODE: %d\n", res);
                     ctx->stage = EXECUTED;
                     cleanup_ctx(ctx);
                 } else {
@@ -863,9 +866,14 @@ int kill(uint32_t task_number) {
         if (pxTaskStatusArray[ x ].xTaskNumber == task_number) {
             res = 1;
             cmd_ctx_t* ctx = (cmd_ctx_t*) pvTaskGetThreadLocalStoragePointer(pxTaskStatusArray[ x ].xHandle, 0);
-            if (ctx && ctx->pboot_ctx && ctx->pboot_ctx->bootb[4]) {
-                ctx->pboot_ctx->bootb[4](); // signal
-                res = 2;
+            if (ctx) {
+                ctx->stage = SIGTERM;
+                if (ctx->pboot_ctx && ctx->pboot_ctx->bootb[4]) {
+                    ctx->pboot_ctx->bootb[4](); // signal SIGTERM
+                    res = 2;
+                }
+            } else {
+                res = 3;
             }
             break;
         }

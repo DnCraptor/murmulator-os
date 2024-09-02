@@ -53,7 +53,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 #family_configure_device_example(${PROJECT_NAME} noos)
-# -fPIC -shared
+# -fPIC -shared -mfdpic
 target_link_options(${PROJECT_NAME} PRIVATE -Xlinker --print-memory-usage)
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
