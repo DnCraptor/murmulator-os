@@ -69,6 +69,16 @@ static FIL file;
 static FILINFO fileinfo;
 
 void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offset) {
+    uint8_t *e = (uint8_t*)(XIP_BASE + flash_target_offset);
+    for (uint32_t i = 0; i < FLASH_SECTOR_SIZE; ++i) {
+        if (e[i] != buffer[i]) {
+            e = 0;
+            break;
+        }
+    }
+    if (e) { // the block is already eq.s to flash state
+        return;
+    }
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     multicore_lockout_start_blocking();
     const uint32_t ints = save_and_disable_interrupts();
@@ -86,7 +96,7 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         return false;
     }
     UF2_Block_t* uf2 = (UF2_Block_t*)pvPortMalloc(sizeof(UF2_Block_t));
-    char* alloc = (char*)pvPortMalloc(FLASH_SECTOR_SIZE << 1); // TODO: aliment by ?
+    char* alloc = (char*)pvPortCalloc(1, FLASH_SECTOR_SIZE << 1); // TODO: aliment by ?
     char* buffer = (char*)((uint32_t)(alloc + FLASH_SECTOR_SIZE - 1) & 0xFFFFFE00); // align 512
 
     uint32_t flash_target_offset = 0;
@@ -111,7 +121,9 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
             fgoutf(get_stdout(), "Replace loader @ offset 0\n");
         }
         already_written += FLASH_SECTOR_SIZE;
-        fgoutf(get_stdout(), "Erase and write to flash, offset: %ph (%d%%)\n", flash_target_offset, already_written * 100 / expected_to_write_size);
+        uint32_t pcts = already_written * 100 / expected_to_write_size;
+        if (pcts > 100) pcts = 100;
+        fgoutf(get_stdout(), "Erase and write to flash, offset: %ph (%d%%)\n", flash_target_offset, pcts);
         flash_block(buffer, flash_target_offset);
         flash_target_offset = next_flash_target_offset;
     }

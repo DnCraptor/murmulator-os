@@ -70,14 +70,19 @@ AYSongInfo *ay_sys_getnewinfo()
 }
 
 #ifndef __SYMBIAN32__
-AYFLY_API void *ay_initsong(const AY_CHAR *FilePath, unsigned long sr, AbstractAudio *player)
+extern "C" AYFLY_API
+void *ay_initsong(const AY_CHAR *FilePath, unsigned long sr)
 #else
 AYFLY_API void *ay_initsong(TFileName FilePath, unsigned long sr, AbstractAudio *player)
 #endif
 {
+    AbstractAudio *player = NULL;
+    gouta("1\n");
     AYSongInfo *info = ay_sys_getnewinfo();
+    gouta("2\n");
     if(!info)
         return 0;
+    gouta("3\n");
 
     info->FilePath = FilePath;
     info->sr = sr;

@@ -300,7 +300,7 @@ extern "C" {
  */
 
 #ifndef __SYMBIAN32__
-AYFLY_API void *ay_initsong(const AY_CHAR *FilePath, unsigned long sr, AbstractAudio *player = 0);
+extern "C" AYFLY_API void *ay_initsong(const AY_CHAR *FilePath, unsigned long sr); //, AbstractAudio *player = 0);
 #else
 AYFLY_API void *ay_initsong(TFileName FilePath, unsigned long sr, AbstractAudio *player = 0);
 #endif
