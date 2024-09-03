@@ -83,7 +83,7 @@ inline void writePort(Z80EX_CONTEXT *cpu, Z80EX_WORD port, Z80EX_BYTE value, voi
                     write_reg: info->ay_reg = value;
                     break;
                 case 0xbf:
-                    write_dat: info->ay8910[0].ayWrite(info->ay_reg, value);
+                    write_dat: info->pay8910[0]->ayWrite(info->ay_reg, value);
                     break;
                 default:
                     /* ok, since we do at least have low byte=FDh,
@@ -99,7 +99,7 @@ inline void writePort(Z80EX_CONTEXT *cpu, Z80EX_WORD port, Z80EX_BYTE value, voi
             break;
 
         case 0xfe:
-            info->ay8910[0].ayBeeper(value & 0x10);
+            info->pay8910[0]->ayBeeper(value & 0x10);
             break;
     }
 
@@ -138,6 +138,6 @@ void ay_sys_shutdownz80(AYSongInfo &info)
         z80ex_destroy(info.z80ctx);
         info.z80ctx = 0;
     }
-    if(info.z80IO)
-        memset(info.z80IO, 0, 65536);
+//    if(info.z80IO)
+//        memset(info.z80IO, 0, 65536);
 }

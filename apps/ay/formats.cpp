@@ -366,7 +366,7 @@ long ay_sys_detect(AYSongInfo &info)
         info.is_z80 = Players[player].is_z80;
         for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
         {
-            info.ay8910[i].SetParameters(&info);
+            info.pay8910[i]->SetParameters(&info);
         }
     }
     return player;

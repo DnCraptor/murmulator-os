@@ -22,6 +22,7 @@
 #define AY_H_
 
 #include <assert.h>
+#include "allocator.h"
 
 #define AY_TEMP_BUFFER_SIZE 4096
 
@@ -45,26 +46,6 @@ enum
     AY_GPIO_B
 };
 
-struct allocator {
-inline void* operator new(size_t sz) {
-    return malloc(sz);
-}
-inline void operator delete(void* p) {
-    return free(p);
-}
-inline void operator delete(void* p, size_t) {
-    return free(p);
-}
-inline void* operator new[](size_t sz) {
-    return malloc(sz);
-}
-inline void operator delete[](void* p) {
-    return free(p);
-}
-inline void operator delete[](void* p, size_t) {
-    return free(p);
-}
-};
 
 struct init_mix_levels
 {
@@ -85,19 +66,29 @@ typedef enum _ay_mix_types {
   AY_CBA
 } AYMixTypes;
 
-class ay : allocator
+extern const float init_levels_ay[];
+extern const float init_levels_ym[];
+
+class ay : public allocator
 {
 public:
     ay() {
-        for(unsigned long i = 0; i < sizeof_array(ay::levels_ay); i++) {
-            ay::levels_ay[i] = (ay::init_levels_ay[i / 2]) / (float)6;
-            ay::levels_ym[i] = (ay::init_levels_ym[i]) / (float)6;
+        goutf("ay %d\n", sizeof_array(ay::levels_ay));
+        for(unsigned long i = 0; i < sizeof_array(ay::levels_ay); ++i) {
+            goutf("ay i%d\n", i);
+            goutf("ay init_levels_ay[i / 2]=%f\n", init_levels_ay[i / 2]);
+            goutf("ay init_levels_ay[i / 2]/6=%f\n", init_levels_ay[i / 2] / 6.0f);
+            ay::levels_ay[i] = (init_levels_ay[i / 2]) / 6.0f;
+            goutf("ay init_levels_ym[i]=%f\n", init_levels_ym[i]);
+            goutf("ay init_levels_ym[i]/6=%f\n", init_levels_ym[i] / 6.0f);
+            ay::levels_ym[i] = init_levels_ym[i] / 6.0f;
         }
         songinfo = 0;
 	    chip_nr = 0;
+        gouta("ay2\n");
         ayReset();
     }
-    inline ~ay() {}
+    inline ~ay() { if (pflt) delete pflt; }
     void ayReset();
     void ayWrite(unsigned char reg, unsigned char val);
     unsigned char ayRead(unsigned char reg);
@@ -183,8 +174,6 @@ public:
     void ayBeeper(bool on);
 	unsigned long chip_nr;
 private:
-    static const float init_levels_ay[32];
-    static const float init_levels_ym[32];
     float levels_ay[32];
     float levels_ym[32];
     float *levels;
@@ -219,15 +208,14 @@ private:
     long int_per_z80_counter;
     unsigned long frame_size;
     void ayStep(float &s0, float &s1, float &s2);
-    static const init_mix_levels mix_levels[];
     AYMixTypes mix_levels_nr;
     float a_left, a_right, b_left, b_right, c_left, c_right;
-    Filter3 flt;
+    Filter3* pflt;
     unsigned long flt_state;
     unsigned long flt_state_limit;
     unsigned long src_remaining;
-    float ay_temp_buffer_in[AY_TEMP_BUFFER_SIZE];
-    float ay_temp_buffer_out[AY_TEMP_BUFFER_SIZE];
+///    float ay_temp_buffer_in[AY_TEMP_BUFFER_SIZE];
+///    float ay_temp_buffer_out[AY_TEMP_BUFFER_SIZE];
     
     //beeper stuff
     float beeper_volume;

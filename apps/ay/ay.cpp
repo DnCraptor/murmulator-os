@@ -17,6 +17,7 @@
  *   Free Software Foundation, Inc.,                                       *
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
+#include <pico/platform.h>
 #define UF2_MODE
 #include "m-os-api.h"
 #include "m-os-api-sdtfn.h"
@@ -35,11 +36,12 @@ static char tolower(char c) {
 #define TACTS_MULT (unsigned long)800
 #define VOL_BEEPER (15000)
 
-const float ay::init_levels_ay[] =
+const float __in_flash() init_levels_ay[] =
 { 0, 836, 1212, 1773, 2619, 3875, 5397, 8823, 10392, 16706, 23339, 29292, 36969, 46421, 55195, 65535 };
 
-const float ay::init_levels_ym[] =
+const float __in_flash() init_levels_ym[] =
 { 0, 0, 0xF8, 0x1C2, 0x29E, 0x33A, 0x3F2, 0x4D7, 0x610, 0x77F, 0x90A, 0xA42, 0xC3B, 0xEC2, 0x1137, 0x13A7, 0x1750, 0x1BF9, 0x20DF, 0x2596, 0x2C9D, 0x3579, 0x3E55, 0x4768, 0x54FF, 0x6624, 0x773B, 0x883F, 0xA1DA, 0xC0FC, 0xE094, 0xFFFF };
+
 #define TONE_ENABLE(ch) ((regs [AY_MIXER] >> (ch)) & 1)
 #define NOISE_ENABLE(ch) ((regs [AY_MIXER] >> (3 + (ch))) & 1)
 #define TONE_PERIOD(ch) (((((regs [((ch) << 1) + 1]) & 0xf) << 8)) | (regs [(ch) << 1]))
@@ -48,7 +50,7 @@ const float ay::init_levels_ym[] =
 #define CHNL_ENVELOPE(ch) (regs [AY_CHNL_A_VOL + (ch)] & 0x10)
 #define ENVELOPE_PERIOD (((regs [AY_ENV_COARSE]) << 8) | regs [AY_ENV_FINE])
 
-const init_mix_levels ay::mix_levels[] =
+static const init_mix_levels mix_levels[] =
 {
 { 1.0, 0.33, 0.67, 0.67, 0.33, 1.0 }, //AY_ABC
 { 1.0, 0.33, 0.33, 1.0, 0.67, 0.67 }, //AY_ACB
@@ -116,17 +118,21 @@ void ay::SetParameters(AYSongInfo *_songinfo)
     fopts.f0 = (float)songinfo->sr / (float)4;
     fopts.Q = 1;
     fopts.type = LPF;
-    flt.Init(&fopts);
+    if (pflt) delete pflt;
+    pflt = new Filter3();
+    pflt->Init(&fopts);
     SetMixType(songinfo->mix_levels_nr);
 }
 
 void ay::ayReset()
 {
+    gouta("ayReset\n");
     //init regs with defaults
     int_limit = 0;
     int_counter = 0;
     z80_per_sample_counter = 0;
     int_per_z80_counter = 0;
+    gouta("ayReset1\n");
     memset(regs, 0, sizeof(regs));
     regs[AY_GPIO_A] = regs[AY_GPIO_B] = 0xff;
     chnl_period0 = chnl_period1 = chnl_period2 = 0;
@@ -147,8 +153,11 @@ void ay::ayReset()
     beeper_volume = 0;
     beeper_oldval = false;
 
+    gouta("ayReset2\n");
     SetParameters(0);
+    gouta("ayReset3\n");
     setEnvelope();
+    gouta("ayReset4\n");
 
 }
 
@@ -438,7 +447,7 @@ unsigned long ay::ayProcess(unsigned char *stream, unsigned long len)
         if(songinfo->is_ts)
         {
             float s3, s4, s5;
-            songinfo->ay8910[1].ayStep(s3, s4, s5);
+            songinfo->pay8910[1]->ayStep(s3, s4, s5);
             s0 = (s0 + s3) / 2;
             s1 = (s1 + s4) / 2;
             s2 = (s2 + s5) / 2;
@@ -450,7 +459,7 @@ unsigned long ay::ayProcess(unsigned char *stream, unsigned long len)
         float left = s0 * a_left + s1 * b_left + s2 * c_left + beeper_volume;
         float right = s0 * a_right + s1 * b_right + s2 * c_right + beeper_volume;
 
-        flt.Process2(left, right);
+        if (pflt) pflt->Process2(left, right);
         if(flt_state > flt_state_limit)
         {
             flt_state -= flt_state_limit;

@@ -21,7 +21,8 @@
 
 AYSongInfo *ay_sys_getnewinfo()
 {
-    AYSongInfo *info = new AYSongInfo;
+//    AYSongInfo *info = (AYSongInfo*)calloc(1, sizeof(AYSongInfo));
+    AYSongInfo *info = new AYSongInfo();
     if(!info)
         return 0;
     info->FilePath = TXT("");
@@ -60,12 +61,15 @@ AYSongInfo *ay_sys_getnewinfo()
 	info->empty_song = false;
 	info->empty_callback = 0;
 	info->aywrite_callback = 0;
+    gouta("info2\n");
     for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
     {
-		info->ay8910 [i].chip_nr = i;
-        info->ay8910 [i].SetParameters(info);
+        info->pay8910[i] = new ay();
+		info->pay8910[i]->chip_nr = i;
+        info->pay8910[i]->SetParameters(info);
     }
-    memset(info->z80IO, 0, 65536);
+    gouta("info3\n");
+//    memset(info->z80IO, 0, 65536);
     return info;
 }
 
@@ -325,32 +329,32 @@ AYFLY_API void ay_closesong(void **info)
 
 AYFLY_API void ay_setvolume(void *info, unsigned long chnl, float volume, unsigned char chip_num)
 {
-    ((AYSongInfo *)info)->ay8910[chip_num].SetVolume(chnl, volume);
+    ((AYSongInfo *)info)->pay8910[chip_num]->SetVolume(chnl, volume);
 
 }
 AYFLY_API float ay_getvolume(void *info, unsigned long chnl, unsigned char chip_num)
 {
-    return ((AYSongInfo *)info)->ay8910[chip_num].GetVolume(chnl);
+    return ((AYSongInfo *)info)->pay8910[chip_num]->GetVolume(chnl);
 }
 
 AYFLY_API void ay_chnlmute(void *info, unsigned long chnl, bool mute, unsigned char chip_num)
 {
-    ((AYSongInfo *)info)->ay8910[chip_num].chnlMute(chnl, mute);
+    ((AYSongInfo *)info)->pay8910[chip_num]->chnlMute(chnl, mute);
 }
 
 AYFLY_API bool ay_chnlmuted(void *info, unsigned long chnl, unsigned char chip_num)
 {
-    return ((AYSongInfo *)info)->ay8910[chip_num].chnlMuted(chnl);
+    return ((AYSongInfo *)info)->pay8910[chip_num]->chnlMuted(chnl);
 }
 
 AYFLY_API void ay_setmixtype(void *info, AYMixTypes mixType, unsigned char chip_num)
 {
-    ((AYSongInfo *)info)->ay8910[chip_num].SetMixType(mixType);
+    ((AYSongInfo *)info)->pay8910[chip_num]->SetMixType(mixType);
 }
 
 AYFLY_API AYMixTypes ay_getmixtype(void *info, unsigned char chip_num)
 {
-    return ((AYSongInfo *)info)->ay8910[chip_num].GetMixType();
+    return ((AYSongInfo *)info)->pay8910[chip_num]->GetMixType();
 }
 
 AYFLY_API void ay_setelapsedcallback(void *info, ELAPSED_CALLBACK callback, void *callback_arg)
@@ -405,12 +409,12 @@ AYFLY_API unsigned long ay_getsongloop(void *info)
 
 AYFLY_API const unsigned char *ay_getregs(void *info, unsigned char chip_num)
 {
-    return ((AYSongInfo *)info)->ay8910[chip_num].GetRegs();
+    return ((AYSongInfo *)info)->pay8910[chip_num]->GetRegs();
 }
 
 AYFLY_API unsigned long ay_rendersongbuffer(void *info, unsigned char *buffer, unsigned long buffer_length)
 {
-    return ((AYSongInfo *)info)->ay8910[0].ayProcess(buffer, buffer_length);
+    return ((AYSongInfo *)info)->pay8910[0]->ayProcess(buffer, buffer_length);
 }
 
 AYFLY_API unsigned long ay_getz80freq(void *info)
@@ -422,7 +426,7 @@ AYFLY_API void ay_setz80freq(void *info, unsigned long z80_freq)
     ((AYSongInfo *)info)->z80_freq = z80_freq;
     for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
     {
-        ((AYSongInfo *)info)->ay8910[i].SetParameters((AYSongInfo *)info);
+        ((AYSongInfo *)info)->pay8910[i]->SetParameters((AYSongInfo *)info);
     }
 }
 AYFLY_API unsigned long ay_getayfreq(void *info)
@@ -434,7 +438,7 @@ AYFLY_API void ay_setayfreq(void *info, unsigned long ay_freq)
     ((AYSongInfo *)info)->ay_freq = ay_freq;
     for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
     {
-        ((AYSongInfo *)info)->ay8910[i].SetParameters((AYSongInfo *)info);
+        ((AYSongInfo *)info)->pay8910[i]->SetParameters((AYSongInfo *)info);
     }
 }
 AYFLY_API float ay_getintfreq(void *info)
@@ -447,7 +451,7 @@ AYFLY_API void ay_setintfreq(void *info, float int_freq)
     ((AYSongInfo *)info)->int_freq = int_freq;
     for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
     {
-        ((AYSongInfo *)info)->ay8910[i].SetParameters((AYSongInfo *)info);
+        ((AYSongInfo *)info)->pay8910[i]->SetParameters((AYSongInfo *)info);
     }
 }
 
@@ -461,7 +465,7 @@ AYFLY_API void ay_setsamplerate(void *info, unsigned long sr)
     ((AYSongInfo *)info)->sr = sr;
     for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
     {
-        ((AYSongInfo *)info)->ay8910[i].SetParameters((AYSongInfo *)info);
+        ((AYSongInfo *)info)->pay8910[i]->SetParameters((AYSongInfo *)info);
     }
 }
 
@@ -489,7 +493,7 @@ AYFLY_API void ay_setchiptype(void *info, unsigned char chip_type)
     ((AYSongInfo *)info)->chip_type = chip_type;
     for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
     {
-        ((AYSongInfo *)info)->ay8910[i].SetParameters((AYSongInfo *)info);
+        ((AYSongInfo *)info)->pay8910[i]->SetParameters((AYSongInfo *)info);
     }
 }
 
@@ -500,18 +504,18 @@ AYFLY_API unsigned char ay_getchiptype(void *info)
 
 AYFLY_API void ay_writeay(void *info, unsigned char reg, unsigned char val, unsigned char chip_num)
 {
-    ((AYSongInfo *)info)->ay8910[chip_num].ayWrite(reg, val);
+    ((AYSongInfo *)info)->pay8910[chip_num]->ayWrite(reg, val);
 }
 
 AYFLY_API unsigned char ay_readay(void *info, unsigned char reg, unsigned char chip_num)
 {
-    return ((AYSongInfo *)info)->ay8910[chip_num].ayRead(reg);
+    return ((AYSongInfo *)info)->pay8910[chip_num]->ayRead(reg);
 }
 
 AYFLY_API void ay_resetay(void *info, unsigned char chip_num)
 {
-    ((AYSongInfo *)info)->ay8910[chip_num].ayReset();
-    ((AYSongInfo *)info)->ay8910[chip_num].SetParameters((AYSongInfo *)info);
+    ((AYSongInfo *)info)->pay8910[chip_num]->ayReset();
+    ((AYSongInfo *)info)->pay8910[chip_num]->SetParameters((AYSongInfo *)info);
 
 }
 
@@ -579,7 +583,10 @@ AYSongInfo::~AYSongInfo()
         free(file_data);
         file_data = 0;
     }
-
+	for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
+    {
+        delete this->pay8910[i];
+    }
 }
 
 #ifndef __SYMBIAN32__
@@ -596,7 +603,7 @@ AYFLY_API void ay_setoversample(void *info, unsigned long factor)
     ((AYSongInfo *)info)->ay_oversample = factor;
     for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
     {
-        ((AYSongInfo *)info)->ay8910[i].SetParameters((AYSongInfo *)info);
+        ((AYSongInfo *)info)->pay8910[i]->SetParameters((AYSongInfo *)info);
     }
 }
 
@@ -634,7 +641,7 @@ AYFLY_API void *ay_initemptysong(unsigned long sr, EMPTY_CALLBACK callback)
 #endif
 	for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
     {
-        info->ay8910[i].SetParameters(info);
+        info->pay8910[i]->SetParameters(info);
     }
 	return info;
 }

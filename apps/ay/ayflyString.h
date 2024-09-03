@@ -21,9 +21,11 @@
 #ifndef AYFLYSTRING_H_
 #define AYFLYSTRING_H_
 
+#include "allocator.h"
+
 //minimal string class for ayfly library (unix and windows builds)
 
-class CayflyString
+class CayflyString: public allocator
 {
 public:
     CayflyString();

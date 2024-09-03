@@ -170,7 +170,7 @@ typedef void (*AYWRITE_CALLBACK)(void *song, unsigned long chip, unsigned char r
 
 #define NUMBER_OF_AYS 2
 
-struct AYSongInfo : allocator
+struct AYSongInfo : public allocator
 {
 #ifndef __SYMBIAN32__
     AY_TXT_TYPE Author; /* Song author */
@@ -198,7 +198,7 @@ struct AYSongInfo : allocator
     unsigned char *module; /* z80 memory or raw song data */
     unsigned char *module1; /* z80 memory or raw song data */
     unsigned char *file_data; /* z80 memory or raw song data */
-    unsigned char z80IO [65536]; /* z80 ports */
+///    unsigned char z80IO [65536]; /* z80 ports */
     unsigned long file_len; /* file length */
     unsigned long module_len; /* file length */
     AbstractAudio *player; /* player for this song */
@@ -219,7 +219,7 @@ struct AYSongInfo : allocator
     long int_limit;
     bool own_player; /* is player ws created during initialization by the library */
     bool stopping;
-    ay ay8910 [NUMBER_OF_AYS];
+    ay* pay8910 [NUMBER_OF_AYS];
     long player_num;
     bool is_ts; /* 2xay - turbo sound */
     unsigned long ay_oversample; /* higher - better, default = 2 */
