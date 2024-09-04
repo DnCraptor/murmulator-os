@@ -17,8 +17,8 @@
  *   Free Software Foundation, Inc.,                                       *
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
-#include <pico/platform.h>
-#define UF2_MODE
+//#include <pico/platform.h>
+//#define UF2_MODE
 #include "m-os-api.h"
 #include "m-os-api-sdtfn.h"
 #include "m-os-api-timer.h"
@@ -33,13 +33,39 @@ static char tolower(char c) {
 
 #include "ayfly.h"
 
+int main(void) {
+    cmd_ctx_t* ctx = get_cmd_ctx();
+    if (ctx->argc < 2 || ctx->argc > 3) {
+e0:
+        fprintf(ctx->std_err,
+            "Usage: ay [file] [bytes]\n"
+            "  where [bytes] - optional param to reserve some RAM for other applications (512 by default).\n"
+        );
+        return 1;
+    }
+    int reserve = 512;
+    if (ctx->argc == 3) {
+        reserve = atoi(ctx->argv[2]);
+        if (!reserve) {
+            goto e0;
+        }
+    }
+    int res = 0;
+    void* p = ay_initsong(ctx->argv[1], 44100);
+    if (!p) {
+        fprintf(ctx->std_err, "ay_initsong returns NULL\n");
+        return -1;
+    }
+    return res;
+}
+
 #define TACTS_MULT (unsigned long)800
 #define VOL_BEEPER (15000)
 
-const float __in_flash() init_levels_ay[] =
+const float init_levels_ay[] =
 { 0, 836, 1212, 1773, 2619, 3875, 5397, 8823, 10392, 16706, 23339, 29292, 36969, 46421, 55195, 65535 };
 
-const float __in_flash() init_levels_ym[] =
+const float init_levels_ym[] =
 { 0, 0, 0xF8, 0x1C2, 0x29E, 0x33A, 0x3F2, 0x4D7, 0x610, 0x77F, 0x90A, 0xA42, 0xC3B, 0xEC2, 0x1137, 0x13A7, 0x1750, 0x1BF9, 0x20DF, 0x2596, 0x2C9D, 0x3579, 0x3E55, 0x4768, 0x54FF, 0x6624, 0x773B, 0x883F, 0xA1DA, 0xC0FC, 0xE094, 0xFFFF };
 
 #define TONE_ENABLE(ch) ((regs [AY_MIXER] >> (ch)) & 1)

@@ -76,8 +76,9 @@ public:
         goutf("ay %d\n", sizeof_array(ay::levels_ay));
         for(unsigned long i = 0; i < sizeof_array(ay::levels_ay); ++i) {
             goutf("ay i%d\n", i);
-            goutf("ay init_levels_ay[i / 2]=%f\n", init_levels_ay[i / 2]);
-            goutf("ay init_levels_ay[i / 2]/6=%f\n", init_levels_ay[i / 2] / 6.0f);
+            goutf("ay init_levels_ay=%p\n", init_levels_ay);
+            goutf("ay init_levels_ay[i / 2]=%f\n", init_levels_ay[i >> 1]);
+            goutf("ay init_levels_ay[i / 2]/6=%f\n", init_levels_ay[i >> 1] / 6.0f);
             ay::levels_ay[i] = (init_levels_ay[i / 2]) / 6.0f;
             goutf("ay init_levels_ym[i]=%f\n", init_levels_ym[i]);
             goutf("ay init_levels_ym[i]/6=%f\n", init_levels_ym[i] / 6.0f);

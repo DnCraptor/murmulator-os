@@ -8,7 +8,7 @@ set(FLASH_SIZE 4096)
 endif ()
 
 
-project(murmulator-os-ayplayer C CXX ASM)
+project(murmulator-os-apps-ay C CXX ASM)
 pico_sdk_init()
 
 SET(BUILD_NAME "${PROJECT_NAME}")
@@ -33,10 +33,7 @@ foreach (SRC_FILE IN LISTS SRC)
 endforeach ()
 message(STATUS "")
 
-add_executable(${PROJECT_NAME}
-    main.c
-    ay.cpp
-)
+add_executable(${PROJECT_NAME} ay.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -46,13 +43,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 configure_file(memmap.ld.in memmap.ld @ONLY)
 pico_set_linker_script(${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/memmap.ld)
 
-pico_set_program_name(${PROJECT_NAME} "Murmulator OS AY Player")
+pico_set_program_name(${PROJECT_NAME} "Murmulator OS Applications: AY Player")
 pico_set_program_version(${PROJECT_NAME} "test")
-
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    pico_runtime
-    pico_stdlib
-)
 
 #family_configure_device_example(${PROJECT_NAME} noos)
 # -fPIC -shared

@@ -1,4 +1,5 @@
 #include "elf32.h"
+#undef switch
 
 // we require 256 (as this is the page size supported by the device)
 #define LOG2_PAGE_SIZE 8u
@@ -445,8 +446,4 @@ extern "C" int main(void) {
     vPortFree(f);
     vPortFree(pehdr);
     return 0;
-}
-
-extern "C" int __required_m_api_verion(void) {
-    return M_API_VERSION;
 }

@@ -259,21 +259,44 @@ static void add_sec(load_sec_ctx* ctx, char* del_addr, char* prg_addr, uint16_t 
     // debug_sections(ctx->psections_list);
 }
 
-inline static uint8_t* sec_align(uint32_t sz, uint8_t* *pdel_addr, uint32_t a) {
+#include "../../api/m-os-api-c-list.h"
+static size_t flash_addr = 0x10001000;
+static list_t* lst = NULL;
+typedef struct to_flash_rec {
+    size_t paddr;
+    size_t size;
+} to_flash_rec_t;
+static to_flash_rec_t* to_flash_rec_allocator(size_t sz) {
+    return calloc(1, sizeof(to_flash_rec_t));
+}
+static void to_flash_rec_deallocator(to_flash_rec_t* o) {
+    free(0);
+}
+
+inline static uint8_t* sec_align(uint32_t sz, uint8_t* *pdel_addr, uint32_t a, bool write_access) {
     uint8_t* res = (uint8_t*)pvPortMalloc(sz);
-    if (a == 0 || a == 1) {
-        *pdel_addr = res;
-        return res;
-    }
-    if ((uint32_t)res & (a - 1)) {
-        vPortFree(res);
-        res = (uint8_t*)pvPortMalloc(sz + (a - 1));
-        *pdel_addr = res;
-        if ((uint32_t)res & (a - 1)) {
-            res = ((uint32_t)res & (0xFFFFFFFF ^ (a - 1))) + a;
+    if (write_access) {
+        if (a == 0 || a == 1) {
+            *pdel_addr = res;
+        }
+        else if ((uint32_t)res & (a - 1)) {
+            vPortFree(res);
+            res = (uint8_t*)pvPortMalloc(sz + (a - 1));
+            *pdel_addr = res;
+            if ((uint32_t)res & (a - 1)) {
+                res = ((uint32_t)res & (0xFFFFFFFF ^ (a - 1))) + a;
+            }
+        } else {
+            *pdel_addr = res;
         }
     } else {
         *pdel_addr = res;
+        res = flash_addr;
+        flash_addr += sz;
+        if ((uint32_t)res & (a - 1)) {
+            flash_addr += (a - 1);
+            res = ((uint32_t)res & (0xFFFFFFFF ^ (a - 1))) + a;
+        }
     }
     return res;
 }
@@ -381,35 +404,44 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         // goutf("Section #%d already in mem @ %p\n", sec_num, prg_addr);
         return prg_addr;
     }
+    size_t prev_flash_addr = flash_addr;
+    size_t new_flash_addr = flash_addr;
     UINT rb;
     uint8_t* del_addr = 0;
     elf32_shdr* psh = (elf32_shdr*)pvPortMalloc(sizeof(elf32_shdr));
     if (f_lseek(c->f2, c->pehdr->sh_offset + sizeof(elf32_shdr) * sec_num) == FR_OK &&
         f_read(c->f2, psh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)
     ) {
-        // todo: enough space?
-
-        prg_addr = sec_align(psh->sh_size, &del_addr, psh->sh_addralign);
-        FRESULT r = f_lseek(c->f2, psh->sh_offset);
-        if (r != FR_OK) {
-            goutf("f_lseek->[%d] failed: %d\n", psh->sh_offset, r);
-        } else {
-            r = f_read(c->f2, prg_addr, psh->sh_size, &rb);
-            if (r != FR_OK) {
-                goutf("f_read->[%p](%d) failed: %d (sz: %d)\n", prg_addr, psh->sh_size, r, rb);
-            } else if (rb != psh->sh_size) {
-                goutf("f_read->[%p](%d) passed: %d (sz: %d)\n", prg_addr, psh->sh_size, r, rb);
-            }
+        size_t free_sz = xPortGetFreeHeapSize();
+        if (psh->sh_size + psh->sh_addralign > free_sz) {
+            gouta("Not enough RAM.\n");
+            goto e1;
         }
-        if (r == FR_OK && rb == psh->sh_size) {
-            #if DEBUG_APP_LOAD
+        bool write_access = true; /// psh->sh_flags & 1; // required to provide write access
+        prg_addr = sec_align(psh->sh_size, &del_addr, psh->sh_addralign, write_access);
+        new_flash_addr = flash_addr;
+        bool alloc_enough = psh->sh_flags & 2; // file may not contain such section, just allocation is enough
+        FRESULT r = f_lseek(c->f2, psh->sh_offset);
+        if (!alloc_enough && r != FR_OK) {
+            goutf("f_lseek->[%d] failed: %d\n", psh->sh_offset, r);
+            goto e1;
+        }
+        r = f_read(c->f2, prg_addr, psh->sh_size, &rb);
+        if (!alloc_enough && r != FR_OK) {
+            goutf("f_read->[%p](%d) failed: %d (sz: %d)\n", prg_addr, psh->sh_size, r, rb);
+            goto e1;
+        }
+        if (!alloc_enough && rb != psh->sh_size) {
+            goutf("f_read->[%p](%d) passed: %d but sz: %d\n", prg_addr, psh->sh_size, r, rb);
+            goto e1;
+        }
+        #if DEBUG_APP_LOAD
             goutf("Program section #%d (%d bytes) allocated into %ph\n", sec_num, sz, prg_addr);
-            #endif
+        #endif
             add_sec(c, del_addr, prg_addr, sec_num);
             // links and relocations
             if (f_lseek(c->f2, c->pehdr->sh_offset) != FR_OK) {
                 goutf("Unable to locate sections @ %ph\n", c->pehdr->sh_offset);
-                prg_addr = 0;
                 goto e1;
             }
             while (f_read(c->f2, psh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)) {
@@ -422,7 +454,6 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             f_read(c->f2, &rel, sizeof(rel), &rb) != FR_OK || rb != sizeof(rel)
                         ) {
                             goutf("Unable to read REL record #%d in section #%d\n", j, psh->sh_info);
-                            prg_addr = 0;
                             goto e1;
                         }
                         uint32_t rel_sym = rel.rel_info >> 8;
@@ -432,7 +463,6 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                             f_read(c->f2, c->psym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)
                         ) {
                             goutf("Unable to read .symtab section #%d\n", rel_sym);
-                            prg_addr = 0;
                             goto e1;
                         }
                         char* rel_str_sym = st_spec_sec(c->psym->st_shndx);
@@ -441,7 +471,6 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                   rel_sym, c->psym->st_shndx, rel_str_sym,
                                   st_predef(c->pstrtab + c->psym->st_name)
                             );
-                            prg_addr = 0;
                             goto e1;
                         }
                         uint32_t* rel_addr = (uint32_t*)(prg_addr + rel.rel_offset /*10*/); /*f7ff fffe 	bl	0*/
@@ -453,7 +482,6 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                         if (c->psym->st_shndx != sec_num) {
                             sec_addr = load_sec2mem(c, c->psym->st_shndx);
                             if (sec_addr == 0) { // TODO: already loaded (app context)
-                                prg_addr = 0;
                                 goto e1;
                             }
                         }
@@ -472,7 +500,6 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                                 break;
                             default:
                                 goutf("Unsupportel REL type: %d\n", rel_type);
-                                prg_addr = 0;
                                 goto e1;
                         }
                         //goutf("= %ph\n", *rel_addr);
@@ -480,24 +507,37 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
                     f_lseek(c->f2, r2);
                 }
             }
-        } else {
-            goutf("Unable to load program section #%d (%d bytes) allocated into %ph\n", sec_num, psh->sh_size, del_addr);
-            prg_addr = 0;
-            goto e1;
-        }
         #if DEBUG_APP_LOAD
-        goutf("Section #%d - load completed @%ph\n", sec_num, prg_addr);
+            goutf("Section #%d - load completed @%ph\n", sec_num, prg_addr);
         #endif
+        if ( new_flash_addr == prev_flash_addr ) {
+
+        }
     } else {
         goutf("Unable to read section #%d info\n", sec_num);
-        prg_addr = 0;
         goto e1;
     }
     goto e2;
 e1:
+    prg_addr = 0;
+    flash_addr = prev_flash_addr;
     vTaskDelay(3000);
 e2:
     vPortFree(psh);
+    size_t sz = prev_flash_addr - new_flash_addr;
+    if (prg_addr && sz) {
+        to_flash_rec_t* o = to_flash_rec_allocator(sz);
+        o->paddr = prg_addr; // TODO: out of empty flash?
+        o->size = sz;
+        FIL* f = (FIL*)malloc(sizeof(FIL));
+        f_open(f, "/tmp/.flash_me", FA_WRITE | FA_CREATE_ALWAYS);
+        f_lseek(f, prg_addr - XIP_BASE);
+        UINT bw;
+        f_write(f, del_addr, sz, &bw);
+// TODO: file?
+        f_close(f);
+        vPortFree(del_addr);
+    }
     if (!prg_addr && del_addr) {
         vPortFree(del_addr);
     }
@@ -627,6 +667,7 @@ bool load_app(cmd_ctx_t* ctx) {
             }
         }
     }
+    if(!lst) lst = new_list_v(to_flash_rec_allocator, to_flash_rec_deallocator, NULL);
     bootb_ctx->bootb[0] = load_sec2mem_wrapper(pctx, req_idx);
     bootb_ctx->bootb[1] = load_sec2mem_wrapper(pctx, _init_idx);
     bootb_ctx->bootb[2] = load_sec2mem_wrapper(pctx, main_idx);

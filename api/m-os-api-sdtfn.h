@@ -36,6 +36,8 @@ void _fstat(void) { gouta("_fstat\n"); }
 void _isatty(void) { gouta("_isatty\n"); }
 void _lseek(void) { gouta("_lseek\n"); }
 void _read(void) { gouta("_read\n"); }
+void __cxa_pure_virtual(void) { gouta("__cxa_pure_virtual\n"); }
+void __aeabi_atexit(void) { gouta("__aeabi_atexit\n"); }
 
 #ifdef __cplusplus
 }
