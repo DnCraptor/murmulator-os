@@ -132,6 +132,9 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         OVERCLOCKING=378
         PICO_FLASH_SIZE_BYTES=16777216
 
+        # do not touch last 512 bytes in RAM on launch app, say, no more RAM
+        RESERVED_RAM=512
+
         # VGA 8 pins starts from pin:
         VGA_BASE_PIN=6
 
