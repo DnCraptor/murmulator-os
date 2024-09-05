@@ -2,10 +2,6 @@
 
 int main() {
     cmd_ctx_t* ctx = get_cmd_ctx();
-    if (ctx->argc == 0) {
-        fgoutf(ctx->std_err, "ATTTENTION! BROKEN EXECUTION CONTEXT [%p]!\n", ctx);
-        return -1;
-    }
     if (ctx->argc != 1 || !ctx->std_in || ctx->next) {
         fgoutf(ctx->std_err, "Pls. use '%s' for pipe end only\n", ctx->argv[0]);
         return 1;
@@ -51,8 +47,4 @@ int main() {
         }
     }
     return 0;
-}
-
-int __required_m_api_verion(void) {
-    return M_API_VERSION;
 }

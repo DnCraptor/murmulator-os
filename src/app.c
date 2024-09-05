@@ -880,7 +880,7 @@ void exec(cmd_ctx_t* ctx) {
             #if DEBUG_APP_LOAD
             goutf("Clone ctx [%p]->[%p]\n", ctx, ctxi);
             #endif
-            xTaskCreate(vAppDetachedTask, ctxi->argv[0], 1024/*x4=4096k*/, ctxi, configMAX_PRIORITIES - 1, NULL);
+            xTaskCreate(vAppDetachedTask, ctxi->argv[0], 1024/*x 4 = 4096*/, ctxi, configMAX_PRIORITIES - 1, NULL);
             cleanup_ctx(ctx);
         } else {
             exec_sync(ctx);

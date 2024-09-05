@@ -1,13 +1,13 @@
 #include "m-os-api.h"
 #include <hardware/timer.h>
 
-volatile bool marked_to_exit;
-
 int main() {
+    marked_to_exit = false;
     FIL * f = get_stdout();
     uint32_t sz = swap_size();
     fgoutf(f, "SWAP size: %d bytes, base RAM at %ph (%d KB)\nPages index at %ph (for %d RAM pages, %d KB each one)\n",
               sz, swap_base(), swap_base_size() >> 10, swap_pages_base(), swap_pages(), swap_page_size() >> 10);
+    if (!sz) return 0;
     uint32_t a = 0;
     uint32_t begin = time_us_32();
     for (; a < sz && !marked_to_exit; ++a) {
@@ -74,15 +74,5 @@ int main() {
     elapsed = time_us_32() - begin;
     speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "32-bit line read speed: %f MBps\n", speed);
-    return 0;
-}
-
-int __required_m_api_verion(void) {
-    return M_API_VERSION;
-}
-
-// only SIGKILL is supported for now
-int signal(void) {
-	marked_to_exit = true;
     return 0;
 }

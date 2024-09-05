@@ -1,7 +1,5 @@
 #include "m-os-api.h"
 
-volatile bool marked_to_exit;
-
 extern "C" void* memset(void* p, int v, size_t sz) {
     typedef void* (*fn)(void *, int, size_t);
     return ((fn)_sys_table_ptrs[142])(p, v, sz);
@@ -96,14 +94,4 @@ int main(void) {
 e2:
     fprintf(ctx->std_err, "Unexpected argument: %s\n", ctx->argv[1]);
     return 2;
-}
-
-extern "C" int __required_m_api_verion(void) {
-    return M_API_VERSION;
-}
-
-// only SIGKILL is supported for now
-extern "C" int signal(void) {
-	marked_to_exit = true;
-    return 0;
 }

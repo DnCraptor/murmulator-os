@@ -36,7 +36,3 @@ int main() {
     }
     return 0;
 }
-
-int __required_m_api_verion(void) {
-    return M_API_VERSION;
-}

@@ -4,13 +4,14 @@ static DIR* dir;
 static FILINFO* fileInfo;
 
 static int rmdir(cmd_ctx_t* ctx, const char* d) {
+    if (marked_to_exit) return 0;
     goutf("rmdir: %s\n", d);
     if (FR_OK != f_opendir(dir, d)) {
         fgoutf(ctx->std_err, "Failed to open directory: '%s'\n", d);
         return 0;
     }
     size_t total_files = 0;
-    while (f_readdir(dir, fileInfo) == FR_OK && fileInfo->fname[0] != '\0') {
+    while (!marked_to_exit && f_readdir(dir, fileInfo) == FR_OK && fileInfo->fname[0] != '\0') {
         char* t = concat(d, fileInfo->fname);
         if(fileInfo->fattrib & AM_DIR) {
             f_closedir(dir);
@@ -41,13 +42,10 @@ int main(void) {
     }
     dir = (DIR*)malloc(sizeof(DIR));
     fileInfo = (FILINFO*)malloc(sizeof(FILINFO));
+    marked_to_exit = false;
     int files = rmdir(ctx, ctx->argv[1]);
     free(fileInfo);
     free(dir);
     goutf("    Total: %d files removed\n", files);
     return 0;
-}
-
-int __required_m_api_verion(void) {
-    return M_API_VERSION;
 }

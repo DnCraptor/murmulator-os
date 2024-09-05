@@ -1,5 +1,5 @@
 # murmulator-os
-Murmulator OS v.0.2.7<br/>
+Murmulator OS v.0.2.8<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
@@ -99,7 +99,6 @@ sram - reference speed of swap base SRAM. Use Ctrl+C to interrupt.<br/>
 cpu - show current CPU freq. and dividers, `cpu [NNN]` - change freq. to NNN MHz (it may hang on such action)<br/>
 mem - show current memory state<br/>
 set - show or set environment variables<br/>
-export - put variable into system context<br/>
 mode [#] - set video-mode, for now it is supported:<br/>
 <li>
  <ul>0 - 53x30, 1 - 80x30, 2 - 100x37, 3 - 128x48, 4 - 256x256x2-bit, 5 - 512x256x1-bit, 6 - 320x240x4-bit, 7 - 320x240x8-bit, 8 - 640x480x4-bit - for VGA</ul>

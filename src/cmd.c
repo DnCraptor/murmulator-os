@@ -58,7 +58,7 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     res->stage = src->stage;
     res->ret_code = src->ret_code;
     res->user_data = 0;
-    res->forse_flash = false;
+    res->forse_flash = src->forse_flash;
     return res;
 }
 void cleanup_ctx(cmd_ctx_t* src) {

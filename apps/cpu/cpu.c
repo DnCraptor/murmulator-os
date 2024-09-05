@@ -33,7 +33,3 @@ usage:
     }
     return 0;
 }
-
-int __required_m_api_verion() {
-    return M_API_VERSION;
-}
