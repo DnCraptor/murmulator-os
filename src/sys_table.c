@@ -332,7 +332,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     __aeabi_dcmpeq, // 249
     __aeabi_ui2d, // 250
     __aeabi_dcmplt, // 251
-//    __cxa_pure_virtual, // 252
+    // API v.22
+    strcat, // 252
     // TODO:
     0
 };

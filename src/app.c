@@ -413,7 +413,7 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num) {
         f_read(c->f2, psh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)
     ) {
         size_t free_sz = xPortGetFreeHeapSize();
-        if (psh->sh_size + psh->sh_addralign > free_sz) {
+        if (psh->sh_size + psh->sh_addralign + 512 > free_sz) {
             gouta("Not enough RAM.\n");
             goto e1;
         }

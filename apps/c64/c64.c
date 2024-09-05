@@ -1,6 +1,7 @@
 #include "m-os-api.h"
 #include "m-os-api-sdtfn.h"
 #include "m-os-api-timer.h"
+#include "m-os-api-math.h"
 
 #define RGBVAL8(r,g,b) (0xC0 | (((r & 0xFF) / 42) << 4) | (((g & 0xFF) / 42) << 2) | ((b & 0xFF) / 42))
 #define RGBVAL16(r,g,b) ((RGBVAL8(r, g, b) << 8) | RGBVAL8(r, g, b))

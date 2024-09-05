@@ -26,6 +26,11 @@ void* memmove(void* dst, const void* src, size_t sz) {
     return ((fn)_sys_table_ptrs[232])(dst, src, sz);
 }
 
+char* strcat(char* t, const char * s) {
+    typedef char* (*fn_ptr_t)(char*, const char*);
+    return ((fn_ptr_t)_sys_table_ptrs[252])(t, s);
+}
+
 void _exit(int status) { goutf("_exit(%d)\n", status); }
 void _kill(void) { gouta("_kill\n"); }
 int _getpid(void) { gouta("_getpid\n"); return 0; }
