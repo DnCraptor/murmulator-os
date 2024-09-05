@@ -58,6 +58,7 @@ cmd_ctx_t* clone_ctx(cmd_ctx_t* src) {
     res->stage = src->stage;
     res->ret_code = src->ret_code;
     res->user_data = 0;
+    res->forse_flash = false;
     return res;
 }
 void cleanup_ctx(cmd_ctx_t* src) {
@@ -101,6 +102,7 @@ void cleanup_ctx(cmd_ctx_t* src) {
         vPortFree(src->user_data);
         src->user_data = 0;
     }
+    src->forse_flash = false;
     // gouta("cleanup_ctx <<\n");
 }
 void remove_ctx(cmd_ctx_t* src) {
@@ -130,7 +132,6 @@ void remove_ctx(cmd_ctx_t* src) {
     src->next = 0; // each pipe should remove it by self
     if (src->user_data) {
         vPortFree(src->user_data);
-        src->user_data = 0;
     }
     vPortFree(src);
     // gouta("remove_ctx <<\n");

@@ -288,6 +288,7 @@ typedef struct cmd_ctx {
 
     volatile cmd_exec_stage_t stage;
     void* user_data;
+    bool forse_flash;
 } cmd_ctx_t;
 
 inline static TaskHandle_t xTaskGetCurrentTaskHandle( void ) {
@@ -999,19 +1000,14 @@ static int rand(void) {
 	return ___srand___ / 0x10000 + 1;
 }
 
-// TODO: move to API
-static int memcmp( const void *buffer1, const void *buffer2, size_t count ) {
-    register uint8_t* b1 = (uint8_t*)buffer1;
-    register uint8_t* b2 = (uint8_t*)buffer2;
-    register uint8_t* be = (uint8_t*)buffer1 + count;
-    while (b1 < be) {
-        register uint8_t v1 = *b1++;
-        register uint8_t v2 = *b2++;
-        if (v1 == v2) continue;
-        if (v1 > v2) return -1;
-        return 1;
-    }
-    return 0;
+inline static int memcmp( const void *buffer1, const void *buffer2, size_t count ) {
+    typedef int (*fn_ptr_t)(const void *buffer1, const void *buffer2, size_t count);
+    return ((fn_ptr_t)_sys_table_ptrs[253])(buffer1, buffer2, count);
+}
+
+inline static void reboot_me( void ) {
+    typedef void (*fn_ptr_t)(void);
+    ((fn_ptr_t)_sys_table_ptrs[254])();
 }
 
 #define abs(x) (x > 0 ? x : -x)

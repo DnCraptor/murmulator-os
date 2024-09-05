@@ -334,6 +334,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     __aeabi_dcmplt, // 251
     // API v.22
     strcat, // 252
+    memcmp, // 253
+    reboot_me, // 254
     // TODO:
     0
 };

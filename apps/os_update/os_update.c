@@ -82,7 +82,9 @@ int main(void) {
             printf("Replace loader @ offset 0\n");
         }
         already_written += FLASH_SECTOR_SIZE;
-        printf("Erase and write to flash, offset: %ph (%d%%)\n", flash_target_offset, already_written * 100 / expected_to_write_size);
+        uint32_t pct = already_written * 100 / expected_to_write_size;
+        if (pct > 100) pct = 100;
+        printf("Erase and write to flash, offset: %ph (%d%%)\n", flash_target_offset, pct);
         flash_block(buffer, flash_target_offset);
         flash_target_offset = next_flash_target_offset;
     }
@@ -90,5 +92,6 @@ int main(void) {
     f_close(&file);
     vPortFree(uf2);
     printf("Done.\n Reboot is required...");
+    reboot_me();
     return 0;
 }

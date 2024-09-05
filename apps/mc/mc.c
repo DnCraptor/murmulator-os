@@ -1248,12 +1248,14 @@ static inline void redraw_current_panel() {
 }
 
 static bool cmd_enter(cmd_ctx_t* ctx) {
+    bool ff = altPressed;
     gouta(s_cmd->p);
     putc('\n');
     if ( cmd_enter_helper(ctx, s_cmd) ) {
         return true;
     }
     string_resize(s_cmd, 0);
+    ctx->forse_flash = ff; // Alt+Enter was pressed
     draw_cmd_line();
     return false;
 }

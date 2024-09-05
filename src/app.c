@@ -419,9 +419,8 @@ static uint8_t* load_sec2mem(load_sec_ctx * c, uint16_t sec_num, bool try_to_use
     if (f_lseek(c->f2, c->pehdr->sh_offset + sizeof(elf32_shdr) * sec_num) == FR_OK &&
         f_read(c->f2, psh, sizeof(elf32_shdr), &rb) == FR_OK && rb == sizeof(elf32_shdr)
     ) {
-        size_t free_sz = xPortGetFreeHeapSize();
         // goutf("free_sz: %d; psh->sh_size: %d\n", free_sz, psh->sh_size);
-        if (psh->sh_size + psh->sh_addralign + RESERVED_RAM > free_sz) {
+        if (psh->sh_size + psh->sh_addralign + RESERVED_RAM > xPortGetFreeHeapSize()) {
             gouta("Not enough RAM.\n");
             goto e1;
         }
@@ -613,10 +612,15 @@ bool load_app(cmd_ctx_t* ctx) {
         ctx->ret_code = -1;
         return false;
     }
-    bool try_to_use_flash = false;
-    size_t free_sz = xPortGetFreeHeapSize();
-    if ((free_sz >> 1) <  f->obj.objsize) {
-        try_to_use_flash = true;
+    bool try_to_use_flash = ctx->forse_flash;
+    if (!try_to_use_flash) {
+        size_t free_sz = xPortGetFreeHeapSize();
+        if ((free_sz >> 1) <  f->obj.objsize) {
+            try_to_use_flash = true;
+            gouta("Try to use flash (by size)\n");
+        }
+    } else {
+        gouta("Try to use flash (Alt+Enter)\n");
     }
     elf32_header* pehdr = (elf32_header*)pvPortMalloc(sizeof(elf32_header));
     UINT rb;
@@ -720,9 +724,8 @@ bool load_app(cmd_ctx_t* ctx) {
         lst = 0;
 
         goutf("Going to flash: [%p]-[%p] %dK (%d pages)\n", min_addr, max_addr, (max_addr - min_addr) << 10, (max_addr - min_addr) << 12);
-        free_sz = xPortGetFreeHeapSize();
-        if (free_sz < (FLASH_SECTOR_SIZE + 511)) {
-            goutf("WARN: free_sz: %d; required: %d\n", free_sz, (FLASH_SECTOR_SIZE + 511));
+        if (xPortGetFreeHeapSize() < (FLASH_SECTOR_SIZE + 511)) {
+            goutf("WARN: free_sz: %d; required: %d\n", xPortGetFreeHeapSize(), (FLASH_SECTOR_SIZE + 511));
             goto e8;
         }
         char* alloc = (char*)pvPortCalloc(1, FLASH_SECTOR_SIZE + 511); // TODO: aliment by ?
@@ -1021,4 +1024,8 @@ int kill(uint32_t task_number) {
     }
     vPortFree( pxTaskStatusArray );
     return res;
+}
+
+void reboot_me(void) {
+    reboot_is_requested = true;
 }

@@ -11,6 +11,7 @@ extern "C" {
 
 #define FIRMWARE_MARKER_FN "/.firmware"
 
+void reboot_me(void);
 bool load_firmware(char* pathname);
 void run_app(char * name);
 
