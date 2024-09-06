@@ -248,7 +248,7 @@ typedef int (*bootb_ptr_t)( void );
 
 typedef struct {
     bootb_ptr_t bootb[5];
-    sect_entry_t* sect_entries;
+    void* /* list_ of sect_entry_t*/ sections;
 } bootb_ctx_t;
 
 typedef struct {

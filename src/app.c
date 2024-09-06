@@ -3,13 +3,9 @@
 #include <hardware/flash.h>
 #include <pico/bootrom.h>
 #include <pico/stdlib.h>
-#include "FreeRTOS.h"
-#include "task.h"
 #include "ff.h"
 #include "graphics.h"
 #include "keyboard.h"
-
-#include "../../api/m-os-api-c-list.h"
 
 extern const char TEMP[];
 const char _flash_me[] = ".flash_me";
@@ -77,16 +73,10 @@ typedef struct to_flash_rec {
     size_t paddr;
     size_t size;
 } to_flash_rec_t;
-static to_flash_rec_t* to_flash_rec_allocator(size_t sz) {
-    return calloc(1, sizeof(to_flash_rec_t));
-}
-static void to_flash_rec_deallocator(to_flash_rec_t* o) {
-    free(0);
-}
 
 void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offset) {
     if (!flash_list) {
-        flash_list = new_list_v(to_flash_rec_allocator, to_flash_rec_deallocator, NULL);
+        flash_list = new_list_v(0, 0, 0);
     }
     node_t* n = flash_list->first;
     while (n) {
@@ -97,7 +87,7 @@ void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offse
         }
         n = n->next;
     }
-    to_flash_rec_t* rec = to_flash_rec_allocator(sizeof(to_flash_rec_t));
+    to_flash_rec_t* rec = (to_flash_rec_t*)pvPortMalloc(sizeof(to_flash_rec_t));
     rec->paddr = flash_target_offset;
     rec->size = FLASH_SECTOR_SIZE;
     list_push_back(flash_list, rec);
@@ -259,42 +249,27 @@ typedef struct {
     int symtab_off;
     elf32_sym* psym;
     char* pstrtab;
-    sect_entry_t* psections_list;
-    uint16_t max_sections_in_list;
+    list_t* /*sect_entry_t*/ sections_lst;
 } load_sec_ctx;
 
 static char* sec_prg_addr(load_sec_ctx* ctx, uint16_t sec_num) {
-    for (uint16_t i = 0; i < ctx->max_sections_in_list && ctx->psections_list[i].prg_addr != 0; ++i) {
-        if (ctx->psections_list[i].sec_num == sec_num) {
-            // goutf("section #%d found\n", sec_num);
-            return ctx->psections_list[i].prg_addr;
+    node_t* n = ctx->sections_lst->first;
+    while (n) {
+        sect_entry_t* se = (sect_entry_t*)n->data;
+        if (se->sec_num == sec_num) {
+            return se->prg_addr;
         }
+        n = n->next;
     }
     return 0;
 }
 
 static void add_sec(load_sec_ctx* ctx, char* del_addr, char* prg_addr, uint16_t num) {
-    uint16_t i = 0;
-    for (; i < ctx->max_sections_in_list - 1 && ctx->psections_list[i].del_addr != 0; ++i);
-    if (i == ctx->max_sections_in_list - 1) {
-        ctx->max_sections_in_list += 2; // may be more? 
-        // goutf("max sections count increased up to %d\n", ctx->max_sections_in_list);
-        sect_entry_t* sects_list = (sect_entry_t*)pvPortMalloc(ctx->max_sections_in_list * sizeof(sect_entry_t));
-        for (uint16_t j = 0; j < ctx->max_sections_in_list - 2; ++j) {
-            sects_list[j] = ctx->psections_list[j];
-        }
-        vPortFree(ctx->psections_list);
-        ctx->psections_list = sects_list;
-    }
-    // goutf("section #%d inserted @ line #%d\n", num, i);
-    ctx->psections_list[i].del_addr = del_addr;
-    ctx->psections_list[i].prg_addr = prg_addr;
-    ctx->psections_list[i++].sec_num = num;
-    if (i < ctx->max_sections_in_list) {
-        // goutf("next section line #%d\n", i);
-        ctx->psections_list[i].del_addr = 0;
-    }
-    // debug_sections(ctx->psections_list);
+    sect_entry_t* se = (sect_entry_t*)pvPortMalloc(sizeof(sect_entry_t));
+    se->del_addr = del_addr;
+    se->prg_addr = prg_addr;
+    se->sec_num = num;
+    list_push_back(ctx->sections_lst, se);
 }
 
 inline static uint8_t* sec_align(uint32_t sz, uint8_t* *pdel_addr, uint8_t* *real_addr, uint32_t a, bool write_access) {
@@ -402,14 +377,9 @@ void cleanup_bootb_ctx(cmd_ctx_t* ctx) {
     // goutf("cleanup_bootb_ctx [%p]\n", ctx);
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
     if (!bootb_ctx) return;
-    if (bootb_ctx->sect_entries) {
-        for (uint16_t i = 0; bootb_ctx->sect_entries[i].del_addr != 0; ++i) {
-            // goutf("#%d: [%p]\n", i, bootb_ctx->sect_entries[i]);
-            vPortFree(bootb_ctx->sect_entries[i].del_addr);
-        }
-        // goutf("[%p] end\n", bootb_ctx->sect_entries);
-        vPortFree(bootb_ctx->sect_entries);
-        bootb_ctx->sect_entries = 0;
+    if (bootb_ctx->sections) {
+        delete_list(bootb_ctx->sections);
+        bootb_ctx->sections = 0;
     }
     vPortFree(bootb_ctx);
     ctx->pboot_ctx = 0;
@@ -549,7 +519,7 @@ e2:
     vPortFree(psh);
     size_t sz = new_flash_addr - prev_flash_addr;
     if (prg_addr && sz) {
-        to_flash_rec_t* o = to_flash_rec_allocator(sizeof(to_flash_rec_t));
+        to_flash_rec_t* o = (to_flash_rec_t*)pvPortMalloc(sizeof(to_flash_rec_t));
         o->paddr = prg_addr; // TODO: out of empty flash?
         o->size = sz;
         char* tmp = get_ctx_var(get_cmd_startup_ctx(), TEMP);
@@ -694,16 +664,14 @@ bool load_app(cmd_ctx_t* ctx) {
     uint32_t sig_idx = 0xFFFFFFFF;
     // TODO: precalc req. size
     uint16_t max_sects = pehdr->sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
-    bootb_ctx->sect_entries = (sect_entry_t*)pvPortMalloc(max_sects * sizeof(sect_entry_t));
-    bootb_ctx->sect_entries[0].del_addr = 0;
+    bootb_ctx->sections = new_list_v(0, 0, 0);
     load_sec_ctx* pctx = (load_sec_ctx*)pvPortMalloc(sizeof(load_sec_ctx));
     pctx->f2 = f;
     pctx->pehdr = pehdr;
     pctx->symtab_off = symtab_off;
     pctx->psym = psym;
     pctx->pstrtab = strtab;
-    pctx->psections_list = bootb_ctx->sect_entries;
-    pctx->max_sections_in_list = max_sects;
+    pctx->sections_lst = bootb_ctx->sections;
     for (uint32_t i = 0; i < symtab_len / sizeof(elf32_sym); ++i) {
         if (f_read(f, psym, sizeof(elf32_sym), &rb) != FR_OK || rb != sizeof(elf32_sym)) {
             goutf("Unable to read .symtab section #%d\n", i);
@@ -725,7 +693,7 @@ bool load_app(cmd_ctx_t* ctx) {
         }
     }
     if(try_to_use_flash && !lst) {
-        lst = new_list_v(to_flash_rec_allocator, to_flash_rec_deallocator, NULL);
+        lst = new_list_v(0, 0, 0);
     }
     bootb_ctx->bootb[0] = load_sec2mem_wrapper(pctx, req_idx, try_to_use_flash);
     bootb_ctx->bootb[1] = load_sec2mem_wrapper(pctx, _init_idx, try_to_use_flash);
@@ -798,7 +766,7 @@ e1:
     vPortFree(pehdr);
     f_close(f);
     vPortFree(f);
-    bootb_ctx->sect_entries = pctx->psections_list;
+    bootb_ctx->sections = pctx->sections_lst;
     vPortFree(pctx);
     #if DEBUG_APP_LOAD
     debug_sections(bootb_ctx->sect_entries);

@@ -7,6 +7,9 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include "ff.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "../../api/m-os-api-c-list.h"
 
 size_t get_heap_total();
 
@@ -25,7 +28,7 @@ typedef int (*bootb_ptr_t)( void );
 
 typedef struct {
     bootb_ptr_t bootb[5];
-    sect_entry_t* sect_entries;
+    list_t* /*sect_entry_t*/ sections;
 } bootb_ctx_t;
 
 typedef struct {

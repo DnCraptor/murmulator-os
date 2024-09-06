@@ -21,8 +21,8 @@ typedef struct list {
 
 static list_t* new_list_v(alloc_fn_ptr_t allocator, dealloc_fn_ptr_t deallocator, size_fn_ptr_t size_fn) {
     list_t* res = (list_t*)pvPortMalloc(sizeof(list_t));
-    res->allocator = allocator ? allocator : pvPortMalloc;
-    res->deallocator = deallocator ? deallocator : vPortFree;
+    res->allocator = allocator ? allocator : (alloc_fn_ptr_t)pvPortMalloc;
+    res->deallocator = deallocator ? deallocator : (dealloc_fn_ptr_t)vPortFree;
     res->size_fn = size_fn;
     res->first = NULL;
     res->last = NULL;
