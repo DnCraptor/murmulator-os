@@ -132,7 +132,8 @@ whetstone [n] - MIPS (whetstone) performance test (see: https://github.com/DnCra
 [CTRL]+[TAB]+[+] - increase CPU freq.</br>
 [CTRL]+[TAB]+[-] - decrease CPU freq.</br>
 [ALT]+[0-9]+[0-9]+[0-9] - manual enter some character by its decimal code (CP-866 codepage)<br/>
-
+[ALT]+[Enter] - try to use flasg instead of RAM to launch application (from `mc`)<br/>
+<br/>
 # M-OS system variables
 BASE - base directory with commands implementations<br/>
 SWAP - swap settings<br/>

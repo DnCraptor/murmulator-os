@@ -70,7 +70,7 @@ static size_t flash_addr = M_OS_APP_TABLE_BASE;
 static list_t* flash_list = NULL;
 static list_t* lst = NULL;
 typedef struct to_flash_rec {
-    size_t paddr;
+    size_t offset;
     size_t size;
 } to_flash_rec_t;
 
@@ -81,14 +81,18 @@ void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offse
     node_t* n = flash_list->first;
     while (n) {
         to_flash_rec_t* rec = (to_flash_rec_t*)n->data;
-        if (flash_target_offset >= rec->paddr && flash_target_offset < rec->paddr + FLASH_SECTOR_SIZE) {
-            goutf("WARN: Impossible to use already allocated flash block: [%p]-[%p]\n", flash_target_offset, flash_target_offset + FLASH_SECTOR_SIZE);
+        if (flash_target_offset >= rec->offset && flash_target_offset < rec->offset + FLASH_SECTOR_SIZE) {
+            goutf(
+                "WARN: Attempt to use already allocated flash block: [%p]-[%p] (rejected)\n",
+                 flash_target_offset,
+                 flash_target_offset + FLASH_SECTOR_SIZE
+            );
             return;
         }
         n = n->next;
     }
     to_flash_rec_t* rec = (to_flash_rec_t*)pvPortMalloc(sizeof(to_flash_rec_t));
-    rec->paddr = flash_target_offset;
+    rec->offset = flash_target_offset;
     rec->size = FLASH_SECTOR_SIZE;
     list_push_back(flash_list, rec);
     uint8_t *e = (uint8_t*)(XIP_BASE + flash_target_offset);
@@ -170,21 +174,22 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
 }
 
 bool load_firmware(char* pathname) {
+    if (flash_list) delete_list(flash_list);
     FILINFO* pfileinfo = pvPortMalloc(sizeof(FILINFO));
     f_stat(pathname, pfileinfo);
     if ((flash_size - (100 << 10)) < (pfileinfo->fsize >> 1)) { // TODO: free, ...
-        fgoutf(get_stdout(), "ERROR: Firmware too large (%dK)! Canceled!\n", pfileinfo->fsize >> 11);
+        goutf("ERROR: Firmware too large (%dK)! Canceled!\n", pfileinfo->fsize >> 11);
         vPortFree(pfileinfo);
         return false;
     }
     vPortFree(pfileinfo);
-    fgoutf(get_stdout(), "Loading firmware: '%s'\n", pathname);
+    goutf("Loading firmware: '%s'\n", pathname);
     return load_firmware_sram(pathname);
 }
 
 void vAppTask(void *pv) {
     int res = ((boota_ptr_t)M_OS_APP_TABLE_BASE[0])(pv); // TODO: 0 - 2nd page, what exactly page used by app?
-    goutf("RET_CODE: %d\n", res);
+    // goutf("RET_CODE: %d\n", res);
     vTaskDelete( NULL );
     // TODO: ?? return res;
 }
@@ -378,6 +383,40 @@ void cleanup_bootb_ctx(cmd_ctx_t* ctx) {
     bootb_ctx_t* bootb_ctx = ctx->pboot_ctx;
     if (!bootb_ctx) return;
     if (bootb_ctx->sections) {
+        if (flash_list) {
+            uint32_t min_addr = 0xFFFFFFFF;
+            uint32_t max_addr = 0;
+            node_t* n = bootb_ctx->sections->first;
+            while (n) {
+                sect_entry_t* se = (sect_entry_t*)n->data;
+                uint32_t prg_addr = se->prg_addr;
+                if (prg_addr <= 0x20000000) {
+                    if ( min_addr > prg_addr ) min_addr = prg_addr;
+                    if ( max_addr < prg_addr ) max_addr = prg_addr;
+                }
+                n = n->next;
+            }
+            flash_addr = M_OS_APP_TABLE_BASE;
+            // goutf("flash_addr [%p]\n", flash_addr);
+            node_t* fn = flash_list->first;
+            while (fn) {
+                uint32_t nn = fn->next;
+                to_flash_rec_t* fse = (to_flash_rec_t*)fn->data;
+                uint32_t faddr = fse->offset + XIP_BASE;
+                if (faddr >= min_addr && faddr <= max_addr) {
+                    // goutf("Free [%p]\n", faddr);
+                    list_erase_node(flash_list, fn);
+                }
+                else {
+                    faddr += fse->size;
+                    if (flash_addr < faddr) {
+                        flash_addr = faddr;
+                        // goutf("flash_addr [%p]\n", flash_addr);
+                    }
+                }
+                fn = nn;
+            }
+        }
         delete_list(bootb_ctx->sections);
         bootb_ctx->sections = 0;
     }
@@ -520,13 +559,13 @@ e2:
     size_t sz = new_flash_addr - prev_flash_addr;
     if (prg_addr && sz) {
         to_flash_rec_t* o = (to_flash_rec_t*)pvPortMalloc(sizeof(to_flash_rec_t));
-        o->paddr = prg_addr; // TODO: out of empty flash?
+        o->offset = prg_addr - XIP_BASE; // TODO: out of empty flash?
         o->size = sz;
         char* tmp = get_ctx_var(get_cmd_startup_ctx(), TEMP);
         if(!tmp) tmp = "";
         size_t cdl = strlen(tmp);
         char * flash_me_file = concat(tmp, _flash_me);
-        FIL* f = (FIL*)malloc(sizeof(FIL));
+        FIL* f = (FIL*)pvPortMalloc(sizeof(FIL));
         if ( FR_OK != f_open(f, flash_me_file, FA_WRITE | FA_CREATE_ALWAYS) ) {
             goutf("Unable to open file '%s'\n", flash_me_file);
             goto e5;
@@ -546,7 +585,7 @@ e2:
         f_close(f);
     e5:
         vPortFree(flash_me_file);
-        free(f);
+        vPortFree(f);
         list_push_back(lst, o);
         vPortFree(del_addr);
         del_addr = 0;
@@ -609,10 +648,10 @@ bool load_app(cmd_ctx_t* ctx) {
         size_t free_sz = xPortGetFreeHeapSize();
         if ((free_sz >> 1) <  f->obj.objsize) {
             try_to_use_flash = true;
-            gouta("Try to use flash (by size)\n");
+            gouta("Attempt to use flash (by size)\n");
         }
     } else {
-        gouta("Try to use flash (Alt+Enter)\n");
+        gouta("Attempt to use flash (Alt+Enter)\n");
     }
     elf32_header* pehdr = (elf32_header*)pvPortMalloc(sizeof(elf32_header));
     UINT rb;
@@ -706,20 +745,19 @@ bool load_app(cmd_ctx_t* ctx) {
         uint32_t max_addr = 0;
         while(n) {
             to_flash_rec_t* tf = (to_flash_rec_t*)n->data;
-            if ( min_addr > tf->paddr ) min_addr = tf->paddr;
-            if ( max_addr < tf->paddr + tf->size ) max_addr = tf->paddr + tf->size;
+            if ( min_addr > tf->offset + XIP_BASE ) min_addr = tf->offset + XIP_BASE;
+            if ( max_addr < tf->offset + XIP_BASE + tf->size ) max_addr = tf->offset + XIP_BASE + tf->size;
             n = n->next;
         }
         delete_list(lst);
         lst = 0;
 
-        goutf("Going to flash: [%p]-[%p] %dK (%d pages)\n", min_addr, max_addr, (max_addr - min_addr) >> 10, (max_addr - min_addr) >> 12);
-    //    bootb_ctx->
+        goutf("Going to flash: [%p]-[%p] %dK (%d pages)\n", min_addr, max_addr, 1 + ((max_addr - min_addr) >> 10), 1 + ((max_addr - min_addr) >> 12));
         if (xPortGetFreeHeapSize() < (FLASH_SECTOR_SIZE + 511)) {
             goutf("WARN: free_sz: %d; required: %d\n", xPortGetFreeHeapSize(), (FLASH_SECTOR_SIZE + 511));
             goto e8;
         }
-        char* alloc = (char*)pvPortCalloc(1, FLASH_SECTOR_SIZE + 511); // TODO: aliment by ?
+        char* alloc = (char*)pvPortCalloc(1, FLASH_SECTOR_SIZE + 511);
         char* buffer = (char*)((uint32_t)(alloc + 511) & 0xFFFFFE00); // align 512
         char* tmp = get_ctx_var(get_cmd_startup_ctx(), TEMP);
         if(!tmp) tmp = "";
@@ -773,7 +811,7 @@ e1:
     goutf("[%p][%p][%p][%p]\n", bootb_ctx->bootb[0], bootb_ctx->bootb[1], bootb_ctx->bootb[2], bootb_ctx->bootb[3]);
     #endif
     if (bootb_ctx->bootb[2] == 0) {
-        goutf("'main' global function is not found in the '%s' elf-file\n", fn);
+        goutf("'main' global function is not found in (or failed to load from) the '%s' elf-file\n", fn);
         ctx->ret_code = -1;
         return false;
     }
@@ -944,7 +982,7 @@ void vCmdTask(void *pv) {
                     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
                     //run_app(ctx->orig_cmd);
                     int res = ((boota_ptr_t)M_OS_APP_TABLE_BASE[0])(ctx->orig_cmd); // TODO: 0 - 2nd page, what exactly page used by app?
-                    goutf("RET_CODE: %d\n", res);
+                    // goutf("RET_CODE: %d\n", res);
                     ctx->stage = EXECUTED;
                     cleanup_ctx(ctx);
                 } else {
@@ -1017,6 +1055,6 @@ int kill(uint32_t task_number) {
     return res;
 }
 
-void reboot_me(void) {
+void __not_in_flash_func(reboot_me)(void) {
     reboot_is_requested = true;
 }
