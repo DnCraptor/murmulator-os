@@ -1294,7 +1294,7 @@ void vic_do(void) {
     ?PEEK(678) NTSC =0
     ?PEEK(678) PAL = 1
   */
-
+printf("q\n");
   if ( cpu.vic.rasterLine >= LINECNT ) {
     //reSID sound needs much time - too much to keep everything in sync and with stable refreshrate
     //but it is not called very often, so most of the time, we have more time than needed.
@@ -1315,6 +1315,7 @@ void vic_do(void) {
 
   int r = cpu.vic.rasterLine;
 
+printf("w\n");
   if (r == cpu.vic.intRasterLine )//Set Rasterline-Interrupt
     cpu.vic.R[0x19] |= 1 | ((cpu.vic.R[0x1a] & 1) << 7);
 
@@ -1346,6 +1347,7 @@ void vic_do(void) {
   */
 
   vc = cpu.vic.vcbase;
+printf("e\n");
 
   cpu.vic.badline = (cpu.vic.denLatch && (r >= 0x30) && (r <= 0xf7) && ( (r & 0x07) == cpu.vic.YSCROLL));
 
@@ -1366,6 +1368,7 @@ void vic_do(void) {
 
    //HBlank:
    cpu_clock(10);
+printf("r\n");
 
 #ifdef ADDITIONALCYCLES
   cpu_clock(ADDITIONALCYCLES);
@@ -1387,6 +1390,7 @@ void vic_do(void) {
     int lastLine = (cpu.vic.RSEL) ? 0xfb : 0xf7;
     if (r == lastLine) cpu.vic.borderFlag = true;
   }
+printf("t\n");
 
   if (r < FIRSTDISPLAYLINE || r > LASTDISPLAYLINE ) {
     if (r == 0)
@@ -1407,13 +1411,15 @@ void vic_do(void) {
   spl = &cpu.vic.spriteLine[24];
   cpu_clock(6);
 
+printf("y\n");
 
   if (cpu.vic.borderFlag) {
-	cpu_clock(5);
+	  cpu_clock(5);
     fastFillLineNoSprites(p, pe + BORDER_RIGHT, cpu.vic.colors[0]);
     goto noDisplayIncRC ;
   }
 
+printf("u\n");
 
   /*****************************************************************************************************/
   /* DISPLAY *******************************************************************************************/
@@ -1442,6 +1448,7 @@ void vic_do(void) {
 
     }
   }
+printf("i\n");
 
   /*****************************************************************************************************/
   /*****************************************************************************************************/
@@ -1449,9 +1456,12 @@ void vic_do(void) {
 
 
   cpu.vic.fgcollision = 0;
+printf("i2\n");
   mode = (cpu.vic.ECM << 2) | (cpu.vic.BMM << 1) | cpu.vic.MCM;
+printf("i3\n");
 
   if ( !cpu.vic.idle)  {
+printf("i31\n");
 
 #if 0
     static uint8_t omode = 99;
@@ -1462,8 +1472,11 @@ void vic_do(void) {
     }
 #endif
 
+printf("[%p]][%d]([%p], [%p], [%p], %d)\n", modes, mode, p, pe, spl, vc);
     modes[mode](p, pe, spl, vc);
+printf("i4\n");
     vc = (vc + 40) & 0x3ff;
+printf("i5\n");
 
   } else {
 	  /*
@@ -1537,12 +1550,19 @@ g-Zugriff
  +---------------------------------------+
 */ 
 	//Modes 1 & 3
+printf("i6\n");
     if (mode == 1 || mode == 3) {
-		modes[mode](p, pe, spl, vc);
+printf("i7\n");
+		  modes[mode](p, pe, spl, vc);
+printf("i8\n");
     } else {//TODO: all other modes
-	fastFillLine(p, pe, cpu.vic.palette[0], spl);
-	}
+printf("i9\n");
+	    fastFillLine(p, pe, cpu.vic.palette[0], spl);
+printf("i10\n");
+	  }
+printf("i11\n");
   }
+printf("o\n");
 
   /*
     Bei den MBC- und MMC-Interrupts lost jeweils nur die erste Kollision einen
@@ -1586,6 +1606,7 @@ g-Zugriff
     //keine Sprites im Rand
     *p++ = col; *p++ = col; *p++ = col; *p++ = col;
     *p++ = col; *p++ = col; *p = col;
+printf("p\n");
 
 #endif
 
@@ -1611,6 +1632,7 @@ g-Zugriff
 #endif
 
 
+printf("[\n");
 
   }
 
@@ -1627,6 +1649,7 @@ g-Zugriff
 //Rechter Rand nach CSEL, im Textbereich
 cpu_clock(5);
 
+printf("]\n");
 
 noDisplayIncRC:
   /* 3.7.2
@@ -1645,6 +1668,7 @@ noDisplayIncRC:
     cpu.vic.rc = (cpu.vic.rc + 1) & 0x07;
   }
 
+printf("a\n");
 
   /*****************************************************************************************************/
   /* Sprites *******************************************************************************************/
@@ -1657,6 +1681,7 @@ noDisplayIncRC:
 	cpu.vic.lineHasSprites = 0;
     memset(cpu.vic.spriteLine, 0, sizeof(cpu.vic.spriteLine) );
   }
+printf("s\n");
 
   uint32_t spriteYCheck = cpu.vic.R[0x15]; //Sprite enabled Register
 
@@ -1820,6 +1845,7 @@ noDisplayIncRC:
     }
 
   }
+printf("d\n");
   /*****************************************************************************************************/
 #if 0
   {
@@ -1846,6 +1872,7 @@ noDisplayIncRC:
    }
 #endif
 
+printf("f\n");
 
   return;
 }

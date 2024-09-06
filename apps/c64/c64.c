@@ -42,12 +42,10 @@ inline static void c64_Init(void)
 
 int main() {
     skip = 0;
-	marked_to_exit = false;
+	  marked_to_exit = false;
     cmd_ctx_t* ctx = get_cmd_ctx();
-//    if (ctx->argc != 2) {
-//        fprintf(ctx->std_err, "Pls. do not miss to specify ROM filename...\n");
-//        return -1;
-//    }
+    graphics_driver_t* gd = get_graphics_driver();
+    gd->set_mode(7); // TODO: lookup for the mode 320*240*8-bit
     emu_init();
     emu_start();
     emu_Init(ctx->argc > 1 ? ctx->argv[1] : NULL);
@@ -298,7 +296,6 @@ static void oneRasterLine(void) {
       break;
     }
   };
-
 }
 
 void c64_Start(char * filename) { }
