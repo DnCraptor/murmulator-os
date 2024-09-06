@@ -9,6 +9,8 @@
 #include "graphics.h"
 #include "keyboard.h"
 
+#include "../../api/m-os-api-c-list.h"
+
 extern const char TEMP[];
 const char _flash_me[] = ".flash_me";
 
@@ -67,11 +69,38 @@ inline static uint32_t read_flash_block(FIL * f, uint8_t * buffer, uint32_t expe
     return expected_flash_target_offset;
 }
 
-// TODO: dynamic
-static FIL file;
-static FILINFO fileinfo;
+// TODO: remove on exit from app (ctx_cleanup?)
+static size_t flash_addr = M_OS_APP_TABLE_BASE;
+static list_t* flash_list = NULL;
+static list_t* lst = NULL;
+typedef struct to_flash_rec {
+    size_t paddr;
+    size_t size;
+} to_flash_rec_t;
+static to_flash_rec_t* to_flash_rec_allocator(size_t sz) {
+    return calloc(1, sizeof(to_flash_rec_t));
+}
+static void to_flash_rec_deallocator(to_flash_rec_t* o) {
+    free(0);
+}
 
 void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offset) {
+    if (!flash_list) {
+        flash_list = new_list_v(to_flash_rec_allocator, to_flash_rec_deallocator, NULL);
+    }
+    node_t* n = flash_list->first;
+    while (n) {
+        to_flash_rec_t* rec = (to_flash_rec_t*)n->data;
+        if (flash_target_offset >= rec->paddr && flash_target_offset < rec->paddr + FLASH_SECTOR_SIZE) {
+            goutf("WARN: Impossible to use already allocated flash block: [%p]-[%p]\n", flash_target_offset, flash_target_offset + FLASH_SECTOR_SIZE);
+            return;
+        }
+        n = n->next;
+    }
+    to_flash_rec_t* rec = to_flash_rec_allocator(sizeof(to_flash_rec_t));
+    rec->paddr = flash_target_offset;
+    rec->size = FLASH_SECTOR_SIZE;
+    list_push_back(flash_list, rec);
     uint8_t *e = (uint8_t*)(XIP_BASE + flash_target_offset);
     for (uint32_t i = 0; i < FLASH_SECTOR_SIZE; ++i) {
         if (e[i] != buffer[i]) {
@@ -93,12 +122,14 @@ void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offse
 }
 
 bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
-// TODO: dynamic
     FILINFO* pfi = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
-    if (FR_OK != f_stat(pathname, pfi) || FR_OK != f_open(&file, pathname, FA_READ)) {
+    FIL* pf = (FIL*)pvPortMalloc(sizeof(FIL));
+    if (FR_OK != f_stat(pathname, pfi) || FR_OK != f_open(pf, pathname, FA_READ)) {
+        vPortFree(pf);
         vPortFree(pfi);
         return false;
     }
+    if (flash_list) list_cleanup(flash_list);
     uint32_t expected_to_write_size = pfi->fsize >> 1;
     vPortFree(pfi);
     UF2_Block_t* uf2 = (UF2_Block_t*)pvPortMalloc(sizeof(UF2_Block_t));
@@ -110,7 +141,7 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     uint32_t already_written = 0;
     while(true) {
         size_t sz = 0;
-        uint32_t next_flash_target_offset = read_flash_block(&file, buffer, flash_target_offset, uf2, &sz);
+        uint32_t next_flash_target_offset = read_flash_block(pf, buffer, flash_target_offset, uf2, &sz);
         if (next_flash_target_offset == flash_target_offset) {
             break;
         }
@@ -133,28 +164,30 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         flash_target_offset = next_flash_target_offset;
     }
     vPortFree(alloc);
-    f_close(&file);
+    f_close(pf);
     if (boot_replaced) {
-        fgoutf(get_stdout(), "Write FIRMWARE MARKER '%s' to '%s'\n", pathname, FIRMWARE_MARKER_FN);
-        f_open(&file, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
-        fgoutf(&file, "%s\n", pathname);
-        f_close(&file);
-        fgoutf(get_stdout(), "Reboot is required!\n");
+        goutf("Write FIRMWARE MARKER '%s' to '%s'\n", pathname, FIRMWARE_MARKER_FN);
+        f_open(pf, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
+        fgoutf(pf, "%s\n", pathname);
+        f_close(pf);
+        goutf("Reboot is required!\n");
         reboot_is_requested = true;
         while(true) ;
     }
+    vPortFree(pf);
     vPortFree(uf2);
     return !boot_replaced;
 }
 
 bool load_firmware(char* pathname) {
-    f_stat(pathname, &fileinfo);
-    if ((flash_size - (100 << 10)) < (fileinfo.fsize >> 1)) { // TODO: free, ...
-        fgoutf(get_stdout(), "ERROR: Firmware too large (%dK)! Canceled!\n", fileinfo.fsize >> 11);
+    FILINFO* pfileinfo = pvPortMalloc(sizeof(FILINFO));
+    f_stat(pathname, pfileinfo);
+    if ((flash_size - (100 << 10)) < (pfileinfo->fsize >> 1)) { // TODO: free, ...
+        fgoutf(get_stdout(), "ERROR: Firmware too large (%dK)! Canceled!\n", pfileinfo->fsize >> 11);
+        vPortFree(pfileinfo);
         return false;
     }
-    f_close(&file);
-
+    vPortFree(pfileinfo);
     fgoutf(get_stdout(), "Loading firmware: '%s'\n", pathname);
     return load_firmware_sram(pathname);
 }
@@ -262,21 +295,6 @@ static void add_sec(load_sec_ctx* ctx, char* del_addr, char* prg_addr, uint16_t 
         ctx->psections_list[i].del_addr = 0;
     }
     // debug_sections(ctx->psections_list);
-}
-
-#include "../../api/m-os-api-c-list.h"
-#define APP_FLASH_BASE (0x10001000)
-static size_t flash_addr = APP_FLASH_BASE;
-static list_t* lst = NULL;
-typedef struct to_flash_rec {
-    size_t paddr;
-    size_t size;
-} to_flash_rec_t;
-static to_flash_rec_t* to_flash_rec_allocator(size_t sz) {
-    return calloc(1, sizeof(to_flash_rec_t));
-}
-static void to_flash_rec_deallocator(to_flash_rec_t* o) {
-    free(0);
 }
 
 inline static uint8_t* sec_align(uint32_t sz, uint8_t* *pdel_addr, uint8_t* *real_addr, uint32_t a, bool write_access) {
@@ -543,7 +561,7 @@ e2:
             goutf("Unable to open file '%s'\n", flash_me_file);
             goto e5;
         }
-        size_t target_offset = prg_addr - APP_FLASH_BASE;
+        size_t target_offset = prg_addr - (size_t)M_OS_APP_TABLE_BASE;
         if ( FR_OK != f_lseek(f, target_offset) ) {
             goutf("Unable to seek file '%s' to %d\n", flash_me_file, target_offset);
             goto e4;
@@ -562,6 +580,10 @@ e2:
         list_push_back(lst, o);
         vPortFree(del_addr);
         del_addr = 0;
+        if (flash_addr & 0x00000FFF) {
+            flash_addr &= 0xFFFFF000;
+            flash_addr += 4096;
+        }
     }
     if (!prg_addr && del_addr) {
         vPortFree(del_addr);
@@ -723,7 +745,8 @@ bool load_app(cmd_ctx_t* ctx) {
         delete_list(lst);
         lst = 0;
 
-        goutf("Going to flash: [%p]-[%p] %dK (%d pages)\n", min_addr, max_addr, (max_addr - min_addr) << 10, (max_addr - min_addr) << 12);
+        goutf("Going to flash: [%p]-[%p] %dK (%d pages)\n", min_addr, max_addr, (max_addr - min_addr) >> 10, (max_addr - min_addr) >> 12);
+    //    bootb_ctx->
         if (xPortGetFreeHeapSize() < (FLASH_SECTOR_SIZE + 511)) {
             goutf("WARN: free_sz: %d; required: %d\n", xPortGetFreeHeapSize(), (FLASH_SECTOR_SIZE + 511));
             goto e8;
@@ -740,23 +763,23 @@ bool load_app(cmd_ctx_t* ctx) {
             goto e5;
         }
         for (uint32_t addr = min_addr; addr < max_addr; addr += FLASH_SECTOR_SIZE) {
-            size_t target_offset = addr - APP_FLASH_BASE;
-    goutf("seek file '%s' to %d\n", flash_me_file, target_offset);
+            size_t target_offset = addr - (size_t)M_OS_APP_TABLE_BASE;
+            // goutf("seek file '%s' to %d\n", flash_me_file, target_offset);
             if ( FR_OK != f_lseek(f, target_offset) ) {
                 goutf("Unable to seek file '%s' to %d\n", flash_me_file, target_offset);
                 goto e4;
             }
             UINT br;
-    goutf("read %d bytes from file '%s'\n", FLASH_SECTOR_SIZE, flash_me_file);
+            // goutf("read %d bytes from file '%s'\n", FLASH_SECTOR_SIZE, flash_me_file);
             if ( FR_OK != f_read(f, buffer, FLASH_SECTOR_SIZE, &br) && !br ) {
                 goutf("Unable to read %d bytes from file '%s'\n", FLASH_SECTOR_SIZE, flash_me_file);
                 goto e4;
             }
             uint32_t flash_target_offset = addr - XIP_BASE;
-        fgoutf(get_stdout(), "Erase and write to flash, offset: %ph\n", flash_target_offset);
+            goutf("Erase and write to flash, offset: %ph\n", flash_target_offset);
             flash_block(buffer, flash_target_offset);
         }
-        gouta("Done\n");
+        // gouta("Done\n");
     e4:
         f_close(f);
     e5:
