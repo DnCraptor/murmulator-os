@@ -3,5 +3,5 @@ CD=MOS
 BASE=MOS
 PATH=MOS
 TEMP=tmp
-SWAP=/tmp/pagefile.sys 1M 16K 1K
+SWAP=/tmp/pagefile.sys 1M 2K 1K
 CPU=378
