@@ -74,6 +74,10 @@ typedef struct to_flash_rec {
     size_t size;
 } to_flash_rec_t;
 
+size_t free_app_flash(void) {
+    return flash_size - (OS_FLASH_SIZE << 10) - (flash_addr - XIP_BASE);
+}
+
 void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offset) {
     if (!flash_list) {
         flash_list = new_list_v(0, 0, 0);
@@ -94,6 +98,7 @@ void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offse
     to_flash_rec_t* rec = (to_flash_rec_t*)pvPortMalloc(sizeof(to_flash_rec_t));
     rec->offset = flash_target_offset;
     rec->size = FLASH_SECTOR_SIZE;
+    flash_addr = flash_target_offset + FLASH_SECTOR_SIZE + XIP_BASE;
     list_push_back(flash_list, rec);
     uint8_t *e = (uint8_t*)(XIP_BASE + flash_target_offset);
     for (uint32_t i = 0; i < FLASH_SECTOR_SIZE; ++i) {

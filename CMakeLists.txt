@@ -20,7 +20,9 @@ if(NOT FLASH_SIZE)
 set(FLASH_SIZE 16384)
 endif ()
 
-set(MOS_VERSION "0.2.8")
+set(OS_FLASH_SIZE 128)
+
+set(MOS_VERSION "0.2.9")
 
 SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
 
@@ -188,7 +190,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #DEBUG_APP_LOAD=1
         #CFG_TUSB_DEBUG=3
 
-        M_API_VERSION=22
+        M_API_VERSION=23
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
         #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV
@@ -201,14 +203,17 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 
 pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
-math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - 128) + 0x10000000")
+math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - ${OS_FLASH_SIZE}) + 0x10000000")
 message(STATUS "${CUSTOM_XIP_BASE}")
 target_compile_definitions(slower_boot2 PRIVATE CUSTOM_XIP_BASE=${CUSTOM_XIP_BASE})
 target_compile_definitions(slower_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)
 pico_set_boot_stage2(${PROJECT_NAME} slower_boot2)
 
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE FLASH_SIZE=${FLASH_SIZE})
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    FLASH_SIZE=${FLASH_SIZE}
+    OS_FLASH_SIZE=${OS_FLASH_SIZE}
+)
 
 IF (TFT)
     target_link_libraries(${PROJECT_NAME} PRIVATE st7789)

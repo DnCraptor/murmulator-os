@@ -11,7 +11,7 @@ int main(void) {
             "FLASH size: %d (%dK) bytes (%dK free)\n"
             "PSRAM size: %d (%dK) bytes\n", // TODO: <-- psram table
             ram32, ram32 >> 10, free_sz >> 10,
-            flash32, flash32 >> 10, (flash32 >> 10) - 96, // TODO: <-- flash_table
+            flash32, flash32 >> 10, (free_app_flash() >> 10),
             sz, sz >> 10);
     sz = swap_size();
     printf( "SWAP size : %d (%dK) bytes\n", sz, sz >> 10);

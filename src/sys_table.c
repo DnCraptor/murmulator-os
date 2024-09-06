@@ -336,6 +336,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     strcat, // 252
     memcmp, // 253
     reboot_me, // 254
+    // API v.23
+    free_app_flash, // 255
     // TODO:
     0
 };

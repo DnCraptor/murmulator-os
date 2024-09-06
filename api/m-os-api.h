@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 22
+#define M_API_VERSION 23
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
@@ -1008,6 +1008,12 @@ inline static int memcmp( const void *buffer1, const void *buffer2, size_t count
 inline static void reboot_me( void ) {
     typedef void (*fn_ptr_t)(void);
     ((fn_ptr_t)_sys_table_ptrs[254])();
+}
+
+// API v23
+inline static size_t free_app_flash(void) {
+    typedef size_t (*fn_ptr_t)(void);
+    return ((fn_ptr_t)_sys_table_ptrs[255])();
 }
 
 #define abs(x) (x > 0 ? x : -x)

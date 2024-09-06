@@ -22,6 +22,7 @@ bool load_app(cmd_ctx_t* ctx);
 void exec(cmd_ctx_t* ctx);
 void cleanup_bootb_ctx(cmd_ctx_t* ctx);
 void flash_block(uint8_t* buffer, size_t flash_target_offset);
+size_t free_app_flash(void);
 
 void mallocFailedHandler();
 void overflowHook( TaskHandle_t pxTask, char *pcTaskName );
