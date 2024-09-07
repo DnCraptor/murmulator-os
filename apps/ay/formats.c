@@ -108,6 +108,11 @@ static void PlayersInit(void) {
     init_Players(&Players[11], TXT(".pt1"), PT1_Init, PT1_Play, PT1_Cleanup, PT1_GetInfo, PT1_Detect, false);
 }
 
+int _init(void) {
+    Players = 0;
+    return 0;
+}
+
 bool ay_sys_format_supported(AY_TXT_TYPE filePath)
 {
     AY_TXT_TYPE cfp = new_string_v();
@@ -200,8 +205,9 @@ bool ay_sys_initsong(AYSongInfo* info)
 {
     info->player_num = ay_sys_detect(info);
 
-    if(info->player_num < 0)
+    if(info->player_num < 0) {
         return false;
+    }
 
     memset(info->module, 0, info->file_len);
     memcpy(info->module, info->file_data, info->file_len);

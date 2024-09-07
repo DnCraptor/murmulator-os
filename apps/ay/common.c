@@ -74,14 +74,11 @@ AYSongInfo *ay_sys_getnewinfo()
 }
 
 void *ay_initsong(const AY_CHAR *FilePath, unsigned long sr, MOSAudio_t* player) {
-    gouta("1\n");
     AYSongInfo *info = ay_sys_getnewinfo();
-    gouta("2\n");
     if(!info)
         return 0;
-    gouta("3\n");
 
-    info->FilePath = FilePath;
+    info->FilePath = new_string_cc(FilePath);
     info->sr = sr;
     if(player)
     {

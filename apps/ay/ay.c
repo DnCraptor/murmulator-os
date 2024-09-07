@@ -59,6 +59,10 @@ e0:
         fprintf(ctx->std_err, "ay_initsong returns NULL\n");
         return -1;
     }
+    printf("  songpath: [%s]\n", ay_getsongpath(p));
+    printf("songauthor: [%s]\n", ay_getsongauthor(p));
+    printf("  songname: [%s]\n", ay_getsongname(p));
+    printf("TODO: Play!\n");
     return res;
 }
 

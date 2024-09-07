@@ -46,6 +46,7 @@ typedef struct PT2_SongInfo
 
 void PT2_Init(AYSongInfo* info)
 {
+    printf("PT2_Init\n");
     unsigned char *module = info->module;
     PT2_File *header = (PT2_File *)module;
     if(info->data)
@@ -123,6 +124,7 @@ void PT2_Init(AYSongInfo* info)
 
 void PT2_GetInfo(AYSongInfo* info)
 {
+    printf("PT2_GetInfo\n");
     unsigned char *module = info->file_data;
     short a1, a2, a3, a11, a22, a33;
     unsigned long j1, j2, j3;
@@ -272,6 +274,7 @@ void PT2_GetInfo(AYSongInfo* info)
 
 void PT2_PatternInterpreter(AYSongInfo* info, PT2_Channel_Parameters* chan)
 {
+    printf("PT2_PatternInterpreter\n");
     unsigned char *module = info->module;
     PT2_File *header = (PT2_File *)module;
     bool quit, gliss;
@@ -384,6 +387,7 @@ void PT2_PatternInterpreter(AYSongInfo* info, PT2_Channel_Parameters* chan)
 
 void PT2_GetRegisters(AYSongInfo* info, PT2_Channel_Parameters* chan, unsigned char* pTempMixer)
 {
+    printf("PT2_GetRegisters\n");
     unsigned char j, b0, b1;
     unsigned char *module = info->module;
     PT2_File *header = (PT2_File *)module;
@@ -433,6 +437,7 @@ void PT2_GetRegisters(AYSongInfo* info, PT2_Channel_Parameters* chan, unsigned c
 
 void PT2_Play(AYSongInfo* info)
 {
+    printf("PT2_Play\n");
     unsigned char TempMixer;
     unsigned char *module = info->module;
     PT2_File *header = (PT2_File *)module;
@@ -482,6 +487,7 @@ void PT2_Play(AYSongInfo* info)
 
 void PT2_Cleanup(AYSongInfo* info)
 {
+    printf("PT2_Cleanup\n");
     if(info->data)
     {
         free( (PT2_SongInfo *)info->data);
