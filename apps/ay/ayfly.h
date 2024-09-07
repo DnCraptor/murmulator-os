@@ -107,7 +107,7 @@
 #    ifndef __SYMBIAN32__
 #        define AUDIO_FREQ 44100
 #        ifdef UNICODE
-#           define TXT(x) L##x
+#           define TXT(x) new_string_cc(x)
 #        else
 #           define TXT(x) x
 #        endif

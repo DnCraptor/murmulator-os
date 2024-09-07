@@ -61,14 +61,12 @@ AYSongInfo *ay_sys_getnewinfo()
 	info->empty_song = false;
 	info->empty_callback = 0;
 	info->aywrite_callback = 0;
-    gouta("info2\n");
     for(unsigned char i = 0; i < NUMBER_OF_AYS; i++)
     {
         info->pay8910[i] = new_ay();
 		info->pay8910[i]->chip_nr = i;
         aySetParameters(info->pay8910[i], info);
     }
-    gouta("info3\n");
 //    memset(info->z80IO, 0, 65536);
     return info;
 }
@@ -212,7 +210,8 @@ AYFLY_API const AY_CHAR *ay_getsongname(void *info)
 
 AYFLY_API const AY_CHAR *ay_getsongauthor(void *info)
 {
-    return c_str( ((AYSongInfo *)info)->Author );
+    AYSongInfo* a = (AYSongInfo *)info; 
+    return c_str( a->Author );
 }
 
 AYFLY_API const AY_CHAR *ay_getsongpath(void *info)
@@ -509,6 +508,13 @@ delete_AYSongInfo(AYSongInfo* a)
     {
         delete_ay(a->pay8910[i]);
     }
+    if (a->Author) delete_string(a->Author); /* Song author */
+    if (a->Name) delete_string(a->Name); /* Song name */
+    if (a->FilePath) delete_string(a->FilePath); /* Song file path */
+    if (a->PrgName) delete_string(a->PrgName); /* Program name */
+    if (a->TrackName) delete_string(a->TrackName); /* Track name */
+    if (a->CompName) delete_string(a->CompName); /* Compiler name */
+    free(a);
 }
 
 AYFLY_API bool ay_format_supported(AY_TXT_TYPE filePath)

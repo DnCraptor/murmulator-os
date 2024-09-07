@@ -59,10 +59,16 @@ e0:
         fprintf(ctx->std_err, "ay_initsong returns NULL\n");
         return -1;
     }
-    printf("  songpath: [%s]\n", ay_getsongpath(p));
-    printf("songauthor: [%s]\n", ay_getsongauthor(p));
-    printf("  songname: [%s]\n", ay_getsongname(p));
-    printf("TODO: Play!\n");
+    char* m = ay_getsongpath(p);
+    if (m) printf("  songpath: [%s]\n", m);
+   // m = ay_getsongauthor(p);
+  //  if (m) printf("songauthor: [%s]\n", m);
+  //  m = ay_getsongname(p);
+  //  if (m) printf("  songname: [%s]\n", m);
+    printf("Play!\n");
+    ay_startsong(m);
+    delete_AYSongInfo(m);
+    // TODO: cleanup
     return res;
 }
 
@@ -146,13 +152,11 @@ void aySetParameters(ay_t* a, AYSongInfo* _songinfo) {
 }
 
 void ayReset(ay_t* a) {
-    gouta("ayReset\n");
     //init regs with defaults
     a->int_limit = 0;
     a->int_counter = 0;
     a->z80_per_sample_counter = 0;
     a->int_per_z80_counter = 0;
-    gouta("ayReset1\n");
     memset(a->regs, 0, sizeof(a->regs));
     a->regs[AY_GPIO_A] = a->regs[AY_GPIO_B] = 0xff;
     a->chnl_period0 = a->chnl_period1 = a->chnl_period2 = 0;
@@ -173,11 +177,8 @@ void ayReset(ay_t* a) {
     a->beeper_volume = 0;
     a->beeper_oldval = false;
 
-    gouta("ayReset2\n");
     aySetParameters(a, 0);
-    gouta("ayReset3\n");
     aySetEnvelope(a);
-    gouta("ayReset4\n");
 }
 
 static void ayWrite(ay_t* a, unsigned char reg, unsigned char val) {

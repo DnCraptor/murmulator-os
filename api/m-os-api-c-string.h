@@ -47,6 +47,7 @@ static string_t* new_string_cl(const char* s, size_t sz) {
     res->alloc = sz + 1;
     res->p = (char*)pvPortMalloc(res->alloc);
     strncpy(res->p, s, res->alloc);
+    res->p[sz] = 0;
     return res;
 }
 
@@ -164,11 +165,11 @@ static void string_replace_ss(string_t* s, const string_t* ss) {
 }
 
 inline static const char* c_str(const string_t* s) {
-    return s->p;
+    return s ? s->p : 0;
 }
 
 inline static size_t c_strlen(const string_t* s) {
-    return s->size;
+    return s ? s->size : 0;
 }
 
 #endif

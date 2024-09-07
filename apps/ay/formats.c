@@ -113,6 +113,18 @@ int _init(void) {
     return 0;
 }
 
+int _fini(void) {
+    if (Players) {
+        for (int player = 0; player < 12; player++) {
+            //  if(Players[player].soft_cleanup_proc != 0) {
+            delete_string( Players[player].ext );
+        }
+        Players = 0;
+        free(Players);
+    }
+    return 0;
+}
+
 bool ay_sys_format_supported(AY_TXT_TYPE filePath)
 {
     AY_TXT_TYPE cfp = new_string_v();
