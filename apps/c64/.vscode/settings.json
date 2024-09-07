@@ -4,6 +4,7 @@
         "timer.h": "c",
         "cpu.h": "c",
         "vic.h": "c",
-        "m-os-api-sdtfn.h": "c"
+        "m-os-api-sdtfn.h": "c",
+        "emuapi.h": "c"
     }
 }

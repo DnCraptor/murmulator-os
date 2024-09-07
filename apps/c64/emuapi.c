@@ -957,6 +957,10 @@ static int readNbFiles(char * rootdir) {
   return totalFiles;  
 }  
 
+char * menuSelection(void)
+{
+  return (selection);  
+}
 
 
 void backgroundMenu(void) {
@@ -1102,11 +1106,6 @@ void toggleMenu(bool on) {
   }
 }
 
-char * menuSelection(void)
-{
-  return (selection);  
-}
-
 
 /********************************
  * File IO
@@ -1243,6 +1242,7 @@ static bool emu_eraseConfig(void)
 ********************************/ 
 void emu_init(void)
 {
+  autorun = false;
 #ifdef SWAP_JOYSTICK
   joySwapped = true;   
 #else
@@ -1261,8 +1261,8 @@ void emu_init(void)
       autorun = true;
     }
   }
-  toggleMenu(true);
   */
+  toggleMenu(true);
 }
 
 

@@ -137,5 +137,8 @@ extern void emu_FileTempRead(int addr, unsigned char * val, int n);
 extern void emu_FileTempWrite(int addr, unsigned char val); 
 extern void emu_printh(int val);
 
+char* menuSelection(void);
+int handleMenu(uint16_t bClick);
+bool menuActive(void);
 
 #endif

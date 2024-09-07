@@ -47,22 +47,38 @@ int main() {
     graphics_driver_t* gd = get_graphics_driver();
     gd->set_mode(7); // TODO: lookup for the mode 320*240*8-bit
     emu_init();
-    emu_start();
-    emu_Init(ctx->argc > 1 ? ctx->argv[1] : NULL);
     while (!marked_to_exit) {
-        emu_Step();   
+        if (menuActive()) {
+            uint16_t bClick = emu_DebounceLocalKeys();
+            int action = handleMenu(bClick);
+            char * filename = menuSelection();   
+            if (action == ACTION_RUNTFT) {
+              toggleMenu(false);
+              emu_start();        
+              emu_Init(ctx->argc > 1 ? ctx->argv[1] : NULL);
+              //tft.fillScreenNoDma( RGBVAL16(0x00,0x00,0x00) );
+              //tft.startDMA();
+              clrScr(0);
+           ///   struct repeating_timer timer;
+              ///add_repeating_timer_ms(25, repeating_timer_callback, NULL, &timer);      
+            }  
+            ///tft.waitSync();
+        }
+        else {               
+            emu_Step();   
+        }
     }
     return 0;
 }
 
 static unsigned char  palette8[PALETTE_SIZE];
-static unsigned short palette16[PALETTE_SIZE];
+///static unsigned short palette16[PALETTE_SIZE];
 
 void emu_SetPaletteEntry(unsigned char r, unsigned char g, unsigned char b, int index)
 {
     if (index<PALETTE_SIZE) {
         palette8[index]  = RGBVAL8(r,g,b);
-        palette16[index]  = RGBVAL16(r,g,b);        
+///        palette16[index]  = RGBVAL16(r,g,b);        
     }
 }
 

@@ -22,8 +22,7 @@
 
 AYSongInfo *ay_sys_getnewinfo()
 {
-//    AYSongInfo *info = (AYSongInfo*)calloc(1, sizeof(AYSongInfo));
-    AYSongInfo *info = new_AYSongInfo();
+    AYSongInfo *info = (AYSongInfo*)calloc(1, sizeof(AYSongInfo));
     if(!info)
         return 0;
     info->FilePath = TXT("");
@@ -488,7 +487,7 @@ delete_AYSongInfo(AYSongInfo* a)
     }
     if(a->cleanup_proc)
     {
-        cleanup_proc(a);
+        a->cleanup_proc(a);
     }
     if(a->own_player)
     {

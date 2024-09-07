@@ -43,8 +43,6 @@
 static char filename[64];
 static char buffer[2];
 
-extern char * menuSelection(void);
-
 void patchLOAD(void) {
 
 int device;
