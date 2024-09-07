@@ -1,23 +1,45 @@
-#ifndef MOSSOUND_H_
-#define MOSSOUND_H_
+/***************************************************************************
+ *   Copyright (C) 2008 by Deryabin Andrew   				               *
+ *   andrew@it-optima.ru                                                   *
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program; if not, write to the                         *
+ *   Free Software Foundation, Inc.,                                       *
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
+ ***************************************************************************/
 
-//#include "SDL.h"
-//#include "SDL_thread.h" 
+#ifndef AUDIO_H_
+#define AUDIO_H_
 
-class AbstractAudio;
+typedef struct MOSAudio {
+    bool started;
+    struct AYSongInfo* songinfo;
+} MOSAudio_t;
 
-class MOSAudio : public AbstractAudio
-{
-public:
-	MOSAudio(AYSongInfo *info);
-	virtual ~MOSAudio();
-	virtual bool Start();
-	virtual void Stop();
-private:
-//	static void Play(void *udata, Uint8 *stream, int len);
-//	SDL_AudioSpec fmt_out;
-//	SDL_Thread *stopping_thread;
-//	static int StoppingThread(void *arg);
-};
+MOSAudio_t* new_MOSAudio(struct AYSongInfo *info);
 
-#endif /*MOSSOUND_H_*/
+void delete_MOSAudio(MOSAudio_t* a);
+
+inline static bool Start(MOSAudio_t* a) {
+}
+inline static void Stop(MOSAudio_t* a) {
+}
+inline static bool Started(MOSAudio_t* aa) {
+    return aa->started;
+}
+inline static void SetSongInfo(MOSAudio_t* aa, struct AYSongInfo *info) {
+    aa->songinfo = info;
+}
+
+
+#endif /*AUDIO_H_*/

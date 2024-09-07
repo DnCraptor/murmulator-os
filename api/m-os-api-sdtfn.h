@@ -42,7 +42,17 @@ void _isatty(void) { gouta("_isatty\n"); }
 void _lseek(void) { gouta("_lseek\n"); }
 void _read(void) { gouta("_read\n"); }
 void __cxa_pure_virtual(void) { gouta("__cxa_pure_virtual\n"); }
+void __cxa_end_cleanup(void) { gouta("__cxa_end_cleanup\n"); }
 void __aeabi_atexit(void) { gouta("__aeabi_atexit\n"); }
+void __dso_handle(void) { gouta("__dso_handle\n"); }
+/*
+2512 00000000h NOTYPE  GLOBAL __aeabi_unwind_cpp_pr0 (0) -> 0 UNDEF
+2605 00000000h NOTYPE  GLOBAL __gnu_thumb1_case_uqi (0) -> 0 UNDEF
+2621 00000000h NOTYPE  GLOBAL __aeabi_d2uiz (0) -> 0 UNDEF
+2631 00000000h NOTYPE  GLOBAL __gxx_personality_v0 (0) -> 0 UNDEF
+2732 00000000h NOTYPE  GLOBAL __gnu_thumb1_case_uhi (0) -> 0 UNDEF
+2764 00000000h NOTYPE  GLOBAL __gnu_thumb1_case_sqi (0) -> 0 UNDEF
+*/
 
 #ifdef __cplusplus
 }

@@ -41,6 +41,15 @@ static string_t* new_string_cc(const char* s) {
     return res;
 }
 
+static string_t* new_string_cl(const char* s, size_t sz) {
+    string_t* res = (string_t*)pvPortMalloc(sizeof(string_t));
+    res->size = sz;
+    res->alloc = sz + 1;
+    res->p = (char*)pvPortMalloc(res->alloc);
+    strncpy(res->p, s, res->alloc);
+    return res;
+}
+
 static string_t* new_string_cs(const string_t* s) {
     string_t* res = (string_t*)pvPortMalloc(sizeof(string_t));
     res->size = s->size;

@@ -80,10 +80,12 @@ inline void writePort(Z80EX_CONTEXT *cpu, Z80EX_WORD port, Z80EX_BYTE value, voi
             switch(h)
             {
                 case 0xff:
-                    write_reg: info->ay_reg = value;
+                write_reg:
+                    info->ay_reg = value;
                     break;
                 case 0xbf:
-                    write_dat: info->pay8910[0]->ayWrite(info->ay_reg, value);
+                write_dat:
+                    ayWrite(info->pay8910[0], info->ay_reg, value);
                     break;
                 default:
                     /* ok, since we do at least have low byte=FDh,
@@ -99,7 +101,7 @@ inline void writePort(Z80EX_CONTEXT *cpu, Z80EX_WORD port, Z80EX_BYTE value, voi
             break;
 
         case 0xfe:
-            info->pay8910[0]->ayBeeper(value & 0x10);
+            ayBeeper(info->pay8910[0], value & 0x10);
             break;
     }
 
@@ -110,34 +112,34 @@ inline Z80EX_BYTE readInt(Z80EX_CONTEXT *cpu, void *user_data)
     return 0xff;
 }
 
-bool ay_sys_initz80(AYSongInfo &info)
+bool ay_sys_initz80(AYSongInfo* info)
 {
-    if(info.z80ctx)
+    if(info->z80ctx)
     {
-        z80ex_destroy(info.z80ctx);
-        info.z80ctx = 0;
+        z80ex_destroy(info->z80ctx);
+        info->z80ctx = 0;
     }
-    info.z80ctx = z80ex_create(readMemory, &info, writeMemory, &info, readPort, &info, writePort, &info, readInt, 0);
-    if(!info.z80ctx)
+    info->z80ctx = z80ex_create(readMemory, &info, writeMemory, &info, readPort, &info, writePort, &info, readInt, 0);
+    if(!info->z80ctx)
         return false;
-    z80ex_reset(info.z80ctx);
-    info.ay_reg = 0xff;
+    z80ex_reset(info->z80ctx);
+    info->ay_reg = 0xff;
     return true;
 }
 
-void ay_sys_resetz80(AYSongInfo &info)
+void ay_sys_resetz80(AYSongInfo* info)
 {
-    z80ex_reset(info.z80ctx);
+    z80ex_reset(info->z80ctx);
 }
 
-void ay_sys_shutdownz80(AYSongInfo &info)
+void ay_sys_shutdownz80(AYSongInfo* info)
 {
-    if(info.z80ctx)
+    if(info->z80ctx)
     {
         ay_sys_resetz80(info);
-        z80ex_destroy(info.z80ctx);
-        info.z80ctx = 0;
+        z80ex_destroy(info->z80ctx);
+        info->z80ctx = 0;
     }
-//    if(info.z80IO)
-//        memset(info.z80IO, 0, 65536);
+//    if(info->z80IO)
+//        memset(info->z80IO, 0, 65536);
 }

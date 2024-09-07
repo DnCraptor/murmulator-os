@@ -1,4 +1,4 @@
-struct VTX_File
+typedef struct VTX_File
 {
     unsigned char Id0, Id1;
     unsigned char Mode;
@@ -7,7 +7,7 @@ struct VTX_File
     unsigned char InterFrq;
     unsigned char Year0, Year1;
     unsigned char UnpackSize0, UnpackSize1, UnpackSize2, UnpackSize3;
-};
+} VTX_File;
 
 #define VTX_Id (header->Id0 | (header->Id1 << 8))
 #define VTX_Loop (header->Loop0 | (header->Loop1 << 8))
@@ -15,49 +15,48 @@ struct VTX_File
 #define VTX_Year (header->Year0 | (header->Year1 << 8))
 #define VTX_UnpackSize (header->UnpackSize0 | (header->UnpackSize1 << 8) | (header->UnpackSize2 << 16) | (header->UnpackSize3 << 24))
 
-struct VTX_SongInfo
+typedef struct VTX_SongInfo
 {
     int i;
     unsigned long VTX_Offset;
     unsigned long Position_In_VTX;
+} VTX_SongInfo;
 
-};
+#define VTX ((VTX_SongInfo *)info->data)
 
-#define VTX ((VTX_SongInfo *)info.data)
-
-void VTX_Init(AYSongInfo &info)
+void VTX_Init(AYSongInfo* info)
 {
-    unsigned char *module = info.file_data;
+    unsigned char *module = info->file_data;
     VTX_File *header = (VTX_File *)module;
-    if(info.data)
+    if(info->data)
     {
-        delete (VTX_SongInfo *)info.data;
-        info.data = 0;
+        free( (VTX_SongInfo *)info->data);
+        info->data = 0;
     }
-    info.data = (void *)new VTX_SongInfo;
-    if(!info.data)
+    info->data = calloc(1, sizeof(VTX_SongInfo));
+    if(!info->data)
         return;
-    memset(info.data, 0, sizeof(VTX_SongInfo));
+///    memset(info->data, 0, sizeof(VTX_SongInfo));
     if((VTX_Id != 0x5941) && (VTX_Id != 0x4d59) && (VTX_Id != 0x7961) && (VTX_Id != 0x6d79))
     {
         return;
     }
     if((VTX_Id == 0x7961) || (VTX_Id == 0x5941))
-        info.chip_type = 0;
+        info->chip_type = 0;
     else
-        info.chip_type = 1;
+        info->chip_type = 1;
 
-    ay_setchiptype(&info, info.chip_type);
-    ay_setayfreq(&info, VTX_ChipFrq);
+    ay_setchiptype(info, info->chip_type);
+    ay_setayfreq(info, VTX_ChipFrq);
 
-    if(info.module != 0)
+    if(info->module != 0)
     {
-        delete[] info.module;
-        info.module_len = VTX_UnpackSize * 2;
-        info.module = new unsigned char[info.module_len];
-        memset(info.module, 0, info.module_len);
+        free(info->module);
+        info->module_len = VTX_UnpackSize * 2;
+        info->module = calloc(info->module_len, 1);
+        ///memset(info->module, 0, info->module_len);
     }
-    unsigned char *p = info.file_data + sizeof(VTX_File);
+    unsigned char *p = info->file_data + sizeof(VTX_File);
     int len = strlen((const char *)p);
     p += len + 1;
     len = strlen((const char *)p);
@@ -71,12 +70,12 @@ void VTX_Init(AYSongInfo &info)
         len = strlen((const char *)p);
         p += len + 1;
     }
-    ay_sys_decodelha(info, p - info.file_data);
+    ay_sys_decodelha(info, p - info->file_data);
 }
 
-void VTX_Play(AYSongInfo &info)
+void VTX_Play(AYSongInfo* info)
 {
-    unsigned char *module = info.module;
+    unsigned char *module = info->module;
     unsigned long k = VTX->VTX_Offset;
     for(int i = 0; i <= 12; i++)
     {
@@ -85,68 +84,68 @@ void VTX_Play(AYSongInfo &info)
             case 1:
             case 3:
             case 5:
-                ay_writeay(&info, i, module[VTX->Position_In_VTX + k] & 15);
+                ay_writeay(info, i, module[VTX->Position_In_VTX + k] & 15, 0);
                 break;
             case 6:
-                ay_writeay(&info, AY_NOISE_PERIOD, module[VTX->Position_In_VTX + k] & 31);
+                ay_writeay(info, AY_NOISE_PERIOD, module[VTX->Position_In_VTX + k] & 31, 0);
                 break;
             case 7:
-                ay_writeay(&info, AY_MIXER, module[VTX->Position_In_VTX + k] & 63);
+                ay_writeay(info, AY_MIXER, module[VTX->Position_In_VTX + k] & 63, 0);
                 break;
             case 8:
-                ay_writeay(&info, AY_CHNL_A_VOL, module[VTX->Position_In_VTX + k] & 31);
+                ay_writeay(info, AY_CHNL_A_VOL, module[VTX->Position_In_VTX + k] & 31, 0);
                 break;
             case 9:
-                ay_writeay(&info, AY_CHNL_B_VOL, module[VTX->Position_In_VTX + k] & 31);
+                ay_writeay(info, AY_CHNL_B_VOL, module[VTX->Position_In_VTX + k] & 31, 0);
                 break;
             case 10:
-                ay_writeay(&info, AY_CHNL_C_VOL, module[VTX->Position_In_VTX + k] & 31);
+                ay_writeay(info, AY_CHNL_C_VOL, module[VTX->Position_In_VTX + k] & 31, 0);
                 break;
             default:
-                ay_writeay(&info, i, module[VTX->Position_In_VTX + k]);
+                ay_writeay(info, i, module[VTX->Position_In_VTX + k], 0);
                 break;
         }
-        k += info.Length;
+        k += info->Length;
     }
     if(module[VTX->Position_In_VTX + k] != 255)
-        ay_writeay(&info, AY_ENV_SHAPE, module[VTX->Position_In_VTX + k] & 15);
+        ay_writeay(info, AY_ENV_SHAPE, module[VTX->Position_In_VTX + k] & 15, 0);
     VTX->Position_In_VTX++;
-    if(VTX->Position_In_VTX > info.Length)
-        VTX->Position_In_VTX = info.Loop;
+    if(VTX->Position_In_VTX > info->Length)
+        VTX->Position_In_VTX = info->Loop;
 }
 
-void VTX_Cleanup(AYSongInfo &info)
+void VTX_Cleanup(AYSongInfo* info)
 {
-    if(info.data)
+    if(info->data)
     {
-        delete (VTX_SongInfo *)info.data;
-        info.data = 0;
+        free( (VTX_SongInfo *)info->data);
+        info->data = 0;
     }
 }
 
-void VTX_GetInfo(AYSongInfo &info)
+void VTX_GetInfo(AYSongInfo* info)
 {
-    unsigned char *module = info.file_data;
+    unsigned char *module = info->file_data;
     VTX_File *header = (VTX_File *)module;
-    info.Length = VTX_UnpackSize / 14;
-    info.Loop = VTX_Loop;
-    unsigned char *p = info.file_data + sizeof(VTX_File);
+    info->Length = VTX_UnpackSize / 14;
+    info->Loop = VTX_Loop;
+    unsigned char *p = info->file_data + sizeof(VTX_File);
     int len = strlen((const char *)p);
-    info.Name = ay_sys_getstr(p, len);
+    info->Name = ay_sys_getstr(p, len);
     p += len + 1;
     len = strlen((const char *)p);
-    info.Author = ay_sys_getstr(p, len);
+    info->Author = ay_sys_getstr(p, len);
     p += len + 1;
     if((VTX_Id == 0x7961) || (VTX_Id == 0x6d79))
     {
         len = strlen((const char *)p);
-        info.PrgName = ay_sys_getstr(p, len);
+        info->PrgName = ay_sys_getstr(p, len);
         p += len + 1;
         len = strlen((const char *)p);
-        info.TrackName = ay_sys_getstr(p, len);
+        info->TrackName = ay_sys_getstr(p, len);
         p += len + 1;
         len = strlen((const char *)p);
-        info.CompName = ay_sys_getstr(p, len);
+        info->CompName = ay_sys_getstr(p, len);
         p += len + 1;
     }
 }

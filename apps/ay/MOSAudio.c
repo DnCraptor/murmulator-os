@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2008 by Deryabin Andrew                                 *
+ *   Copyright (C) 2008 by Deryabin Andrew   				               *
  *   andrew@it-optima.ru                                                   *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -17,39 +17,21 @@
  *   Free Software Foundation, Inc.,                                       *
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
+#ifdef M_API_VERSION
 
-#ifndef AYFLYSTRING_H_
-#define AYFLYSTRING_H_
+#else
 
-#include "allocator.h"
+#include "ayfly.h"
 
-//minimal string class for ayfly library (unix and windows builds)
-
-class CayflyString: public allocator
-{
-public:
-    CayflyString();
-    ~CayflyString();
-    CayflyString(const AY_CHAR *str);
-    CayflyString(const CayflyString &str);
-#ifdef UNICODE
-    CayflyString(const char *str);
 #endif
-    CayflyString& operator =(const CayflyString &str);
-    CayflyString& operator =(const AY_CHAR *str);
-#ifdef UNICODE
-    CayflyString& operator =(const char *str);
-#endif
-    size_t length();
-    const AY_CHAR *c_str() const;
-    void toLower();
-    int compare(const CayflyString &str);
-    int compare(const AY_CHAR *str);    
-    int rcompare(const CayflyString &str);
-    int rcompare(const AY_CHAR *str);
-    
-private:
-    AY_CHAR *m_str;    
-};
 
-#endif /* AYFLYSTRING_H_ */
+MOSAudio_t* new_MOSAudio(struct AYSongInfo *info) {
+    MOSAudio_t* aa = (MOSAudio_t*)calloc(1, sizeof(MOSAudio_t));
+    aa->songinfo = info;
+    aa->started = false;
+    return aa;
+}
+
+void delete_MOSAudio(MOSAudio_t* aa) {
+    free(aa);
+}

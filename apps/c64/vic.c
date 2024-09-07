@@ -1294,7 +1294,6 @@ void vic_do(void) {
     ?PEEK(678) NTSC =0
     ?PEEK(678) PAL = 1
   */
-printf("q\n");
   if ( cpu.vic.rasterLine >= LINECNT ) {
     //reSID sound needs much time - too much to keep everything in sync and with stable refreshrate
     //but it is not called very often, so most of the time, we have more time than needed.
@@ -1315,7 +1314,6 @@ printf("q\n");
 
   int r = cpu.vic.rasterLine;
 
-printf("w\n");
   if (r == cpu.vic.intRasterLine )//Set Rasterline-Interrupt
     cpu.vic.R[0x19] |= 1 | ((cpu.vic.R[0x1a] & 1) << 7);
 
@@ -1347,7 +1345,6 @@ printf("w\n");
   */
 
   vc = cpu.vic.vcbase;
-printf("e\n");
 
   cpu.vic.badline = (cpu.vic.denLatch && (r >= 0x30) && (r <= 0xf7) && ( (r & 0x07) == cpu.vic.YSCROLL));
 
@@ -1368,7 +1365,6 @@ printf("e\n");
 
    //HBlank:
    cpu_clock(10);
-printf("r\n");
 
 #ifdef ADDITIONALCYCLES
   cpu_clock(ADDITIONALCYCLES);
@@ -1390,7 +1386,6 @@ printf("r\n");
     int lastLine = (cpu.vic.RSEL) ? 0xfb : 0xf7;
     if (r == lastLine) cpu.vic.borderFlag = true;
   }
-printf("t\n");
 
   if (r < FIRSTDISPLAYLINE || r > LASTDISPLAYLINE ) {
     if (r == 0)
@@ -1411,15 +1406,11 @@ printf("t\n");
   spl = &cpu.vic.spriteLine[24];
   cpu_clock(6);
 
-printf("y\n");
-
   if (cpu.vic.borderFlag) {
 	  cpu_clock(5);
     fastFillLineNoSprites(p, pe + BORDER_RIGHT, cpu.vic.colors[0]);
     goto noDisplayIncRC ;
   }
-
-printf("u\n");
 
   /*****************************************************************************************************/
   /* DISPLAY *******************************************************************************************/
@@ -1448,21 +1439,15 @@ printf("u\n");
 
     }
   }
-printf("i\n");
 
   /*****************************************************************************************************/
   /*****************************************************************************************************/
   /*****************************************************************************************************/
-
 
   cpu.vic.fgcollision = 0;
-printf("i2\n");
   mode = (cpu.vic.ECM << 2) | (cpu.vic.BMM << 1) | cpu.vic.MCM;
-printf("i3\n");
 
   if ( !cpu.vic.idle)  {
-printf("i31\n");
-
 #if 0
     static uint8_t omode = 99;
     if (mode != omode) {
@@ -1472,12 +1457,8 @@ printf("i31\n");
     }
 #endif
 
-printf("[%p]][%d]([%p], [%p], [%p], %d)\n", modes, mode, p, pe, spl, vc);
     modes[mode](p, pe, spl, vc);
-printf("i4\n");
     vc = (vc + 40) & 0x3ff;
-printf("i5\n");
-
   } else {
 	  /*
 3.7.3.9. Idle-Zustand
@@ -1550,19 +1531,12 @@ g-Zugriff
  +---------------------------------------+
 */ 
 	//Modes 1 & 3
-printf("i6\n");
     if (mode == 1 || mode == 3) {
-printf("i7\n");
 		  modes[mode](p, pe, spl, vc);
-printf("i8\n");
     } else {//TODO: all other modes
-printf("i9\n");
 	    fastFillLine(p, pe, cpu.vic.palette[0], spl);
-printf("i10\n");
 	  }
-printf("i11\n");
   }
-printf("o\n");
 
   /*
     Bei den MBC- und MMC-Interrupts lost jeweils nur die erste Kollision einen
@@ -1606,7 +1580,6 @@ printf("o\n");
     //keine Sprites im Rand
     *p++ = col; *p++ = col; *p++ = col; *p++ = col;
     *p++ = col; *p++ = col; *p = col;
-printf("p\n");
 
 #endif
 
@@ -1631,9 +1604,6 @@ printf("p\n");
     //}
 #endif
 
-
-printf("[\n");
-
   }
 
 #ifdef USE_VGA
@@ -1648,8 +1618,6 @@ printf("[\n");
 
 //Rechter Rand nach CSEL, im Textbereich
 cpu_clock(5);
-
-printf("]\n");
 
 noDisplayIncRC:
   /* 3.7.2
@@ -1668,8 +1636,6 @@ noDisplayIncRC:
     cpu.vic.rc = (cpu.vic.rc + 1) & 0x07;
   }
 
-printf("a\n");
-
   /*****************************************************************************************************/
   /* Sprites *******************************************************************************************/
   /*****************************************************************************************************/
@@ -1681,7 +1647,6 @@ printf("a\n");
 	cpu.vic.lineHasSprites = 0;
     memset(cpu.vic.spriteLine, 0, sizeof(cpu.vic.spriteLine) );
   }
-printf("s\n");
 
   uint32_t spriteYCheck = cpu.vic.R[0x15]; //Sprite enabled Register
 
@@ -1845,7 +1810,6 @@ printf("s\n");
     }
 
   }
-printf("d\n");
   /*****************************************************************************************************/
 #if 0
   {
@@ -1871,8 +1835,6 @@ printf("d\n");
 	   Serial.println(cpu.lineCyclesAbs);
    }
 #endif
-
-printf("f\n");
 
   return;
 }

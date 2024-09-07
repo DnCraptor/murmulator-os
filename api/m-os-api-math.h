@@ -137,6 +137,10 @@ double __aeabi_dcmpgt(double x, double y) {
     typedef double (*fn)(double, double);
     return ((fn)_sys_table_ptrs[251])(y, x);
 }
+unsigned __aeabi_d2uiz(double x) {
+    typedef unsigned (*fn)(double);
+    return ((fn)_sys_table_ptrs[256])(x);
+}
 
 #ifdef __cplusplus
 }

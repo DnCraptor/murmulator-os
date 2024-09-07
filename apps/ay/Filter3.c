@@ -30,65 +30,55 @@
 #define PI 3.1415926535
 #endif
 
-Filter3::Filter3()
-{
-    Fs = f0 = Q = 0;
-}
+#include "Filter3.h"
 
-Filter3::~Filter3()
+void Filter3Init(Filter3* f, const FilterOpts *opts)
 {
-
-}
-
-void Filter3::Init(const FilterOpts *opts)
-{
-    if(Fs == opts->Fs && f0 == opts->f0 && Q == opts->Q)
+    if(f->Fs == opts->Fs && f->f0 == opts->f0 && f->Q == opts->Q)
         return;
-    Fs = opts->Fs;
-    f0 = opts->f0;
-    Q = opts->Q;
-    float w0 = 2 * PI * f0 / Fs;
+    f->Fs = opts->Fs;
+    f->f0 = opts->f0;
+    f->Q = opts->Q;
+    float w0 = 2 * PI * f->f0 / f->Fs;
 
-    in_delay00 = in_delay01 = in_delay10 = in_delay11 = in_delay20 = in_delay21 = 0;
-    out_delay00 = out_delay01 = out_delay10 = out_delay11 = out_delay20 = out_delay21 = 0;
+    f->in_delay00 = f->in_delay01 = f->in_delay10 = f->in_delay11 = f->in_delay20 = f->in_delay21 = 0;
+    f->out_delay00 = f->out_delay01 = f->out_delay10 = f->out_delay11 = f->out_delay20 = f->out_delay21 = 0;
 
-    float alpha = sin(w0) / (2 * Q);
+    float alpha = sin(w0) / (2 * f->Q);
 
-    switch(opts->type)
-    {
-        case LPF:
-            b0 = (1 - cos(w0)) / 2;
-            b1 = 1 - cos(w0);
-            b2 = (1 - cos(w0)) / 2;
-            a0 = 1 + alpha;
-            a1 = -2 * cos(w0);
-            a2 = 1 - alpha;
-            break;
-        case HPF:
-            b0 = (1 + cos(w0)) / 2;
-            b1 = -(1 + cos(w0));
-            b2 = (1 + cos(w0)) / 2;
-            a0 = 1 + alpha;
-            a1 = -2 * cos(w0);
-            a2 = 1 - alpha;
-            break;
-        case BPF:
-            b0 = sin(w0) / 2;
-            b1 = 0;
-            b2 = -sin(w0) / 2;
-            a0 = 1 + alpha;
-            a1 = -2 * cos(w0);
-            a2 = 1 - alpha;
-            break;
-        default:
-            b0 = b1 = b2 = a0 = a1 = a2 = 0;
-            b0_a0 = b1_a0 = b2_a0 = a1_a0 = a2_a0 = 0;
+    if ( opts->type == LPF ) {
+            f->b0 = (1 - cos(w0)) / 2;
+            f->b1 = 1 - cos(w0);
+            f->b2 = (1 - cos(w0)) / 2;
+            f->a0 = 1 + alpha;
+            f->a1 = -2 * cos(w0);
+            f->a2 = 1 - alpha;
+    }
+    else if ( opts->type == HPF ) {
+            f->b0 = (1 + cos(w0)) / 2;
+            f->b1 = -(1 + cos(w0));
+            f->b2 = (1 + cos(w0)) / 2;
+            f->a0 = 1 + alpha;
+            f->a1 = -2 * cos(w0);
+            f->a2 = 1 - alpha;
+    }
+    else if ( opts->type == BPF ) {
+            f->b0 = sin(w0) / 2;
+            f->b1 = 0;
+            f->b2 = -sin(w0) / 2;
+            f->a0 = 1 + alpha;
+            f->a1 = -2 * cos(w0);
+            f->a2 = 1 - alpha;
+    }
+    else {
+            f->b0 = f->b1 = f->b2 = f->a0 = f->a1 = f->a2 = 0;
+            f->b0_a0 = f->b1_a0 = f->b2_a0 = f->a1_a0 = f->a2_a0 = 0;
             return;
     }
 
-    b0_a0 = b0 / a0;
-    b1_a0 = b1 / a0;
-    b2_a0 = b2 / a0;
-    a1_a0 = a1 / a0;
-    a2_a0 = a2 / a0;
+    f->b0_a0 = f->b0 / f->a0;
+    f->b1_a0 = f->b1 / f->a0;
+    f->b2_a0 = f->b2 / f->a0;
+    f->a1_a0 = f->a1 / f->a0;
+    f->a2_a0 = f->a2 / f->a0;
 }

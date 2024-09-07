@@ -5,7 +5,7 @@
  (c)1999-2004 S.V.Bulba
  */
 
-struct PSC_File
+typedef struct PSC_File
 {
     signed char PSC_MusicName[69];
     unsigned char PSC_UnknownPointer0, PSC_UnknownPointer1;
@@ -13,13 +13,13 @@ struct PSC_File
     unsigned char PSC_Delay;
     unsigned char PSC_OrnamentsPointer0, PSC_OrnamentsPointer1;
     unsigned char PSC_SamplesPointers0[64];
-};
+} PSC_File;
 #define PSC_UnknownPointer (header->PSC_UnknownPointer0 | (header->PSC_UnknownPointer1 << 8))
 #define PSC_PatternsPointer (header->PSC_PatternsPointer0 | (header->PSC_PatternsPointer1 << 8))
 #define PSC_OrnamentsPointer (header->PSC_OrnamentsPointer0 | (header->PSC_OrnamentsPointer1 << 8))
 #define PSC_SamplesPointers(x) (header->PSC_SamplesPointers0 [(x) * 2] | ((header->PSC_SamplesPointers0 [((x) * 2) + 1]) << 8))
 
-struct PSC_Channel_Parameters
+typedef struct PSC_Channel_Parameters
 {
     unsigned char num;
     unsigned short Address_In_Pattern, OrnamentPointer, SamplePointer, Ton;
@@ -27,36 +27,36 @@ struct PSC_Channel_Parameters
     signed char Initial_Volume, Note_Skip_Counter;
     unsigned char Note, Volume, Amplitude, Volume_Counter, Volume_Counter1, Volume_Counter_Init, Noise_Accumulator, Position_In_Sample, Loop_Sample_Position, Position_In_Ornament, Loop_Ornament_Position;
     bool Enabled, Ornament_Enabled, Envelope_Enabled, Gliss, Ton_Slide_Enabled, Break_Sample_Loop, Break_Ornament_Loop, Volume_Inc;
-};
+} PSC_Channel_Parameters;
 
-struct PSC_Parameters
+typedef struct PSC_Parameters
 {
     unsigned char Delay, DelayCounter, Lines_Counter, Noise_Base;
     unsigned short Positions_Pointer;
-};
+} PSC_Parameters;
 
-struct PSC_SongInfo
+typedef struct PSC_SongInfo
 {
     PSC_Parameters PSC;
     PSC_Channel_Parameters PSC_A, PSC_B, PSC_C;
-};
+} PSC_SongInfo;
 
-#define PSC_A ((PSC_SongInfo *)info.data)->PSC_A
-#define PSC_B ((PSC_SongInfo *)info.data)->PSC_B
-#define PSC_C ((PSC_SongInfo *)info.data)->PSC_C
-#define PSC ((PSC_SongInfo *)info.data)->PSC
+#define PSC_A ((PSC_SongInfo *)info->data)->PSC_A
+#define PSC_B ((PSC_SongInfo *)info->data)->PSC_B
+#define PSC_C ((PSC_SongInfo *)info->data)->PSC_C
+#define PSC ((PSC_SongInfo *)info->data)->PSC
 
-void PSC_Init(AYSongInfo &info)
+void PSC_Init(AYSongInfo* info)
 {
-    unsigned char *module = info.module;
+    unsigned char *module = info->module;
     PSC_File *header = (PSC_File *)module;
-    if(info.data)
+    if(info->data)
     {
-        delete (ASC_SongInfo *)info.data;
-        info.data = 0;
+        free ((ASC_SongInfo *)info->data);
+        info->data = 0;
     }
-    info.data = (void *)new PSC_SongInfo;
-    if(!info.data)
+    info->data = calloc(1, sizeof(PSC_SongInfo));
+    if(!info->data)
         return;
 
     PSC.DelayCounter = 1;
@@ -99,89 +99,89 @@ void PSC_Init(AYSongInfo &info)
     PSC_C.Ton_Slide_Enabled = false;
     PSC_C.Note_Skip_Counter = 1;
     PSC_C.Ton = 0;
-    ay_resetay(&info, 0);
+    ay_resetay(info, 0);
 }
 
-void PSC_PatternInterpreter(AYSongInfo &info, PSC_Channel_Parameters &chan)
+void PSC_PatternInterpreter(AYSongInfo* info, PSC_Channel_Parameters* chan)
 {
-    unsigned char *module = info.module;
+    unsigned char *module = info->module;
     PSC_File *header = (PSC_File *)module;
     bool quit;
     bool b1b, b2b, b3b, b4b, b5b, b6b, b7b;
     quit = b1b = b2b = b3b = b4b = b5b = b6b = b7b = false;
     do
     {
-        unsigned char val = module[chan.Address_In_Pattern];
+        unsigned char val = module[chan->Address_In_Pattern];
         if(val >= 0xc0)
         {
-            chan.Note_Skip_Counter = val - 0xbf;
+            chan->Note_Skip_Counter = val - 0xbf;
             quit = true;
         }
         else if(val >= 0xa0 && val <= 0xbf)
         {
-            //chan.OrnamentPointer = (*(unsigned short *) &module[PSC_OrnamentsPointer + (val - 0xa0) * 2]) +PSC_OrnamentsPointer;
-            chan.OrnamentPointer = ay_sys_getword(&module[PSC_OrnamentsPointer + (val - 0xa0) * 2]) + PSC_OrnamentsPointer;
+            //chan->OrnamentPointer = (*(unsigned short *) &module[PSC_OrnamentsPointer + (val - 0xa0) * 2]) +PSC_OrnamentsPointer;
+            chan->OrnamentPointer = ay_sys_getword(&module[PSC_OrnamentsPointer + (val - 0xa0) * 2]) + PSC_OrnamentsPointer;
         }
         else if(val >= 0x7e && val <= 0x9f)
         {
             if(val >= 0x80)
-                chan.SamplePointer = PSC_SamplesPointers(val - 0x80) + 0x4c;
+                chan->SamplePointer = PSC_SamplesPointers(val - 0x80) + 0x4c;
         }
         else if(val == 0x6b)
         {
-            chan.Address_In_Pattern++;
-            chan.Addition_To_Ton = module[chan.Address_In_Pattern];
+            chan->Address_In_Pattern++;
+            chan->Addition_To_Ton = module[chan->Address_In_Pattern];
             b5b = true;
         }
         else if(val == 0x6c)
         {
-            chan.Address_In_Pattern++;
-            chan.Addition_To_Ton = -(signed char)(module[chan.Address_In_Pattern]);
+            chan->Address_In_Pattern++;
+            chan->Addition_To_Ton = -(signed char)(module[chan->Address_In_Pattern]);
             b5b = true;
         }
         else if(val == 0x6d)
         {
             b4b = true;
-            chan.Address_In_Pattern++;
-            chan.Addition_To_Ton = module[chan.Address_In_Pattern];
+            chan->Address_In_Pattern++;
+            chan->Addition_To_Ton = module[chan->Address_In_Pattern];
         }
         else if(val == 0x6e)
         {
-            chan.Address_In_Pattern++;
-            PSC.Delay = module[chan.Address_In_Pattern];
+            chan->Address_In_Pattern++;
+            PSC.Delay = module[chan->Address_In_Pattern];
         }
         else if(val == 0x6f)
         {
             b1b = true;
-            chan.Address_In_Pattern++;
+            chan->Address_In_Pattern++;
         }
         else if(val == 0x70)
         {
             b3b = true;
-            chan.Address_In_Pattern++;
-            chan.Volume_Counter1 = module[chan.Address_In_Pattern];
+            chan->Address_In_Pattern++;
+            chan->Volume_Counter1 = module[chan->Address_In_Pattern];
         }
         else if(val == 0x71)
         {
-            chan.Break_Ornament_Loop = true;
-            chan.Address_In_Pattern++;
+            chan->Break_Ornament_Loop = true;
+            chan->Address_In_Pattern++;
         }
         else if(val == 0x7a)
         {
-            chan.Address_In_Pattern++;
-            if(chan.num == 1)
+            chan->Address_In_Pattern++;
+            if(chan->num == 1)
             {
-                ay_writeay(&info, AY_ENV_SHAPE, module[chan.Address_In_Pattern] & 15);
-                ay_writeay(&info, AY_ENV_FINE, module[chan.Address_In_Pattern + 1]);
-                ay_writeay(&info, AY_ENV_COARSE, module[chan.Address_In_Pattern + 2]);
-                chan.Address_In_Pattern += 2;
+                ay_writeay(info, AY_ENV_SHAPE, module[chan->Address_In_Pattern] & 15, 0);
+                ay_writeay(info, AY_ENV_FINE, module[chan->Address_In_Pattern + 1], 0);
+                ay_writeay(info, AY_ENV_COARSE, module[chan->Address_In_Pattern + 2], 0);
+                chan->Address_In_Pattern += 2;
             }
         }
         else if(val == 0x7b)
         {
-            chan.Address_In_Pattern++;
-            if(chan.num == 1)
-                PSC.Noise_Base = module[chan.Address_In_Pattern];
+            chan->Address_In_Pattern++;
+            if(chan->num == 1)
+                PSC.Noise_Base = module[chan->Address_In_Pattern];
         }
         else if(val == 0x7c)
         {
@@ -190,96 +190,96 @@ void PSC_PatternInterpreter(AYSongInfo &info, PSC_Channel_Parameters &chan)
         }
         else if(val == 0x7d)
         {
-            chan.Break_Sample_Loop = true;
+            chan->Break_Sample_Loop = true;
         }
         else if(val >= 0x58 && val <= 0x66)
         {
-            chan.Initial_Volume = val - 0x57;
-            chan.Envelope_Enabled = false;
+            chan->Initial_Volume = val - 0x57;
+            chan->Envelope_Enabled = false;
             b6b = true;
         }
         else if(val == 0x57)
         {
-            chan.Initial_Volume = 0xf;
-            chan.Envelope_Enabled = true;
+            chan->Initial_Volume = 0xf;
+            chan->Envelope_Enabled = true;
             b6b = true;
         }
         else if(val <= 0x56)
         {
-            chan.Note = val;
+            chan->Note = val;
             b6b = true;
             b7b = true;
         }
         else
-            chan.Address_In_Pattern++;
-        chan.Address_In_Pattern++;
+            chan->Address_In_Pattern++;
+        chan->Address_In_Pattern++;
     }
     while(!quit);
 
     if(b7b)
     {
-        chan.Break_Ornament_Loop = false;
-        chan.Ornament_Enabled = true;
-        chan.Enabled = true;
-        chan.Break_Sample_Loop = false;
-        chan.Ton_Slide_Enabled = false;
-        chan.Ton_Accumulator = 0;
-        chan.Current_Ton_Sliding = 0;
-        chan.Noise_Accumulator = 0;
-        chan.Volume_Counter = 0;
-        chan.Position_In_Sample = 0;
-        chan.Position_In_Ornament = 0;
+        chan->Break_Ornament_Loop = false;
+        chan->Ornament_Enabled = true;
+        chan->Enabled = true;
+        chan->Break_Sample_Loop = false;
+        chan->Ton_Slide_Enabled = false;
+        chan->Ton_Accumulator = 0;
+        chan->Current_Ton_Sliding = 0;
+        chan->Noise_Accumulator = 0;
+        chan->Volume_Counter = 0;
+        chan->Position_In_Sample = 0;
+        chan->Position_In_Ornament = 0;
     }
     if(b6b)
-        chan.Volume = chan.Initial_Volume;
+        chan->Volume = chan->Initial_Volume;
     if(b5b)
     {
-        chan.Gliss = false;
-        chan.Ton_Slide_Enabled = true;
+        chan->Gliss = false;
+        chan->Ton_Slide_Enabled = true;
     }
     if(b4b)
     {
-        chan.Current_Ton_Sliding = chan.Ton - ASM_Table[chan.Note];
-        chan.Gliss = true;
-        if(chan.Current_Ton_Sliding >= 0)
-            chan.Addition_To_Ton = -chan.Addition_To_Ton;
-        chan.Ton_Slide_Enabled = true;
+        chan->Current_Ton_Sliding = chan->Ton - ASM_Table[chan->Note];
+        chan->Gliss = true;
+        if(chan->Current_Ton_Sliding >= 0)
+            chan->Addition_To_Ton = -chan->Addition_To_Ton;
+        chan->Ton_Slide_Enabled = true;
     }
     if(b3b)
     {
-        chan.Volume_Counter = chan.Volume_Counter1;
-        chan.Volume_Inc = true;
-        if((chan.Volume_Counter & 0x40) != 0)
+        chan->Volume_Counter = chan->Volume_Counter1;
+        chan->Volume_Inc = true;
+        if((chan->Volume_Counter & 0x40) != 0)
         {
-            chan.Volume_Counter = -(signed char)(chan.Volume_Counter | 128);
-            chan.Volume_Inc = false;
+            chan->Volume_Counter = -(signed char)(chan->Volume_Counter | 128);
+            chan->Volume_Inc = false;
         }
-        chan.Volume_Counter_Init = chan.Volume_Counter;
+        chan->Volume_Counter_Init = chan->Volume_Counter;
     }
     if(b2b)
     {
-        chan.Break_Ornament_Loop = false;
-        chan.Ornament_Enabled = false;
-        chan.Enabled = false;
-        chan.Break_Sample_Loop = false;
-        chan.Ton_Slide_Enabled = false;
+        chan->Break_Ornament_Loop = false;
+        chan->Ornament_Enabled = false;
+        chan->Enabled = false;
+        chan->Break_Sample_Loop = false;
+        chan->Ton_Slide_Enabled = false;
     }
     if(b1b)
-        chan.Ornament_Enabled = false;
+        chan->Ornament_Enabled = false;
 }
 
-void PSC_GetRegisters(AYSongInfo &info, PSC_Channel_Parameters &chan, unsigned char &TempMixer)
+void PSC_GetRegisters(AYSongInfo* info, PSC_Channel_Parameters* chan, unsigned char* pTempMixer)
 {
-    unsigned char *module = info.module;
+    unsigned char *module = info->module;
     unsigned char j, b;
-    if(chan.Enabled)
+    if(chan->Enabled)
     {
-        j = chan.Note;
-        if(chan.Ornament_Enabled)
+        j = chan->Note;
+        if(chan->Ornament_Enabled)
         {
-            b = module[chan.OrnamentPointer + chan.Position_In_Ornament * 2];
-            chan.Noise_Accumulator += b;
-            j += module[chan.OrnamentPointer + chan.Position_In_Ornament * 2 + 1];
+            b = module[chan->OrnamentPointer + chan->Position_In_Ornament * 2];
+            chan->Noise_Accumulator += b;
+            j += module[chan->OrnamentPointer + chan->Position_In_Ornament * 2 + 1];
             if((signed char)j < 0)
                 j += 0x56;
             if(j > 0x55)
@@ -287,108 +287,108 @@ void PSC_GetRegisters(AYSongInfo &info, PSC_Channel_Parameters &chan, unsigned c
             if(j > 0x55)
                 j = 0x55;
             if((b & 128) == 0)
-                chan.Loop_Ornament_Position = chan.Position_In_Ornament;
+                chan->Loop_Ornament_Position = chan->Position_In_Ornament;
             if((b & 64) == 0)
             {
-                if(!chan.Break_Ornament_Loop)
-                    chan.Position_In_Ornament = chan.Loop_Ornament_Position;
+                if(!chan->Break_Ornament_Loop)
+                    chan->Position_In_Ornament = chan->Loop_Ornament_Position;
                 else
                 {
-                    chan.Break_Ornament_Loop = false;
+                    chan->Break_Ornament_Loop = false;
                     if((b & 32) == 0)
-                        chan.Ornament_Enabled = false;
-                    chan.Position_In_Ornament++;
+                        chan->Ornament_Enabled = false;
+                    chan->Position_In_Ornament++;
                 }
             }
             else
             {
                 if((b & 32) == 0)
-                    chan.Ornament_Enabled = false;
-                chan.Position_In_Ornament++;
+                    chan->Ornament_Enabled = false;
+                chan->Position_In_Ornament++;
             }
         }
-        chan.Note = j;
-        //chan.Ton = *(unsigned short *) &module[chan.SamplePointer + chan.Position_In_Sample * 6];
-        chan.Ton = ay_sys_getword(&module[chan.SamplePointer + chan.Position_In_Sample * 6]);
-        chan.Ton_Accumulator += chan.Ton;
-        chan.Ton = ASM_Table[j] + chan.Ton_Accumulator;
-        if(chan.Ton_Slide_Enabled)
+        chan->Note = j;
+        //chan->Ton = *(unsigned short *) &module[chan->SamplePointer + chan->Position_In_Sample * 6];
+        chan->Ton = ay_sys_getword(&module[chan->SamplePointer + chan->Position_In_Sample * 6]);
+        chan->Ton_Accumulator += chan->Ton;
+        chan->Ton = ASM_Table[j] + chan->Ton_Accumulator;
+        if(chan->Ton_Slide_Enabled)
         {
-            chan.Current_Ton_Sliding += chan.Addition_To_Ton;
-            if(chan.Gliss && (((chan.Current_Ton_Sliding < 0) && (chan.Addition_To_Ton <= 0)) || ((chan.Current_Ton_Sliding >= 0) && (chan.Addition_To_Ton >= 0))))
-                chan.Ton_Slide_Enabled = false;
-            chan.Ton += chan.Current_Ton_Sliding;
+            chan->Current_Ton_Sliding += chan->Addition_To_Ton;
+            if(chan->Gliss && (((chan->Current_Ton_Sliding < 0) && (chan->Addition_To_Ton <= 0)) || ((chan->Current_Ton_Sliding >= 0) && (chan->Addition_To_Ton >= 0))))
+                chan->Ton_Slide_Enabled = false;
+            chan->Ton += chan->Current_Ton_Sliding;
         }
-        chan.Ton = chan.Ton & 0xfff;
-        b = module[chan.SamplePointer + chan.Position_In_Sample * 6 + 4];
-        TempMixer = TempMixer | ((b & 9) << 3);
+        chan->Ton = chan->Ton & 0xfff;
+        b = module[chan->SamplePointer + chan->Position_In_Sample * 6 + 4];
+        *pTempMixer = *pTempMixer | ((b & 9) << 3);
         j = 0;
         if((b & 2) != 0)
             j++;
         if((b & 4) != 0)
             j--;
-        if(chan.Volume_Counter > 0)
+        if(chan->Volume_Counter > 0)
         {
-            chan.Volume_Counter--;
-            if(chan.Volume_Counter == 0)
+            chan->Volume_Counter--;
+            if(chan->Volume_Counter == 0)
             {
-                if(chan.Volume_Inc)
+                if(chan->Volume_Inc)
                     j++;
                 else
                     j--;
-                chan.Volume_Counter = chan.Volume_Counter_Init;
+                chan->Volume_Counter = chan->Volume_Counter_Init;
             }
         }
-        chan.Volume += j;
-        if((signed char)chan.Volume < 0)
-            chan.Volume = 0;
-        else if(chan.Volume > 15)
-            chan.Volume = 15;
-        chan.Amplitude = ((chan.Volume + 1) * (module[chan.SamplePointer + chan.Position_In_Sample * 6 + 3] & 15)) >> 4;
-        if(chan.Envelope_Enabled && ((b & 16) == 0))
-            chan.Amplitude = chan.Amplitude | 16;
-        if(((chan.Amplitude & 16) != 0) & ((b & 8) != 0))
+        chan->Volume += j;
+        if((signed char)chan->Volume < 0)
+            chan->Volume = 0;
+        else if(chan->Volume > 15)
+            chan->Volume = 15;
+        chan->Amplitude = ((chan->Volume + 1) * (module[chan->SamplePointer + chan->Position_In_Sample * 6 + 3] & 15)) >> 4;
+        if(chan->Envelope_Enabled && ((b & 16) == 0))
+            chan->Amplitude = chan->Amplitude | 16;
+        if(((chan->Amplitude & 16) != 0) & ((b & 8) != 0))
         {
-            unsigned short env = ay_readay(&info, AY_ENV_FINE) | (ay_readay(&info, AY_ENV_COARSE) << 8);
-            env += (signed char)(module[chan.SamplePointer + chan.Position_In_Sample * 6 + 2]);
-            ay_writeay(&info, AY_ENV_FINE, env & 0xff);
-            ay_writeay(&info, AY_ENV_COARSE, (env >> 8) & 0xff);
+            unsigned short env = ay_readay(info, AY_ENV_FINE, 0) | (ay_readay(info, AY_ENV_COARSE, 0) << 8);
+            env += (signed char)(module[chan->SamplePointer + chan->Position_In_Sample * 6 + 2], 0);
+            ay_writeay(info, AY_ENV_FINE, env & 0xff, 0);
+            ay_writeay(info, AY_ENV_COARSE, (env >> 8) & 0xff, 0);
         }
         else
         {
-            chan.Noise_Accumulator += module[chan.SamplePointer + chan.Position_In_Sample * 6 + 2];
+            chan->Noise_Accumulator += module[chan->SamplePointer + chan->Position_In_Sample * 6 + 2];
             if((b & 8) == 0)
-                ay_writeay(&info, AY_NOISE_PERIOD, chan.Noise_Accumulator & 31);
+                ay_writeay(info, AY_NOISE_PERIOD, chan->Noise_Accumulator & 31, 0);
         }
         if((b & 128) == 0)
-            chan.Loop_Sample_Position = chan.Position_In_Sample;
+            chan->Loop_Sample_Position = chan->Position_In_Sample;
         if((b & 64) == 0)
         {
-            if(!chan.Break_Sample_Loop)
-                chan.Position_In_Sample = chan.Loop_Sample_Position;
+            if(!chan->Break_Sample_Loop)
+                chan->Position_In_Sample = chan->Loop_Sample_Position;
             else
             {
-                chan.Break_Sample_Loop = false;
+                chan->Break_Sample_Loop = false;
                 if((b & 32) == 0)
-                    chan.Enabled = false;
-                chan.Position_In_Sample++;
+                    chan->Enabled = false;
+                chan->Position_In_Sample++;
             }
         }
         else
         {
             if((b & 32) == 0)
-                chan.Enabled = false;
-            chan.Position_In_Sample++;
+                chan->Enabled = false;
+            chan->Position_In_Sample++;
         }
     }
     else
-        chan.Amplitude = 0;
-    TempMixer = TempMixer >> 1;
+        chan->Amplitude = 0;
+    *pTempMixer = *pTempMixer >> 1;
 }
 
-void PSC_Play(AYSongInfo &info)
+void PSC_Play(AYSongInfo* info)
 {
-    unsigned char *module = info.module;
+    unsigned char *module = info->module;
     unsigned char TempMixer;
 
     if(--PSC.DelayCounter <= 0)
@@ -413,36 +413,36 @@ void PSC_Play(AYSongInfo &info)
             PSC_C.Note_Skip_Counter = 1;
         }
         if(--PSC_A.Note_Skip_Counter == 0)
-            PSC_PatternInterpreter(info, PSC_A);
+            PSC_PatternInterpreter(info, &PSC_A);
         if(--PSC_B.Note_Skip_Counter == 0)
-            PSC_PatternInterpreter(info, PSC_B);
+            PSC_PatternInterpreter(info, &PSC_B);
         if(--PSC_C.Note_Skip_Counter == 0)
-            PSC_PatternInterpreter(info, PSC_C);
+            PSC_PatternInterpreter(info, &PSC_C);
         PSC_A.Noise_Accumulator += PSC.Noise_Base;
         PSC_B.Noise_Accumulator += PSC.Noise_Base;
         PSC_C.Noise_Accumulator += PSC.Noise_Base;
         PSC.DelayCounter = PSC.Delay;
     }
     TempMixer = 0;
-    PSC_GetRegisters(info, PSC_A, TempMixer);
-    PSC_GetRegisters(info, PSC_B, TempMixer);
-    PSC_GetRegisters(info, PSC_C, TempMixer);
+    PSC_GetRegisters(info, &PSC_A, &TempMixer);
+    PSC_GetRegisters(info, &PSC_B, &TempMixer);
+    PSC_GetRegisters(info, &PSC_C, &TempMixer);
 
-    ay_writeay(&info, AY_MIXER, TempMixer);
-    ay_writeay(&info, AY_CHNL_A_FINE, PSC_A.Ton & 0xff);
-    ay_writeay(&info, AY_CHNL_A_COARSE, (PSC_A.Ton >> 8) & 0xf);
-    ay_writeay(&info, AY_CHNL_B_FINE, PSC_B.Ton & 0xff);
-    ay_writeay(&info, AY_CHNL_B_COARSE, (PSC_B.Ton >> 8) & 0xf);
-    ay_writeay(&info, AY_CHNL_C_FINE, PSC_C.Ton & 0xff);
-    ay_writeay(&info, AY_CHNL_C_COARSE, (PSC_C.Ton >> 8) & 0xf);
-    ay_writeay(&info, AY_CHNL_A_VOL, PSC_A.Amplitude);
-    ay_writeay(&info, AY_CHNL_B_VOL, PSC_B.Amplitude);
-    ay_writeay(&info, AY_CHNL_C_VOL, PSC_C.Amplitude);
+    ay_writeay(info, AY_MIXER, TempMixer, 0);
+    ay_writeay(info, AY_CHNL_A_FINE, PSC_A.Ton & 0xff, 0);
+    ay_writeay(info, AY_CHNL_A_COARSE, (PSC_A.Ton >> 8) & 0xf, 0);
+    ay_writeay(info, AY_CHNL_B_FINE, PSC_B.Ton & 0xff, 0);
+    ay_writeay(info, AY_CHNL_B_COARSE, (PSC_B.Ton >> 8) & 0xf, 0);
+    ay_writeay(info, AY_CHNL_C_FINE, PSC_C.Ton & 0xff, 0);
+    ay_writeay(info, AY_CHNL_C_COARSE, (PSC_C.Ton >> 8) & 0xf, 0);
+    ay_writeay(info, AY_CHNL_A_VOL, PSC_A.Amplitude, 0);
+    ay_writeay(info, AY_CHNL_B_VOL, PSC_B.Amplitude, 0);
+    ay_writeay(info, AY_CHNL_C_VOL, PSC_C.Amplitude, 0);
 }
 
-void PSC_GetInfo(AYSongInfo &info)
+void PSC_GetInfo(AYSongInfo* info)
 {
-    unsigned char *module = info.file_data;
+    unsigned char *module = info->file_data;
     PSC_File *header = (PSC_File *)module;
     unsigned char b;
     unsigned long tm = 0;
@@ -463,13 +463,13 @@ void PSC_GetInfo(AYSongInfo &info)
         pptr += 8;
         if(pptr >= 65536)
         {
-            info.Length = 0;
+            info->Length = 0;
             return;
         }
     }
     if(pptr >= 65546 - 2)
     {
-        info.Length = 0;
+        info->Length = 0;
     }
     //cptr = *(unsigned short *) &module[pptr + 1];
     cptr = ay_sys_getword(&module[pptr + 1]);
@@ -479,10 +479,10 @@ void PSC_GetInfo(AYSongInfo &info)
     while(module[pptr] != 255)
     {
         if(pptr == cptr)
-            info.Loop = tm;
+            info->Loop = tm;
         if(pptr >= 65536 - 6)
         {
-            info.Length = 0;
+            info->Length = 0;
             return;
         }
         //j1 = *(unsigned short *) &module[pptr + 1];
@@ -494,7 +494,7 @@ void PSC_GetInfo(AYSongInfo &info)
         pptr += 8;
         if(pptr >= 65536)
         {
-            info.Length = 0;
+            info->Length = 0;
             return;
         }
         a1 = a2 = a3 = 1;
@@ -578,19 +578,19 @@ void PSC_GetInfo(AYSongInfo &info)
             tm += b;
         }
     }
-    info.Length = tm;
+    info->Length = tm;
     unsigned char *ptr = module + 0x19;
-    info.Name = ay_sys_getstr(ptr, 20);
+    info->Name = ay_sys_getstr(ptr, 20);
     ptr = module + 0x31;
-    info.Author = ay_sys_getstr(ptr, 20);
+    info->Author = ay_sys_getstr(ptr, 20);
 }
 
-void PSC_Cleanup(AYSongInfo &info)
+void PSC_Cleanup(AYSongInfo* info)
 {
-    if(info.data)
+    if(info->data)
     {
-        delete (PSC_SongInfo *)info.data;
-        info.data = 0;
+        free ((PSC_SongInfo *)info->data );
+        info->data = 0;
     }
 }
 

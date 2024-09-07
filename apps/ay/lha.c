@@ -19,31 +19,32 @@
  ***************************************************************************/
 
 #include "ayfly.h"
+#include <stdbool.h>
 
-const unsigned long BitBufSiz = 16;
-const unsigned long UCharMax = 255;
-const unsigned long DicBit = 13;
-const unsigned long DicSiz = 1 << DicBit;
-const unsigned long MatchBit = 8;
-const unsigned long MaxMatch = 1 << MatchBit;
-const unsigned long ThResHold = 3;
-const unsigned long PercFlag = 0x8000;
-const unsigned long Nc = (UCharMax + MaxMatch + 2 - ThResHold);
-const unsigned long CBit = 9;
-const unsigned long CodeBit = 16;
-const unsigned long Np = DicBit + 1;
-const unsigned long Nt = CodeBit + 3;
-const unsigned long PBit = 4;
-const unsigned long TBit = 5;
-const unsigned long Npt = Nt;
-const unsigned long Nul = 0;
-const unsigned long MaxHashVal = (3 * DicSiz + ((DicSiz >> 9) + 1) * UCharMax);
-const unsigned long WinBit = 14;
-const unsigned long WindowSize = 1 << WinBit;
-const unsigned long BufBit = 13;
-const unsigned long BufSize = 1 << BufBit;
+#define BitBufSiz 16ul
+#define UCharMax 255ul
+#define DicBit 13ul
+#define DicSiz (1ul << DicBit)
+#define MatchBit 8ul
+#define MaxMatch (1ul << MatchBit)
+#define ThResHold 3ul
+#define PercFlag 0x8000ul
+#define Nc (UCharMax + MaxMatch + 2ul - ThResHold)
+#define CBit 9ul
+#define CodeBit 16ul
+#define Np (DicBit + 1ul)
+#define Nt (CodeBit + 3ul)
+#define PBit 4ul
+#define TBit 5ul
+#define Npt Nt
+#define Nul 0
+#define MaxHashVal (3ul * DicSiz + ((DicSiz >> 9) + 1) * UCharMax)
+#define WinBit 14ul
+#define WindowSize (1ul << WinBit);
+#define BufBit 13ul
+#define BufSize (1ul << BufBit)
 
-struct lha_params
+typedef struct lha_params
 {
     unsigned char *file_data;
     unsigned long file_len;
@@ -62,64 +63,64 @@ struct lha_params
     unsigned char CLen[Nc];
     unsigned short Decode_I;
     short Decode_J;
-};
+} lha_params;
 
-unsigned char GetC(lha_params &params)
+unsigned char GetC(lha_params* params)
 {
-    unsigned char res = params.file_data [params.BufPtr];
-    params.BufPtr++;
+    unsigned char res = params->file_data [params->BufPtr];
+    params->BufPtr++;
     return res;
 }
 
-void BWrite(lha_params &params, unsigned char *P, int N)
+void BWrite(lha_params* params, unsigned char *P, int N)
 {
     int T;
     unsigned char *Scan;
     Scan = P;
     for(T = 1; T <= N; T++)
     {
-        *params.OutPtr = *Scan;
+        *params->OutPtr = *Scan;
         Scan++;
-        params.OutPtr++;
+        params->OutPtr++;
     }
 }
 
-void FillBuf(lha_params &params, int n)
+void FillBuf(lha_params* params, int n)
 {
-    params.BitBuf = (params.BitBuf << n);
-    while(n > params.BitCount)
+    params->BitBuf = (params->BitBuf << n);
+    while(n > params->BitCount)
     {
-        n -= params.BitCount;
-        params.BitBuf = params.BitBuf | (params.SubBitBuf << n);
-        if(params.CompSize != 0)
+        n -= params->BitCount;
+        params->BitBuf = params->BitBuf | (params->SubBitBuf << n);
+        if(params->CompSize != 0)
         {
-            params.CompSize--;
-            params.SubBitBuf = GetC(params);
+            params->CompSize--;
+            params->SubBitBuf = GetC(params);
         }
         else
-            params.SubBitBuf = 0;
-        params.BitCount = 8;
+            params->SubBitBuf = 0;
+        params->BitCount = 8;
     }
-    params.BitCount -= n;
-    params.BitBuf = params.BitBuf | (params.SubBitBuf >> params.BitCount);
+    params->BitCount -= n;
+    params->BitBuf = params->BitBuf | (params->SubBitBuf >> params->BitCount);
 }
 
-unsigned short GetBits(lha_params &params, int n)
+unsigned short GetBits(lha_params* params, int n)
 {
-    unsigned short res = params.BitBuf >> (BitBufSiz - n);
+    unsigned short res = params->BitBuf >> (BitBufSiz - n);
     FillBuf(params, n);
     return res;
 }
 
-void InitGetBits(lha_params &params)
+void InitGetBits(lha_params* params)
 {
-    params.BitBuf = 0;
-    params.SubBitBuf = 0;
-    params.BitCount = 0;
+    params->BitBuf = 0;
+    params->SubBitBuf = 0;
+    params->BitCount = 0;
     FillBuf(params, BitBufSiz);
 }
 
-bool MakeTable(lha_params &params, int nChar, unsigned char *BitLen, int TableBits, unsigned short *Table)
+bool MakeTable(lha_params* params, int nChar, unsigned char *BitLen, int TableBits, unsigned short *Table)
 {
     unsigned short Count[17], Weight[17];
     unsigned short Start[18];
@@ -178,15 +179,15 @@ bool MakeTable(lha_params &params, int nChar, unsigned char *BitLen, int TableBi
             {
                 if(p[0] == 0)
                 {
-                    params.Right[Avail] = 0;
-                    params.Left[Avail] = 0;
+                    params->Right[Avail] = 0;
+                    params->Left[Avail] = 0;
                     p[0] = Avail;
                     Avail++;
                 }
                 if((k & Mask) != 0)
-                    p = &(params.Right[p[0]]);
+                    p = &(params->Right[p[0]]);
                 else
-                    p = &(params.Left[p[0]]);
+                    p = &(params->Left[p[0]]);
                 k = k << 1;
                 i--;
             }
@@ -197,7 +198,7 @@ bool MakeTable(lha_params &params, int nChar, unsigned char *BitLen, int TableBi
     return true;
 }
 
-void ReadPtLen(lha_params &params, int Nn, int nBit, int Ispecial)
+void ReadPtLen(lha_params* params, int Nn, int nBit, int Ispecial)
 {
     int i, c, n;
     unsigned short Mask;
@@ -206,20 +207,20 @@ void ReadPtLen(lha_params &params, int Nn, int nBit, int Ispecial)
     {
         c = GetBits(params, nBit);
         for(i = 0; i < Nn; i++)
-            params.PtLen[i] = 0;
+            params->PtLen[i] = 0;
         for(i = 0; i <= 255; i++)
-            params.PtTable[i] = c;
+            params->PtTable[i] = c;
     }
     else
     {
         i = 0;
         while(i < n)
         {
-            c = params.BitBuf >> (BitBufSiz - 3);
+            c = params->BitBuf >> (BitBufSiz - 3);
             if(c == 7)
             {
                 Mask = 1 << (BitBufSiz - 4);
-                while((Mask & params.BitBuf) != 0)
+                while((Mask & params->BitBuf) != 0)
                 {
                     Mask = Mask >> 1;
                     c++;
@@ -230,14 +231,14 @@ void ReadPtLen(lha_params &params, int Nn, int nBit, int Ispecial)
             else
                 FillBuf(params, (unsigned char)(c - 3));                
                 
-            params.PtLen[i] = c;
+            params->PtLen[i] = c;
             i++;
             if(i == Ispecial)
             {
                 c = GetBits(params, 2) - 1;
                 while(c >= 0)
                 {
-                    params.PtLen[i] = 0;
+                    params->PtLen[i] = 0;
                     i++;
                     c--;
                 }
@@ -245,14 +246,14 @@ void ReadPtLen(lha_params &params, int Nn, int nBit, int Ispecial)
         }
         while(i < Nn)
         {
-            params.PtLen[i] = 0;
+            params->PtLen[i] = 0;
             i++;
         }
-        MakeTable(params, Nn, params.PtLen, 8, params.PtTable);
+        MakeTable(params, Nn, params->PtLen, 8, params->PtTable);
     }
 }
 
-void ReadCLen(lha_params &params)
+void ReadCLen(lha_params* params)
 {
     int i, c, n;
     unsigned short Mask;
@@ -261,30 +262,30 @@ void ReadCLen(lha_params &params)
     {
         c = GetBits(params, CBit);
         for(i = 0; i < Nc; i++)
-            params.CLen[i] = 0;
+            params->CLen[i] = 0;
         for(i = 0; i <= 4095; i++)
-            params.CTable[i] = c;
+            params->CTable[i] = c;
     }
     else
     {
         i = 0;
         while(i < n)
         {
-            c = params.PtTable[params.BitBuf >> (BitBufSiz - 8)];
+            c = params->PtTable[params->BitBuf >> (BitBufSiz - 8)];
             if(c >= Nt)
             {
                 Mask = 1 << (BitBufSiz - 9);
                 do
                 {
-                    if((params.BitBuf & Mask) != 0)
-                        c = params.Right[c];
+                    if((params->BitBuf & Mask) != 0)
+                        c = params->Right[c];
                     else
-                        c = params.Left[c];
+                        c = params->Left[c];
                     Mask = Mask >> 1;
                 }
                 while(c >= Nt);
             }
-            FillBuf(params, params.PtLen[c]);
+            FillBuf(params, params->PtLen[c]);
             if(c <= 2)
             {
                 if(c == 1)
@@ -293,73 +294,73 @@ void ReadCLen(lha_params &params)
                     c = 19 + GetBits(params, CBit);
                 while(c >= 0)
                 {
-                    params.CLen[i] = 0;
+                    params->CLen[i] = 0;
                     i++;
                     c--;
                 }
             }
             else
             {
-                params.CLen[i] = c - 2;
+                params->CLen[i] = c - 2;
                 i++;
             }
         }
         while(i < Nc)
         {
-            params.CLen[i] = 0;
+            params->CLen[i] = 0;
             i++;
         }
-        MakeTable(params, Nc, params.CLen, 12, params.CTable);
+        MakeTable(params, Nc, params->CLen, 12, params->CTable);
     }
 }
 
-unsigned short DecodeC(lha_params &params)
+unsigned short DecodeC(lha_params* params)
 {
     unsigned short j, Mask, DecodeC;
-    if(params.BlockSize == 0)
+    if(params->BlockSize == 0)
     {
-        params.BlockSize = GetBits(params, 16);
+        params->BlockSize = GetBits(params, 16);
         ReadPtLen(params, Nt, TBit, 3);
         ReadCLen(params);
         ReadPtLen(params, Np, PBit, -1);
     }
-    params.BlockSize--;
-    j = params.CTable[params.BitBuf >> (BitBufSiz - 12)];
+    params->BlockSize--;
+    j = params->CTable[params->BitBuf >> (BitBufSiz - 12)];
     if(j >= Nc)
     {
         Mask = 1 << (BitBufSiz - 13);
         do
         {
-            if((params.BitBuf & Mask) != 0)
-                j = params.Right[j];
+            if((params->BitBuf & Mask) != 0)
+                j = params->Right[j];
             else
-                j = params.Left[j];
+                j = params->Left[j];
             Mask = Mask >> 1;
         }
         while(j >= Nc);
     }
-    FillBuf(params, params.CLen[j]);
+    FillBuf(params, params->CLen[j]);
     return j;
 }
 
-unsigned short DecodeP(lha_params &params)
+unsigned short DecodeP(lha_params* params)
 {
     unsigned short j, Mask, DecodeP;
-    j = params.PtTable[params.BitBuf >> (BitBufSiz - 8)];
+    j = params->PtTable[params->BitBuf >> (BitBufSiz - 8)];
     if(j >= Np)
     {
         Mask = 1 << (BitBufSiz - 9);
         do
         {
-            if((params.BitBuf & Mask) != 0)
-                j = params.Right[j];
+            if((params->BitBuf & Mask) != 0)
+                j = params->Right[j];
             else
-                j = params.Left[j];
+                j = params->Left[j];
             Mask = Mask >> 1;
         }
         while(j >= Np);
     }
-    FillBuf(params, params.PtLen[j]);
+    FillBuf(params, params->PtLen[j]);
     if(j != 0)
     {
         j--;
@@ -368,19 +369,19 @@ unsigned short DecodeP(lha_params &params)
     return j;
 }
 
-void DecodeBuffer(lha_params &params, unsigned short Count, unsigned char *Buffer)
+void DecodeBuffer(lha_params* params, unsigned short Count, unsigned char *Buffer)
 {
     unsigned short c, r;
     r = 0;
-    params.Decode_J--;
-    while(params.Decode_J >= 0)
+    params->Decode_J--;
+    while(params->Decode_J >= 0)
     {
-        Buffer[r] = Buffer[params.Decode_I];
-        params.Decode_I = (params.Decode_I + 1) & (DicSiz - 1);
+        Buffer[r] = Buffer[params->Decode_I];
+        params->Decode_I = (params->Decode_I + 1) & (DicSiz - 1);
         r++;
         if(r == Count)
             return;
-        params.Decode_J--;
+        params->Decode_J--;
     }
     while(true)
     {
@@ -394,39 +395,38 @@ void DecodeBuffer(lha_params &params, unsigned short Count, unsigned char *Buffe
         }
         else
         {
-            params.Decode_J = c - (UCharMax + 1 - ThResHold);
-            params.Decode_I = (r - DecodeP(params) - 1) & (DicSiz - 1);
-            params.Decode_J--;
-            while(params.Decode_J >= 0)
+            params->Decode_J = c - (UCharMax + 1 - ThResHold);
+            params->Decode_I = (r - DecodeP(params) - 1) & (DicSiz - 1);
+            params->Decode_J--;
+            while(params->Decode_J >= 0)
             {
-                Buffer[r] = Buffer[params.Decode_I];
-                params.Decode_I = (params.Decode_I + 1) & (DicSiz - 1);
+                Buffer[r] = Buffer[params->Decode_I];
+                params->Decode_I = (params->Decode_I + 1) & (DicSiz - 1);
                 r++;
                 if(r == Count)
                     return;
-                params.Decode_J--;
+                params->Decode_J--;
             }
         }
     }
 }
 
-void ay_sys_decodelha(AYSongInfo &info, unsigned long offset)
+void ay_sys_decodelha(AYSongInfo* info, unsigned long offset)
 {
-  unsigned char p [DicSiz];
+  unsigned char p = malloc(DicSiz);
   int l;
   unsigned short a;
-  lha_params params;
-  memset(&params, 0, sizeof(lha_params));
-  params.OutPtr = info.module;
-  params.file_data = info.file_data + offset;
-  params.file_len = info.file_len;
-  params.CompSize = info.file_len - offset;
-  params.OrigSize = info.module_len;
-  params.BufPtr = 0;
+  lha_params* params = calloc(1, sizeof(lha_params));
+  params->OutPtr = info->module;
+  params->file_data = info->file_data + offset;
+  params->file_len = info->file_len;
+  params->CompSize = info->file_len - offset;
+  params->OrigSize = info->module_len;
+  params->BufPtr = 0;
   InitGetBits(params);
-  params.BlockSize = 0;
-  params.Decode_J = 0;
-  l = params.OrigSize;
+  params->BlockSize = 0;
+  params->Decode_J = 0;
+  l = params->OrigSize;
   while(l > 0)
   {
     if(l > DicSiz)
@@ -437,4 +437,6 @@ void ay_sys_decodelha(AYSongInfo &info, unsigned long offset)
     BWrite (params, p, a);
     l -= a;
   }
+  free(params);
+  free(p);
 }

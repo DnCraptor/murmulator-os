@@ -5,42 +5,42 @@
  (c)1999-2004 S.V.Bulba
  */
 
-struct PSG_SongInfo
+typedef struct PSG_SongInfo
 {
     unsigned short PSG_Skip;
     unsigned long file_pointer;
-};
+} PSG_SongInfo;
 
-void PSG_Init(AYSongInfo &info)
+void PSG_Init(AYSongInfo* info)
 {
-    if(info.data)
+    if(info->data)
     {
-        delete (PSG_SongInfo *)info.data;
-        info.data = 0;
+        free( (PSG_SongInfo *)info->data);
+        info->data = 0;
     }
-    info.data = (void *)new PSG_SongInfo;
-    if(!info.data)
+    info->data = calloc(1, sizeof(PSG_SongInfo));
+    if(!info->data)
         return;
-    ((PSG_SongInfo *)info.data)->PSG_Skip = 0;
-    ((PSG_SongInfo *)info.data)->file_pointer = 16;
+//    ((PSG_SongInfo *)info->data)->PSG_Skip = 0;
+//    ((PSG_SongInfo *)info->data)->file_pointer = 16;
 
-    ay_resetay(&info, 0);
+    ay_resetay(info, 0);
 
 }
 
-void PSG_Play(AYSongInfo &info)
+void PSG_Play(AYSongInfo* info)
 {
-    unsigned char *module = info.module;
-    PSG_SongInfo *psg_info = (PSG_SongInfo *)info.data;
+    unsigned char *module = info->module;
+    PSG_SongInfo *psg_info = (PSG_SongInfo *)info->data;
     unsigned char b, b2;
     if(psg_info->PSG_Skip > 0)
     {
         psg_info->PSG_Skip--;
         return;
     }
-    if(info.file_len <= 16)
+    if(info->file_len <= 16)
         return;
-    if(psg_info->file_pointer >= info.file_len)
+    if(psg_info->file_pointer >= info->file_len)
     {
         psg_info->PSG_Skip = 0;
         psg_info->file_pointer = 16;
@@ -58,7 +58,7 @@ void PSG_Play(AYSongInfo &info)
             return;
         }
 
-        if(psg_info->file_pointer < info.file_len)
+        if(psg_info->file_pointer < info->file_len)
         {
             b2 = module[psg_info->file_pointer++];
             if(b < 14)
@@ -67,49 +67,49 @@ void PSG_Play(AYSongInfo &info)
                 {
 
                     case 13:
-                        ay_writeay(&info, AY_ENV_SHAPE, b2 & 15);
+                        ay_writeay(info, AY_ENV_SHAPE, b2 & 15, 0);
                         break;
                     case 1:
                     case 3:
                     case 5:
-                        ay_writeay(&info, b, b2 & 15);
+                        ay_writeay(info, b, b2 & 15, 0);
                         break;
                     case 6:
-                        ay_writeay(&info, AY_NOISE_PERIOD, b2 & 31);
+                        ay_writeay(info, AY_NOISE_PERIOD, b2 & 31, 0);
                         break;
                     case 7:
-                        ay_writeay(&info, AY_MIXER, b2 & 63);
+                        ay_writeay(info, AY_MIXER, b2 & 63, 0);
                         break;
                     case 8:
-                        ay_writeay(&info, AY_CHNL_A_VOL, b2 & 31);
+                        ay_writeay(info, AY_CHNL_A_VOL, b2 & 31, 0);
                         break;
                     case 9:
-                        ay_writeay(&info, AY_CHNL_B_VOL, b2 & 31);
+                        ay_writeay(info, AY_CHNL_B_VOL, b2 & 31, 0);
                         break;
                     case 10:
-                        ay_writeay(&info, AY_CHNL_C_VOL, b2 & 31);
+                        ay_writeay(info, AY_CHNL_C_VOL, b2 & 31, 0);
                         break;
                     default:
-                        ay_writeay(&info, b, b2);
+                        ay_writeay(info, b, b2, 0);
                         break;
                 }
             }
         }
 
     }
-    while(psg_info->file_pointer <= info.file_len);
+    while(psg_info->file_pointer <= info->file_len);
 
 }
 
-void PSG_GetInfo(AYSongInfo &info)
+void PSG_GetInfo(AYSongInfo* info)
 {
-    unsigned char *module = info.file_data;
+    unsigned char *module = info->file_data;
     unsigned long file_pointer = 16;
     unsigned char b, b1;
     unsigned long tm = 0;
     b = 255;
 
-    while(file_pointer < info.file_len)
+    while(file_pointer < info->file_len)
     {
         b = module [file_pointer++];
         if(b == 255)
@@ -124,15 +124,15 @@ void PSG_GetInfo(AYSongInfo &info)
     }
     if(b < 254)
         tm++;
-    info.Length = tm;
+    info->Length = tm;
 }
 
-void PSG_Cleanup(AYSongInfo &info)
+void PSG_Cleanup(AYSongInfo* info)
 {
-    if(info.data)
+    if(info->data)
     {
-        delete (PSG_SongInfo *)info.data;
-        info.data = 0;
+        free( (PSG_SongInfo *)info->data);
+        info->data = 0;
     }
 }
 

@@ -26,8 +26,6 @@
 
 #define ANSI
 #define AY_CHAR char
-// TODO:
-#undef switch
 
 #else
 
@@ -113,7 +111,7 @@
 #        else
 #           define TXT(x) x
 #        endif
-#        define AY_TXT_TYPE CayflyString
+#        define AY_TXT_TYPE string_t*
 #    else
 #        define TXT(x) _S(x)
 #        define AUDIO_FREQ 32000
@@ -152,41 +150,27 @@ typedef bool (*ELAPSED_CALLBACK)(void *arg);
 typedef void (*STOPPED_CALLBACK)(void *arg);
 
 /* System callback prototypes */
-typedef void (*PLAYER_INIT_PROC)(AYSongInfo &info);
-typedef void (*PLAYER_PLAY_PROC)(AYSongInfo &info);
-typedef void (*PLAYER_CLEANUP_PROC)(AYSongInfo &info);
+typedef void (*PLAYER_INIT_PROC)(struct AYSongInfo* info);
+typedef void (*PLAYER_PLAY_PROC)(struct AYSongInfo* info);
+typedef void (*PLAYER_CLEANUP_PROC)(struct AYSongInfo* info);
 typedef bool (*PLAYER_DETECT_PROC)(unsigned char *module, unsigned long length);
 typedef void (*EMPTY_CALLBACK)(void *song);
 typedef void (*AYWRITE_CALLBACK)(void *song, unsigned long chip, unsigned char reg, unsigned char val);
 
-#ifndef __SYMBIAN32__
-#include "ayflyString.h"
 #include "Filter3.h"
 #include "ay.h"
-#else
-#include "ay_s60.h"
-#endif
-#include "AbstractAudio.h"
+#include "MOSAudio.h"
 
 #define NUMBER_OF_AYS 2
 
-struct AYSongInfo : public allocator
+typedef struct AYSongInfo
 {
-#ifndef __SYMBIAN32__
     AY_TXT_TYPE Author; /* Song author */
     AY_TXT_TYPE Name; /* Song name */
     AY_TXT_TYPE FilePath; /* Song file path */
     AY_TXT_TYPE PrgName; /* Program name */
     AY_TXT_TYPE TrackName; /* Track name */
     AY_TXT_TYPE CompName; /* Compiler name */
-#else
-    TFileName Author; /* Song author */
-    TFileName Name; /* Song name */
-    TFileName FilePath; /* Song file path */
-    TFileName PrgName; /* Program name */
-    TFileName TrackName; /* Track name */
-    TFileName CompName; /* Compiler name */
-#endif
     unsigned long Length; /* Song length in 1/50 of second */
     unsigned long Loop; /* Loop start position */
     bool is_z80; /* player is in z80 asm? */
@@ -201,7 +185,7 @@ struct AYSongInfo : public allocator
 ///    unsigned char z80IO [65536]; /* z80 ports */
     unsigned long file_len; /* file length */
     unsigned long module_len; /* file length */
-    AbstractAudio *player; /* player for this song */
+    struct MOSAudio *player; /* player for this song */
     Z80EX_CONTEXT *z80ctx; /* z80 execution context */
     unsigned long timeElapsed; /* playing time in tacts */
     ELAPSED_CALLBACK e_callback; /* song elapsed callback function */
@@ -219,15 +203,16 @@ struct AYSongInfo : public allocator
     long int_limit;
     bool own_player; /* is player ws created during initialization by the library */
     bool stopping;
-    ay* pay8910 [NUMBER_OF_AYS];
+    ay_t* pay8910 [NUMBER_OF_AYS];
     long player_num;
     bool is_ts; /* 2xay - turbo sound */
     unsigned long ay_oversample; /* higher - better, default = 2 */
 	bool empty_song; /* true, if empty song */
 	EMPTY_CALLBACK empty_callback;
 	AYWRITE_CALLBACK aywrite_callback;
-    ~AYSongInfo();
-};
+} AYSongInfo;
+
+delete_AYSongInfo(AYSongInfo*);
 
 #ifdef M_API_VERSION
 
@@ -238,7 +223,7 @@ struct AYSongInfo : public allocator
 #ifndef __SYMBIAN32__
 #ifndef DISABLE_AUDIO
 #ifndef WINDOWS
-#include "unix/SDLAudio.h"
+///#include "unix/SDLAudio.h"
 #else
 #include "windows/DXAudio.h"
 #endif
@@ -254,25 +239,17 @@ struct AYSongInfo : public allocator
 #endif
 
 //system functions
-bool ay_sys_readfromfile(AYSongInfo &info);
-bool ay_sys_getsonginfo(AYSongInfo &info);
-bool ay_sys_getsonginfoindirect(AYSongInfo &info);
-void ay_sys_rewindsong(AYSongInfo &info, long new_position);
-bool ay_sys_initz80(AYSongInfo &info);
-void ay_sys_resetz80(AYSongInfo &info);
-void ay_sys_shutdownz80(AYSongInfo &info);
-bool ay_sys_initsong(AYSongInfo &info);
-#ifndef __SYMBIAN32__
+bool ay_sys_readfromfile(AYSongInfo* info);
+bool ay_sys_getsonginfo(AYSongInfo* info);
+bool ay_sys_getsonginfoindirect(AYSongInfo* info);
+void ay_sys_rewindsong(AYSongInfo* info, long new_position);
+bool ay_sys_initz80(AYSongInfo* info);
+void ay_sys_resetz80(AYSongInfo* info);
+void ay_sys_shutdownz80(AYSongInfo* info);
+bool ay_sys_initsong(AYSongInfo* info);
 bool ay_sys_format_supported(AY_TXT_TYPE filePath);
-#else
-bool ay_sys_format_supported(const TFileName filePath);
-#endif
-void ay_sys_decodelha(AYSongInfo &info, unsigned long offset);
-#ifdef __SYMBIAN32__
-TFileName ay_sys_getstr(const unsigned char *str, unsigned long length);
-#else
-CayflyString ay_sys_getstr(const unsigned char *str, unsigned long length);
-#endif
+void ay_sys_decodelha(AYSongInfo* info, unsigned long offset);
+string_t* ay_sys_getstr(const unsigned char *str, unsigned long length);
 
 
 #ifdef __cplusplus
@@ -299,11 +276,7 @@ extern "C" {
  * }
  */
 
-#ifndef __SYMBIAN32__
-extern "C" AYFLY_API void *ay_initsong(const AY_CHAR *FilePath, unsigned long sr); //, AbstractAudio *player = 0);
-#else
-AYFLY_API void *ay_initsong(TFileName FilePath, unsigned long sr, AbstractAudio *player = 0);
-#endif
+AYFLY_API void *ay_initsong(const AY_CHAR *FilePath, unsigned long sr, MOSAudio_t* player);
 
 /*
  * Initializes song from memory ares pointed by @module of size @size,
@@ -329,11 +302,7 @@ AYFLY_API void *ay_initsong(TFileName FilePath, unsigned long sr, AbstractAudio 
  * }
  */
 
-#ifndef __SYMBIAN32__
-AYFLY_API void *ay_initsongindirect(unsigned char *module, unsigned long sr, unsigned long size, AbstractAudio *player = 0);
-#else
-AYFLY_API void *ay_initsongindirect(unsigned char *module, unsigned long sr, unsigned long size, AbstractAudio *player = 0);
-#endif
+AYFLY_API void *ay_initsongindirect(unsigned char *module, unsigned long sr, unsigned long size, MOSAudio_t *player);
 
 /*
  * Returns pointer to songinfo system structure for song in @FilePath
@@ -473,34 +442,34 @@ AYFLY_API void ay_stopsong(void *info);
  * @volume must be in range from 0 to 1.
  */
 
-AYFLY_API void ay_setvolume(void *info, unsigned long chnl, float volume, unsigned char chip_num = 0);
+AYFLY_API void ay_setvolume(void *info, unsigned long chnl, float volume, unsigned char chip_num/* = 0*/);
 
 /*
  * Returns AY chip @chip_num volume of channel @chnl in range from 0 to 1
  */
 
-AYFLY_API float ay_getvolume(void *info, unsigned long chnl, unsigned char chip_num = 0);
+AYFLY_API float ay_getvolume(void *info, unsigned long chnl, unsigned char chip_num /* = 0*/);
 
 /*
  * Mutes or enables AY chip @chip channel @chnl. If @mute is true - channel muted.
  */
-AYFLY_API void ay_chnlmute(void *info, unsigned long chnl, bool mute, unsigned char chip_num = 0);
+AYFLY_API void ay_chnlmute(void *info, unsigned long chnl, bool mute, unsigned char chip_num/* = 0*/);
 
 /*
  * Returns true if channel @chnl of AY chip @chip_num is muted
  */
 
-AYFLY_API bool ay_chnlmuted(void *info, unsigned long chnl, unsigned char chip_num = 0);
+AYFLY_API bool ay_chnlmuted(void *info, unsigned long chnl, unsigned char chip_num/* = 0*/);
 
 /*
  * Set Left, Right, and Center channels for AY chip @chip_num according to @mixType argument.
  */
-AYFLY_API void ay_setmixtype(void *info, AYMixTypes mixType, unsigned char chip_num = 0);
+AYFLY_API void ay_setmixtype(void *info, AYMixTypes mixType, unsigned char chip_num/* = 0*/);
 
 /*
  * Get current mix type for AY chip @chip_num.
  */
-AYFLY_API AYMixTypes ay_getmixtype(void *info, unsigned char chip_num = 0);
+AYFLY_API AYMixTypes ay_getmixtype(void *info, unsigned char chip_num/* = 0*/);
 
 /*
  * Sets callback function for song described by @info to function pointed by
@@ -541,7 +510,7 @@ AYFLY_API unsigned long ay_getsongloop(void *info);
  * Buffer is only for reading
  */
 
-AYFLY_API const unsigned char *ay_getregs(void *info, unsigned char chip_num = 0);
+AYFLY_API const unsigned char *ay_getregs(void *info, unsigned char chip_num/* = 0*/);
 
 /*
  * Used for render song AY chip @chip_num into buffer pointed by @buffer
@@ -601,10 +570,10 @@ AYFLY_API void ay_setsamplerate(void *info, unsigned long sr);
 
 /*
  * Sets song player. @player must point to class, derived from
- * class AbstractAudio
+ * class MOSAudio
  */
 
-AYFLY_API void ay_setsongplayer(void *info, void * /* class AbstractAudio */ player);
+AYFLY_API void ay_setsongplayer(void *info, void * /* class MOSAudio */ player);
 
 /*
  * Gets pointer to current song player
@@ -625,11 +594,11 @@ AYFLY_API void ay_setchiptype(void *info, unsigned char chip_type);
 AYFLY_API unsigned char ay_getchiptype(void *info);
 
 
-AYFLY_API void ay_writeay(void *info, unsigned char reg, unsigned char val, unsigned char chip_num = 0);
+AYFLY_API void ay_writeay(void *info, unsigned char reg, unsigned char val, unsigned char chip_num/* = 0*/);
 
-AYFLY_API unsigned char ay_readay(void *info, unsigned char reg, unsigned char chip_num = 0);
+AYFLY_API unsigned char ay_readay(void *info, unsigned char reg, unsigned char chip_num/* = 0*/);
 
-AYFLY_API void ay_resetay(void *info, unsigned char chip_num = 0);
+AYFLY_API void ay_resetay(void *info, unsigned char chip_num/* = 0*/);
 
 /*
  * Returns true if format supported by the library

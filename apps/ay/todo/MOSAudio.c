@@ -1,26 +1,25 @@
 #include "ayfly.h"
 
-MOSAudio::MOSAudio(AYSongInfo *info) :
-    AbstractAudio(info)
+MOSAudio::MOSAudio(AYSongInfo *info) : MOSAudio(info)
 {
     songinfo = info;
 //    stopping_thread = 0;
 }
 
-MOSAudio::~MOSAudio()
-{
+//MOSAudio::~MOSAudio()
+//{
 //    if(stopping_thread)
 //    {
 //        SDL_KillThread(stopping_thread);
 //        stopping_thread = 0;
 //    }
 //    Stop();
-}
-
+//}
+/*
 bool MOSAudio::Start()
 {
     if(!started)
-    {/*
+    {
         SDL_AudioSpec fmt;
         SDL_memset(&fmt, 0, sizeof(SDL_AudioSpec));
         fmt.callback = MOSAudio::Play;
@@ -33,24 +32,23 @@ bool MOSAudio::Start()
         {
             return false;
         }
-        SDL_PauseAudio(0);*/
+        SDL_PauseAudio(0);
         started = true;
     }
     return started;
 
 }
-
 void MOSAudio::Stop()
 {
     if(started)
-    {/*
+    {
         started = false;
         SDL_PauseAudio(1);
-        SDL_CloseAudio();*/
+        SDL_CloseAudio();
     }
 
 }
-/*
+
 void MOSAudio::Play(void *udata, Uint8 *stream, int len)
 {
     MOSAudio *audio = (MOSAudio *)udata;

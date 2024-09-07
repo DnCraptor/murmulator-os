@@ -4,6 +4,19 @@
         "m-os-api-tasks.h": "c",
         "m-os-api-sdtfn.h": "c",
         "z80ex.c": "cpp",
-        "ctime": "cpp"
+        "ctime": "cpp",
+        "ayfly.h": "c",
+        "filter3.h": "c",
+        "ascplay.h": "c",
+        "pt1play.h": "c",
+        "pt2play.h": "c",
+        "pt3play.h": "c",
+        "stcplay.h": "c",
+        "stpplay.h": "c",
+        "pscplay.h": "c",
+        "sqtplay.h": "c",
+        "psgplay.h": "c",
+        "vtxplay.h": "c",
+        "ymplay.h": "c"
     }
 }

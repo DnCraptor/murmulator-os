@@ -22,7 +22,6 @@
 #define AY_H_
 
 #include <assert.h>
-#include "allocator.h"
 
 #define AY_TEMP_BUFFER_SIZE 4096
 
@@ -47,7 +46,7 @@ enum
 };
 
 
-struct init_mix_levels
+typedef struct init_mix_levels
 {
     float a_left;
     float a_right;
@@ -55,7 +54,7 @@ struct init_mix_levels
     float b_right;
     float c_left;
     float c_right;
-};
+} init_mix_levels;
 
 typedef enum _ay_mix_types {
   AY_ABC = 0,
@@ -69,112 +68,8 @@ typedef enum _ay_mix_types {
 extern const float init_levels_ay[];
 extern const float init_levels_ym[];
 
-class ay : public allocator
-{
-public:
-    ay() {
-        goutf("ay %d\n", sizeof_array(ay::levels_ay));
-        for(unsigned long i = 0; i < sizeof_array(ay::levels_ay); ++i) {
-            goutf("ay i%d\n", i);
-            goutf("ay init_levels_ay=%p\n", init_levels_ay);
-            goutf("ay init_levels_ay[i / 2]=%f\n", init_levels_ay[i >> 1]);
-            goutf("ay init_levels_ay[i / 2]/6=%f\n", init_levels_ay[i >> 1] / 6.0f);
-            ay::levels_ay[i] = (init_levels_ay[i / 2]) / 6.0f;
-            goutf("ay init_levels_ym[i]=%f\n", init_levels_ym[i]);
-            goutf("ay init_levels_ym[i]/6=%f\n", init_levels_ym[i] / 6.0f);
-            ay::levels_ym[i] = init_levels_ym[i] / 6.0f;
-        }
-        songinfo = 0;
-	    chip_nr = 0;
-        gouta("ay2\n");
-        ayReset();
-    }
-    inline ~ay() { if (pflt) delete pflt; }
-    void ayReset();
-    void ayWrite(unsigned char reg, unsigned char val);
-    unsigned char ayRead(unsigned char reg);
-    unsigned long ayProcess(unsigned char *stream, unsigned long len);
-    inline void chnlMute(unsigned long chnl, bool mute)
-    {
-        switch(chnl)
-        {
-            case 0:
-                chnl_mute0 = !mute;
-                break;
-            case 1:
-                chnl_mute1 = !mute;
-                break;
-            case 2:
-                chnl_mute2 = !mute;
-                break;
-            default:
-                break;
-        }
-    }
-    ;
-    inline bool chnlMuted(unsigned long chnl)
-    {
-        switch(chnl)
-        {
-            case 0:
-                return chnl_mute0;
-            case 1:
-                return chnl_mute1;
-            case 2:
-                return chnl_mute2;
-            default:
-                return false;
-        }
-    }
-    ;
-    inline float GetVolume(unsigned long chnl)
-    {
-        switch(chnl)
-        {
-            case 0:
-                return volume0;
-            case 1:
-                return volume1;
-            case 2:
-                return volume2;
-            default:
-                assert(0);
-        }
-    }
-    ;
-    inline void SetVolume(unsigned long chnl, float new_volume)
-    {
-        new_volume = new_volume > 1 ? 1 : (new_volume < 0 ? 0 : new_volume);
-        switch(chnl)
-        {
-            case 0:
-                volume0 = new_volume;
-                break;
-            case 1:
-                volume1 = new_volume;
-                break;
-            case 2:
-                volume2 = new_volume;
-                break;
-            default:
-                break;
-        }
-
-    }
-    ;
-    inline const unsigned char *GetRegs()
-    {
-        return regs;
-    }
-    ;
-
-    void SetMixType(AYMixTypes mixType);
-    AYMixTypes GetMixType(void);
-
-    void SetParameters(AYSongInfo *_songinfo = 0);
-    void ayBeeper(bool on);
+typedef struct ay {
 	unsigned long chip_nr;
-private:
     float levels_ay[32];
     float levels_ym[32];
     float *levels;
@@ -197,10 +92,8 @@ private:
     double ay_tacts_f;
     unsigned long ay_tacts_counter;
     float volume_divider;
-    void setEnvelope();
-    void updateEnvelope();
     float volume0, volume1, volume2;
-    AYSongInfo *songinfo;
+    struct AYSongInfo *songinfo;
     unsigned long int_counter;
     unsigned long int_limit;
     long z80_per_sample;
@@ -208,7 +101,6 @@ private:
     long z80_per_sample_counter;
     long int_per_z80_counter;
     unsigned long frame_size;
-    void ayStep(float &s0, float &s1, float &s2);
     AYMixTypes mix_levels_nr;
     float a_left, a_right, b_left, b_right, c_left, c_right;
     Filter3* pflt;
@@ -221,7 +113,84 @@ private:
     //beeper stuff
     float beeper_volume;
     bool beeper_oldval;
-};
+} ay_t;
+
+inline static ay_t* new_ay() {
+    ay_t* r = calloc(1, sizeof(ay_t));
+    for(unsigned long i = 0; i < 32; ++i) {
+        r->levels_ay[i] = (init_levels_ay[i / 2]) / 6.0f;
+        r->levels_ym[i] = init_levels_ym[i] / 6.0f;
+    }
+    r->songinfo = 0;
+    r->chip_nr = 0;
+    ayReset(r);
+    return r;
+}
+
+inline static delete_ay(ay_t* a) {
+    if (a->pflt) free(a->pflt);
+    free(a);
+}
+
+static void ayWrite(ay_t*, unsigned char reg, unsigned char val);
+
+inline static unsigned char ayRead(ay_t* a, unsigned char reg) {
+    reg &= 0xf;
+    return a->regs[reg];
+}
+
+static unsigned long ayProcess(ay_t*, unsigned char *stream, unsigned long len);
+static void aySetEnvelope(ay_t*);
+
+inline static void ayChnlMute(ay_t* a, unsigned long chnl, bool mute) {
+    if (chnl == 0)
+        a->chnl_mute0 = !mute;
+    else if (chnl == 1)
+        a->chnl_mute1 = !mute;
+    else if(chnl == 2)
+        a->chnl_mute2 = !mute;
+}
+
+inline static bool ayChnlMuted(ay_t* a, unsigned long chnl) {
+    if (chnl == 0)
+                return a->chnl_mute0;
+    if (chnl == 1)
+                return a->chnl_mute1;
+    if (chnl == 2)
+                return a->chnl_mute2;
+    return false;
+}
+
+inline static float ayGetVolume(ay_t* a, unsigned long chnl) {
+    if (chnl == 0)
+                return a->volume0;
+    if (chnl == 1)
+                return a->volume1;
+    if (chnl == 2)
+                return a->volume2;
+    return 0;
+}
+
+inline static void aySetVolume(ay_t* a, unsigned long chnl, float new_volume) {
+    new_volume = new_volume > 1 ? 1 : (new_volume < 0 ? 0 : new_volume);
+    if (chnl == 0)
+                a->volume0 = new_volume;
+    if (chnl == 1)
+                a->volume1 = new_volume;
+    if (chnl == 2)
+                a->volume2 = new_volume;
+}
+
+inline static const unsigned char* ayGetRegs(ay_t* a) {
+    return a->regs;
+}
+
+inline static AYMixTypes ayGetMixType(ay_t* a) {
+    return a->mix_levels_nr;
+}
+
+static void aySetParameters(ay_t*, struct AYSongInfo* _songinfo);
+static void ayBeeper(ay_t*, bool on);
 
 #endif /*AY_H_*/
 

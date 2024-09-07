@@ -338,6 +338,7 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     reboot_me, // 254
     // API v.23
     free_app_flash, // 255
+    __aeabi_d2uiz, // 256
     // TODO:
     0
 };

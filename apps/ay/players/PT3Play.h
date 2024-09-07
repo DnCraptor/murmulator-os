@@ -68,7 +68,7 @@ const unsigned char PT3VolumeTable_35[16][16] =
 { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E },
 { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F } };
 
-struct PT3_File
+typedef struct PT3_File
 {
     signed char PT3_MusicName[0x63];
     unsigned char PT3_TonTableId;
@@ -79,22 +79,22 @@ struct PT3_File
     unsigned char PT3_SamplesPointers0[64];
     unsigned char PT3_OrnamentsPointers0[32];
     unsigned char PT3_PositionList[65335];
-};
+} PT3_File;
 
 #define PT3_PatternsPointer (header->PT3_PatternsPointer0 | (header->PT3_PatternsPointer1 << 8))
 #define PT3_SamplesPointers(x) (header->PT3_SamplesPointers0 [(x) * 2] | (header->PT3_SamplesPointers0 [(x) * 2 + 1] << 8))
 #define PT3_OrnamentsPointers(x) (header->PT3_OrnamentsPointers0 [(x) * 2] | (header->PT3_OrnamentsPointers0 [(x) * 2 + 1] << 8))
 
-struct PT3_Channel_Parameters
+typedef struct PT3_Channel_Parameters
 {
     unsigned short Address_In_Pattern, OrnamentPointer, SamplePointer, Ton;
     unsigned char Loop_Ornament_Position, Ornament_Length, Position_In_Ornament, Loop_Sample_Position, Sample_Length, Position_In_Sample, Volume, Number_Of_Notes_To_Skip, Note, Slide_To_Note, Amplitude;
     bool Envelope_Enabled, Enabled, SimpleGliss;
     short Current_Amplitude_Sliding, Current_Noise_Sliding, Current_Envelope_Sliding, Ton_Slide_Count, Current_OnOff, OnOff_Delay, OffOn_Delay, Ton_Slide_Delay, Current_Ton_Sliding, Ton_Accumulator, Ton_Slide_Step, Ton_Delta;
     signed char Note_Skip_Counter;
-};
+} PT3_Channel_Parameters;
 
-struct PT3_Parameters
+typedef struct PT3_Parameters
 {
     unsigned char Env_Base_lo;
     unsigned char Env_Base_hi;
@@ -102,13 +102,13 @@ struct PT3_Parameters
     signed char Cur_Env_Delay, Env_Delay;
     unsigned char Noise_Base, Delay, AddToNoise, DelayCounter, CurrentPosition;
     int Version;
-};
+} PT3_Parameters;
 
-struct PT3_SongInfo
+typedef struct PT3_SongInfo
 {
     PT3_Parameters PT3;
     PT3_Channel_Parameters PT3_A, PT3_B, PT3_C;
-};
+} PT3_SongInfo;
 
 #define PT3_A ((PT3_SongInfo *)data)->PT3_A
 #define PT3_B ((PT3_SongInfo *)data)->PT3_B
@@ -119,17 +119,17 @@ struct PT3_SongInfo
     unsigned char *module;\
     PT3_File *header;\
     void *data;\
-    if(!info.is_ts || x == 0)\
+    if(!info->is_ts || x == 0)\
     {\
-        module = info.module;\
-        header = (PT3_File *)info.module;\
-        data = info.data;\
+        module = info->module;\
+        header = (PT3_File *)info->module;\
+        data = info->data;\
     }\
     else\
     {\
-        module = info.module1;\
-        header = (PT3_File *)info.module1;\
-        data = info.data1;\
+        module = info->module1;\
+        header = (PT3_File *)info->module1;\
+        data = info->data1;\
     }
 
 bool PT3_Detect(unsigned char *module, unsigned long length);
@@ -156,26 +156,26 @@ unsigned char *PT3_FindSig(unsigned char *buffer, long length)
     return 0;
 }
 
-void PT3_Init(AYSongInfo &info)
+void PT3_Init(AYSongInfo* info)
 {
     int i;
     unsigned char b;
-    unsigned char *module = info.module;
+    unsigned char *module = info->module;
     PT3_File *header = (PT3_File *)module;
-    if(info.data)
+    if(info->data)
     {
-        delete (PT3_SongInfo *)info.data;
-        info.data = 0;
+        free( (PT3_SongInfo *)info->data);
+        info->data = 0;
     }
-    if(info.data1)
+    if(info->data1)
     {
-        delete (PT3_SongInfo *)info.data1;
-        info.data1 = 0;
+        free( (PT3_SongInfo *)info->data1);
+        info->data1 = 0;
     }
-    info.data = (void *)new PT3_SongInfo;
-    if(!info.data)
+    info->data = calloc(1, sizeof(PT3_SongInfo));
+    if(!info->data)
         return;
-    memset(info.data, 0, sizeof(PT3_SongInfo));
+///    memset(info->data, 0, sizeof(PT3_SongInfo));
 
     int version = 6;
 
@@ -183,23 +183,23 @@ void PT3_Init(AYSongInfo &info)
     {
         version = header->PT3_MusicName[13] - 0x30;
     }
-    unsigned char *ptr = PT3_FindSig(module + 0x63, info.module_len - 0x63);
+    unsigned char *ptr = PT3_FindSig(module + 0x63, info->module_len - 0x63);
     if((unsigned long)ptr > 0)
     {
-        info.is_ts = true;
-        info.module1 = ptr;
-        info.data1 = (void *)new PT3_SongInfo;
-        if(!info.data1)
+        info->is_ts = true;
+        info->module1 = ptr;
+        info->data1 = calloc(1, sizeof(PT3_SongInfo));
+        if(!info->data1)
         {
-            delete (PT3_SongInfo *)info.data;
-            info.data = 0;
+            free( (PT3_SongInfo *)info->data);
+            info->data = 0;
             return;
         }
-        memset(info.data1, 0, sizeof(PT3_SongInfo));
+///        memset(info->data1, 0, sizeof(PT3_SongInfo));
     }
 
-    void *data = info.data;
-    module = info.module;
+    void *data = info->data;
+    module = info->module;
 
     for(unsigned long y = 0; y < 2; y++)
     {
@@ -246,18 +246,18 @@ void PT3_Init(AYSongInfo &info)
         PT3_C.Sample_Length = PT3_A.Sample_Length;
         PT3_C.Volume = 15;
         PT3_C.Note_Skip_Counter = 1;
-        if(!info.is_ts)
+        if(!info->is_ts)
             break;
-        data = info.data1;
-        module = info.module1;
+        data = info->data1;
+        module = info->module1;
         header = (PT3_File *)module;
     }
 
-    ay_resetay(&info, 0);
-    ay_resetay(&info, 1);
+    ay_resetay(info, 0);
+    ay_resetay(info, 1);
 }
 
-int PT3_GetNoteFreq(AYSongInfo &info, unsigned char j, unsigned long chip_num)
+int PT3_GetNoteFreq(AYSongInfo* info, unsigned char j, unsigned long chip_num)
 {
     GET_COMMON_VARS(chip_num);
     switch(header->PT3_TonTableId)
@@ -282,44 +282,44 @@ int PT3_GetNoteFreq(AYSongInfo &info, unsigned char j, unsigned long chip_num)
     }
 }
 
-void PT3_PatternIntterpreter(AYSongInfo &info, PT3_Channel_Parameters &chan, unsigned long chip_num)
+void PT3_PatternIntterpreter(AYSongInfo* info, PT3_Channel_Parameters* chan, unsigned long chip_num)
 {
     GET_COMMON_VARS(chip_num);
     bool quit;
     unsigned char flag9, flag8, flag5, flag4, flag3, flag2, flag1;
     unsigned char counter;
     int prnote, prsliding;
-    prnote = chan.Note;
-    prsliding = chan.Current_Ton_Sliding;
+    prnote = chan->Note;
+    prsliding = chan->Current_Ton_Sliding;
     quit = false;
     counter = 0;
     flag9 = flag8 = flag5 = flag4 = flag3 = flag2 = flag1 = 0;
     do
     {
-        unsigned char val = module[chan.Address_In_Pattern];
+        unsigned char val = module[chan->Address_In_Pattern];
         if(val >= 0xf0)
         {
-            chan.OrnamentPointer = PT3_OrnamentsPointers((val - 0xf0));
-            chan.Loop_Ornament_Position = module[chan.OrnamentPointer];
-            chan.OrnamentPointer++;
-            chan.Ornament_Length = module[chan.OrnamentPointer];
-            chan.OrnamentPointer++;
-            chan.Address_In_Pattern++;
-            chan.SamplePointer = PT3_SamplesPointers((module [chan.Address_In_Pattern] / 2));
-            chan.Loop_Sample_Position = module[chan.SamplePointer];
-            chan.SamplePointer++;
-            chan.Sample_Length = module[chan.SamplePointer];
-            chan.SamplePointer++;
-            chan.Envelope_Enabled = false;
-            chan.Position_In_Ornament = 0;
+            chan->OrnamentPointer = PT3_OrnamentsPointers((val - 0xf0));
+            chan->Loop_Ornament_Position = module[chan->OrnamentPointer];
+            chan->OrnamentPointer++;
+            chan->Ornament_Length = module[chan->OrnamentPointer];
+            chan->OrnamentPointer++;
+            chan->Address_In_Pattern++;
+            chan->SamplePointer = PT3_SamplesPointers((module [chan->Address_In_Pattern] / 2));
+            chan->Loop_Sample_Position = module[chan->SamplePointer];
+            chan->SamplePointer++;
+            chan->Sample_Length = module[chan->SamplePointer];
+            chan->SamplePointer++;
+            chan->Envelope_Enabled = false;
+            chan->Position_In_Ornament = 0;
         }
         else if(val >= 0xd1 && val <= 0xef)
         {
-            chan.SamplePointer = PT3_SamplesPointers((val - 0xd0));
-            chan.Loop_Sample_Position = module[chan.SamplePointer];
-            chan.SamplePointer++;
-            chan.Sample_Length = module[chan.SamplePointer];
-            chan.SamplePointer++;
+            chan->SamplePointer = PT3_SamplesPointers((val - 0xd0));
+            chan->Loop_Sample_Position = module[chan->SamplePointer];
+            chan->SamplePointer++;
+            chan->Sample_Length = module[chan->SamplePointer];
+            chan->SamplePointer++;
         }
         else if(val == 0xd0)
         {
@@ -327,67 +327,67 @@ void PT3_PatternIntterpreter(AYSongInfo &info, PT3_Channel_Parameters &chan, uns
         }
         else if(val >= 0xc1 && val <= 0xcf)
         {
-            chan.Volume = val - 0xc0;
+            chan->Volume = val - 0xc0;
         }
         else if(val == 0xc0)
         {
-            chan.Position_In_Sample = 0;
-            chan.Current_Amplitude_Sliding = 0;
-            chan.Current_Noise_Sliding = 0;
-            chan.Current_Envelope_Sliding = 0;
-            chan.Position_In_Ornament = 0;
-            chan.Ton_Slide_Count = 0;
-            chan.Current_Ton_Sliding = 0;
-            chan.Ton_Accumulator = 0;
-            chan.Current_OnOff = 0;
-            chan.Enabled = false;
+            chan->Position_In_Sample = 0;
+            chan->Current_Amplitude_Sliding = 0;
+            chan->Current_Noise_Sliding = 0;
+            chan->Current_Envelope_Sliding = 0;
+            chan->Position_In_Ornament = 0;
+            chan->Ton_Slide_Count = 0;
+            chan->Current_Ton_Sliding = 0;
+            chan->Ton_Accumulator = 0;
+            chan->Current_OnOff = 0;
+            chan->Enabled = false;
             quit = true;
         }
         else if(val >= 0xb2 && val <= 0xbf)
         {
-            chan.Envelope_Enabled = true;
-            ay_writeay(&info, AY_ENV_SHAPE, val - 0xb1, chip_num);
-            chan.Address_In_Pattern++;
-            PT3.Env_Base_hi = module[chan.Address_In_Pattern];
-            chan.Address_In_Pattern++;
-            PT3.Env_Base_lo = module[chan.Address_In_Pattern];
-            chan.Position_In_Ornament = 0;
+            chan->Envelope_Enabled = true;
+            ay_writeay(info, AY_ENV_SHAPE, val - 0xb1, chip_num);
+            chan->Address_In_Pattern++;
+            PT3.Env_Base_hi = module[chan->Address_In_Pattern];
+            chan->Address_In_Pattern++;
+            PT3.Env_Base_lo = module[chan->Address_In_Pattern];
+            chan->Position_In_Ornament = 0;
             PT3.Cur_Env_Slide = 0;
             PT3.Cur_Env_Delay = 0;
         }
         else if(val == 0xb1)
         {
-            chan.Address_In_Pattern++;
-            chan.Number_Of_Notes_To_Skip = module[chan.Address_In_Pattern];
+            chan->Address_In_Pattern++;
+            chan->Number_Of_Notes_To_Skip = module[chan->Address_In_Pattern];
         }
         else if(val == 0xb0)
         {
-            chan.Envelope_Enabled = false;
-            chan.Position_In_Ornament = 0;
+            chan->Envelope_Enabled = false;
+            chan->Position_In_Ornament = 0;
         }
         else if(val >= 0x50 && val <= 0xaf)
         {
-            chan.Note = val - 0x50;
-            chan.Position_In_Sample = 0;
-            chan.Current_Amplitude_Sliding = 0;
-            chan.Current_Noise_Sliding = 0;
-            chan.Current_Envelope_Sliding = 0;
-            chan.Position_In_Ornament = 0;
-            chan.Ton_Slide_Count = 0;
-            chan.Current_Ton_Sliding = 0;
-            chan.Ton_Accumulator = 0;
-            chan.Current_OnOff = 0;
-            chan.Enabled = true;
+            chan->Note = val - 0x50;
+            chan->Position_In_Sample = 0;
+            chan->Current_Amplitude_Sliding = 0;
+            chan->Current_Noise_Sliding = 0;
+            chan->Current_Envelope_Sliding = 0;
+            chan->Position_In_Ornament = 0;
+            chan->Ton_Slide_Count = 0;
+            chan->Current_Ton_Sliding = 0;
+            chan->Ton_Accumulator = 0;
+            chan->Current_OnOff = 0;
+            chan->Enabled = true;
             quit = true;
         }
         else if(val >= 0x40 && val <= 0x4f)
         {
-            chan.OrnamentPointer = PT3_OrnamentsPointers((val - 0x40));
-            chan.Loop_Ornament_Position = module[chan.OrnamentPointer];
-            chan.OrnamentPointer++;
-            chan.Ornament_Length = module[chan.OrnamentPointer];
-            chan.OrnamentPointer++;
-            chan.Position_In_Ornament = 0;
+            chan->OrnamentPointer = PT3_OrnamentsPointers((val - 0x40));
+            chan->Loop_Ornament_Position = module[chan->OrnamentPointer];
+            chan->OrnamentPointer++;
+            chan->Ornament_Length = module[chan->OrnamentPointer];
+            chan->OrnamentPointer++;
+            chan->Position_In_Ornament = 0;
         }
         else if(val >= 0x20 && val <= 0x3f)
         {
@@ -396,25 +396,25 @@ void PT3_PatternIntterpreter(AYSongInfo &info, PT3_Channel_Parameters &chan, uns
         else if(val >= 0x10 && val <= 0x1f)
         {
             if(val == 0x10)
-                chan.Envelope_Enabled = false;
+                chan->Envelope_Enabled = false;
             else
             {
-                ay_writeay(&info, AY_ENV_SHAPE, val - 0x10, chip_num);
-                chan.Address_In_Pattern++;
-                PT3.Env_Base_hi = module[chan.Address_In_Pattern];
-                chan.Address_In_Pattern++;
-                PT3.Env_Base_lo = module[chan.Address_In_Pattern];
-                chan.Envelope_Enabled = true;
+                ay_writeay(info, AY_ENV_SHAPE, val - 0x10, chip_num);
+                chan->Address_In_Pattern++;
+                PT3.Env_Base_hi = module[chan->Address_In_Pattern];
+                chan->Address_In_Pattern++;
+                PT3.Env_Base_lo = module[chan->Address_In_Pattern];
+                chan->Envelope_Enabled = true;
                 PT3.Cur_Env_Slide = 0;
                 PT3.Cur_Env_Delay = 0;
             }
-            chan.Address_In_Pattern++;
-            chan.SamplePointer = PT3_SamplesPointers((module [chan.Address_In_Pattern] / 2));
-            chan.Loop_Sample_Position = module[chan.SamplePointer];
-            chan.SamplePointer++;
-            chan.Sample_Length = module[chan.SamplePointer];
-            chan.SamplePointer++;
-            chan.Position_In_Ornament = 0;
+            chan->Address_In_Pattern++;
+            chan->SamplePointer = PT3_SamplesPointers((module [chan->Address_In_Pattern] / 2));
+            chan->Loop_Sample_Position = module[chan->SamplePointer];
+            chan->SamplePointer++;
+            chan->Sample_Length = module[chan->SamplePointer];
+            chan->SamplePointer++;
+            chan->Position_In_Ornament = 0;
         }
         else if(val == 0x9)
         {
@@ -451,7 +451,7 @@ void PT3_PatternIntterpreter(AYSongInfo &info, PT3_Channel_Parameters &chan, uns
             counter++;
             flag1 = counter;
         }
-        chan.Address_In_Pattern++;
+        chan->Address_In_Pattern++;
     }
     while(!quit);
 
@@ -459,177 +459,177 @@ void PT3_PatternIntterpreter(AYSongInfo &info, PT3_Channel_Parameters &chan, uns
     {
         if(counter == flag1)
         {
-            chan.Ton_Slide_Delay = module[chan.Address_In_Pattern];
-            chan.Ton_Slide_Count = chan.Ton_Slide_Delay;
-            chan.Address_In_Pattern++;
-            chan.Ton_Slide_Step = ay_sys_getword(&module[chan.Address_In_Pattern]);
-            chan.Address_In_Pattern += 2;
-            chan.SimpleGliss = true;
-            chan.Current_OnOff = 0;
-            if((chan.Ton_Slide_Count == 0) && (PT3.Version >= 7))
-                chan.Ton_Slide_Count++;
+            chan->Ton_Slide_Delay = module[chan->Address_In_Pattern];
+            chan->Ton_Slide_Count = chan->Ton_Slide_Delay;
+            chan->Address_In_Pattern++;
+            chan->Ton_Slide_Step = ay_sys_getword(&module[chan->Address_In_Pattern]);
+            chan->Address_In_Pattern += 2;
+            chan->SimpleGliss = true;
+            chan->Current_OnOff = 0;
+            if((chan->Ton_Slide_Count == 0) && (PT3.Version >= 7))
+                chan->Ton_Slide_Count++;
         }
         else if(counter == flag2)
         {
-            chan.SimpleGliss = false;
-            chan.Current_OnOff = 0;
-            chan.Ton_Slide_Delay = module[chan.Address_In_Pattern];
-            chan.Ton_Slide_Count = chan.Ton_Slide_Delay;
-            chan.Address_In_Pattern += 3;
-            chan.Ton_Slide_Step = abs(short(ay_sys_getword(&module[chan.Address_In_Pattern])));
-            chan.Address_In_Pattern += 2;
-            chan.Ton_Delta = PT3_GetNoteFreq(info, chan.Note, chip_num) - PT3_GetNoteFreq(info, prnote, chip_num);
-            chan.Slide_To_Note = chan.Note;
-            chan.Note = prnote;
+            chan->SimpleGliss = false;
+            chan->Current_OnOff = 0;
+            chan->Ton_Slide_Delay = module[chan->Address_In_Pattern];
+            chan->Ton_Slide_Count = chan->Ton_Slide_Delay;
+            chan->Address_In_Pattern += 3;
+            chan->Ton_Slide_Step = abs((short)(ay_sys_getword(&module[chan->Address_In_Pattern])));
+            chan->Address_In_Pattern += 2;
+            chan->Ton_Delta = PT3_GetNoteFreq(info, chan->Note, chip_num) - PT3_GetNoteFreq(info, prnote, chip_num);
+            chan->Slide_To_Note = chan->Note;
+            chan->Note = prnote;
             if(PT3.Version >= 6)
-                chan.Current_Ton_Sliding = prsliding;
-            if((chan.Ton_Delta - chan.Current_Ton_Sliding) < 0)
-                chan.Ton_Slide_Step = -chan.Ton_Slide_Step;
+                chan->Current_Ton_Sliding = prsliding;
+            if((chan->Ton_Delta - chan->Current_Ton_Sliding) < 0)
+                chan->Ton_Slide_Step = -chan->Ton_Slide_Step;
         }
         else if(counter == flag3)
         {
-            chan.Position_In_Sample = module[chan.Address_In_Pattern];
-            chan.Address_In_Pattern++;
+            chan->Position_In_Sample = module[chan->Address_In_Pattern];
+            chan->Address_In_Pattern++;
         }
         else if(counter == flag4)
         {
-            chan.Position_In_Ornament = module[chan.Address_In_Pattern];
-            chan.Address_In_Pattern++;
+            chan->Position_In_Ornament = module[chan->Address_In_Pattern];
+            chan->Address_In_Pattern++;
         }
         else if(counter == flag5)
         {
-            chan.OnOff_Delay = module[chan.Address_In_Pattern];
-            chan.Address_In_Pattern++;
-            chan.OffOn_Delay = module[chan.Address_In_Pattern];
-            chan.Current_OnOff = chan.OnOff_Delay;
-            chan.Address_In_Pattern++;
-            chan.Ton_Slide_Count = 0;
-            chan.Current_Ton_Sliding = 0;
+            chan->OnOff_Delay = module[chan->Address_In_Pattern];
+            chan->Address_In_Pattern++;
+            chan->OffOn_Delay = module[chan->Address_In_Pattern];
+            chan->Current_OnOff = chan->OnOff_Delay;
+            chan->Address_In_Pattern++;
+            chan->Ton_Slide_Count = 0;
+            chan->Current_Ton_Sliding = 0;
         }
         else if(counter == flag8)
         {
-            PT3.Env_Delay = module[chan.Address_In_Pattern];
+            PT3.Env_Delay = module[chan->Address_In_Pattern];
             PT3.Cur_Env_Delay = PT3.Env_Delay;
-            chan.Address_In_Pattern++;
-            PT3.Env_Slide_Add = ay_sys_getword(&module[chan.Address_In_Pattern]);
-            chan.Address_In_Pattern += 2;
+            chan->Address_In_Pattern++;
+            PT3.Env_Slide_Add = ay_sys_getword(&module[chan->Address_In_Pattern]);
+            chan->Address_In_Pattern += 2;
         }
         else if(counter == flag9)
         {
-            PT3.Delay = module[chan.Address_In_Pattern];
-            chan.Address_In_Pattern++;
+            PT3.Delay = module[chan->Address_In_Pattern];
+            chan->Address_In_Pattern++;
         }
         counter--;
     }
-    chan.Note_Skip_Counter = chan.Number_Of_Notes_To_Skip;
+    chan->Note_Skip_Counter = chan->Number_Of_Notes_To_Skip;
 }
 
-void PT3_ChangeRegisters(AYSongInfo &info, PT3_Channel_Parameters &chan, char &AddToEnv, unsigned char &TempMixer, unsigned long chip_num)
+void PT3_ChangeRegisters(AYSongInfo* info, PT3_Channel_Parameters* chan, char* pAddToEnv, unsigned char* pTempMixer, unsigned long chip_num)
 {
     GET_COMMON_VARS(chip_num);
     unsigned char j, b1, b0;
     unsigned short w;
-    if(chan.Enabled)
+    if(chan->Enabled)
     {
-        chan.Ton = ay_sys_getword(&module[chan.SamplePointer + chan.Position_In_Sample * 4 + 2]);
-        chan.Ton += chan.Ton_Accumulator;
-        b0 = module[chan.SamplePointer + chan.Position_In_Sample * 4];
-        b1 = module[chan.SamplePointer + chan.Position_In_Sample * 4 + 1];
+        chan->Ton = ay_sys_getword(&module[chan->SamplePointer + chan->Position_In_Sample * 4 + 2]);
+        chan->Ton += chan->Ton_Accumulator;
+        b0 = module[chan->SamplePointer + chan->Position_In_Sample * 4];
+        b1 = module[chan->SamplePointer + chan->Position_In_Sample * 4 + 1];
         if((b1 & 0x40) != 0)
         {
-            chan.Ton_Accumulator = chan.Ton;
+            chan->Ton_Accumulator = chan->Ton;
         }
-        j = chan.Note + module[chan.OrnamentPointer + chan.Position_In_Ornament];
+        j = chan->Note + module[chan->OrnamentPointer + chan->Position_In_Ornament];
         if((signed char)(j) < 0)
             j = 0;
         else if(j > 95)
             j = 95;
         w = PT3_GetNoteFreq(info, j, chip_num);
-        chan.Ton = (chan.Ton + chan.Current_Ton_Sliding + w) & 0xfff;
-        if(chan.Ton_Slide_Count > 0)
+        chan->Ton = (chan->Ton + chan->Current_Ton_Sliding + w) & 0xfff;
+        if(chan->Ton_Slide_Count > 0)
         {
-            chan.Ton_Slide_Count--;
-            if(chan.Ton_Slide_Count == 0)
+            chan->Ton_Slide_Count--;
+            if(chan->Ton_Slide_Count == 0)
             {
-                chan.Current_Ton_Sliding += chan.Ton_Slide_Step;
-                chan.Ton_Slide_Count = chan.Ton_Slide_Delay;
-                if(!chan.SimpleGliss)
+                chan->Current_Ton_Sliding += chan->Ton_Slide_Step;
+                chan->Ton_Slide_Count = chan->Ton_Slide_Delay;
+                if(!chan->SimpleGliss)
                 {
-                    if(((chan.Ton_Slide_Step < 0) && (chan.Current_Ton_Sliding <= chan.Ton_Delta)) || ((chan.Ton_Slide_Step >= 0) && (chan.Current_Ton_Sliding >= chan.Ton_Delta)))
+                    if(((chan->Ton_Slide_Step < 0) && (chan->Current_Ton_Sliding <= chan->Ton_Delta)) || ((chan->Ton_Slide_Step >= 0) && (chan->Current_Ton_Sliding >= chan->Ton_Delta)))
                     {
-                        chan.Note = chan.Slide_To_Note;
-                        chan.Ton_Slide_Count = 0;
-                        chan.Current_Ton_Sliding = 0;
+                        chan->Note = chan->Slide_To_Note;
+                        chan->Ton_Slide_Count = 0;
+                        chan->Current_Ton_Sliding = 0;
                     }
                 }
             }
         }
-        chan.Amplitude = b1 & 0xf;
+        chan->Amplitude = b1 & 0xf;
         if((b0 & 0x80) != 0)
         {
             if((b0 & 0x40) != 0)
             {
-                if(chan.Current_Amplitude_Sliding < 15)
-                    chan.Current_Amplitude_Sliding++;
+                if(chan->Current_Amplitude_Sliding < 15)
+                    chan->Current_Amplitude_Sliding++;
             }
-            else if(chan.Current_Amplitude_Sliding > -15)
+            else if(chan->Current_Amplitude_Sliding > -15)
             {
-                chan.Current_Amplitude_Sliding--;
+                chan->Current_Amplitude_Sliding--;
             }
         }
-        chan.Amplitude += chan.Current_Amplitude_Sliding;
-        if((signed char)(chan.Amplitude) < 0)
-            chan.Amplitude = 0;
-        else if(chan.Amplitude > 15)
-            chan.Amplitude = 15;
+        chan->Amplitude += chan->Current_Amplitude_Sliding;
+        if((signed char)(chan->Amplitude) < 0)
+            chan->Amplitude = 0;
+        else if(chan->Amplitude > 15)
+            chan->Amplitude = 15;
         if(PT3.Version <= 4)
-            chan.Amplitude = PT3VolumeTable_33_34[chan.Volume][chan.Amplitude];
+            chan->Amplitude = PT3VolumeTable_33_34[chan->Volume][chan->Amplitude];
         else
-            chan.Amplitude = PT3VolumeTable_35[chan.Volume][chan.Amplitude];
-        if(((b0 & 1) == 0) && chan.Envelope_Enabled)
-            chan.Amplitude = chan.Amplitude | 16;
+            chan->Amplitude = PT3VolumeTable_35[chan->Volume][chan->Amplitude];
+        if(((b0 & 1) == 0) && chan->Envelope_Enabled)
+            chan->Amplitude = chan->Amplitude | 16;
         if((b1 & 0x80) != 0)
         {
             if((b0 & 0x20) != 0)
-                j = ((b0 >> 1) | 0xf0) + chan.Current_Envelope_Sliding;
+                j = ((b0 >> 1) | 0xf0) + chan->Current_Envelope_Sliding;
             else
-                j = ((b0 >> 1) & 0xf) + chan.Current_Envelope_Sliding;
+                j = ((b0 >> 1) & 0xf) + chan->Current_Envelope_Sliding;
             if((b1 & 0x20) != 0)
-                chan.Current_Envelope_Sliding = j;
-            AddToEnv += j;
+                chan->Current_Envelope_Sliding = j;
+            *pAddToEnv += j;
         }
         else
         {
-            PT3.AddToNoise = (b0 >> 1) + chan.Current_Noise_Sliding;
+            PT3.AddToNoise = (b0 >> 1) + chan->Current_Noise_Sliding;
             if((b1 & 0x20) != 0)
-                chan.Current_Noise_Sliding = PT3.AddToNoise;
+                chan->Current_Noise_Sliding = PT3.AddToNoise;
         }
-        TempMixer = ((b1 >> 1) & 0x48) | TempMixer;
-        chan.Position_In_Sample++;
-        if(chan.Position_In_Sample >= chan.Sample_Length)
-            chan.Position_In_Sample = chan.Loop_Sample_Position;
-        chan.Position_In_Ornament++;
-        if(chan.Position_In_Ornament >= chan.Ornament_Length)
-            chan.Position_In_Ornament = chan.Loop_Ornament_Position;
+        *pTempMixer = ((b1 >> 1) & 0x48) | *pTempMixer;
+        chan->Position_In_Sample++;
+        if(chan->Position_In_Sample >= chan->Sample_Length)
+            chan->Position_In_Sample = chan->Loop_Sample_Position;
+        chan->Position_In_Ornament++;
+        if(chan->Position_In_Ornament >= chan->Ornament_Length)
+            chan->Position_In_Ornament = chan->Loop_Ornament_Position;
     }
     else
-        chan.Amplitude = 0;
-    TempMixer = TempMixer >> 1;
-    if(chan.Current_OnOff > 0)
+        chan->Amplitude = 0;
+    *pTempMixer = *pTempMixer >> 1;
+    if(chan->Current_OnOff > 0)
     {
-        chan.Current_OnOff--;
-        if(chan.Current_OnOff == 0)
+        chan->Current_OnOff--;
+        if(chan->Current_OnOff == 0)
         {
-            chan.Enabled = !chan.Enabled;
-            if(chan.Enabled)
-                chan.Current_OnOff = chan.OnOff_Delay;
+            chan->Enabled = !chan->Enabled;
+            if(chan->Enabled)
+                chan->Current_OnOff = chan->OnOff_Delay;
             else
-                chan.Current_OnOff = chan.OffOn_Delay;
+                chan->Current_OnOff = chan->OffOn_Delay;
         }
     }
 }
 
-void PT3_Play_Chip(AYSongInfo &info, unsigned long chip_num)
+void PT3_Play_Chip(AYSongInfo* info, unsigned long chip_num)
 {
     GET_COMMON_VARS(chip_num);
     unsigned char TempMixer;
@@ -651,39 +651,39 @@ void PT3_Play_Chip(AYSongInfo &info, unsigned long chip_num)
                 PT3_C.Address_In_Pattern = ay_sys_getword(&module[PT3_PatternsPointer + header->PT3_PositionList[PT3.CurrentPosition] * 2 + 4]);
                 PT3.Noise_Base = 0;
             }
-            PT3_PatternIntterpreter(info, PT3_A, chip_num);
+            PT3_PatternIntterpreter(info, &PT3_A, chip_num);
         }
         PT3_B.Note_Skip_Counter--;
         if(PT3_B.Note_Skip_Counter == 0)
-            PT3_PatternIntterpreter(info, PT3_B, chip_num);
+            PT3_PatternIntterpreter(info, &PT3_B, chip_num);
         PT3_C.Note_Skip_Counter--;
         if(PT3_C.Note_Skip_Counter == 0)
-            PT3_PatternIntterpreter(info, PT3_C, chip_num);
+            PT3_PatternIntterpreter(info, &PT3_C, chip_num);
         PT3.DelayCounter = PT3.Delay;
     }
 
     AddToEnv = 0;
     TempMixer = 0;
-    PT3_ChangeRegisters(info, PT3_A, AddToEnv, TempMixer, chip_num);
-    PT3_ChangeRegisters(info, PT3_B, AddToEnv, TempMixer, chip_num);
-    PT3_ChangeRegisters(info, PT3_C, AddToEnv, TempMixer, chip_num);
+    PT3_ChangeRegisters(info, &PT3_A, &AddToEnv, &TempMixer, chip_num);
+    PT3_ChangeRegisters(info, &PT3_B, &AddToEnv, &TempMixer, chip_num);
+    PT3_ChangeRegisters(info, &PT3_C, &AddToEnv, &TempMixer, chip_num);
 
-    ay_writeay(&info, AY_MIXER, TempMixer, chip_num);
+    ay_writeay(info, AY_MIXER, TempMixer, chip_num);
 
-    ay_writeay(&info, AY_CHNL_A_FINE, PT3_A.Ton & 0xff, chip_num);
-    ay_writeay(&info, AY_CHNL_A_COARSE, (PT3_A.Ton >> 8) & 0xf, chip_num);
-    ay_writeay(&info, AY_CHNL_B_FINE, PT3_B.Ton & 0xff, chip_num);
-    ay_writeay(&info, AY_CHNL_B_COARSE, (PT3_B.Ton >> 8) & 0xf, chip_num);
-    ay_writeay(&info, AY_CHNL_C_FINE, PT3_C.Ton & 0xff, chip_num);
-    ay_writeay(&info, AY_CHNL_C_COARSE, (PT3_C.Ton >> 8) & 0xf, chip_num);
-    ay_writeay(&info, AY_CHNL_A_VOL, PT3_A.Amplitude, chip_num);
-    ay_writeay(&info, AY_CHNL_B_VOL, PT3_B.Amplitude, chip_num);
-    ay_writeay(&info, AY_CHNL_C_VOL, PT3_C.Amplitude, chip_num);
+    ay_writeay(info, AY_CHNL_A_FINE, PT3_A.Ton & 0xff, chip_num);
+    ay_writeay(info, AY_CHNL_A_COARSE, (PT3_A.Ton >> 8) & 0xf, chip_num);
+    ay_writeay(info, AY_CHNL_B_FINE, PT3_B.Ton & 0xff, chip_num);
+    ay_writeay(info, AY_CHNL_B_COARSE, (PT3_B.Ton >> 8) & 0xf, chip_num);
+    ay_writeay(info, AY_CHNL_C_FINE, PT3_C.Ton & 0xff, chip_num);
+    ay_writeay(info, AY_CHNL_C_COARSE, (PT3_C.Ton >> 8) & 0xf, chip_num);
+    ay_writeay(info, AY_CHNL_A_VOL, PT3_A.Amplitude, chip_num);
+    ay_writeay(info, AY_CHNL_B_VOL, PT3_B.Amplitude, chip_num);
+    ay_writeay(info, AY_CHNL_C_VOL, PT3_C.Amplitude, chip_num);
 
-    ay_writeay(&info, AY_NOISE_PERIOD, (PT3.Noise_Base + PT3.AddToNoise) & 31, chip_num);
+    ay_writeay(info, AY_NOISE_PERIOD, (PT3.Noise_Base + PT3.AddToNoise) & 31, chip_num);
     unsigned short cur_env = ay_sys_getword(&PT3.Env_Base_lo) + AddToEnv + PT3.Cur_Env_Slide;
-    ay_writeay(&info, AY_ENV_FINE, cur_env & 0xff, chip_num);
-    ay_writeay(&info, AY_ENV_COARSE, (cur_env >> 8) & 0xff, chip_num);
+    ay_writeay(info, AY_ENV_FINE, cur_env & 0xff, chip_num);
+    ay_writeay(info, AY_ENV_COARSE, (cur_env >> 8) & 0xff, chip_num);
 
     if(PT3.Cur_Env_Delay > 0)
     {
@@ -696,14 +696,14 @@ void PT3_Play_Chip(AYSongInfo &info, unsigned long chip_num)
     }
 }
 
-void PT3_Play(AYSongInfo &info)
+void PT3_Play(AYSongInfo* info)
 {
     PT3_Play_Chip(info, 0);
-    if(info.is_ts)
+    if(info->is_ts)
         PT3_Play_Chip(info, 1);
 }
 
-unsigned long PT3_GetTime(unsigned char *module, unsigned long &Loop)
+unsigned long PT3_GetTime(unsigned char *module, unsigned long* pLoop)
 {
     char a1, a2, a3, a11, a22, a33;
     unsigned long j1, j2, j3;
@@ -723,7 +723,7 @@ unsigned long PT3_GetTime(unsigned char *module, unsigned long &Loop)
     {
         if(i == ptLoopPos)
         {
-            Loop = tm;
+            *pLoop = tm;
         }
         j1 = ay_sys_getword(&module[ptPatPt + ptPosList[i] * 2]);
         j2 = ay_sys_getword(&module[ptPatPt + ptPosList[i] * 2 + 2]);
@@ -1024,39 +1024,39 @@ unsigned long PT3_GetTime(unsigned char *module, unsigned long &Loop)
     return tm;
 }
 
-void PT3_GetInfo(AYSongInfo &info)
+void PT3_GetInfo(AYSongInfo* info)
 {
-    unsigned char *module = info.file_data;
+    unsigned char *module = info->file_data;
     unsigned long loop = 0;
-    unsigned long length = PT3_GetTime(module, loop);
-    info.Length = length;
-    info.Loop = loop;
-    unsigned char *ptr = PT3_FindSig(module + 0x63, info.module_len - 0x63);
+    unsigned long length = PT3_GetTime(module, &loop);
+    info->Length = length;
+    info->Loop = loop;
+    unsigned char *ptr = PT3_FindSig(module + 0x63, info->module_len - 0x63);
     if((unsigned long)ptr > 0)
     {
-        length = PT3_GetTime(ptr, loop);
-        if(length > info.Length)
-            info.Length = length;
-        if(loop < info.Loop)
-            info.Loop = loop;
+        length = PT3_GetTime(ptr, &loop);
+        if(length > info->Length)
+            info->Length = length;
+        if(loop < info->Loop)
+            info->Loop = loop;
     }
     ptr = module + 0x1e;
-    info.Name = ay_sys_getstr(ptr, 32);
+    info->Name = ay_sys_getstr(ptr, 32);
     ptr = module + 0x42;
-    info.Author = ay_sys_getstr(ptr, 32);
+    info->Author = ay_sys_getstr(ptr, 32);
 }
 
-void PT3_Cleanup(AYSongInfo &info)
+void PT3_Cleanup(AYSongInfo* info)
 {
-    if(info.data)
+    if(info->data)
     {
-        delete (PT3_SongInfo *)info.data;
-        info.data = 0;
+        free( (PT3_SongInfo *)info->data);
+        info->data = 0;
     }
-    if(info.data1)
+    if(info->data1)
     {
-        delete (PT3_SongInfo *)info.data1;
-        info.data1 = 0;
+        free( (PT3_SongInfo *)info->data1);
+        info->data1 = 0;
     }
 }
 
