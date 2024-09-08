@@ -22,7 +22,7 @@ endif ()
 
 set(OS_FLASH_SIZE 128)
 
-set(MOS_VERSION "0.2.9")
+set(MOS_VERSION "0.3.0-i2s")
 
 SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
 
@@ -178,7 +178,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         WAV_IN_PIO=22
 
-        #I2S_SOUND
+        I2S_SOUND
 
         PWM_PIN0=26
         PWM_PIN1=27
