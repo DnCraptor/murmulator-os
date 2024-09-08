@@ -527,3 +527,8 @@ UBaseType_t uxTaskGetSystemState( TaskStatus_t * const pxTaskStatusArray,
                                   configRUN_TIME_COUNTER_TYPE * const pulTotalRunTime  );
     return ((v_ptr_t)_sys_table_ptrs[243])(pxTaskStatusArray, uxArraySize, pulTotalRunTime);
 }
+
+inline static void* pvTaskGetThreadLocalStoragePointer( TaskHandle_t xTaskToQuery, BaseType_t xIndex ) {
+    typedef void* (*v_ptr_t)( TaskHandle_t, BaseType_t );
+    return ((v_ptr_t)_sys_table_ptrs[_pvTaskGetThreadLocalStoragePointerPtrIdx])(xTaskToQuery, xIndex);
+}
