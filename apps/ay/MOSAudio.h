@@ -31,10 +31,13 @@ MOSAudio_t* new_MOSAudio(struct AYSongInfo *info);
 void delete_MOSAudio(MOSAudio_t* a);
 
 inline static bool Start(MOSAudio_t* a) {
+    printf("Start\n");
 }
 inline static void Stop(MOSAudio_t* a) {
+    printf("Start\n");
 }
 inline static bool Started(MOSAudio_t* aa) {
+    printf("Started?\n");
     return aa->started;
 }
 inline static void SetSongInfo(MOSAudio_t* aa, struct AYSongInfo *info) {

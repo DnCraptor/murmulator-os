@@ -508,12 +508,13 @@ delete_AYSongInfo(AYSongInfo* a)
     {
         delete_ay(a->pay8910[i]);
     }
-    if (a->Author) delete_string(a->Author); /* Song author */
-    if (a->Name) delete_string(a->Name); /* Song name */
-    if (a->FilePath) delete_string(a->FilePath); /* Song file path */
-    if (a->PrgName) delete_string(a->PrgName); /* Program name */
-    if (a->TrackName) delete_string(a->TrackName); /* Track name */
-    if (a->CompName) delete_string(a->CompName); /* Compiler name */
+    // TODO: ???   >= 0x20000000
+    if (a->Author >= 0x20000000) delete_string(a->Author); /* Song author */
+    if (a->Name >= 0x20000000) delete_string(a->Name); /* Song name */
+    if (a->FilePath >= 0x20000000) delete_string(a->FilePath); /* Song file path */
+    if (a->PrgName >= 0x20000000) delete_string(a->PrgName); /* Program name */
+    if (a->TrackName >= 0x20000000) delete_string(a->TrackName); /* Track name */
+    if (a->CompName >= 0x20000000) delete_string(a->CompName); /* Compiler name */
     free(a);
 }
 

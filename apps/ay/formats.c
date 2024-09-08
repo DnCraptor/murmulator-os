@@ -216,11 +216,9 @@ long ay_sys_detect(AYSongInfo* info)
 bool ay_sys_initsong(AYSongInfo* info)
 {
     info->player_num = ay_sys_detect(info);
-
     if(info->player_num < 0) {
         return false;
     }
-
     memset(info->module, 0, info->file_len);
     memcpy(info->module, info->file_data, info->file_len);
     info->init_proc = Players[info->player_num].soft_init_proc;
