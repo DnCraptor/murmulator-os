@@ -116,8 +116,9 @@ int _init(void) {
 int _fini(void) {
     if (Players) {
         for (int player = 0; player < 12; player++) {
-            //  if(Players[player].soft_cleanup_proc != 0) {
-            delete_string( Players[player].ext );
+            if (Players[player].ext >= 0x20000000) {
+                delete_string( Players[player].ext );
+            }
         }
         Players = 0;
         free(Players);

@@ -17,19 +17,18 @@
  *   Free Software Foundation, Inc.,                                       *
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
-#ifdef M_API_VERSION
-
-#else
-
-#include "ayfly.h"
-
-#endif
-
 MOSAudio_t* new_MOSAudio(struct AYSongInfo *info) {
     MOSAudio_t* aa = (MOSAudio_t*)calloc(1, sizeof(MOSAudio_t));
     aa->songinfo = info;
     aa->started = false;
     return aa;
+}
+
+bool Start(MOSAudio_t* a) {
+    printf("Start\n");
+    uint8_t* stream = malloc(1024);
+    unsigned long res = ay_rendersongbuffer(a->songinfo, stream, 1024);
+    printf("ay_rendersongbuffer returns: %d\n", res);
 }
 
 void delete_MOSAudio(MOSAudio_t* aa) {
