@@ -50,21 +50,21 @@ static char* pcm_end_callback(size_t* size) { // assumed callback is executing o
         *size = 0;
         return NULL;
     }
-//    printf("top of pipe: [%p]\n", pipe);
+    // printf("top of pipe: [%p]\n", pipe);
     chunk_t* chunk = pipe->ch;
     chunk->state = PROCESSED;
     pipe_node_t* n = pipe->next;
     if (!n) {
-//        printf("No more data in the pipe: [%p]\n", pipe);
+        // printf("No more data in the pipe: [%p]\n", pipe);
         pipe = NULL;
         *size = 0;
         return NULL;
     }
     pipe = n;
     chunk = n->ch;
-//    printf("switch pipe to: [%p] chunk: [%p] chunk->state: %d chunk->size: %d\n", n, n->ch, chunk->state, chunk->size);
+    // printf("switch pipe to: [%p] chunk: [%p] chunk->state: %d chunk->size: %d\n", n, n->ch, chunk->state, chunk->size);
     while (chunk->state != FILLED) {
-//        printf("chunk->state: %d\n", chunk->state);
+        // printf("chunk->state: %d\n", chunk->state);
     }
     *size = chunk->size >> 1;
     chunk->state = LOCKED;
@@ -97,7 +97,10 @@ bool Start(MOSAudio_t* a) {
     pipe2cleanup = 0;
     last_created = 0;
     cmd_ctx_t* ctx = get_cmd_ctx();
-
+    if(a->songinfo->stopping)
+    {
+        a->songinfo->stopping = false;
+    }
     HeapStats_t* stat = (HeapStats_t*)malloc(sizeof(HeapStats_t));
     vPortGetHeapStats(stat);
      // using 1/8 of free continues block adjusted for 512 bytes
@@ -113,8 +116,8 @@ bool Start(MOSAudio_t* a) {
 
     while (getch_now() != CHAR_CODE_ESC && !marked_to_exit) {
         vPortGetHeapStats(stat);
-        while (stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + reserve) { // some msg? or break;
-        //    vTaskDelay(1);
+        while (getch_now() != CHAR_CODE_ESC && !marked_to_exit && stat->xSizeOfLargestFreeBlockInBytes < ONE_BUFF_SIZE + reserve) { // some msg? or break;
+            // vTaskDelay(1);
             try_cleanup_it();
             vPortGetHeapStats(stat);
         }
@@ -124,8 +127,8 @@ bool Start(MOSAudio_t* a) {
         n->ch->p = (char*)malloc(ONE_BUFF_SIZE);
         n->ch->state = LOADING_STARTED;
 
-        n->ch->size = ay_rendersongbuffer(a->songinfo, n->ch->p, ONE_BUFF_SIZE);
-        printf("ay_rendersongbuffer returns: %d\n", n->ch->size);
+        n->ch->size = ay_rendersongbuffer(a->songinfo, n->ch->p, ONE_BUFF_SIZE >> 2) << 2;
+        // printf("ay_rendersongbuffer returns: %d\n", n->ch->size);
         if (!n->ch->size) {
             // printf("No more data\n");
             n->ch->state = EMPTY;
@@ -148,7 +151,7 @@ bool Start(MOSAudio_t* a) {
     while (pipe2cleanup) {
         // printf("Cleanup (finally)\n");
         if(pipe2cleanup->ch->state != LOCKED) {
-        //    vTaskDelay(1);
+            // vTaskDelay(1);
             continue;
         }
         pipe_node_t* next = pipe2cleanup->next;
