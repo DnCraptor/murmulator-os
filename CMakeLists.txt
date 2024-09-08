@@ -185,7 +185,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         BEEPER_PIN=28
 
         #BOOT_DEBUG_ACC=0
-        #DEBUG_HEAP_SIZE=512
+        #DEBUG_HEAP_SIZE=256
         #DEBUG_VGA=1
         #DEBUG_APP_LOAD=1
         #CFG_TUSB_DEBUG=3

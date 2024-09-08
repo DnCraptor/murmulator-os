@@ -356,6 +356,17 @@ void * pvPortMalloc( size_t xWantedSize )
 }
 /*-----------------------------------------------------------*/
 
+#if DEBUG_HEAP_SIZE
+void goutf(const char *__restrict str, ...);
+void vShowAlloc( void ) {
+    for(int i = 20; i < DEBUG_HEAP_SIZE; ++i) {
+        if(allocated[i]) {
+            goutf("[%04X]", allocated[i] - 0x20000000 );
+        }
+    }
+}
+#endif
+
 void vPortFree( void * pv )
 {
 #if DEBUG_HEAP_SIZE

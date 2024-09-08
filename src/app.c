@@ -276,6 +276,7 @@ static char* sec_prg_addr(load_sec_ctx* ctx, uint16_t sec_num) {
 
 static void add_sec(load_sec_ctx* ctx, char* del_addr, char* prg_addr, uint16_t num) {
     sect_entry_t* se = (sect_entry_t*)pvPortMalloc(sizeof(sect_entry_t));
+    // goutf("sec: [%p]\n", se);
     se->del_addr = del_addr;
     se->prg_addr = prg_addr;
     se->sec_num = num;
@@ -297,6 +298,7 @@ inline static uint8_t* sec_align(uint32_t sz, uint8_t* *pdel_addr, uint8_t* *rea
     } else {
         *pdel_addr = res;
     }
+    // goutf("4del: [%p]\n", *pdel_addr);
     *real_addr = res;
     if (!write_access) {
         res = flash_addr;
@@ -708,7 +710,7 @@ bool load_app(cmd_ctx_t* ctx) {
     uint32_t sig_idx = 0xFFFFFFFF;
     // TODO: precalc req. size
     uint16_t max_sects = pehdr->sh_num - 10; // dynamic, initial val (euristic based on ehdr.sh_num)
-    bootb_ctx->sections = new_list_v(0, 0, 0);
+    bootb_ctx->sections = new_list_v(0, sect_entry_deallocator, 0);
     load_sec_ctx* pctx = (load_sec_ctx*)pvPortMalloc(sizeof(load_sec_ctx));
     pctx->f2 = f;
     pctx->pehdr = pehdr;
@@ -828,6 +830,9 @@ e1:
 }
 
 volatile bootb_ptr_t bootb_sync_signal = NULL;
+#if DEBUG_HEAP_SIZE
+void vShowAlloc( void );
+#endif
 
 static void exec_sync(cmd_ctx_t* ctx) {
     #if DEBUG_APP_LOAD
@@ -922,6 +927,13 @@ void exec(cmd_ctx_t* ctx) {
             if (ctx->stage != PREPARED) { // it is expected cmd/cmd0 will prepare ctx for next run for application, in other case - cleanup ctx
                 cleanup_ctx(ctx);
             }
+#if DEBUG_HEAP_SIZE
+    {
+        vShowAlloc();
+        size_t free_sz = xPortGetFreeHeapSize();
+        goutf(" free_sz: %d\n", free_sz);
+    }
+#endif
             #if DEBUG_APP_LOAD
             goutf("EXEC [%p] <<\n", ctx);
             #endif
@@ -966,6 +978,13 @@ void vCmdTask(void *pv) {
     cmd_ctx_t* ctx = get_cmd_startup_ctx();
     vTaskSetThreadLocalStoragePointer(th, 0, ctx);
     while(1) {
+#if DEBUG_HEAP_SIZE
+    {
+        vShowAlloc();
+        size_t free_sz = xPortGetFreeHeapSize();
+        goutf(" free_sz: %d (before)\n", free_sz);
+    }
+#endif
         if (!ctx->argc && !ctx->argv) {
             ctx->argc = 1;
             ctx->argv = (char**)pvPortMalloc(sizeof(char*));

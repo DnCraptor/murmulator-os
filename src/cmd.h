@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CMD_H
+#define CMD_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,6 +24,11 @@ typedef struct {
     char* prg_addr;
     uint16_t sec_num;
 } sect_entry_t;
+
+static void sect_entry_deallocator(sect_entry_t* s) {
+    if (s->del_addr) vPortFree(s->del_addr);
+    vPortFree(s);
+}
 
 typedef int (*bootb_ptr_t)( void );
 
@@ -103,3 +109,5 @@ bool f_read_str(FIL* f, char* buf, size_t lim);
 #ifdef __cplusplus
 }
 #endif
+
+#endif // CMD_H
