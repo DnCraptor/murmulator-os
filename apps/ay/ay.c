@@ -36,6 +36,8 @@ static char tolower(char c) {
 
 #include "ayfly.h"
 
+static void set_reserve(size_t r);
+
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
     if (ctx->argc < 2 || ctx->argc > 3) {
@@ -53,6 +55,7 @@ e0:
             goto e0;
         }
     }
+    set_reserve(reserve);
     int res = 0;
     void* p = ay_initsong(ctx->argv[1], 44100, NULL);
     if (!p) {
