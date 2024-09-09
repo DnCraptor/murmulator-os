@@ -1,3 +1,5 @@
+#pragma once
+
 class string {
     size_t sz;
     size_t alloc;
