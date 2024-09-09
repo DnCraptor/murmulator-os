@@ -1,5 +1,9 @@
 #pragma once
 
+static inline bool isspace(char c) {
+    return c == ' ' || c == '\t';
+}
+
 class string {
     size_t sz;
     size_t alloc;
@@ -13,9 +17,11 @@ public:
         p = new char[alloc];
         strncpy(p, s, sz);
     }
-    inline string(const string& s): sz(s.sz), alloc(s.alloc) {
-        p = new char[alloc];
+    inline string(const string& s): sz(s.sz), alloc(sz + 1), p(new char[alloc]) {
         strncpy(p, s.p, sz);
+    }
+    inline string(char* cs, size_t size): sz(size), alloc(size + 1), p(new char[alloc]) {
+        strncpy(p, cs, sz);
     }
     inline const char* c_str() const { return p; }
     inline string& operator=(const string& s) {
@@ -100,5 +106,28 @@ public:
         s += s2;
         return s;
     }
+    inline void ltrim(void) {
+        size_t i = 0;
+        for (; i < sz; ++i) {
+            if (!isspace(p[i])) {
+                break;
+            }
+        }
+        if (i > 0) {
+            char* pi = p;
+            for (size_t j = i; j <= sz; ++j) {
+                *pi++ = p[j];
+            }
+            sz -= i;
+        }
+    }
+    inline void rtrim(void) {
+        for (int i = sz - 1; i >= 0; --i) {
+            if (!isspace(p[i])) {
+                p[i] = 0;
+                sz = i;
+                return;
+            }
+        }
+    }
 };
-

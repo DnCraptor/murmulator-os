@@ -25,6 +25,7 @@
 #include "usb.h"
 #include "nespad.h"
 #include "sound.h"
+#include <math.h>
 
 // TODO: think about it
 //extern int __cxa_pure_virtual();
@@ -339,6 +340,8 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     // API v.23
     free_app_flash, // 255
     __aeabi_d2uiz, // 256
+    // API v.24
+    powf, // 257
     // TODO:
     0
 };

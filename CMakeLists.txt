@@ -22,7 +22,7 @@ endif ()
 
 set(OS_FLASH_SIZE 128)
 
-set(MOS_VERSION "0.3.0-i2s")
+set(MOS_VERSION "0.3.1")
 
 SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
 
@@ -190,7 +190,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #DEBUG_APP_LOAD=1
         #CFG_TUSB_DEBUG=3
 
-        M_API_VERSION=23
+        M_API_VERSION=24
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
         #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV

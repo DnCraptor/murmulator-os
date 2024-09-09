@@ -1,3 +1,5 @@
+#ifndef M_API_VERSION
+
 #define __force_inline __attribute__((always_inline))
 #define inline __force_inline
 // switch used in MinSizeRel optimisation style will call __gnu_thumb1_case_uni, not defined on this stage
@@ -8,7 +10,7 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 23
+#define M_API_VERSION 24
 #endif
 
 #define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
@@ -851,6 +853,10 @@ inline static double pow (double x, double y) {
     typedef double (*fn_ptr_t)(double, double);
     return ((fn_ptr_t)_sys_table_ptrs[202])(x, y);
 }
+inline static float powf(float x, float y) {
+    typedef float (*fn)(float, float);
+    return ((fn)_sys_table_ptrs[257])(x, y);
+}
 
 inline static double sqrt (double x) {
     typedef double (*fn_ptr_t)(double);
@@ -1061,5 +1067,7 @@ inline static bool cmd_enter_helper(cmd_ctx_t* ctx, string_t* s_cmd) {
     typedef bool (*fn_ptr_t)(cmd_ctx_t* ctx, string_t* s_cmd);
     return ((fn_ptr_t)_sys_table_ptrs[235])(ctx, s_cmd);
 }
+
+#endif
 
 #endif
