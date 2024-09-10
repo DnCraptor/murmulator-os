@@ -23,18 +23,14 @@ extern "C" {
 #include "options.h"
 #include "memory.h"
 #include "fd1793.h"
-class Wav {}; // TODO:
-class WavPlayer { // TODO:
-public:
-    WavPlayer(Wav& w) {}
-};
+#include "wav.h"
 #include "8253.h"
 #include "AySound.h"
-//#include "vio.h"
+#include "vio.h"
 
 static Memory * memory;
 static Wav * wav;
-//static IO * io;
+static IO * io;
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
@@ -56,9 +52,9 @@ int main(void) {
     AySound::set_stereo(AYEMU_MONO, NULL);
     AySound::reset();
 
- //   io = new IO(*memory, *timer, *fdc, *tape_player);
+    io = new IO(*memory, *timer, *fdc, *tape_player);
 //TODO:
-  //  delete io;
+    delete io;
     delete timer;
     delete tape_player;
     delete wav;

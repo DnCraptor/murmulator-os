@@ -1,7 +1,8 @@
 #pragma once
 
 #include "8253.h"
-///#include "AySound.h"
+#include "AySound.h"
+#include "keyboard.h"
 #include "fd1793.h"
 ///#include "wav.h"
 #include "memory.h"
