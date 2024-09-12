@@ -27,6 +27,7 @@ extern "C" {
 #include "8253.h"
 #include "AySound.h"
 #include "vio.h"
+#include "filler.h"
 
 static Memory * memory;
 static Wav * wav;
@@ -53,6 +54,8 @@ int main(void) {
     AySound::reset();
 
     io = new IO(*memory, *timer, *fdc, *tape_player);
+    filler::init(memory, io, get_buffer(), NULL, timer, tape_player);
+
 //TODO:
     delete io;
     delete timer;
@@ -67,3 +70,4 @@ int main(void) {
 #include "memory.cpp"
 #include "8253.cpp"
 #include "AySound.cpp"
+#include "filler.cpp"

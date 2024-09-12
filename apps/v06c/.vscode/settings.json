@@ -9,6 +9,7 @@
         "system_error": "cpp",
         "tuple": "cpp",
         "unordered_set": "cpp",
-        "array": "cpp"
+        "array": "cpp",
+        "functional": "cpp"
     }
 }
