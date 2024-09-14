@@ -125,12 +125,12 @@ C64Class::C64Class(
     mouse_hide_time = 3000;
 
     snprintf(floppy_sound_path,MAX_STRING_LENGTH,"%s%s",data_path,"/floppy_sounds/");
-    snprintf(gfx_path,MAX_STRING_LENGTH,"%s%s",data_path,"/gfx/");
+///    snprintf(gfx_path,MAX_STRING_LENGTH,"%s%s",data_path,"/gfx/");
     snprintf(rom_path,MAX_STRING_LENGTH,"%s%s",data_path,"/roms/");
 
     LogText(">> C64 Klasse wurde gestartet...\n");
     LogText(">> GfxPath = ");
-    LogText(gfx_path);
+///    LogText(gfx_path);
     LogText("\n");
 
 ///    this->video_crt_output = video_crt_output;
@@ -465,11 +465,12 @@ C64Class::C64Class(
     /// Callbackroutinen setzen ///
     ReadProcTbl = mmu->CPUReadProcTbl;
     WriteProcTbl = mmu->CPUWriteProcTbl;
-/***
     vic->ReadProcTbl = mmu->VICReadProcTbl;
-///    vic->RefreshProc = std::bind(&C64Class::VicRefresh,this,std::placeholders::_1);
+    vic->RefreshProc = RefreshProcFn<C64Class>(&C64Class::VicRefresh, this);
     reu->ReadProcTbl = mmu->CPUReadProcTbl;
     reu->WriteProcTbl = mmu->CPUWriteProcTbl;
+    mmu->VicIOWriteProc = WriteProcFn<WriteProcProvider>(&VICII::WriteIO, vic);
+/***
     mmu->VicIOWriteProc = std::bind(&VICII::WriteIO,vic,std::placeholders::_1,std::placeholders::_2);
     mmu->VicIOReadProc = std::bind(&VICII::ReadIO,vic,std::placeholders::_1);
     mmu->SidIOWriteProc = std::bind(&C64Class::WriteSidIO,this,std::placeholders::_1,std::placeholders::_2);
@@ -849,17 +850,18 @@ void C64Class::CalcDistortionGrid()
             distortion_grid_texture_coordinates[(SUBDIVS_SCREEN-y-1)*SUBDIVS_SCREEN*4+x*4+3].y = y*div;
         }
 }
+*/
 
 void C64Class::VicRefresh(uint8_t *vic_puffer)
 {
-    if(enable_hold_vic_refresh)
+///    if(enable_hold_vic_refresh)
     {
-        vic_refresh_is_holded = true;
+///        vic_refresh_is_holded = true;
         return;
     }
 
-    if((video_crt_output == nullptr) || (sdl_thread_pause == true)) return;
-
+///    if((video_crt_output == nullptr) || (sdl_thread_pause == true)) return;
+/**
     if(SDL_LockSurface(c64_screen) != 0)
     {
         LogText("<< ERROR: SDL Surface (VicRefresh) konnte nicht gelockt werden.\n");
@@ -868,9 +870,9 @@ void C64Class::VicRefresh(uint8_t *vic_puffer)
         LogText("\n");
         return;
     }
-
-    video_crt_output->ConvertVideo(static_cast<void*>(c64_screen->pixels),c64_screen->pitch,vic_puffer,104,current_c64_screen_width,current_c64_screen_height,504,312,false);
-
+*/
+ ///   video_crt_output->ConvertVideo(static_cast<void*>(c64_screen->pixels),c64_screen->pitch,vic_puffer,104,current_c64_screen_width,current_c64_screen_height,504,312,false);
+/**
     this->vic_buffer = vic_puffer;
     vic->SwitchVideoBuffer();
     SDL_UnlockSurface(c64_screen);
@@ -930,8 +932,8 @@ void C64Class::VicRefresh(uint8_t *vic_puffer)
     if(enable_mouse_1351) UpdateMouse();
 
     c64_screen_is_obselete = true;
-}
 */
+}
 
 void C64Class::WarpModeLoop()
 {

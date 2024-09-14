@@ -63,6 +63,9 @@ typedef float  float_t;
 
 enum SCREENSHOT_FORMATS {SCREENSHOT_FORMAT_BMP, SCREENSHOT_FORMAT_PNG, SCREENSHOT_FORMATS_COUNT};
 
+class ReadProcProvider {};
+class WriteProcProvider;
+
 class C64Class
 {
 
@@ -418,7 +421,7 @@ public:
 private:
     inline void NextSystemCycle();
 ///    void CalcDistortionGrid();
-///    void VicRefresh(uint8_t *vic_puffer);
+    void VicRefresh(uint8_t *vic_puffer);
     void CheckKeys();
     uint16_t DisAss(FILE *file, uint16_t pc, bool line_draw, int source);
 ///    bool CheckBreakpoints();
@@ -438,13 +441,13 @@ private:
     void CloseVideoCaptureSystem();
 ///    void SwapRBSurface(SDL_Surface *surface); // swaps the color red with blue in sdl surface
     void DebugLogging();
-    ReadProcFn *ReadProcTbl;
-    WriteProcFn *WriteProcTbl;
+    ReadProcFn<ReadProcProvider> *ReadProcTbl;
+    WriteProcFn<WriteProcProvider> *WriteProcTbl;
 /**
     std::function<uint8_t(uint16_t)> *ReadProcTbl;
     std::function<void(uint16_t, uint8_t)> *WriteProcTbl;
 */
-    char  gfx_path[MAX_STRING_LENGTH];
+///    char  gfx_path[MAX_STRING_LENGTH];
     char  floppy_sound_path[MAX_STRING_LENGTH];
     char  rom_path[MAX_STRING_LENGTH];
 

@@ -20,16 +20,12 @@
 #include "structs.h"
 #include "mos6510_class.h"
 
-class ProcHolder {};
-
-typedef unsigned char (ProcHolder::*pReadProc)(unsigned short);
-typedef void (ProcHolder::*pWriteProc)(unsigned short,unsigned char);
-
-class ReadProcFn{
+template<typename T> class ReadProcFn {
+    typedef unsigned char (T::*pReadProc)(unsigned short);
     pReadProc fn;
-    ProcHolder* h;
+    T* h;
 public:
-    ReadProcFn(pReadProc fn, ProcHolder* h) : fn(fn), h(h) {}
+    ReadProcFn(pReadProc fn, T* h) : fn(fn), h(h) {}
     ReadProcFn(const ReadProcFn& c) : fn(c.fn), h(c.h) {}
     ReadProcFn& operator=(const ReadProcFn& c) {
         fn = c.fn;
@@ -39,11 +35,12 @@ public:
     unsigned char operator()(unsigned short a) { return (h->*fn)(a); }
 };
 
-class WriteProcFn{
+template<typename T> class WriteProcFn {
+    typedef void (T::*pWriteProc)(unsigned short,unsigned char);
     pWriteProc fn;
-    ProcHolder* h;
+    T* h;
 public:
-    WriteProcFn(pWriteProc fn, ProcHolder* h) : fn(fn), h(h) {}
+    WriteProcFn(pWriteProc fn, T* h) : fn(fn), h(h) {}
     WriteProcFn(const WriteProcFn& c) : fn(c.fn), h(c.h) {}
     WriteProcFn& operator=(const WriteProcFn& c) {
         fn = c.fn;
@@ -52,6 +49,24 @@ public:
     }
     void operator()(unsigned short a, unsigned char x) { (h->*fn)(a, x); }
 };
+
+template<typename T> class RefreshProcFn {
+    typedef void (T::*pRefreshProc)(uint8_t*);
+    pRefreshProc fn;
+    T* h;
+public:
+    RefreshProcFn(pRefreshProc fn, T* h) : fn(fn), h(h) {}
+    RefreshProcFn(const RefreshProcFn& c) : fn(c.fn), h(c.h) {}
+    RefreshProcFn& operator=(const RefreshProcFn& c) {
+        fn = c.fn;
+        h = c.h;
+        return *this;
+    }
+    void operator()(uint8_t* b) { (h->*fn)(b); }
+};
+
+class ReadProcProvider;
+class WriteProcProvider;
 
 class MMU
 {
@@ -78,8 +93,10 @@ public:
     // Zeiger für Read / Write Funktionen ///
     // Diese werden Teilweise Intern und Extern gesetzt ///
     // Ein Aufruf erfolg immer ohne Überprüfung auf gültigen Zeiger !!! //
-    ReadProcFn CPUReadProcTbl[0x100];
-    WriteProcFn CPUWriteProcTbl[0x100];
+    ReadProcFn<ReadProcProvider> CPUReadProcTbl[0x100];
+    WriteProcFn<WriteProcProvider> CPUWriteProcTbl[0x100];
+    ReadProcFn<ReadProcProvider> VICReadProcTbl[0x100];
+    WriteProcFn<WriteProcProvider> VicIOWriteProc;
 /**
     std::function<unsigned char(unsigned short)> CPUReadProcTbl[0x100];
     std::function<void(unsigned short,unsigned char)> CPUWriteProcTbl[0x100];
@@ -88,7 +105,7 @@ public:
     std::function<unsigned char(unsigned short)>* GetCPUReadProcTable;
     std::function<unsigned char(unsigned short)>* GetVICReadProcTable;
     std::function<void(unsigned short, unsigned char)>* GetCPUWriteProcTable();
-    std::function<void(unsigned short,unsigned char)> VicIOWriteProc;
+  ///  std::function<void(unsigned short,unsigned char)> VicIOWriteProc;
     std::function<void(unsigned short,unsigned char)> SidIOWriteProc;
     std::function<void(unsigned short,unsigned char)> Cia1IOWriteProc;
     std::function<void(unsigned short,unsigned char)> Cia2IOWriteProc;

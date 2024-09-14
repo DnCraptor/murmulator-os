@@ -36,7 +36,13 @@ enum
         VIC_CONFIG_NUM
 };
 
-class VICII
+class C64Class;
+class WriteProcProvider {
+public:
+    void WriteIO(uint16_t address, uint8_t value);
+};
+
+class VICII : public WriteProcProvider
 {
 public:
 /// Funktionen ///
@@ -64,8 +70,11 @@ public:
     void WriteIO(uint16_t address, uint8_t value);
     uint8_t ReadIO(uint16_t address);
     void TriggerLightpen();
+    ReadProcFn<ReadProcProvider> *ReadProcTbl;
+    RefreshProcFn<C64Class> RefreshProc;
 /**
     std::function<uint8_t(uint16_t)> *ReadProcTbl;
+    std::function<void(uint8_t*)> RefreshProc;
     std::function<void(int)> CpuTriggerInterrupt;
     std::function<void(int)> CpuClearInterrupt;
 */

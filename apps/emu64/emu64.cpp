@@ -13,3 +13,4 @@ int main(void) {
 }
 
 #include "c64_class.cpp"
+#include "mmu_class.cpp"
