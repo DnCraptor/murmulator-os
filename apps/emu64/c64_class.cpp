@@ -469,30 +469,28 @@ C64Class::C64Class(
     vic->RefreshProc = RefreshProcFn<C64Class>(&C64Class::VicRefresh, this);
     reu->ReadProcTbl = mmu->CPUReadProcTbl;
     reu->WriteProcTbl = mmu->CPUWriteProcTbl;
-    mmu->VicIOWriteProc = WriteProcFn<WriteProcProvider>(&VICII::WriteIO, vic);
-/***
-    mmu->VicIOWriteProc = std::bind(&VICII::WriteIO,vic,std::placeholders::_1,std::placeholders::_2);
-    mmu->VicIOReadProc = std::bind(&VICII::ReadIO,vic,std::placeholders::_1);
-    mmu->SidIOWriteProc = std::bind(&C64Class::WriteSidIO,this,std::placeholders::_1,std::placeholders::_2);
-    mmu->SidIOReadProc = std::bind(&C64Class::ReadSidIO,this,std::placeholders::_1);
-    mmu->Cia1IOWriteProc = std::bind(&MOS6526::WriteIO,cia1,std::placeholders::_1,std::placeholders::_2);
-    mmu->Cia1IOReadProc = std::bind(&MOS6526::ReadIO,cia1,std::placeholders::_1);
-    mmu->Cia2IOWriteProc = std::bind(&MOS6526::WriteIO,cia2,std::placeholders::_1,std::placeholders::_2);
-    mmu->Cia2IOReadProc = std::bind(&MOS6526::ReadIO,cia2,std::placeholders::_1);
+    mmu->VicIOWriteProc = WriteProcFn<VICII>(&VICII::WriteIO, vic).cast<MMU>();
+// TODO:    mmu->VicIOWriteProc = WriteProcFn<VICII>(&VICII::WriteIO, vic);
+    mmu->VicIOReadProc = ReadProcFn<VICII>(&VICII::ReadIO, vic);
+    mmu->SidIOWriteProc = WriteProcFn<C64Class>(&C64Class::WriteSidIO, this);
+    mmu->SidIOReadProc = ReadProcFn<C64Class>(&C64Class::ReadSidIO, this);
+    mmu->Cia1IOWriteProc = WriteProcFn<MOS6526>(&MOS6526::WriteIO, cia1);
+    mmu->Cia2IOWriteProc = WriteProcFn<MOS6526>(&MOS6526::WriteIO, cia2);
+    mmu->Cia1IOReadProc = ReadProcFn<MOS6526>(&MOS6526::ReadIO, cia1);
+    mmu->Cia2IOReadProc = ReadProcFn<MOS6526>(&MOS6526::ReadIO, cia2);
+    mmu->CRTRom1WriteProc = WriteProcFn<CartridgeClass>(&CartridgeClass::WriteRom1, crt);
+    mmu->CRTRom2WriteProc = WriteProcFn<CartridgeClass>(&CartridgeClass::WriteRom2, crt);
+    mmu->CRTRom3WriteProc = WriteProcFn<CartridgeClass>(&CartridgeClass::WriteRom3, crt);
+    mmu->CRTRom1ReadProc = ReadProcFn<CartridgeClass>(&CartridgeClass::ReadRom1, crt);
+    mmu->CRTRom2ReadProc = ReadProcFn<CartridgeClass>(&CartridgeClass::ReadRom2, crt);
+    mmu->CRTRom3ReadProc = ReadProcFn<CartridgeClass>(&CartridgeClass::ReadRom3, crt);
+    mmu->IO1ReadProc = ReadProcFn<C64Class>(&C64Class::ReadIO1, this);
+    mmu->IO2ReadProc = ReadProcFn<C64Class>(&C64Class::ReadIO2, this);
+    mmu->IO1WriteProc = WriteProcFn<C64Class>(&C64Class::WriteIO1, this);
+    mmu->IO2WriteProc = WriteProcFn<C64Class>(&C64Class::WriteIO2, this);
 
-    mmu->CRTRom1WriteProc = std::bind(&CartridgeClass::WriteRom1,crt,std::placeholders::_1,std::placeholders::_2);
-    mmu->CRTRom2WriteProc = std::bind(&CartridgeClass::WriteRom2,crt,std::placeholders::_1,std::placeholders::_2);
-    mmu->CRTRom3WriteProc = std::bind(&CartridgeClass::WriteRom3,crt,std::placeholders::_1,std::placeholders::_2);
-    mmu->CRTRom1ReadProc = std::bind(&CartridgeClass::ReadRom1,crt,std::placeholders::_1);
-    mmu->CRTRom2ReadProc = std::bind(&CartridgeClass::ReadRom2,crt,std::placeholders::_1);
-    mmu->CRTRom3ReadProc = std::bind(&CartridgeClass::ReadRom3,crt,std::placeholders::_1);
-    mmu->IO1ReadProc = std::bind(&C64Class::ReadIO1,this,std::placeholders::_1);
-    mmu->IO1WriteProc = std::bind(&C64Class::WriteIO1,this,std::placeholders::_1,std::placeholders::_2);
-    mmu->IO2ReadProc = std::bind(&C64Class::ReadIO2,this,std::placeholders::_1);
-    mmu->IO2WriteProc = std::bind(&C64Class::WriteIO2,this,std::placeholders::_1,std::placeholders::_2);
+    crt->ChangeMemMapProc = VVProcFn<MMU>(&MMU::ChangeMemMap, mmu);
 
-    crt->ChangeMemMapProc = std::bind(&MMU::ChangeMemMap,mmu);
-*/
     /// Module mit Virtuellen Leitungen verbinden
     mmu->GAME = &game_wire;
     mmu->EXROM = &exrom_wire;

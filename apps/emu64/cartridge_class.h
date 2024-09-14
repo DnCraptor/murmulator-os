@@ -21,6 +21,8 @@
 #include "am29f040_class.h"
 #include "mk7pla.h"
 
+class MMU;
+
 class CartridgeClass
 {
 public:
@@ -50,8 +52,9 @@ public:
     uint8_t ReadRom1(uint16_t address);
     uint8_t ReadRom2(uint16_t address);
     uint8_t ReadRom3(uint16_t address);
+
+    VVProcFn<MMU> ChangeMemMapProc;
 /**
-    std::function<void(void)> ChangeMemMapProc;
     std::function<void(int)> CpuTriggerInterrupt;
     std::function<void(int)> CpuClearInterrupt;
     std::function<void(int,bool)> ChangeLED;

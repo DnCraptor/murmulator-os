@@ -37,12 +37,8 @@ enum
 };
 
 class C64Class;
-class WriteProcProvider {
-public:
-    void WriteIO(uint16_t address, uint8_t value);
-};
 
-class VICII : public WriteProcProvider
+class VICII
 {
 public:
 /// Funktionen ///
@@ -70,7 +66,7 @@ public:
     void WriteIO(uint16_t address, uint8_t value);
     uint8_t ReadIO(uint16_t address);
     void TriggerLightpen();
-    ReadProcFn<ReadProcProvider> *ReadProcTbl;
+    ReadProcFn<C64Class> *ReadProcTbl;
     RefreshProcFn<C64Class> RefreshProc;
 /**
     std::function<uint8_t(uint16_t)> *ReadProcTbl;

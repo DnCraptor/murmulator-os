@@ -21,11 +21,13 @@
 #include "mos6510_class.h"
 
 template<typename T> class ReadProcFn {
-    typedef unsigned char (T::*pReadProc)(unsigned short);
-    pReadProc fn;
+public:
+    typedef unsigned char (T::*fnProc)(unsigned short);
+private:
+    fnProc fn;
     T* h;
 public:
-    ReadProcFn(pReadProc fn, T* h) : fn(fn), h(h) {}
+    ReadProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
     ReadProcFn(const ReadProcFn& c) : fn(c.fn), h(c.h) {}
     ReadProcFn& operator=(const ReadProcFn& c) {
         fn = c.fn;
@@ -36,11 +38,13 @@ public:
 };
 
 template<typename T> class WriteProcFn {
-    typedef void (T::*pWriteProc)(unsigned short,unsigned char);
-    pWriteProc fn;
+public:
+    typedef void (T::*fnProc)(unsigned short,unsigned char);
+private:
+    fnProc fn;
     T* h;
 public:
-    WriteProcFn(pWriteProc fn, T* h) : fn(fn), h(h) {}
+    WriteProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
     WriteProcFn(const WriteProcFn& c) : fn(c.fn), h(c.h) {}
     WriteProcFn& operator=(const WriteProcFn& c) {
         fn = c.fn;
@@ -48,14 +52,21 @@ public:
         return *this;
     }
     void operator()(unsigned short a, unsigned char x) { (h->*fn)(a, x); }
+    template<typename T2> WriteProcFn<T2> cast() const {
+        WriteProcFn tmp = WriteProcFn(fn, h);
+        WriteProcFn<T2>* tmp2 = (WriteProcFn<T2>*)&tmp;
+        return *tmp2;
+    }
 };
 
 template<typename T> class RefreshProcFn {
-    typedef void (T::*pRefreshProc)(uint8_t*);
-    pRefreshProc fn;
+public:
+    typedef void (T::*fnProc)(uint8_t*);
+private:
+    fnProc fn;
     T* h;
 public:
-    RefreshProcFn(pRefreshProc fn, T* h) : fn(fn), h(h) {}
+    RefreshProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
     RefreshProcFn(const RefreshProcFn& c) : fn(c.fn), h(c.h) {}
     RefreshProcFn& operator=(const RefreshProcFn& c) {
         fn = c.fn;
@@ -65,8 +76,27 @@ public:
     void operator()(uint8_t* b) { (h->*fn)(b); }
 };
 
-class ReadProcProvider;
-class WriteProcProvider;
+template<typename T> class VVProcFn {
+public:
+    typedef void (T::*fnProc)(void);
+private:
+    fnProc fn;
+    T* h;
+public:
+    VVProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
+    VVProcFn(const VVProcFn& c) : fn(c.fn), h(c.h) {}
+    VVProcFn& operator=(const VVProcFn& c) {
+        fn = c.fn;
+        h = c.h;
+        return *this;
+    }
+    void operator()(void) { (h->*fn)(); }
+};
+
+class VICII;
+class C64Class;
+class MOS6526;
+class CartridgeClass;
 
 class MMU
 {
@@ -93,36 +123,31 @@ public:
     // Zeiger für Read / Write Funktionen ///
     // Diese werden Teilweise Intern und Extern gesetzt ///
     // Ein Aufruf erfolg immer ohne Überprüfung auf gültigen Zeiger !!! //
-    ReadProcFn<ReadProcProvider> CPUReadProcTbl[0x100];
-    WriteProcFn<WriteProcProvider> CPUWriteProcTbl[0x100];
-    ReadProcFn<ReadProcProvider> VICReadProcTbl[0x100];
-    WriteProcFn<WriteProcProvider> VicIOWriteProc;
+    ReadProcFn<C64Class> CPUReadProcTbl[0x100];
+    WriteProcFn<C64Class> CPUWriteProcTbl[0x100];
+    ReadProcFn<C64Class> VICReadProcTbl[0x100];
+    WriteProcFn<MMU> VicIOWriteProc;
+    ReadProcFn<VICII> VicIOReadProc;
+    WriteProcFn<C64Class> SidIOWriteProc;
+    ReadProcFn<C64Class> SidIOReadProc;
+    WriteProcFn<MOS6526> Cia1IOWriteProc;
+    WriteProcFn<MOS6526> Cia2IOWriteProc;
+    ReadProcFn<MOS6526> Cia1IOReadProc;
+    ReadProcFn<MOS6526> Cia2IOReadProc;
+    WriteProcFn<CartridgeClass> CRTRom1WriteProc;
+    WriteProcFn<CartridgeClass> CRTRom2WriteProc;
+    WriteProcFn<CartridgeClass> CRTRom3WriteProc;
+    ReadProcFn<CartridgeClass> CRTRom1ReadProc;
+    ReadProcFn<CartridgeClass> CRTRom2ReadProc;
+    ReadProcFn<CartridgeClass> CRTRom3ReadProc;
+    ReadProcFn<C64Class> IO1ReadProc;
+    ReadProcFn<C64Class> IO2ReadProc;
+    WriteProcFn<C64Class> IO1WriteProc;
+    WriteProcFn<C64Class> IO2WriteProc;
 /**
-    std::function<unsigned char(unsigned short)> CPUReadProcTbl[0x100];
-    std::function<void(unsigned short,unsigned char)> CPUWriteProcTbl[0x100];
-    std::function<unsigned char(unsigned short)> VICReadProcTbl[0x100];
-
     std::function<unsigned char(unsigned short)>* GetCPUReadProcTable;
     std::function<unsigned char(unsigned short)>* GetVICReadProcTable;
     std::function<void(unsigned short, unsigned char)>* GetCPUWriteProcTable();
-  ///  std::function<void(unsigned short,unsigned char)> VicIOWriteProc;
-    std::function<void(unsigned short,unsigned char)> SidIOWriteProc;
-    std::function<void(unsigned short,unsigned char)> Cia1IOWriteProc;
-    std::function<void(unsigned short,unsigned char)> Cia2IOWriteProc;
-    std::function<void(unsigned short,unsigned char)> IO1WriteProc;
-    std::function<void(unsigned short,unsigned char)> IO2WriteProc;
-    std::function<void(unsigned short,unsigned char)> CRTRom1WriteProc;
-    std::function<void(unsigned short,unsigned char)> CRTRom2WriteProc;
-    std::function<void(unsigned short,unsigned char)> CRTRom3WriteProc;
-    std::function<unsigned char(unsigned short)> CRTRom1ReadProc;
-    std::function<unsigned char(unsigned short)> CRTRom2ReadProc;
-    std::function<unsigned char(unsigned short)> CRTRom3ReadProc;
-    std::function<unsigned char(unsigned short)> VicIOReadProc;
-    std::function<unsigned char(unsigned short)> SidIOReadProc;
-    std::function<unsigned char(unsigned short)> Cia1IOReadProc;
-    std::function<unsigned char(unsigned short)> Cia2IOReadProc;
-    std::function<unsigned char(unsigned short)> IO1ReadProc;
-    std::function<unsigned char(unsigned short)> IO2ReadProc;
 */
     bool *GAME;
     bool *EXROM;

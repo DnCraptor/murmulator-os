@@ -13,26 +13,29 @@
 //////////////////////////////////////////////////
 
 #include "mmu_class.h"
+#include "m-os-api-timer.h"
 ///#include <fstream>
+
+class VICII;
 
 MMU::MMU(void)
 {
-    for(int i=0;i<0x10000;i++) RAM[i]=0;
+    for(int i = 0; i < 0x10000; ++i) RAM[i] = 0;
 
-    VicIOWriteProc = std::bind(&MMU::WriteRam,this,std::placeholders::_1,std::placeholders::_2);
-    SidIOWriteProc = std::bind(&MMU::WriteRam,this,std::placeholders::_1,std::placeholders::_2);
+    VicIOWriteProc = WriteProcFn<MMU>(&MMU::WriteRam, this);
+/**    SidIOWriteProc = std::bind(&MMU::WriteRam,this,std::placeholders::_1,std::placeholders::_2);
     Cia1IOWriteProc = std::bind(&MMU::WriteRam,this,std::placeholders::_1,std::placeholders::_2);
     Cia2IOWriteProc = std::bind(&MMU::WriteRam,this,std::placeholders::_1,std::placeholders::_2);
     VicIOReadProc = std::bind(&MMU::ReadRam,this,std::placeholders::_1);
     SidIOReadProc = std::bind(&MMU::ReadRam,this,std::placeholders::_1);
     Cia1IOReadProc = std::bind(&MMU::ReadRam,this,std::placeholders::_1);
     Cia2IOReadProc = std::bind(&MMU::ReadRam,this,std::placeholders::_1);
-
+*/
     MEMORY_MAP = MEMORY_MAP_OLD = 0;
 
     InitProcTables();
 
-	srand (time(NULL));
+    srand (time(NULL));
 }
 
 MMU::~MMU(void)

@@ -42,8 +42,8 @@ class REUClass
 
     bool SaveFreez(FILE *File);
     bool LoadFreez(FILE *File,unsigned short Version);
-    ReadProcFn<ReadProcProvider> *ReadProcTbl;
-    WriteProcFn<WriteProcProvider> *WriteProcTbl;
+    ReadProcFn<C64Class> *ReadProcTbl;
+    WriteProcFn<C64Class> *WriteProcTbl;
 /**
     std::function<unsigned char(unsigned short)> *ReadProcTbl;
     std::function<void(unsigned short,unsigned char)> *WriteProcTbl;
