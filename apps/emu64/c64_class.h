@@ -438,8 +438,8 @@ private:
     void CloseVideoCaptureSystem();
 ///    void SwapRBSurface(SDL_Surface *surface); // swaps the color red with blue in sdl surface
     void DebugLogging();
-    ReadProcFn<C64Class> *ReadProcTbl;
-    WriteProcFn<C64Class> *WriteProcTbl;
+    ReadProcFn<MMU> *ReadProcTbl;
+    WriteProcFn<MMU> *WriteProcTbl;
 /**
     std::function<uint8_t(uint16_t)> *ReadProcTbl;
     std::function<void(uint16_t, uint8_t)> *WriteProcTbl;

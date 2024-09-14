@@ -17,6 +17,7 @@
 #define AM29F040_CLASS_H
 
 #include <stdint.h>
+#include "m-os-api-cpp-psram.h"
 
 struct FLASH_TYPES_STRUCT
 {
@@ -54,7 +55,7 @@ class AM29F040Class
     };
 
 public:
-    AM29F040Class(uint8_t* flashbank,int flashtype);
+    AM29F040Class(psram* flashbank, int flashtype);
     ~AM29F040Class();
 
     uint8_t Read(uint32_t address);
@@ -67,7 +68,7 @@ private:
         int	flash_type;
         int	status;
 
-        uint8_t* data;
+        psram* data;
         uint8_t last_read;
 
         int WriteOperationStatus();

@@ -27,6 +27,7 @@ private:
     fnProc fn;
     T* h;
 public:
+    ReadProcFn(void) : fn(NULL), h(NULL) {}
     ReadProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
     ReadProcFn(const ReadProcFn& c) : fn(c.fn), h(c.h) {}
     ReadProcFn& operator=(const ReadProcFn& c) {
@@ -35,6 +36,10 @@ public:
         return *this;
     }
     unsigned char operator()(unsigned short a) { return (h->*fn)(a); }
+    template<typename T2> ReadProcFn operator=(const ReadProcFn<T2>& c) {
+        *this = *(ReadProcFn<T>*)&c;
+        return *this;
+    }
 };
 
 template<typename T> class WriteProcFn {
@@ -44,6 +49,7 @@ private:
     fnProc fn;
     T* h;
 public:
+    WriteProcFn(void) : fn(NULL), h(NULL) {}
     WriteProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
     WriteProcFn(const WriteProcFn& c) : fn(c.fn), h(c.h) {}
     WriteProcFn& operator=(const WriteProcFn& c) {
@@ -52,10 +58,9 @@ public:
         return *this;
     }
     void operator()(unsigned short a, unsigned char x) { (h->*fn)(a, x); }
-    template<typename T2> WriteProcFn<T2> cast() const {
-        WriteProcFn tmp = WriteProcFn(fn, h);
-        WriteProcFn<T2>* tmp2 = (WriteProcFn<T2>*)&tmp;
-        return *tmp2;
+    template<typename T2> WriteProcFn operator=(const WriteProcFn<T2>& c) {
+        *this = *(WriteProcFn<T>*)&c;
+        return *this;
     }
 };
 
@@ -66,6 +71,7 @@ private:
     fnProc fn;
     T* h;
 public:
+    RefreshProcFn(void) : fn(NULL), h(NULL) {}
     RefreshProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
     RefreshProcFn(const RefreshProcFn& c) : fn(c.fn), h(c.h) {}
     RefreshProcFn& operator=(const RefreshProcFn& c) {
@@ -83,6 +89,7 @@ private:
     fnProc fn;
     T* h;
 public:
+    VVProcFn(void) : fn(NULL), h(NULL) {}
     VVProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
     VVProcFn(const VVProcFn& c) : fn(c.fn), h(c.h) {}
     VVProcFn& operator=(const VVProcFn& c) {
@@ -123,27 +130,27 @@ public:
     // Zeiger für Read / Write Funktionen ///
     // Diese werden Teilweise Intern und Extern gesetzt ///
     // Ein Aufruf erfolg immer ohne Überprüfung auf gültigen Zeiger !!! //
-    ReadProcFn<C64Class> CPUReadProcTbl[0x100];
-    WriteProcFn<C64Class> CPUWriteProcTbl[0x100];
-    ReadProcFn<C64Class> VICReadProcTbl[0x100];
+    ReadProcFn<MMU> CPUReadProcTbl[0x100];
+    WriteProcFn<MMU> CPUWriteProcTbl[0x100];
+    ReadProcFn<MMU> VICReadProcTbl[0x100];
     WriteProcFn<MMU> VicIOWriteProc;
-    ReadProcFn<VICII> VicIOReadProc;
-    WriteProcFn<C64Class> SidIOWriteProc;
-    ReadProcFn<C64Class> SidIOReadProc;
-    WriteProcFn<MOS6526> Cia1IOWriteProc;
-    WriteProcFn<MOS6526> Cia2IOWriteProc;
-    ReadProcFn<MOS6526> Cia1IOReadProc;
-    ReadProcFn<MOS6526> Cia2IOReadProc;
+    ReadProcFn<MMU> VicIOReadProc;
+    WriteProcFn<MMU> SidIOWriteProc;
+    ReadProcFn<MMU> SidIOReadProc;
+    WriteProcFn<MMU> Cia1IOWriteProc;
+    WriteProcFn<MMU> Cia2IOWriteProc;
+    ReadProcFn<MMU> Cia1IOReadProc;
+    ReadProcFn<MMU> Cia2IOReadProc;
     WriteProcFn<CartridgeClass> CRTRom1WriteProc;
     WriteProcFn<CartridgeClass> CRTRom2WriteProc;
     WriteProcFn<CartridgeClass> CRTRom3WriteProc;
     ReadProcFn<CartridgeClass> CRTRom1ReadProc;
     ReadProcFn<CartridgeClass> CRTRom2ReadProc;
     ReadProcFn<CartridgeClass> CRTRom3ReadProc;
-    ReadProcFn<C64Class> IO1ReadProc;
-    ReadProcFn<C64Class> IO2ReadProc;
-    WriteProcFn<C64Class> IO1WriteProc;
-    WriteProcFn<C64Class> IO2WriteProc;
+    ReadProcFn<MMU> IO1ReadProc;
+    ReadProcFn<MMU> IO2ReadProc;
+    WriteProcFn<MMU> IO1WriteProc;
+    WriteProcFn<MMU> IO2WriteProc;
 /**
     std::function<unsigned char(unsigned short)>* GetCPUReadProcTable;
     std::function<unsigned char(unsigned short)>* GetVICReadProcTable;
@@ -190,10 +197,10 @@ private:
 
     /// Variablen ///
     unsigned char RAM[0x10000];			// 64KB
-    unsigned char BASIC_ROM[0x2000];		// 8KB ab 0xA000
+    unsigned char BASIC_ROM[0x2000];	// 8KB ab 0xA000
     unsigned char CHAR_ROM[0x1000];		// 4KB ab 0xD000
     unsigned char FARB_RAM[0x0400];		// 1KB ab 0xD800
-    unsigned char KERNAL_ROM[0x2000];		// 8KB ab 0xE000
+    unsigned char KERNAL_ROM[0x2000];	// 8KB ab 0xE000
 
     /// AktMemoryMap Visuall ///
     unsigned char MapReadSource[0x100];

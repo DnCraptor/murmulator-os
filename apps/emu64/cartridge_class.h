@@ -20,6 +20,7 @@
 #include "structs.h"
 #include "am29f040_class.h"
 #include "mk7pla.h"
+#include "m-os-api-cpp-psram.h"
 
 class MMU;
 
@@ -66,11 +67,11 @@ public:
     uint8_t     *lo_rom;                      // 0x8000
     uint8_t     *hi_rom;                      // 0xA000 oder 0xE000
 
-    uint8_t     rom_bank1[64*0x2000];         // Alle ChipRoms für 0x8000	(max 64 x 0x2000)
-    uint8_t     rom_bank2[64*0x2000];         // Alle ChipRoms für 0xA000 oder 0xE000 (max 64 x 0x2000)
+    psram     rom_bank1; ///[64*0x2000];         // Alle ChipRoms für 0x8000	(max 64 x 0x2000)
+    psram     rom_bank2; ///[64*0x2000];         // Alle ChipRoms für 0xA000 oder 0xE000 (max 64 x 0x2000)
 
-    uint8_t     rom_bank1_tmp[64*0x2000];     // Alle ChipRoms für 0x8000	(max 64 x 0x2000)
-    uint8_t     rom_bank2_tmp[64*0x2000];     // Alle ChipRoms für 0xA000 oder 0xE000 (max 64 x 0x2000)
+    psram     rom_bank1_tmp; ///[64*0x2000];     // Alle ChipRoms für 0x8000	(max 64 x 0x2000)
+    psram     rom_bank2_tmp; ///[64*0x2000];     // Alle ChipRoms für 0xA000 oder 0xE000 (max 64 x 0x2000)
 
     uint8_t     *c64_ram;                     // Kompletter C64 RAM
 
@@ -79,7 +80,7 @@ public:
     bool        led_01;                 // LED EF
     bool        led_01_old;
 
-    private:
+private:
     // Funktionen
     void ResetAllLEDS(void);
     void SetMemLogicAR(uint16_t address);

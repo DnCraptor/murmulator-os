@@ -469,8 +469,7 @@ C64Class::C64Class(
     vic->RefreshProc = RefreshProcFn<C64Class>(&C64Class::VicRefresh, this);
     reu->ReadProcTbl = mmu->CPUReadProcTbl;
     reu->WriteProcTbl = mmu->CPUWriteProcTbl;
-    mmu->VicIOWriteProc = WriteProcFn<VICII>(&VICII::WriteIO, vic).cast<MMU>();
-// TODO:    mmu->VicIOWriteProc = WriteProcFn<VICII>(&VICII::WriteIO, vic);
+    mmu->VicIOWriteProc = WriteProcFn<VICII>(&VICII::WriteIO, vic);
     mmu->VicIOReadProc = ReadProcFn<VICII>(&VICII::ReadIO, vic);
     mmu->SidIOWriteProc = WriteProcFn<C64Class>(&C64Class::WriteSidIO, this);
     mmu->SidIOReadProc = ReadProcFn<C64Class>(&C64Class::ReadSidIO, this);

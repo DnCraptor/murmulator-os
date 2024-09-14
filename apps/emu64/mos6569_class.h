@@ -66,7 +66,7 @@ public:
     void WriteIO(uint16_t address, uint8_t value);
     uint8_t ReadIO(uint16_t address);
     void TriggerLightpen();
-    ReadProcFn<C64Class> *ReadProcTbl;
+    ReadProcFn<MMU> *ReadProcTbl;
     RefreshProcFn<C64Class> RefreshProc;
 /**
     std::function<uint8_t(uint16_t)> *ReadProcTbl;
