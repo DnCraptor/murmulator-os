@@ -111,10 +111,10 @@ class MOS6581_8085
     unsigned char   PotY;
 
     /// Zeiger auf Sonder Wellen (Mischformen) ///
-    unsigned int	*Wave0;
-    unsigned int	*Wave1;
-    unsigned int	*Wave2;
-    unsigned int	*Wave3;
+    const unsigned int	*Wave0;
+    const unsigned int	*Wave1;
+    const unsigned int	*Wave2;
+    const unsigned int	*Wave3;
 
     unsigned int	VoiceDC;
     unsigned int	WaveZero;
@@ -138,7 +138,7 @@ class MOS6581_8085
     int                 f0_6581[2048];
     int                 f0_8580[2048];
     int*		f0;
-    fc_point*           f0_points;
+    const fc_point*           f0_points;
     int			f0_count;
 	
     /* Funktionen */

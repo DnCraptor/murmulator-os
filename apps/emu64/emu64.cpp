@@ -1,5 +1,6 @@
 #include "m-os-api.h"
 #include "m-os-api-cpp-psram.h"
+#include "m-os-api-math.h"
 
 #include "c64_class.h"
 #define VERSION_STRING "1"
@@ -19,3 +20,4 @@ int main(void) {
 #include "cartridge_class.cpp"
 #include "mos6510_class.cpp"
 #include "mos6569_class.cpp"
+#include "mos6581_8085_class.cpp"
