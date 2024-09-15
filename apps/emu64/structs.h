@@ -266,7 +266,7 @@ struct CHIP_INFO_STRUCT
     unsigned short BankLocation;	// $0000 Normal Cartridge
     unsigned short LoadAdress;
     unsigned short ChipSize;
-    uint8_t* BufferPointer;
+    uint8_i BufferPointer;
 };
 
 struct CARTRIDGE_INFO_STRUCT

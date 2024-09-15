@@ -20,7 +20,6 @@
 #include "structs.h"
 #include "am29f040_class.h"
 #include "mk7pla.h"
-#include "m-os-api-cpp-psram.h"
 
 class MMU;
 
@@ -55,17 +54,15 @@ public:
     uint8_t ReadRom3(uint16_t address);
 
     VVProcFn<MMU> ChangeMemMapProc;
-/**
-    std::function<void(int)> CpuTriggerInterrupt;
-    std::function<void(int)> CpuClearInterrupt;
-    std::function<void(int,bool)> ChangeLED;
-*/
+    VIProcFn<MMU> CpuTriggerInterrupt;
+    VIProcFn<MMU> CpuClearInterrupt;
+///    std::function<void(int,bool)> ChangeLED;
     // Variablen
     bool        *exrom;
     bool        *game;
 
-    uint8_t     *lo_rom;                      // 0x8000
-    uint8_t     *hi_rom;                      // 0xA000 oder 0xE000
+    uint8_i     lo_rom;                      // 0x8000
+    uint8_i     hi_rom;                      // 0xA000 oder 0xE000
 
     psram     rom_bank1; ///[64*0x2000];         // Alle ChipRoms für 0x8000	(max 64 x 0x2000)
     psram     rom_bank2; ///[64*0x2000];         // Alle ChipRoms für 0xA000 oder 0xE000 (max 64 x 0x2000)

@@ -465,10 +465,13 @@ C64Class::C64Class(
     /// Callbackroutinen setzen ///
     ReadProcTbl = mmu->CPUReadProcTbl;
     WriteProcTbl = mmu->CPUWriteProcTbl;
+    cpu->ReadProcTbl = mmu->CPUReadProcTbl;
+    cpu->WriteProcTbl = mmu->CPUWriteProcTbl;
     vic->ReadProcTbl = mmu->VICReadProcTbl;
     vic->RefreshProc = RefreshProcFn<C64Class>(&C64Class::VicRefresh, this);
     reu->ReadProcTbl = mmu->CPUReadProcTbl;
     reu->WriteProcTbl = mmu->CPUWriteProcTbl;
+
     mmu->VicIOWriteProc = WriteProcFn<VICII>(&VICII::WriteIO, vic);
     mmu->VicIOReadProc = ReadProcFn<VICII>(&VICII::ReadIO, vic);
     mmu->SidIOWriteProc = WriteProcFn<C64Class>(&C64Class::WriteSidIO, this);

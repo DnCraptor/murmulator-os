@@ -17,9 +17,11 @@
 #define MOS_6510_CLASS_H
 
 #include "structs.h"
-///#include <functional>
+#include "functors.h"
 
 #define DEBUG_CART_ADRESS 0xD7FF
+
+class MMU;
 
 class MOS6510
 {
@@ -42,10 +44,8 @@ public:
 
     void TriggerInterrupt(int typ);
     void ClearInterrupt(int typ);
-/**
-    std::function<unsigned char(unsigned short)> *ReadProcTbl;
-    std::function<void(unsigned short,unsigned char)> *WriteProcTbl;
-*/
+    ReadProcFn<MMU> *ReadProcTbl;
+    WriteProcFn<MMU> *WriteProcTbl;
     /// Variablen ///
 
     // Signale von Außen

@@ -1,4 +1,6 @@
 #include "m-os-api.h"
+#include "m-os-api-cpp-psram.h"
+
 #include "c64_class.h"
 #define VERSION_STRING "1"
 #define LogText(x)
@@ -15,3 +17,4 @@ int main(void) {
 #include "c64_class.cpp"
 #include "mmu_class.cpp"
 #include "cartridge_class.cpp"
+#include "mos6510_class.cpp"

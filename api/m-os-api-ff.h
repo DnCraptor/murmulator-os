@@ -272,6 +272,32 @@ inline static bool f_read_str(FIL* f, char* buf, size_t lim) {
     return ((fn_ptr_t)_sys_table_ptrs[238])(f, buf, lim);
 }
 
+static size_t fwrite(const void* buf, size_t sz1, size_t sz2, FIL* file) {
+    size_t res;
+    f_write(file, buf, sz1 * sz2, &res);
+    return res;
+}
+static size_t fread(void* buf, size_t sz1, size_t sz2, FIL* file) {
+    size_t res;
+    f_read(file, buf, sz1 * sz2, &res);
+    return res;
+}
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+static int fseek (FIL *stream, long offset, int origin) {
+    if ( origin == SEEK_SET ) {
+        return FR_OK != f_lseek(stream, offset);
+    }
+    if ( origin == SEEK_CUR ) {
+        return FR_OK != f_lseek(stream, f_tell(stream) + offset);
+    }
+    if ( origin == SEEK_END ) {
+        return FR_OK != f_lseek(stream, f_size(stream) + offset);
+    }
+    return 1;
+}
 
+#define fclose(f) f_close(f)
 #define feof(f) f_eof(f)
 #define remove(f) f_unlink(f)
