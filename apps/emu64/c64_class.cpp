@@ -511,19 +511,15 @@ C64Class::C64Class(
     cpu->ResetReadyAdr = 0xE5CD;
     cpu->EnableExtInterrupts = enable_ext_wires;
     cia1->reset_wire = &reset_wire;
-    /***
-    cia1->CpuTriggerInterrupt = std::bind(&MOS6510::TriggerInterrupt,cpu,std::placeholders::_1);
-    cia1->CpuClearInterrupt = std::bind(&MOS6510::ClearInterrupt,cpu,std::placeholders::_1);
-    cia1->VicTriggerLP = std::bind(&VICII::TriggerLightpen,vic);
-    cia1->ChangePOTSwitch = std::bind(&C64Class::ChangePOTSwitch,this);
-    */
+    cia1->CpuTriggerInterrupt = VIProcFn<MOS6510>(&MOS6510::TriggerInterrupt, cpu);
+    cia1->CpuClearInterrupt = VIProcFn<MOS6510>(&MOS6510::ClearInterrupt, cpu);
+    cia1->VicTriggerLP = VVProcFn<VICII>(&VICII::TriggerLightpen, vic);
+    cia1->ChangePOTSwitch = VVProcFn<C64Class>(&C64Class::ChangePOTSwitch, this);
     cia1->pa = &cia1_port_a;
     cia1->pb = &cia1_port_b;
     cia2->reset_wire = &reset_wire;
-    /**
-    cia2->CpuTriggerInterrupt = std::bind(&MOS6510::TriggerInterrupt,cpu,std::placeholders::_1);
-    cia2->CpuClearInterrupt = std::bind(&MOS6510::ClearInterrupt,cpu,std::placeholders::_1);
-    */
+    cia2->CpuTriggerInterrupt = VIProcFn<MOS6510>(&MOS6510::TriggerInterrupt, cpu);
+    cia2->CpuClearInterrupt = VIProcFn<MOS6510>(&MOS6510::ClearInterrupt, cpu);
     cia2->pa = &cia2_port_a;
     cia2->pb = &cia2_port_b;
     vic->ba = &rdy_ba_wire;

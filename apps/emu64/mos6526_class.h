@@ -58,13 +58,11 @@ public:
 
     bool *reset_wire;
     bool reset_wire_old;
-    /**
-    std::function<void(int)> CpuTriggerInterrupt;
-    std::function<void(int)> CpuClearInterrupt;
-    std::function<void(void)> VicTriggerLP;
+    VIProcFn<MOS6510> CpuTriggerInterrupt;
+    VIProcFn<MOS6510> CpuClearInterrupt;
+    VVProcFn<VICII> VicTriggerLP;
+    VVProcFn<C64Class> ChangePOTSwitch;
 
-    std::function<void(void)> ChangePOTSwitch;
-*/
     PORT        *pa;
     PORT        *pb;
     uint8_t     pa_latch;

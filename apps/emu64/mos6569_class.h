@@ -36,6 +36,7 @@ enum
         VIC_CONFIG_NUM
 };
 
+class MMU;
 class C64Class;
 class MOS6510;
 
