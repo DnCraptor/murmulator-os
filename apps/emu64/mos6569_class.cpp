@@ -17,7 +17,7 @@
 
 //PAL
 
-#define Read(adresse) ReadProcTbl[(adresse)>>8](adresse)
+#define ReadCPU(adresse) ReadProcTbl[(adresse)>>8](adresse)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -323,7 +323,7 @@ inline void VICII::cAccess()
         if(current_cycle >= 15 && current_cycle <= 54 && display_status == true && badline_status == true)
         {
             c_address = static_cast<uint16_t>((*cia2_port_a<<14)|matrix_base|(vc & 0x3FF));
-            c_data_buffer_8bit[vmli] = Read(c_address);
+            c_data_buffer_8bit[vmli] = ReadCPU(c_address);
             c_data_buffer_4bit[vmli] = color_ram[(vc & 0x3FF)] & 0x0F;
         }
 	}
@@ -338,9 +338,9 @@ inline void VICII::gAccess()
         if (reg_ctrl_1 & 0x40) g_address &= 0xf9ff;
 
         if(graphic_mode==4)
-            gfx_data = Read(g_address & 0xF9FF);
+            gfx_data = ReadCPU(g_address & 0xF9FF);
         else
-            gfx_data = Read(g_address);
+            gfx_data = ReadCPU(g_address);
 
         char_data = c_data_buffer_8bit[vmli];
         color_data = c_data_buffer_4bit[vmli];
@@ -352,7 +352,7 @@ inline void VICII::gAccess()
 	{
         g_address = reg_ctrl_1 & 0x40 ? 0x39FF : 0x3FFF;
         g_address |=(*cia2_port_a<<14);
-        gfx_data = Read(g_address);
+        gfx_data = ReadCPU(g_address);
         char_data = 0;
         color_data = 0;
 	}
@@ -363,7 +363,7 @@ inline void VICII::gAccess()
 inline void VICII::pAccess(uint8_t sp_nr)
 {
     p_address = static_cast<uint16_t>((*cia2_port_a<<14)|(matrix_base)|0x3F8|sp_nr);
-    p_data[sp_nr] = Read(p_address);
+    p_data[sp_nr] = ReadCPU(p_address);
 
     last_read_gp_access = p_data[sp_nr];
 }
@@ -372,9 +372,9 @@ inline void VICII::sAccess(uint8_t sp_nr)
 {
 	//// Es werden gleich alle 3 Bytes geladen ////
     s_address = static_cast<uint16_t>((*cia2_port_a<<14)|(p_data[sp_nr]<<6)|(mc[sp_nr] & 0x3F));
-    sprite_sequenzer[sp_nr] = static_cast<uint32_t>((Read(s_address)) << 16); s_address++;
-    sprite_sequenzer[sp_nr] |= static_cast<uint32_t>(((Read(s_address)) << 8)); s_address++;
-    sprite_sequenzer[sp_nr] |= Read(s_address);
+    sprite_sequenzer[sp_nr] = static_cast<uint32_t>((ReadCPU(s_address)) << 16); s_address++;
+    sprite_sequenzer[sp_nr] |= static_cast<uint32_t>(((ReadCPU(s_address)) << 8)); s_address++;
+    sprite_sequenzer[sp_nr] |= ReadCPU(s_address);
 }
 
 inline void VICII::CheckBorder()

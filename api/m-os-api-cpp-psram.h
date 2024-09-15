@@ -13,11 +13,12 @@ public:
     inline void write(size_t a, uint32_t v) const { write32psram(base + a, v); }
     inline void writeNshift(uint32_t v) { write32psram(base, v); base += 4; }
     template<typename IA> inline uint8_i operator+(IA off) { return uint8_i(base + off); }
-    inline uint8_t operator[](size_t a) { return read8psram(base + a); }
+    inline uint8_i operator[](size_t a) { return uint8_i(base + a); }
     inline uint8_t get() { return read8psram(base); }
     inline uint32_t get32(size_t a) const { return read32psram(base + a); }
     inline uint8_i& operator&() { return *this; } // no use-cases to get address of (pointer to) this object
     inline operator uint8_t() { return get(); }
+    inline void operator=(uint8_t v) { write32psram(base, v); }
 };
 
 class psram_manager {
@@ -42,6 +43,16 @@ public:
     inline uint8_i operator[](size_t a) { return uint8_i(base + a); }
     inline operator uint8_i() { return uint8_i(base); }
     template<typename IA> inline uint8_i operator+(IA off) { return uint8_i(base + off); }
+};
+
+class psram_a2 {
+    size_t sz1;
+    size_t sz2;
+    size_t base;
+public:
+    inline psram_a2(size_t sz1, size_t sz2) : sz1(sz1), sz2(sz2), base( psram_manager::get_base(sz1 * sz2) ) { }
+    inline ~psram_a2(void) { psram_manager::release_base(base); }
+    inline uint8_i operator[](size_t a) { return uint8_i(base + a * sz2); }
 };
 
 static size_t fread(const uint8_i psram, size_t sz1, size_t sz2, FIL* file) {

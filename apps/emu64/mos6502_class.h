@@ -40,10 +40,9 @@ public:
 
     void TriggerInterrupt(int typ);
     void ClearInterrupt(int typ);
-/**
-    std::function<unsigned char(unsigned short)> *ReadProcTbl;
-    std::function<void(unsigned short,unsigned char)> *WriteProcTbl;
-*/
+    ReadProcFn<C64Class>* ReadProcTbl;
+    WriteProcFn<C64Class>* WriteProcTbl;
+
     /// Variablen ///
 
     // Signale von Außen

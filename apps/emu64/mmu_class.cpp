@@ -54,7 +54,8 @@ unsigned char* MMU::GetFarbramPointer(void)
 }
 
 static bool load_file (const char* filename, uint8_t* to, size_t exp_sz) {
-        FILE *file;
+    FIL f;
+    FILE *file = &f;
         if (FR_OK != f_open (file, filename, FA_READ)) return false;
         UINT reading_bytes;
         f_read (file, to, exp_sz, &reading_bytes);

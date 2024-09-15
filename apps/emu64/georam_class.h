@@ -20,16 +20,16 @@
 
 // 512KiB, 1MiB, 2MiB, 4MiB
 
-enum GEO_RAM_MODES {_512KiB, _1024KiB, _2048KiB, _4096KiB};
-enum GEO_RAM_TYPE {_GEORAM, _NEORAM};
+enum GEO_RAM_MODES { _512KiB, _1024KiB, _2048KiB, _4096KiB };
+enum GEO_RAM_TYPE { _GEORAM, _NEORAM };
 
 #define MAX_GEORAM_SIZE 4194304
 
-const uint32_t geo_ram_size_tbl[]={524288, 1048576, 2097152, 4194304};
+const uint32_t geo_ram_size_tbl[] = { 524288, 1048576, 2097152, 4194304 };
 
 class GEORAMClass
 {
-    public:
+public:
     GEORAMClass();
     ~GEORAMClass();
 
@@ -48,11 +48,11 @@ class GEORAMClass
     uint8_t GetGeoRamMode();            // return _512, _1024, _2048, 4096
     void SetGeoRamMode(uint8_t mode);   // _512, _1024, _2048, 4096
 
-    private:
+private:
     // Variablen
     bool		geo_ram_insert;
                                         // $DFFE   $DFFF
-    uint8_t     ram[MAX_GEORAM_SIZE];   // 64   x  256  x  256 = 4MiB // 4194304
+    psram       ram; // [MAX_GEORAM_SIZE];   // 64   x  256  x  256 = 4MiB // 4194304
 
     uint32_t    mem_frame;
     uint8_t     _dffe, _dfff;

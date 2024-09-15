@@ -15,7 +15,7 @@ public:
         h = c.h;
         return *this;
     }
-    unsigned char operator()(unsigned short a) { return (h->*fn)(a); }
+    unsigned char operator()(unsigned short a) { return h ? (h->*fn)(a) : 0; }
     template<typename T2> ReadProcFn operator=(const ReadProcFn<T2>& c) {
         *this = *(ReadProcFn<T>*)&c;
         return *this;
@@ -37,7 +37,7 @@ public:
         h = c.h;
         return *this;
     }
-    void operator()(unsigned short a, unsigned char x) { (h->*fn)(a, x); }
+    void operator()(unsigned short a, unsigned char x) { if(h) (h->*fn)(a, x); }
     template<typename T2> WriteProcFn operator=(const WriteProcFn<T2>& c) {
         *this = *(WriteProcFn<T>*)&c;
         return *this;
@@ -59,7 +59,7 @@ public:
         h = c.h;
         return *this;
     }
-    void operator()(uint8_t* b) { (h->*fn)(b); }
+    void operator()(uint8_t* b) { if (h) (h->*fn)(b); }
 };
 
 template<typename T> class VVProcFn {
@@ -77,7 +77,61 @@ public:
         h = c.h;
         return *this;
     }
-    void operator()(void) { (h->*fn)(); }
+    void operator()(void) { if (h) (h->*fn)(); }
+};
+
+template<typename T> class VCProcFn {
+public:
+    typedef void (T::*fnProc)(unsigned char);
+private:
+    fnProc fn;
+    T* h;
+public:
+    VCProcFn(void) : fn(NULL), h(NULL) {}
+    VCProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
+    VCProcFn(const VCProcFn& c) : fn(c.fn), h(c.h) {}
+    VCProcFn& operator=(const VCProcFn& c) {
+        fn = c.fn;
+        h = c.h;
+        return *this;
+    }
+    void operator()(unsigned char x) { if (h) (h->*fn)(x); }
+};
+
+template<typename T> class BVProcFn {
+public:
+    typedef bool (T::*fnProc)(void);
+private:
+    fnProc fn;
+    T* h;
+public:
+    BVProcFn(void) : fn(NULL), h(NULL) {}
+    BVProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
+    BVProcFn(const BVProcFn& c) : fn(c.fn), h(c.h) {}
+    BVProcFn& operator=(const BVProcFn& c) {
+        fn = c.fn;
+        h = c.h;
+        return *this;
+    }
+    bool operator()(void) { return h ? (h->*fn)() : false; }
+};
+
+template<typename T> class CVProcFn {
+public:
+    typedef unsigned char (T::*fnProc)(void);
+private:
+    fnProc fn;
+    T* h;
+public:
+    CVProcFn(void) : fn(NULL), h(NULL) {}
+    CVProcFn(fnProc fn, T* h) : fn(fn), h(h) {}
+    CVProcFn(const CVProcFn& c) : fn(c.fn), h(c.h) {}
+    CVProcFn& operator=(const CVProcFn& c) {
+        fn = c.fn;
+        h = c.h;
+        return *this;
+    }
+    unsigned char operator()(void) { return h ? (h->*fn)() : 0; }
 };
 
 template<typename T> class VIProcFn {

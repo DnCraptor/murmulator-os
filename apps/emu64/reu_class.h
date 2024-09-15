@@ -20,6 +20,10 @@
 ///#include <functional>
 #include "structs.h"
 
+#define RamBaenke64k 128
+
+class MOS6510;
+
 class REUClass
 {
     public:
@@ -42,14 +46,10 @@ class REUClass
 
     bool SaveFreez(FILE *File);
     bool LoadFreez(FILE *File,unsigned short Version);
-    ReadProcFn<MMU> *ReadProcTbl;
-    WriteProcFn<MMU> *WriteProcTbl;
-/**
-    std::function<unsigned char(unsigned short)> *ReadProcTbl;
-    std::function<void(unsigned short,unsigned char)> *WriteProcTbl;
-    std::function<void(int)> CpuTriggerInterrupt;
-    std::function<void(int)> CpuClearInterrupt;
-*/
+    ReadProcFn<C64Class> *ReadProcTbl;
+    WriteProcFn<C64Class> *WriteProcTbl;
+    VIProcFn<MOS6510> CpuTriggerInterrupt;
+    VIProcFn<MOS6510> CpuClearInterrupt;
     // Variablen
     bool *BA;			// Extern
     bool *RESET;		// Extern
@@ -67,7 +67,8 @@ class REUClass
     bool			BA_STATUS;
 
     //unsigned char	RamBaenke[32][0x10000];	// 32 x 64KB = 2MB
-    unsigned char	RamBaenke[256][0x10000]; // 256 x 64KB = 16MB
+///    unsigned char	RamBaenke[RamBaenke64k][0x10000]; // RamBaenke64k x 64KB = 16MB
+    psram_a2 PsramBaenke;
 
     bool			REUInsert;
     bool			REUWait_FF00;

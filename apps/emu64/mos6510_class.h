@@ -21,7 +21,7 @@
 
 #define DEBUG_CART_ADRESS 0xD7FF
 
-class MMU;
+class C64Class;
 
 class MOS6510
 {
@@ -44,8 +44,8 @@ public:
 
     void TriggerInterrupt(int typ);
     void ClearInterrupt(int typ);
-    ReadProcFn<MMU> *ReadProcTbl;
-    WriteProcFn<MMU> *WriteProcTbl;
+    ReadProcFn<C64Class> *ReadProcTbl;
+    WriteProcFn<C64Class> *WriteProcTbl;
     /// Variablen ///
 
     // Signale von Außen

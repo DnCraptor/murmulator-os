@@ -22,6 +22,7 @@
 #include "mk7pla.h"
 
 class MMU;
+class MOS6510;
 
 class CartridgeClass
 {
@@ -54,8 +55,8 @@ public:
     uint8_t ReadRom3(uint16_t address);
 
     VVProcFn<MMU> ChangeMemMapProc;
-    VIProcFn<MMU> CpuTriggerInterrupt;
-    VIProcFn<MMU> CpuClearInterrupt;
+    VIProcFn<MOS6510> CpuTriggerInterrupt;
+    VIProcFn<MOS6510> CpuClearInterrupt;
 ///    std::function<void(int,bool)> ChangeLED;
     // Variablen
     bool        *exrom;

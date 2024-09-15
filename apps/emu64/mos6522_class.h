@@ -16,9 +16,11 @@
 #ifndef MOS6522_CLASS_H
 #define MOS6522_CLASS_H
 
-///#include <functional>
+#include "structs.h"
+#include "functors.h"
 
-#include "./structs.h"
+class Floppy1541;
+class MOS6502;
 
 class MOS6522
 {
@@ -35,15 +37,14 @@ public:
     void OneZyklus(void);
     void WriteIO(unsigned short adresse, unsigned char);
     unsigned char ReadIO(unsigned short adresse);
-/**
-    std::function<bool(void)> SyncFound;
-    std::function<unsigned char(void)> ReadGCRByte;
-    std::function<void(unsigned char)> WriteGCRByte;
-    std::function<void(void)> SpurInc;
-    std::function<void(void)> SpurDec;
-    std::function<void(int)> TriggerInterrupt;
-    std::function<void(int)> ClearInterrupt;
-*/
+    BVProcFn<Floppy1541> SyncFound;
+    CVProcFn<Floppy1541> ReadGCRByte;
+    VCProcFn<Floppy1541> WriteGCRByte;
+    VVProcFn<Floppy1541> SpurInc;
+    VVProcFn<Floppy1541> SpurDec;
+    VIProcFn<MOS6502> TriggerInterrupt;
+    VIProcFn<MOS6502> ClearInterrupt;
+
     /// Variablen ///
 
     bool            *RESET;

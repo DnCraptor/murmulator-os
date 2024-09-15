@@ -123,7 +123,7 @@ private:
     unsigned long PlayCounter;
     unsigned long PlayAddWert;
 
-    unsigned short WaveTableSinus[SAMPLE_TBL_LENGTH];
+///    unsigned short WaveTableSinus[SAMPLE_TBL_LENGTH];
 };
 
 #endif // TAPE1530_H

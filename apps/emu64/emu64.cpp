@@ -1,6 +1,8 @@
 #include "m-os-api.h"
 #include "m-os-api-cpp-psram.h"
 #include "m-os-api-math.h"
+// TODO:
+#undef switch
 
 #include "c64_class.h"
 #define VERSION_STRING "1"
@@ -21,3 +23,8 @@ int main(void) {
 #include "mos6510_class.cpp"
 #include "mos6569_class.cpp"
 #include "mos6581_8085_class.cpp"
+#include "mos6526_class.cpp"
+#include "reu_class.cpp"
+#include "georam_class.cpp"
+#include "tape1530_class.cpp"
+#include "floppy1541_class.cpp"

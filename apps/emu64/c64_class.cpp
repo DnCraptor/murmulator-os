@@ -79,7 +79,7 @@ C64Class::C64Class(
 ///    bool start_minimized,
 ///    std::function<void(const char*)> log_function,
     const char *data_path
-): mmu(nullptr),cpu(nullptr),vic(nullptr),sid1(nullptr),sid2(nullptr),cia1(nullptr),cia2(nullptr),crt(nullptr)
+): mmu(nullptr),cpu(nullptr),vic(nullptr),sid1(nullptr),sid2(nullptr),cia1(nullptr),cia2(nullptr),crt(nullptr),debug_logging_file(nullptr)
 {
     *ret_error = 0;
 
@@ -501,10 +501,8 @@ C64Class::C64Class(
     mmu->CPU_PORT = &cpu_port;
     crt->exrom = &exrom_wire;
     crt->game = &game_wire;
-    /**
-    crt->CpuTriggerInterrupt = std::bind(&MOS6510::TriggerInterrupt,cpu,std::placeholders::_1);
-    crt->CpuClearInterrupt = std::bind(&MOS6510::ClearInterrupt,cpu,std::placeholders::_1);
-    */
+    crt->CpuTriggerInterrupt = VIProcFn<MOS6510>(&MOS6510::TriggerInterrupt, cpu);
+    crt->CpuClearInterrupt = VIProcFn<MOS6510>(&MOS6510::ClearInterrupt, cpu);
     cpu->RDY = &rdy_ba_wire;
     cpu->RESET = &reset_wire;
     cpu->ResetReady = &c64_reset_ready;
@@ -530,10 +528,8 @@ C64Class::C64Class(
     sid1->RESET = &reset_wire;
     sid2->RESET = &reset_wire;
     reu->BA = &rdy_ba_wire;
-    /**
-    reu->CpuTriggerInterrupt = std::bind(&MOS6510::TriggerInterrupt,cpu,std::placeholders::_1);
-    reu->CpuClearInterrupt = std::bind(&MOS6510::ClearInterrupt,cpu,std::placeholders::_1);
-    */
+    reu->CpuTriggerInterrupt = VIProcFn<MOS6510>(&MOS6510::TriggerInterrupt, cpu);
+    reu->CpuClearInterrupt = VIProcFn<MOS6510>(&MOS6510::ClearInterrupt, cpu);
     reu->RESET = &reset_wire;
     reu->WRITE_FF00 = &cpu->WRITE_FF00;
 
@@ -3220,6 +3216,7 @@ void C64Class::GetIECStatus(IEC_STRUCT *iec)
 
 bool C64Class::StartDebugLogging(const char *filename)
 {
+    debug_logging_file = new FIL();
     if (f_open (debug_logging_file, filename, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
     {
         return false;
@@ -3235,6 +3232,7 @@ void C64Class::StopDebugLogging()
         debug_logging = false;
         f_close(debug_logging_file);
     }
+    if (debug_logging_file) delete debug_logging_file;
 }
 
 int C64Class::Disassemble(FILE* file, uint16_t pc, bool line_draw)
@@ -3609,7 +3607,8 @@ bool C64Class::SaveBreakGroups(const char *filename)
 */
 bool C64Class::ExportPRG(const char *filename, uint16_t start_adresse, uint16_t end_adresse, int source)
 {
-    FILE *file;
+    FIL f;
+    FILE *file = &f;
     uint8_t *RAM;
 
     if(source > 0)
@@ -3635,7 +3634,8 @@ bool C64Class::ExportPRG(const char *filename, uint16_t start_adresse, uint16_t 
 
 bool C64Class::ExportRAW(const char *filename, uint16_t start_adresse, uint16_t end_adresse, int source)
 {
-    FILE *file;
+    FIL f;
+    FILE *file = &f;
     uint8_t *RAM;
 
     if(source > 0)
@@ -3659,7 +3659,8 @@ bool C64Class::ExportRAW(const char *filename, uint16_t start_adresse, uint16_t 
 
 bool C64Class::ExportASM(const char *filename, uint16_t start_adresse, uint16_t end_adresse, int source)
 {
-    FILE *file;
+    FIL f;
+    FILE *file = &f;
 
     if (FR_OK != f_open (file, filename, FA_WRITE | FA_CREATE_ALWAYS))
     {

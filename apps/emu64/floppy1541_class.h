@@ -35,6 +35,8 @@
 
 #define DIRECTORY_TRACK 18
 
+class C64Class;
+
 class Floppy1541
 {    
 public:
@@ -51,7 +53,7 @@ public:
     void* GetSoundBuffer();
     void ZeroSoundBufferPos();
     void SetFloppySoundVolume(float_t volume);
-	bool LoadDiskImage(FILE *file, int typ);		// 0=D64 , 1=G64
+    bool LoadDiskImage(FILE *file, int typ);		// 0=D64 , 1=G64
     void UnLoadDiskImage();
     void SetC64IEC(uint8_t* port);
     void SetDeviceNumber(uint8_t number);
@@ -67,6 +69,7 @@ public:
     int LoadFloppySounds(const char* motor_sound_filename, const char* motor_on_sound_filename, const char* motor_off_sound_filename, const char* anschlag_sound_filename, const char* stepper_dec_sound_filename, const char* Stepper_inc_sound_filename);
     void ResetCycleCounter();
     uint8_t* GetRamPointer();
+/**
     int16_t AddBreakGroup();
     void DelBreakGroup(int index);
     BREAK_GROUP* GetBreakGroup(int index);
@@ -75,6 +78,7 @@ public:
     int GetBreakGroupCount();
     int LoadBreakGroups(const char *filename);
     bool SaveBreakGroups(const char *filename);
+    */
 ///    bool CheckBreakpoints();
     bool CheckImageDirectoryWrite();
     uint8_t *GetCurrentD64ImageBuffer();
@@ -135,10 +139,9 @@ private:
 
     int     DiskChangeSimState;         // 0 = momentan kein Diskwechsel
     int     DiskChangeSimCycleCounter;
-/**
-    std::function<uint8_t(uint16_t)>  ReadProcTbl[256];
-    std::function<void(uint16_t, uint8_t)> WriteProcTbl[256];
-*/
+    ReadProcFn<C64Class> ReadProcTbl[256];
+    WriteProcFn<C64Class> WriteProcTbl[256];
+
     uint8_t RAM[0x800];   // 2KB
     uint8_t ROM[0x4000];  // 16KB
 
@@ -219,13 +222,13 @@ private:
     // Bit 8 = Beim erreichen einer bestommten Raster Zeile
     // Bit 9 = Beim erreichen eines Zyklus in einer Rasterzeile
 
-    uint16_t        Breakpoints[0x10000];
-    uint16_t        BreakWerte[16];
-    uint16_t        BreakStatus;
-    bool            *FoundBreakpoint;
+///    uint16_t        Breakpoints[0x10000];
+///    uint16_t        BreakWerte[16];
+///    uint16_t        BreakStatus;
+///    bool            *FoundBreakpoint;
 
-    uint8_t         breakgroup_count;
-    BREAK_GROUP     *BreakGroup[MAX_BREAK_GROUP_NUM];
+///    uint8_t         breakgroup_count;
+///    BREAK_GROUP     *BreakGroup[MAX_BREAK_GROUP_NUM];
 
     ////////////////////////////////////////////////////////////
 };

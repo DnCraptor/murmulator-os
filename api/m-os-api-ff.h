@@ -298,6 +298,7 @@ static int fseek (FIL *stream, long offset, int origin) {
     return 1;
 }
 
+#define ftell(f) f_tell(f)
 #define fclose(f) f_close(f)
 #define feof(f) f_eof(f)
 #define remove(f) f_unlink(f)

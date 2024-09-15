@@ -51,8 +51,8 @@ public:
     // Zeiger für Read / Write Funktionen ///
     // Diese werden Teilweise Intern und Extern gesetzt ///
     // Ein Aufruf erfolg immer ohne Überprüfung auf gültigen Zeiger !!! //
-    ReadProcFn<MMU> CPUReadProcTbl[0x100];
-    WriteProcFn<MMU> CPUWriteProcTbl[0x100];
+    ReadProcFn<C64Class> CPUReadProcTbl[0x100];
+    WriteProcFn<C64Class> CPUWriteProcTbl[0x100];
     ReadProcFn<MMU> VICReadProcTbl[0x100];
     WriteProcFn<MMU> VicIOWriteProc;
     ReadProcFn<MMU> VicIOReadProc;
