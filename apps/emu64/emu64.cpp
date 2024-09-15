@@ -18,3 +18,4 @@ int main(void) {
 #include "mmu_class.cpp"
 #include "cartridge_class.cpp"
 #include "mos6510_class.cpp"
+#include "mos6569_class.cpp"

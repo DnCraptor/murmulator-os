@@ -37,6 +37,7 @@ enum
 };
 
 class C64Class;
+class MOS6510;
 
 class VICII
 {
@@ -68,12 +69,8 @@ public:
     void TriggerLightpen();
     ReadProcFn<MMU> *ReadProcTbl;
     RefreshProcFn<C64Class> RefreshProc;
-/**
-    std::function<uint8_t(uint16_t)> *ReadProcTbl;
-    std::function<void(uint8_t*)> RefreshProc;
-    std::function<void(int)> CpuTriggerInterrupt;
-    std::function<void(int)> CpuClearInterrupt;
-*/
+    VIProcFn<MOS6510> CpuTriggerInterrupt;
+    VIProcFn<MOS6510> CpuClearInterrupt;
     /// Variablen ///
     bool        *ba;
     uint8_t     *cia2_port_a;

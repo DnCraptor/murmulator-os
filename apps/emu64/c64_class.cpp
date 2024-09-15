@@ -527,10 +527,8 @@ C64Class::C64Class(
     cia2->pa = &cia2_port_a;
     cia2->pb = &cia2_port_b;
     vic->ba = &rdy_ba_wire;
-    /**
-    vic->CpuTriggerInterrupt = std::bind(&MOS6510::TriggerInterrupt,cpu,std::placeholders::_1);
-    vic->CpuClearInterrupt = std::bind(&MOS6510::ClearInterrupt,cpu,std::placeholders::_1);
-    */
+    vic->CpuTriggerInterrupt = VIProcFn<MOS6510>(&MOS6510::TriggerInterrupt, cpu);
+    vic->CpuClearInterrupt = VIProcFn<MOS6510>(&MOS6510::ClearInterrupt, cpu);
     vic->color_ram = mmu->GetFarbramPointer();
     vic->cia2_port_a = cia2_port_a.GetOutputBitsPointer();
     sid1->RESET = &reset_wire;
