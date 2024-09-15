@@ -8,6 +8,7 @@ class uint8_i {
 public:
     inline uint8_i(void) : base(0) {}
     inline uint8_i(size_t b) : base(b) {}
+    inline uint8_i(const uint8_i& o) : base(o.base) {}
     inline void write(size_t a, uint8_t v) const { write8psram(base + a, v); }
     inline void writeNshift(uint8_t v) { write8psram(base, v); ++base; }
     inline void write(size_t a, uint32_t v) const { write32psram(base + a, v); }
@@ -20,6 +21,12 @@ public:
     inline operator uint8_t() { return get(); }
     inline void operator=(uint8_t v) { write32psram(base, v); }
 };
+
+static void memset(uint8_i p, uint8_t v, size_t sz) {
+    for (size_t i = 0; i < sz; ++i) {
+        p.write(i, v);
+    }
+}
 
 class psram_manager {
     static size_t off;

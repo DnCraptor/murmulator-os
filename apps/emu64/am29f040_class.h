@@ -68,7 +68,7 @@ private:
         int	flash_type;
         int	status;
 
-        psram* data;
+        uint8_i data;
         uint8_t last_read;
 
         int WriteOperationStatus();

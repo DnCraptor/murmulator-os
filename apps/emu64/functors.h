@@ -20,6 +20,8 @@ public:
         *this = *(ReadProcFn<T>*)&c;
         return *this;
     }
+    bool operator==(void* i) { return h == i; }
+    bool operator!=(void* i) { return h != i; }
 };
 
 template<typename T> class WriteProcFn {
@@ -42,6 +44,8 @@ public:
         *this = *(WriteProcFn<T>*)&c;
         return *this;
     }
+    bool operator==(void* i) { return h == i; }
+    bool operator!=(void* i) { return h != i; }
 };
 
 template<typename T> class RefreshProcFn {
@@ -60,6 +64,8 @@ public:
         return *this;
     }
     void operator()(uint8_t* b) { if (h) (h->*fn)(b); }
+    bool operator==(void* i) { return h == i; }
+    bool operator!=(void* i) { return h != i; }
 };
 
 template<typename T> class VVProcFn {
@@ -78,6 +84,8 @@ public:
         return *this;
     }
     void operator()(void) { if (h) (h->*fn)(); }
+    bool operator==(void* i) { return h == i; }
+    bool operator!=(void* i) { return h != i; }
 };
 
 template<typename T> class VCProcFn {
@@ -114,6 +122,8 @@ public:
         return *this;
     }
     bool operator()(void) { return h ? (h->*fn)() : false; }
+    bool operator==(void* i) { return h == i; }
+    bool operator!=(void* i) { return h != i; }
 };
 
 template<typename T> class CVProcFn {
@@ -132,6 +142,8 @@ public:
         return *this;
     }
     unsigned char operator()(void) { return h ? (h->*fn)() : 0; }
+    bool operator==(void* i) { return h == i; }
+    bool operator!=(void* i) { return h != i; }
 };
 
 template<typename T> class VIProcFn {
@@ -150,6 +162,8 @@ public:
         return *this;
     }
     void operator()(int x) { (h->*fn)(x); }
+    bool operator==(void* i) { return h == i; }
+    bool operator!=(void* i) { return h != i; }
 };
 
 #endif

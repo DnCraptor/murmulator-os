@@ -18,7 +18,7 @@
 
 ///#include <functional>
 
-#include "./structs.h"
+#include "structs.h"
 
 class MOS6502
 {
