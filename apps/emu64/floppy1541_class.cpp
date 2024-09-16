@@ -31,12 +31,14 @@ const uint8_t Floppy1541::d64_sector_gap[] = {12, 21, 16, 13};  // von GPZ Code 
 //const uint8_t Floppy1541::d64_sector_gap[] = {1, 10, 5, 2};   // Meine alten Werte
 
 
-Floppy1541::Floppy1541(bool *reset, int samplerate, int buffersize/**, bool *floppy_found_breakpoint*/):
-    FloppyEnabled(false)
-
+Floppy1541::Floppy1541(bool *reset, int samplerate, int buffersize/**, bool *floppy_found_breakpoint*/)
+    : FloppyEnabled(false)
+    , D64Image(D64_IMAGE_SIZE)
+    , GCRImage(G64_IMAGE_SIZE)
+    , GCR_PTR(-1)
 {
     RESET = reset;
-    GCR_PTR = nullptr;
+///    GCR_PTR = nullptr;
 ///    breakgroup_count = 0;
 	image_file = nullptr;
 
@@ -384,7 +386,7 @@ inline void Floppy1541::SectorToGCR(unsigned int spur, unsigned int sektor, uint
 	uint8_t id2 = disk_id >> 8;
     uint8_t block[256];
     uint8_t buffer[4];
-    uint8_t *P = GCRImage + ((spur-1)*2) * GCR_TRACK_SIZE + sektor * GCR_SECTOR_SIZE;
+    uint8_i P = GCRImage + ((spur-1)*2) * GCR_TRACK_SIZE + sektor * GCR_SECTOR_SIZE;
 
     int TEMP;
 	TEMP=track_index[spur]+(sektor);
@@ -447,7 +449,7 @@ inline void Floppy1541::SectorToGCR(unsigned int spur, unsigned int sektor, uint
     memset(P, 0x55, gap_size);							// Gap
 }
 
-inline void Floppy1541::ConvertToGCR(uint8_t *source_buffer, uint8_t *destination_buffer)
+inline void Floppy1541::ConvertToGCR(uint8_t *source_buffer, uint8_i destination_buffer)
 {
     const unsigned short int GCR_TBL[16] = {0x0a, 0x0b, 0x12, 0x13, 0x0e, 0x0f, 0x16, 0x17,0x09, 0x19, 0x1a, 0x1b, 0x0d, 0x1d, 0x1e, 0x15};
     unsigned short int tmp;
@@ -483,8 +485,8 @@ inline void Floppy1541::GCRToSector(unsigned int spur, unsigned int sektor)
 {
     uint8_t BUFFER[4];
 
-    uint8_t *gcr = GCRImage + ((spur-1)*2) * GCR_TRACK_SIZE + sektor * GCR_SECTOR_SIZE;
-	uint8_t *d64 = D64Image + ((track_index[spur]+sektor)*256);
+    uint8_i gcr = GCRImage + ((spur-1)*2) * GCR_TRACK_SIZE + sektor * GCR_SECTOR_SIZE;
+	uint8_i d64 = D64Image + ((track_index[spur]+sektor)*256);
 
     gcr += 11;
 
@@ -508,7 +510,7 @@ inline void Floppy1541::GCRToSector(unsigned int spur, unsigned int sektor)
     *d64 = BUFFER[0];
 }
 
-inline void Floppy1541::ConvertToD64(uint8_t *source_buffer, uint8_t *destination_buffer)
+inline void Floppy1541::ConvertToD64(uint8_i source_buffer, uint8_t *destination_buffer)
 {
     static uint8_t CONV_TBL[32]={32,32,32,32,32,32,32,32,32,8,0,1,32,12,4,5,32,32,2,3,32,15,6,7,32,9,10,11,32,13,14,32};
     uint8_t GCR5;
@@ -875,7 +877,7 @@ bool Floppy1541::SyncFound()
 {
     // bool found = false;
 
-    if ((AktHalbSpur >= ((NUM_TRACKS-1) * 2)) || (GCR_PTR == nullptr)) return false;
+    if ((AktHalbSpur >= ((NUM_TRACKS-1) * 2)) || (GCR_PTR == -1)) return false;
 
     // NEU TEST
     /*
@@ -1422,7 +1424,7 @@ bool Floppy1541::CheckImageDirectoryWrite()
 #endif
 }
 
-uint8_t *Floppy1541::GetCurrentD64ImageBuffer()
+uint8_i Floppy1541::GetCurrentD64ImageBuffer()
 {
     GCRImageToD64Image();
     return  D64Image;

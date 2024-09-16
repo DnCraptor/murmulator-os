@@ -92,8 +92,8 @@ private:
     unsigned int	WaitCounter;
 
     float           Counter;
-    float Time2CounterTbl[1800];    // Platz für 1800 sek (30min)
-
+///    float Time2CounterTbl[1800];    // Platz für 1800 sek (30min)
+    psramT<float> Time2CounterTbl;
 
     float           AddWaveWert;
     float           WaveCounter;

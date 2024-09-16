@@ -14,12 +14,26 @@ public:
     inline void write(size_t a, uint32_t v) const { write32psram(base + a, v); }
     inline void writeNshift(uint32_t v) { write32psram(base, v); base += 4; }
     template<typename IA> inline uint8_i operator+(IA off) { return uint8_i(base + off); }
+    template<typename IA> inline uint8_i operator-(IA off) { return uint8_i(base - off); }
     inline uint8_i operator[](size_t a) { return uint8_i(base + a); }
     inline uint8_t get() { return read8psram(base); }
     inline uint32_t get32(size_t a) const { return read32psram(base + a); }
     inline uint8_i& operator&() { return *this; } // no use-cases to get address of (pointer to) this object
+    inline uint8_i& operator*() { return *this; } // no use-cases to get address of (pointer to) this object
     inline operator uint8_t() { return get(); }
-    inline void operator=(uint8_t v) { write32psram(base, v); }
+    inline void operator=(uint8_t v) { write(0, v); }
+    inline uint8_i operator++() { return *this + 1;}
+    inline uint8_i operator++(int) { uint8_i t = *this; ++base; return t; }
+    inline uint8_i operator--() { return *this - 1;}
+    inline uint8_i operator--(int) { uint8_i t = *this; --base; return t; }
+    inline uint8_i operator+=(size_t sz) { return *this + sz;}
+    inline uint8_i operator-=(size_t sz) { return *this - sz;}
+    inline bool operator==(int p) const { return base == (size_t)p; }
+    inline bool operator!=(int p) const { return base != (size_t)p; }
+    inline bool operator==(const uint8_i& p) const { return base == p.base; }
+    inline bool operator!=(const uint8_i& p) const { return base != p.base; }
+    inline uint8_i operator|=(uint8_t v) { write8psram(base, get() | v); return *this; }
+    inline uint8_i operator&=(uint8_t v) { write8psram(base, get() & v); return *this; }
 };
 
 static void memset(uint8_i p, uint8_t v, size_t sz) {
@@ -92,5 +106,45 @@ static size_t fwrite(const uint8_i psram, size_t sz1, size_t sz2, FIL* file) {
     delete[] buf;
     return res;
 }
+
+template<typename T> class uint8_iT {
+    size_t base;
+public:
+    inline uint8_iT(void) : base(0) {}
+    inline uint8_iT(size_t b) : base(b) {}
+    inline uint8_iT(const uint8_iT& o) : base(o.base) {}
+    inline void write(size_t a, const T& v) const {
+        const char* c = (const char*)&v;
+        size_t b = base + a * sizeof(T);
+        for(size_t i = 0; i < sizeof(T); ++i) {
+            write8psram(b + i, c[i]);
+        }
+    }
+    template<typename IA> inline uint8_iT operator+(IA off) { return uint8_iT(base + off * sizeof(T)); }
+    inline uint8_iT operator[](size_t a) { return uint8_i(base + a * sizeof(T)); }
+    inline T get() {
+        T res;
+        char* c = (char*)&res;
+        size_t b = base;
+        for(size_t i = 0; i < sizeof(T); ++i) {
+            c[i] + read8psram(b + i);
+        }
+        return res;
+    }
+    inline uint8_iT& operator&() { return *this; } // no use-cases to get address of (pointer to) this object
+    inline operator T() { return get(); }
+    inline void operator=(const T& v) { write(0, v); }
+};
+
+template<typename T> class psramT {
+    size_t base;
+public:
+    inline psramT(size_t sz) : base( psram_manager::get_base(sz * sizeof(T)) ) { }
+    inline ~psramT(void) { psram_manager::release_base(base); }
+    inline uint8_iT<T> operator[](size_t a) { return uint8_iT<T>(base + a); }
+    inline operator uint8_iT<T>() { return uint8_iT<T>(base); }
+    template<typename IA> inline uint8_iT<T> operator+(IA off) { return uint8_iT<T>(base + off); }
+};
+
 
 #endif

@@ -19,6 +19,30 @@
 #include "c64_file_types.h"
 #include "m-os-api-sdtfn.h"
 
+static void mem_stat(void)
+{
+    HeapStats_t stat;
+    vPortGetHeapStats(&stat);
+    size_t heap = get_heap_total();
+    printf( "Heap memory: %d (%dK)\n"
+            " available bytes total: %d (%dK)\n"
+            "         largets block: %d (%dK)\n",
+            heap, heap >> 10,
+            stat.xAvailableHeapSpaceInBytes, stat.xAvailableHeapSpaceInBytes >> 10,
+            stat.xSizeOfLargestFreeBlockInBytes, stat.xSizeOfLargestFreeBlockInBytes >> 10
+    );
+    printf( "        smallest block: %d (%dK)\n"
+            "           free blocks: %d\n"
+            "    min free remaining: %d (%dK)\n"
+            "           allocations: %d\n"
+            "                 frees: %d\n",
+            stat.xSizeOfSmallestFreeBlockInBytes, stat.xSizeOfSmallestFreeBlockInBytes >> 10,
+            stat.xNumberOfFreeBlocks,
+            stat.xMinimumEverFreeBytesRemaining, stat.xMinimumEverFreeBytesRemaining >> 10,
+            stat.xNumberOfSuccessfulAllocations, stat.xNumberOfSuccessfulFrees
+    );
+}
+
 ///void AudioMix(void *not_used, Uint8 *stream, int laenge);
 void MainThread(void *userdat);
 void ThreadLoad(void *userdat);
@@ -33,7 +57,7 @@ inline static void SDL_Delay(uint32_t ms) {
 
 #define C64ScreenXW 384         //384
 
-const char* C64Class::screenshot_format_name[] = {"BMP","PNG"};
+///const char* C64Class::screenshot_format_name[] = {"BMP","PNG"};
 
 static const uint8_t CPU_OPC_INFO[256]={\
 0*16+6+0,7*16+5+0,0*16+0+8,7*16+7+8,3*16+2+8,3*16+2+0,3*16+4+0,3*16+4+8,0*16+2+0,1*16+1+0,0*16+1+0,1*16+1+8,2*16+3+8,2*16+3+0,2*16+5+0,2*16+5+8\
@@ -123,6 +147,8 @@ C64Class::C64Class(
     mouse_is_hidden = false;
     mouse_hide_counter = 0;
     mouse_hide_time = 3000;
+
+mem_stat();
 
     snprintf(floppy_sound_path,MAX_STRING_LENGTH,"%s%s",data_path,"/floppy_sounds/");
 ///    snprintf(gfx_path,MAX_STRING_LENGTH,"%s%s",data_path,"/gfx/");
@@ -4338,6 +4364,7 @@ void C64Class::StopRecJoystickMapping()
 
 void C64Class::ClearJoystickMapping(int slot_nr)
 {
+    /**
     char str00[32];
     snprintf(str00,32,"Slot %d",slot_nr+1);
     strcpy(virtual_joys[slot_nr].Name, str00);
@@ -4354,6 +4381,7 @@ void C64Class::ClearJoystickMapping(int slot_nr)
         virtual_joys[slot_nr].AxisNr[i] = 0;
         virtual_joys[slot_nr].AxisValue[i] = 0;
 	}
+    */
 }
 
 void C64Class::SwapJoyPorts()

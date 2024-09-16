@@ -81,7 +81,7 @@ public:
     */
 ///    bool CheckBreakpoints();
     bool CheckImageDirectoryWrite();
-    uint8_t *GetCurrentD64ImageBuffer();
+    uint8_i GetCurrentD64ImageBuffer();
 
     /// Wird mit den einzelnen Chips verbunden via "bind" ///
 
@@ -118,10 +118,10 @@ private:
     void CheckImageWrite();
     void D64ImageToGCRImage();
 	void SectorToGCR(unsigned int spur, unsigned int sektor, uint16_t disk_id);
-    void ConvertToGCR(uint8_t *source_buffer, uint8_t *destination_buffer);
+    void ConvertToGCR(uint8_t *source_buffer, uint8_i destination_buffer);
     void GCRImageToD64Image();
     void GCRToSector(unsigned int spur, unsigned int sektor);
-    void ConvertToD64(uint8_t *source_buffer, uint8_t *destination_buffer);
+    void ConvertToD64(uint8_i source_buffer, uint8_t* destination_buffer);
     void RenderFloppySound();
     void StartDiskChange();
 
@@ -166,13 +166,13 @@ private:
     static const int	GCR_SECTOR_SIZE = 364;      // SYNC Header Gap SYNC Data Gap (should be 5 SYNC bytes each) ///  ALF Sector in Byte
     static const int	GCR_TRACK_SIZE = 7928;      // Each track in gcr_data has 21 sectors
     uint8_t             AktHalbSpur;                // Aktuelle Halbspur Nummer (2..70)
-    uint8_t *           GCR_PTR;                    // Zeiger auf GCR Daten Unter R/W Kopf
-    uint8_t *           GCRSpurStart;               // Zeiger auf Start der GCR Daten auf Aktuellen Track
-    uint8_t *           GCRSpurEnde;                // Zeiger auf Ende der GCR Daten auf Aktuellen Track
+    uint8_i           GCR_PTR;                    // Zeiger auf GCR Daten Unter R/W Kopf
+    uint8_i           GCRSpurStart;               // Zeiger auf Start der GCR Daten auf Aktuellen Track
+    uint8_i           GCRSpurEnde;                // Zeiger auf Ende der GCR Daten auf Aktuellen Track
     bool                ImageWriteStatus;           // Sowie in Image geschrieben wird gehts auf true
     bool                ImageDirectoryWriteStatus;  // Sowie in das Image auf Spur 18 geschrieben wird wird es true
-    uint8_t             D64Image[D64_IMAGE_SIZE];   // Aktuelles D64 Image
-    uint8_t             GCRImage[G64_IMAGE_SIZE];   // Aktuelles GCR Image
+    psram               D64Image;///[D64_IMAGE_SIZE];   // Aktuelles D64 Image
+    psram               GCRImage;///[G64_IMAGE_SIZE];   // Aktuelles GCR Image
     uint16_t            TrackSize[256];
 
     /// Für Floppy Sound ///

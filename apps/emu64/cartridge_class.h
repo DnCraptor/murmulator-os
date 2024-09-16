@@ -104,7 +104,7 @@ private:
     bool        ar_freez;
     bool        ar_active;
     bool        ar_enable_ram;
-    uint8_t     ar_ram[0x2000];             // 8KB
+    psram       ar_ram;///[0x2000];             // 8KB
     uint8_t     pla_address;
 };
 

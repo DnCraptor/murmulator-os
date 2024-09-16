@@ -249,7 +249,7 @@ public:
     int GetVicFirstDisplayLineNtsc();
     int GetVicLastDisplayLineNtsc();
 
-    static const char* screenshot_format_name[SCREENSHOT_FORMATS_COUNT];
+///    static const char* screenshot_format_name[SCREENSHOT_FORMATS_COUNT];
 
 ///    bool            start_minimized;
 ///	bool			start_hidden_window;
@@ -311,9 +311,9 @@ public:
     float_t         distortion_value;
 
     /// Distortion (Verzerrung) ///
-    POINT_STRUCT    distortion_grid_points[(SUBDIVS_SCREEN+1)*(SUBDIVS_SCREEN+1)];
-    POINT_STRUCT    distortion_grid[(SUBDIVS_SCREEN)*(SUBDIVS_SCREEN)*4];
-    POINT_STRUCT    distortion_grid_texture_coordinates[(SUBDIVS_SCREEN)*(SUBDIVS_SCREEN)*4];
+///    POINT_STRUCT    distortion_grid_points[(SUBDIVS_SCREEN+1)*(SUBDIVS_SCREEN+1)];
+///    POINT_STRUCT    distortion_grid[(SUBDIVS_SCREEN)*(SUBDIVS_SCREEN)*4];
+///    POINT_STRUCT    distortion_grid_texture_coordinates[(SUBDIVS_SCREEN)*(SUBDIVS_SCREEN)*4];
 
     int				frame_skip_counter;
 
@@ -333,7 +333,7 @@ public:
     int             rec_polling_wait;
     int             rec_polling_wait_counter;
 
-    VIRTUAL_JOY_STRUCT  virtual_joys[MAX_VJOY_NUM];
+///    VIRTUAL_JOY_STRUCT  virtual_joys[MAX_VJOY_NUM];
     int                 virtual_port1;
     int                 virtual_port2;
 

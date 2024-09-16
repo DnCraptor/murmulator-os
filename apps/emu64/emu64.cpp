@@ -10,8 +10,10 @@
 
 /// TODO:
 int main(void) {
+    printf("main\n");
     int ret_error;
     C64Class * c64 = new C64Class(&ret_error, 1024, "/c64");
+    printf("c64\n");
     /// ??
     delete c64;
     return ret_error;

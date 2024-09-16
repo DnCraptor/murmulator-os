@@ -16,7 +16,7 @@
 #include "./tape1530_class.h"
 #include "./c64_file_types.h"
 
-TAPE1530::TAPE1530(int samplerate, int puffersize, float cycles_per_second)
+TAPE1530::TAPE1530(int samplerate, int puffersize, float cycles_per_second) : Time2CounterTbl(1800)
 {
     CPU_PORT = NULL;
 

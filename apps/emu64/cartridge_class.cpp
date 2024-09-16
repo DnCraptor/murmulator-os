@@ -29,7 +29,12 @@ static const char* TYPE_STRING[34] = { "Normal Cartridge","Action Replay","KCS P
                                 "EasyFlash Cartridge", //32
                                 "Unbekannt"};
 
-CartridgeClass::CartridgeClass() : rom_bank1(64*0x2000), rom_bank2(64*0x2000), rom_bank1_tmp(64*0x2000), rom_bank2_tmp(64*0x2000)
+CartridgeClass::CartridgeClass()
+    : rom_bank1(64*0x2000)
+    , rom_bank2(64*0x2000)
+    , rom_bank1_tmp(64*0x2000)
+    , rom_bank2_tmp(64*0x2000)
+    , ar_ram(0x2000)
 {
     cartridge_is_insert = false;
     cartridge_type = 0;
