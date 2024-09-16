@@ -17,8 +17,7 @@ public:
     }
     unsigned char operator()(unsigned short a) { return h ? (h->*fn)(a) : 0; }
     template<typename T2> ReadProcFn operator=(const ReadProcFn<T2>& c) {
-        *this = *(ReadProcFn<T>*)&c;
-        return *this;
+        return *(ReadProcFn<T>*)&c;
     }
     bool operator==(void* i) { return h == i; }
     bool operator!=(void* i) { return h != i; }
@@ -41,8 +40,7 @@ public:
     }
     void operator()(unsigned short a, unsigned char x) { if(h) (h->*fn)(a, x); }
     template<typename T2> WriteProcFn operator=(const WriteProcFn<T2>& c) {
-        *this = *(WriteProcFn<T>*)&c;
-        return *this;
+        return *(WriteProcFn<T>*)&c;
     }
     bool operator==(void* i) { return h == i; }
     bool operator!=(void* i) { return h != i; }

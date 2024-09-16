@@ -9,7 +9,7 @@ class string {
     size_t alloc;
     char* p;
 public:
-    inline string(): sz(1), alloc(16), p(new char[16]) { p[0] = 0; printf("string\n"); }
+    inline string(): sz(1), alloc(16), p(new char[16]) { p[0] = 0; }
     inline ~string() { delete[] p; }
     inline string(const char* s) {
         sz = strlen(s) + 1;
