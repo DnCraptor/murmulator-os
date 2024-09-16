@@ -7,10 +7,38 @@
 #include "c64_class.h"
 #define VERSION_STRING "1"
 #define LogText(x)
+#define nullptr 0
+
+
+static void mem_stat(char* s)
+{
+    printf("%s\n",s);
+    HeapStats_t stat;
+    vPortGetHeapStats(&stat);
+    size_t heap = get_heap_total();
+    printf( "Heap memory: %d (%dK)\n"
+            " available bytes total: %d (%dK)\n"
+            "         largets block: %d (%dK)\n",
+            heap, heap >> 10,
+            stat.xAvailableHeapSpaceInBytes, stat.xAvailableHeapSpaceInBytes >> 10,
+            stat.xSizeOfLargestFreeBlockInBytes, stat.xSizeOfLargestFreeBlockInBytes >> 10
+    );
+    printf( "        smallest block: %d (%dK)\n"
+            "           free blocks: %d\n"
+            "    min free remaining: %d (%dK)\n"
+            "           allocations: %d\n"
+            "                 frees: %d\n",
+            stat.xSizeOfSmallestFreeBlockInBytes, stat.xSizeOfSmallestFreeBlockInBytes >> 10,
+            stat.xNumberOfFreeBlocks,
+            stat.xMinimumEverFreeBytesRemaining, stat.xMinimumEverFreeBytesRemaining >> 10,
+            stat.xNumberOfSuccessfulAllocations, stat.xNumberOfSuccessfulFrees
+    );
+}
 
 /// TODO:
 int main(void) {
-    printf("main\n");
+    printf("main %d\n", sizeof(C64Class));
+    mem_stat("!");
     int ret_error;
     C64Class * c64 = new C64Class(&ret_error, 1024, "/c64");
     printf("c64\n");

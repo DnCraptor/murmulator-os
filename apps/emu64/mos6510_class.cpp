@@ -1730,6 +1730,7 @@ void MOS6510::Phi1()
 
 MOS6510_PORT::MOS6510_PORT(void)
 {
+	printf("MOS6510_PORT::MOS6510_PORT(void)\n");
 	Reset();
 }
 

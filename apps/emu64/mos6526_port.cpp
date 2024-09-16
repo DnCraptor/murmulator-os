@@ -17,6 +17,7 @@
 
 PORT::PORT()
 {
+	printf("PORT::PORT()\n");
     input_bits = 0;
     output_bits = 0;
 }

@@ -19,30 +19,6 @@
 #include "c64_file_types.h"
 #include "m-os-api-sdtfn.h"
 
-static void mem_stat(void)
-{
-    HeapStats_t stat;
-    vPortGetHeapStats(&stat);
-    size_t heap = get_heap_total();
-    printf( "Heap memory: %d (%dK)\n"
-            " available bytes total: %d (%dK)\n"
-            "         largets block: %d (%dK)\n",
-            heap, heap >> 10,
-            stat.xAvailableHeapSpaceInBytes, stat.xAvailableHeapSpaceInBytes >> 10,
-            stat.xSizeOfLargestFreeBlockInBytes, stat.xSizeOfLargestFreeBlockInBytes >> 10
-    );
-    printf( "        smallest block: %d (%dK)\n"
-            "           free blocks: %d\n"
-            "    min free remaining: %d (%dK)\n"
-            "           allocations: %d\n"
-            "                 frees: %d\n",
-            stat.xSizeOfSmallestFreeBlockInBytes, stat.xSizeOfSmallestFreeBlockInBytes >> 10,
-            stat.xNumberOfFreeBlocks,
-            stat.xMinimumEverFreeBytesRemaining, stat.xMinimumEverFreeBytesRemaining >> 10,
-            stat.xNumberOfSuccessfulAllocations, stat.xNumberOfSuccessfulFrees
-    );
-}
-
 ///void AudioMix(void *not_used, Uint8 *stream, int laenge);
 void MainThread(void *userdat);
 void ThreadLoad(void *userdat);
@@ -103,8 +79,33 @@ C64Class::C64Class(
 ///    bool start_minimized,
 ///    std::function<void(const char*)> log_function,
     const char *data_path
-): mmu(nullptr),cpu(nullptr),vic(nullptr),sid1(nullptr),sid2(nullptr),cia1(nullptr),cia2(nullptr),crt(nullptr),debug_logging_file(nullptr)
+)   : current_window_width(0)
+    , current_window_height(0)
+    , current_window_color_bits(0)
+    , current_c64_screen_width(0)
+    , current_c64_screen_height(0)
+    , enable_hold_vic_refresh(false)
+    , vic_refresh_is_holded(false)
+    , audio_frequency(44100)
+    , audio_sample_bit_size(16)
+    , audio_channels(2)
+    , is_audio_sample_little_endian(true)
+    , is_audio_sample_float(false)
+    , is_audio_sample_signed(true)
+    , audio_16bit_buffer(nullptr)
+    , audio_16bit_buffer_size(0)
+    , c64_screen_is_obselete(false)
+    , mmu(nullptr)
+    , cpu(nullptr)
+    , vic(nullptr)
+    , sid1(nullptr)
+    , sid2(nullptr)
+    , cia1(nullptr)
+    , cia2(nullptr)
+    , crt(nullptr)
+    , debug_logging_file(nullptr)
 {
+    printf("C64Class::C64Class\n");
     *ret_error = 0;
 
 ///    this->start_minimized = start_minimized;
@@ -148,11 +149,12 @@ C64Class::C64Class(
     mouse_hide_counter = 0;
     mouse_hide_time = 3000;
 
-mem_stat();
-
-    snprintf(floppy_sound_path,MAX_STRING_LENGTH,"%s%s",data_path,"/floppy_sounds/");
+    char buf[64];
+    snprintf(buf,64,"%s%s",data_path,"/floppy_sounds/");
+    floppy_sound_path = buf;
 ///    snprintf(gfx_path,MAX_STRING_LENGTH,"%s%s",data_path,"/gfx/");
-    snprintf(rom_path,MAX_STRING_LENGTH,"%s%s",data_path,"/roms/");
+    snprintf(buf,64,"%s%s",data_path,"/roms/");
+    rom_path = buf;
 
     LogText(">> C64 Klasse wurde gestartet...\n");
     LogText(">> GfxPath = ");
@@ -188,12 +190,12 @@ mem_stat();
     enable_window_aspect_ratio = true;
     enable_fullscreen_aspect_ratio = true;
     */
-    c64_screen_is_obselete = false;
+///    c64_screen_is_obselete = false;
 ///    start_screenshot = false;
 ///    enable_exit_screenshot = false;
-    frame_skip_counter = 1;
+///    frame_skip_counter = 1;
 
-    enable_distortion = true;
+///    enable_distortion = true;
 ///    SetDistortion(-0.05f);
 
 ///    is_screenshot_enable = false;
@@ -354,12 +356,12 @@ mem_stat();
     }
 */
 
-    audio_frequency = 44100; /// audio_spec_have.freq;
-    audio_channels = 2; /// audio_spec_have.channels;
-    audio_sample_bit_size = 16; /// audio_spec_have.format & 0x00ff;
-    is_audio_sample_little_endian = 1; /// tODO: audio_spec_have.format & 0x8000;
-    is_audio_sample_float = 0; /// audio_spec_have.format & 0x0100;
-    is_audio_sample_signed = 1; /// audio_spec_have.format & 0x1000;
+//    audio_frequency = 44100; /// audio_spec_have.freq;
+//    audio_channels = 2; /// audio_spec_have.channels;
+//    audio_sample_bit_size = 16; /// audio_spec_have.format & 0x00ff;
+//    is_audio_sample_little_endian = 1; /// tODO: audio_spec_have.format & 0x8000;
+//    is_audio_sample_float = 0; /// audio_spec_have.format & 0x0100;
+//    is_audio_sample_signed = 1; /// audio_spec_have.format & 0x1000;
     int samplerate = 1024; /// TODO: audio_spec_have.samples;
     audio_16bit_buffer_size = 2048; // audio_spec_have.samples * 2;
     audio_16bit_buffer = new int16_t[audio_16bit_buffer_size];
@@ -1466,22 +1468,22 @@ bool C64Class::LoadDiskImage(uint8_t floppy_nr, FILE *file, int typ)
 
 void C64Class::LoadPRGFromD64(uint8_t floppy_nr, char *c64_filename, int command)
 {
-    char str00[1024];
+    char str00[64];
     KillCommandLine();
 
     if ( command == 0 ) {
         HardReset();
         SDL_Delay(100);
-        snprintf(str00,1024,"LOAD\"%s\",%d,1%cRUN%c",c64_filename,floppy_nr+8,13,13);
-        SetCommandLine(str00);
+        snprintf(str00,64,"LOAD\"%s\",%d,1%cRUN%c",c64_filename,floppy_nr+8,13,13);
+        SetCommandLine(string(str00));
     }
     else if ( command == 1 ) {
-        snprintf(str00,1024,"LOAD\"%s\",%d,1%cRUN%c",c64_filename,floppy_nr+8,13,13);
-        SetCommandLine(str00);
+        snprintf(str00,64,"LOAD\"%s\",%d,1%cRUN%c",c64_filename,floppy_nr+8,13,13);
+        SetCommandLine(string(str00));
     }
     else if ( command == 2 ) {
-        snprintf(str00,1024,"LOAD\"%s\",%d,1%c",c64_filename,floppy_nr+8,13);
-        SetCommandLine(str00);
+        snprintf(str00,64,"LOAD\"%s\",%d,1%c",c64_filename,floppy_nr+8,13);
+        SetCommandLine(string(str00));
     }
 }
 
@@ -1491,10 +1493,10 @@ void C64Class::SetFloppyWriteProtect(uint8_t floppy_nr, bool status)
         floppy[floppy_nr]->SetWriteProtect(status);
 }
 
-void C64Class::SetCommandLine(char *c64_command)
+void C64Class::SetCommandLine(const string& c64_command)
 {
-    strcpy(c64_command_line,c64_command);
-    c64_command_line_lenght = static_cast<uint16_t>(strlen(c64_command_line));
+    c64_command_line = c64_command;
+    c64_command_line_lenght = static_cast<uint16_t>(c64_command_line.size());
     c64_command_line_current_pos = 0;
     c64_command_line_status = true;
     c64_command_line_count_s = true;
@@ -2776,19 +2778,21 @@ void ThreadLoad(void *userdat)
 {
     uint16_t PRGStartAdresse;
     C64Class *c64 = static_cast<C64Class*>(userdat);
-
+    char buf[64];
     if ( c64->auto_load_mode == 0 )
         c64->SetCommandLine(c64->auto_load_command_line);
     else if ( c64->auto_load_mode == 1 ) {
-		c64->LoadPRG(c64->auto_load_file, c64->auto_load_filename, c64->auto_load_file_typ, &PRGStartAdresse);
-        if(PRGStartAdresse <= 0x0801) snprintf(c64->auto_load_command_line,MAX_STRING_LENGTH,"RUN%c",13);
-        else snprintf(c64->auto_load_command_line,MAX_STRING_LENGTH,"SYS %d%c",PRGStartAdresse,13);
+		c64->LoadPRG(c64->auto_load_file, c64->auto_load_filename.c_str(), c64->auto_load_file_typ, &PRGStartAdresse);
+        if(PRGStartAdresse <= 0x0801) snprintf(buf,64,"RUN%c",13);
+        else snprintf(buf,64,"SYS %d%c",PRGStartAdresse,13);
+        c64->auto_load_command_line = buf;
         c64->SetCommandLine(c64->auto_load_command_line);
     }
     else if ( c64->auto_load_mode == 2 ) {
-		c64->LoadPRG(c64->auto_load_file, c64->auto_load_filename, c64->auto_load_file_typ, &PRGStartAdresse);
-        if(PRGStartAdresse <= 0x0801) snprintf(c64->auto_load_command_line,MAX_STRING_LENGTH,"RUN%c",13);
-        else snprintf(c64->auto_load_command_line,MAX_STRING_LENGTH,"SYS %d%c",PRGStartAdresse,13);
+		c64->LoadPRG(c64->auto_load_file, c64->auto_load_filename.c_str(), c64->auto_load_file_typ, &PRGStartAdresse);
+        if(PRGStartAdresse <= 0x0801) snprintf(buf,64,"RUN%c",13);
+        else snprintf(buf,64,"SYS %d%c",PRGStartAdresse,13);
+        c64->auto_load_command_line = buf;
         c64->SetCommandLine(c64->auto_load_command_line);
     }
     vTaskDelete ( NULL );
@@ -2802,7 +2806,9 @@ int C64Class::LoadAutoRun(uint8_t floppy_nr, FILE *file, const char *filename, i
 
 		KillCommandLine();
 		auto_load_mode = 0;
-		snprintf(auto_load_command_line,1024,"LOAD\"*\",%d,1%cRUN%c",floppy_nr+8,13,13);
+        char buf[64];
+		snprintf(buf,64,"LOAD\"*\",%d,1%cRUN%c",floppy_nr+8,13,13);
+        auto_load_command_line = buf;
 		HardReset();
 		wait_reset_ready = true;
 		c64_reset_ready = false;
@@ -2815,7 +2821,9 @@ int C64Class::LoadAutoRun(uint8_t floppy_nr, FILE *file, const char *filename, i
 
 		KillCommandLine();
 		auto_load_mode = 0;
-		snprintf(auto_load_command_line,1024,"LOAD\"*\",%d,1%cRUN%c",floppy_nr+8,13,13);
+        char buf[64];
+		snprintf(buf,64,"LOAD\"*\",%d,1%cRUN%c",floppy_nr+8,13,13);
+        auto_load_command_line = buf;
 		HardReset();
 		wait_reset_ready = true;
 		c64_reset_ready = false;
@@ -2827,7 +2835,7 @@ int C64Class::LoadAutoRun(uint8_t floppy_nr, FILE *file, const char *filename, i
 		KillCommandLine();
 		auto_load_mode = 1;
 
-		strcpy(auto_load_filename,filename);
+		auto_load_filename = filename;
 		auto_load_file = file;
 		auto_load_file_typ = typ;
 
@@ -2841,7 +2849,7 @@ int C64Class::LoadAutoRun(uint8_t floppy_nr, FILE *file, const char *filename, i
 		KillCommandLine();
 		auto_load_mode = 2;
 
-		strcpy(auto_load_filename, filename);
+		auto_load_filename = filename;
 		auto_load_file = file;
 		auto_load_file_typ = typ;
 
@@ -2855,7 +2863,7 @@ int C64Class::LoadAutoRun(uint8_t floppy_nr, FILE *file, const char *filename, i
 		KillCommandLine();
 		auto_load_mode = 1;
 
-		strcpy(auto_load_filename, filename);
+		auto_load_filename = filename;
 		auto_load_file = file;
 		auto_load_file_typ = typ;
 

@@ -18,6 +18,8 @@
 typedef float  float_t;
 #define FILENAME_MAX 64
 
+#include "m-os-api-cpp-string.h"
+
 #include "structs.h"
 ///#include "./video_crt_class.h"
 #include "./mmu_class.h"
@@ -65,7 +67,7 @@ enum SCREENSHOT_FORMATS {SCREENSHOT_FORMAT_BMP, SCREENSHOT_FORMAT_PNG, SCREENSHO
 
 class C64Class
 {
-
+    string debug;
 public:
     C64Class(
         int *ret_error,
@@ -89,7 +91,7 @@ public:
 	bool LoadDiskImage(uint8_t floppy_nr, FILE *file, int typ);
     void LoadPRGFromD64(uint8_t floppy_nr, char *c64_filename, int command);
     void SetFloppyWriteProtect(uint8_t floppy_nr, bool status);
-    void SetCommandLine(char *c64_command);
+    void SetCommandLine(const string& c64_command);
     void KillCommandLine();
     uint8_t ReadC64Byte(uint16_t address);
     void WriteC64Byte(uint16_t address, uint8_t value);
@@ -307,15 +309,15 @@ public:
 ///    uint8_t         *c64_screen_buffer;
     bool            c64_screen_is_obselete;
 
-    bool            enable_distortion;
-    float_t         distortion_value;
+///    bool            enable_distortion;
+///    float_t         distortion_value;
 
     /// Distortion (Verzerrung) ///
 ///    POINT_STRUCT    distortion_grid_points[(SUBDIVS_SCREEN+1)*(SUBDIVS_SCREEN+1)];
 ///    POINT_STRUCT    distortion_grid[(SUBDIVS_SCREEN)*(SUBDIVS_SCREEN)*4];
 ///    POINT_STRUCT    distortion_grid_texture_coordinates[(SUBDIVS_SCREEN)*(SUBDIVS_SCREEN)*4];
 
-    int				frame_skip_counter;
+///    int				frame_skip_counter;
 
 ///    SDL_Surface     *img_joy_arrow0;
 ///    SDL_Surface     *img_joy_arrow1;
@@ -381,8 +383,8 @@ public:
 
     bool            wait_reset_ready;
     uint8_t         auto_load_mode;
-    char            auto_load_command_line[MAX_STRING_LENGTH];
-    char            auto_load_filename[MAX_STRING_LENGTH];
+    string          auto_load_command_line; //[MAX_STRING_LENGTH];
+    string          auto_load_filename; //[MAX_STRING_LENGTH];
 	FILE*			auto_load_file;
 	int				auto_load_file_typ;
 
@@ -428,28 +430,28 @@ private:
     void WriteIO2(uint16_t address, uint8_t value);
     uint8_t ReadIO1(uint16_t address);
     uint8_t ReadIO2(uint16_t address);
-    void SDLThreadPauseBegin();
-    void SDLThreadPauseEnd();
+///    void SDLThreadPauseBegin();
+///    void SDLThreadPauseEnd();
     void OpenSDLJoystick();
     void CloseSDLJoystick();
     void ChangePOTSwitch();
     void UpdateMouse();
-    int InitVideoCaptureSystem();
-    void CloseVideoCaptureSystem();
+///    int InitVideoCaptureSystem();
+///    void CloseVideoCaptureSystem();
 ///    void SwapRBSurface(SDL_Surface *surface); // swaps the color red with blue in sdl surface
     void DebugLogging();
     ReadProcFn<C64Class>* ReadProcTbl;
     WriteProcFn<C64Class>* WriteProcTbl;
 ///    char  gfx_path[MAX_STRING_LENGTH];
-    char  floppy_sound_path[MAX_STRING_LENGTH];
-    char  rom_path[MAX_STRING_LENGTH];
+    string  floppy_sound_path;///[MAX_STRING_LENGTH];
+    string  rom_path;///[MAX_STRING_LENGTH];
 
 ///    char sdl_window_name[MAX_STRING_LENGTH];
 
     bool sdl_joystick_is_open;
     int  sdl_joystick_count;
 ///    SDL_Joystick *sdl_joystick[MAX_SDL_JOYSTICK_NUM];
-    const char *sdl_joystick_name[MAX_SDL_JOYSTICK_NUM];
+///    const char *sdl_joystick_name[MAX_SDL_JOYSTICK_NUM];
     bool sdl_joystick_stop_update;
     bool sdl_joystick_update_is_stoped;
 
@@ -526,7 +528,7 @@ private:
     bool        c64_reset_ready;
     bool        floppy_reset_ready[MAX_FLOPPY_NUM];
 
-    char        c64_command_line[MAX_STRING_LENGTH];
+    string      c64_command_line;//[MAX_STRING_LENGTH];
     uint16_t    c64_command_line_lenght;
     uint16_t    c64_command_line_current_pos;
     bool        c64_command_line_status;

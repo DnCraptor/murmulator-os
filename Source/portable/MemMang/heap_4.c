@@ -174,6 +174,8 @@ static char * allocated[DEBUG_HEAP_SIZE] = {0};
 #endif
 void * pvPortMalloc( size_t xWantedSize )
 {
+///if (xWantedSize > 1024) 
+///goutf("[%p] %d\n", xWantedSize, xWantedSize);
     BlockLink_t * pxBlock;
     BlockLink_t * pxPreviousBlock;
     BlockLink_t * pxNewBlockLink;
