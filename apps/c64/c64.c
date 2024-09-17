@@ -4,7 +4,7 @@
 #include "m-os-api-math.h"
 
 #define RGBVAL8(r,g,b) (0xC0 | (((r & 0xFF) / 42) << 4) | (((g & 0xFF) / 42) << 2) | ((b & 0xFF) / 42))
-#define RGBVAL16(r,g,b) ((RGBVAL8(r, g, b) << 8) | RGBVAL8(r, g, b))
+#define RGBVAL16(r,g,b) (((RGBVAL8(r, g, b) << 8) | RGBVAL8(r, g, b)) & 0x3f3f)
 
 inline static unsigned long millis() { 
   return timer_hw->timerawl / 1000;
@@ -45,7 +45,8 @@ int main() {
 	  marked_to_exit = false;
     cmd_ctx_t* ctx = get_cmd_ctx();
     graphics_driver_t* gd = get_graphics_driver();
-    gd->set_mode(7); // TODO: lookup for the mode 320*240*8-bit
+    gd->set_mode(6); // TODO: lookup for the mode 320*240*8-bit
+    gd->set_bgcolor(0);
     emu_init();
     while (!marked_to_exit) {
         if (menuActive()) {

@@ -67,7 +67,6 @@ enum SCREENSHOT_FORMATS {SCREENSHOT_FORMAT_BMP, SCREENSHOT_FORMAT_PNG, SCREENSHO
 
 class C64Class
 {
-    string debug;
 public:
     C64Class(
         int *ret_error,

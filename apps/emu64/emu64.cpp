@@ -40,10 +40,9 @@ int main(void) {
     printf("main %d\n", sizeof(C64Class));
     mem_stat("!");
     int ret_error;
-    C64Class * c64 = new C64Class(&ret_error, 1024, "/c64");
+    C64Class с64(&ret_error, 1024, "/c64");
     printf("c64\n");
     /// ??
-    delete c64;
     return ret_error;
 }
 

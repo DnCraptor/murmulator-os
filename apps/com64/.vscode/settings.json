@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "structs.h": "c",
+        "mos6502.h": "c",
+        "micro_code_tbl_6502.h": "c",
+        "func.h": "c",
+        "mos6510_port.h": "c",
+        "mmu.h": "c",
+        "m-os-api.h": "c",
+        "mos6510.h": "c"
+    }
+}
