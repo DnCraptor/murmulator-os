@@ -171,24 +171,28 @@ static void MMU_ChangeMemMap(MMU* p)
 			}
 			for(int i = 0; i < 4; ++i)
 			{
-///                                CPUReadProcTbl[0xD0+i] = VicIOReadProc;
-///                                CPUReadProcTbl[0xD4+i] = SidIOReadProc;
+                p->CPUReadProcTbl[0xD0 + i].fn = p->VicIOReadProc.fn;
+                p->CPUReadProcTbl[0xD0 + i].p = p->VicIOReadProc.p;
+                p->CPUReadProcTbl[0xD4 + i].fn = p->SidIOReadProc.fn;
+                p->CPUReadProcTbl[0xD4 + i].p = p->SidIOReadProc.p;
                 p->CPUReadProcTbl[0xD8 + i].fn = MMU_ReadFarbRam;
                 p->CPUReadProcTbl[0xD8 + i].p = p;
-///                                MapReadSource[0xD0+i] = MV_VIC;
-///                                MapReadSource[0xD4+i] = MV_SID;
+                p->MapReadSource[0xD0 + i] = MV_VIC;
+                p->MapReadSource[0xD4 + i] = MV_SID;
                 p->MapReadSource[0xD8 + i] = MV_FARB_RAM;
 			}
-            /**
-                        CPUReadProcTbl[0xDC] = Cia1IOReadProc;
-                        CPUReadProcTbl[0xDD] = Cia2IOReadProc;
-                        CPUReadProcTbl[0xDE] = IO1ReadProc;
-                        CPUReadProcTbl[0xDF] = IO2ReadProc;
-                        MapReadSource[0xDC] = MV_CIA1;
-                        MapReadSource[0xDD] = MV_CIA2;
-                        MapReadSource[0xDE] = MV_IO1;
-                        MapReadSource[0xDF] = MV_IO2;
-            */
+            p->CPUReadProcTbl[0xDC].fn = p->Cia1IOReadProc.fn;
+            p->CPUReadProcTbl[0xDD].fn = p->Cia2IOReadProc.fn;
+            p->CPUReadProcTbl[0xDE].fn = p->IO1ReadProc.fn;
+            p->CPUReadProcTbl[0xDF].fn = p->IO2ReadProc.fn;
+            p->CPUReadProcTbl[0xDC].p = p->Cia1IOReadProc.p;
+            p->CPUReadProcTbl[0xDD].p = p->Cia2IOReadProc.p;
+            p->CPUReadProcTbl[0xDE].p = p->IO1ReadProc.p;
+            p->CPUReadProcTbl[0xDF].p = p->IO2ReadProc.p;
+            p->MapReadSource[0xDC] = MV_CIA1;
+            p->MapReadSource[0xDD] = MV_CIA2;
+            p->MapReadSource[0xDE] = MV_IO1;
+            p->MapReadSource[0xDF] = MV_IO2;
 			/// WRITE
 			for(int i = 0; i < 32; ++i)
 			{
@@ -204,24 +208,28 @@ static void MMU_ChangeMemMap(MMU* p)
 			}
 			for(int i = 0; i < 4; ++i)
 			{
-///                                CPUWriteProcTbl[0xD0+i] = VicIOWriteProc;
-///                                CPUWriteProcTbl[0xD4+i] = SidIOWriteProc;
+                p->CPUWriteProcTbl[0xD0 + i].fn = p->VicIOWriteProc.fn;
+                p->CPUWriteProcTbl[0xD0 + i].p = p->VicIOWriteProc.p;
+                p->CPUWriteProcTbl[0xD4 + i].fn = p->SidIOWriteProc.fn;
+                p->CPUWriteProcTbl[0xD4 + i].p = p->SidIOWriteProc.p;
                 p->CPUWriteProcTbl[0xD8 + i].fn = MMU_WriteFarbRam;
                 p->CPUWriteProcTbl[0xD8 + i].p = p;
-///                                MapWriteDestination[0xD0+i] = MV_VIC;
-///                                MapWriteDestination[0xD4+i] = MV_SID;
+                p->MapWriteDestination[0xD0 + i] = MV_VIC;
+                p->MapWriteDestination[0xD4 + i] = MV_SID;
                 p->MapWriteDestination[0xD8 + i] = MV_FARB_RAM;
 			}
-            /***
-                        CPUWriteProcTbl[0xDC] = Cia1IOWriteProc;
-                        CPUWriteProcTbl[0xDD] = Cia2IOWriteProc;
-                        CPUWriteProcTbl[0xDE] = IO1WriteProc;
-                        CPUWriteProcTbl[0xDF] = IO2WriteProc;
-                        MapWriteDestination[0xDC] = MV_CIA1;
-                        MapWriteDestination[0xDD] = MV_CIA2;
-                        MapWriteDestination[0xDE] = MV_IO1;
-                        MapWriteDestination[0xDF] = MV_IO2;
-            */
+            p->CPUWriteProcTbl[0xDC].fn = p->Cia1IOWriteProc.fn;
+            p->CPUWriteProcTbl[0xDC].p = p->Cia1IOWriteProc.p;
+            p->CPUWriteProcTbl[0xDD].fn = p->Cia2IOWriteProc.fn;
+            p->CPUWriteProcTbl[0xDD].p = p->Cia2IOWriteProc.p;
+            p->CPUWriteProcTbl[0xDE].fn = p->IO1WriteProc.fn;
+            p->CPUWriteProcTbl[0xDE].p = p->IO1WriteProc.p;
+            p->CPUWriteProcTbl[0xDF].fn = p->IO2WriteProc.fn;
+            p->CPUWriteProcTbl[0xDF].p = p->IO2WriteProc.p;
+            p->MapWriteDestination[0xDC] = MV_CIA1;
+            p->MapWriteDestination[0xDD] = MV_CIA2;
+            p->MapWriteDestination[0xDE] = MV_IO1;
+            p->MapWriteDestination[0xDF] = MV_IO2;
 		}
         break;
         /**

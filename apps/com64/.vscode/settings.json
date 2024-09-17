@@ -7,6 +7,7 @@
         "mos6510_port.h": "c",
         "mmu.h": "c",
         "m-os-api.h": "c",
-        "mos6510.h": "c"
+        "mos6510.h": "c",
+        "mos6569.h": "c"
     }
 }

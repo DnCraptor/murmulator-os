@@ -24,8 +24,22 @@ typedef struct MMU
 {
     func_read_t  CPUReadProcTbl [256];
     func_write_t CPUWriteProcTbl[256];
+    func_read_t  VICReadProcTbl [256];
 
     MOS6510_PORT *CPU_PORT;
+
+    func_write_t VicIOWriteProc;
+    func_write_t SidIOWriteProc;
+    func_write_t Cia1IOWriteProc;
+    func_write_t Cia2IOWriteProc;
+    func_write_t IO1WriteProc;
+    func_write_t IO2WriteProc;
+    func_read_t VicIOReadProc;
+    func_read_t SidIOReadProc;
+    func_read_t Cia1IOReadProc;
+    func_read_t Cia2IOReadProc;
+    func_read_t IO1ReadProc;
+    func_read_t IO2ReadProc;
 
     bool *GAME;
     bool *EXROM;
@@ -43,7 +57,7 @@ typedef struct MMU
     /// Variablen ///
     unsigned char RAM[0x10000];			// 64KB
 ///    unsigned char BASIC_ROM[0x2000];		// 8KB ab 0xA000
-    unsigned char CHAR_ROM[0x1000];		// 4KB ab 0xD000
+///    unsigned char CHAR_ROM[0x1000];		// 4KB ab 0xD000
     unsigned char FARB_RAM[0x0400];		// 1KB ab 0xD800
 ///    unsigned char KERNAL_ROM[0x2000];		// 8KB ab 0xE000
 

@@ -80,6 +80,7 @@ static void MOS6510_MOS6510(MOS6510* p);
 inline static unsigned char MOS6510_Read(MOS6510* p, unsigned short adresse)
 {
     func_read_t* fn = &p->ReadProcTbl[(adresse)>>8];
+    if (!fn->p) return 0;
 	return fn->fn(fn->p, adresse);
 }
 static void MOS6510_Write(MOS6510* p, unsigned short adresse, unsigned char wert);
@@ -119,5 +120,6 @@ inline static void MOS6510_SET_OVERFLOW(MOS6510* p, bool status)
 	if (status!=0) p->SR|=64;
 	else p->SR&=0xBF;
 }
+static int Disassemble(MOS6510* p, FIL* file, uint16_t pc, bool line_draw);
 
 #endif // MOS_6510_CLASS_H

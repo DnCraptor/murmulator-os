@@ -27,7 +27,8 @@ static void MOS6510_Write(MOS6510* p, unsigned short adresse, unsigned char wert
 
 	if(adresse == 0xFF00) p->WRITE_FF00 = true;
     func_write_t* fn = &p->WriteProcTbl[(adresse)>>8];
-	fn->fn(fn->p, adresse, wert);
+    if (fn->p)
+	    fn->fn(fn->p, adresse, wert);
 }
 
 // Phi2
@@ -41,17 +42,18 @@ static bool MOS6510_OneZyklus(MOS6510* p)
 	unsigned short  tmp2;
 	unsigned short  src;
 	bool            carry_tmp;
-printf("[%04X]", p->PC);
-	if(*p->RDY) p->CpuWait = false;
+	if(*p->RDY) {
+        p->CpuWait = false;
+    }
 
 	if(!*p->RESET)
 	{
-		p->CpuWait=true;
+		p->CpuWait = true;
 	}
 
 	if((*p->RESET == true) && (RESET_OLD == false))
 	{
-		p->CpuWait=false;
+		p->CpuWait = false;
 		p->Interrupts[CIA_NMI] = false;
 		p->Interrupts[CRT_NMI] = false;
 		p->Interrupts[RESTORE_NMI] = false;
@@ -76,6 +78,7 @@ printf("[%04X]", p->PC);
 		p->nmi_fall_edge = false;
 	p->nmi_state_old = p->nmi_state;
 
+//Disassemble(p, get_stdout(), p->PC, true);
 	if(!p->CpuWait)
 	{
 		switch(*p->MCT)
@@ -111,7 +114,7 @@ printf("[%04X]", p->PC);
 
 			p->MCT = ((unsigned char*)MicroCodeTable6510 + (MOS6510_Read(p, p->PC)*MCTItemSize));
             func_read_t* fn = &p->ReadProcTbl[(p->AktOpcodePC)>>8];
-			p->AktOpcode = fn->fn(fn->p, p->AktOpcodePC);
+			p->AktOpcode = fn->p ? fn->fn(fn->p, p->AktOpcodePC) : 0;
 
 			p->PC++;
 
@@ -1373,4 +1376,162 @@ static void MOS6510_Phi1(MOS6510* p)
 
 	if(p->nmi_fall_edge)
 		p->nmi_is_active = true;
+}
+
+static const uint8_t CPU_OPC_INFO[256]={\
+0*16+6+0,7*16+5+0,0*16+0+8,7*16+7+8,3*16+2+8,3*16+2+0,3*16+4+0,3*16+4+8,0*16+2+0,1*16+1+0,0*16+1+0,1*16+1+8,2*16+3+8,2*16+3+0,2*16+5+0,2*16+5+8\
+,9*16+1+0,8*16+4+0,0*16+0+8,8*16+7+8,6*16+3+8,6*16+3+0,6*16+5+0,6*16+5+8,0*16+1+0,5*16+3+0,0*16+1+8,5*16+6+8,4*16+3+8,4*16+3+0,4*16+6+0,4*16+6+8\
+,2*16+5+0,7*16+5+0,0*16+0+8,7*16+7+8,3*16+2+0,3*16+2+0,3*16+4+0,3*16+4+8,0*16+3+0,1*16+1+0,0*16+1+0,1*16+1+8,2*16+3+0,2*16+3+0,2*16+5+0,2*16+5+8\
+,9*16+1+0,8*16+4+0,0*16+0+8,8*16+7+8,6*16+3+8,6*16+3+0,6*16+5+0,6*16+5+8,0*16+1+0,5*16+3+0,0*16+1+8,5*16+6+8,4*16+3+8,4*16+3+0,4*16+6+0,4*16+6+8\
+,0*16+5+0,7*16+5+0,0*16+0+8,7*16+7+8,3*16+2+8,3*16+2+0,3*16+4+0,3*16+4+8,0*16+2+0,1*16+1+0,0*16+1+0,1*16+1+8,2*16+2+0,2*16+4+0,2*16+5+0,2*16+5+8\
+,9*16+1+0,8*16+4+0,0*16+0+8,8*16+7+8,6*16+3+8,6*16+3+0,6*16+5+0,6*16+5+8,0*16+1+0,5*16+3+0,0*16+1+8,5*16+6+8,4*16+3+8,4*16+3+0,4*16+6+0,4*16+6+8\
+,0*16+5+0,7*16+5+0,0*16+0+8,7*16+7+8,3*16+2+8,3*16+2+0,3*16+4+0,3*16+4+8,0*16+2+0,1*16+1+0,0*16+1+0,1*16+1+8,10*16+4+0,2*16+3+0,2*16+5+0,2*16+5+8\
+,9*16+1+0,8*16+4+0,0*16+0+8,8*16+7+8,6*16+3+8,6*16+3+0,6*16+5+0,6*16+5+8,0*16+1+0,5*16+3+0,0*16+1+8,5*16+6+8,4*16+3+8,4*16+3+0,4*16+6+0,4*16+6+8\
+,1*16+1+8,7*16+5+0,0*16+1+8,7*16+5+8,3*16+2+0,3*16+2+0,3*16+2+0,3*16+2+8,0*16+1+0,1*16+1+8,0*16+1+0,1*16+1+8,2*16+3+0,2*16+3+0,2*16+3+0,2*16+3+8\
+,9*16+1+0,8*16+5+0,0*16+0+8,4*16+5+8,6*16+1+0,6*16+3+0,11*16+3+0,11*16+3+8,0*16+1+0,5*16+1+0,0*16+1+0,5*16+4+8,5*16+4+8,4*16+4+0,4*16+4+8,5*16+4+8\
+,1*16+1+0,7*16+5+0,1*16+1+0,7*16+5+8,3*16+2+0,3*16+2+0,3*16+2+0,3*16+2+8,0*16+1+0,1*16+1+0,0*16+1+0,1*16+1+8,2*16+3+0,2*16+3+0,2*16+3+0,2*16+3+8\
+,9*16+1+0,8*16+4+0,0*16+0+8,8*16+4+8,6*16+1+0,6*16+3+0,11*16+3+0,11*16+3+8,0*16+1+0,5*16+3+0,0*16+1+0,5*16+3+8,4*16+3+0,4*16+3+0,5*16+3+0,5*16+3+8\
+,1*16+1+0,7*16+5+0,1*16+1+8,7*16+7+8,3*16+2+0,3*16+2+0,3*16+4+0,3*16+4+8,0*16+1+0,1*16+1+0,0*16+1+0,1*16+1+8,2*16+3+0,2*16+3+0,2*16+5+0,2*16+5+8\
+,9*16+1+0,8*16+4+0,0*16+0+8,8*16+7+8,6*16+3+8,6*16+3+0,6*16+5+0,6*16+5+8,0*16+1+0,5*16+3+0,0*16+1+8,5*16+6+8,4*16+3+8,4*16+3+0,4*16+6+0,4*16+6+8\
+,1*16+1+0,7*16+5+0,1*16+1+8,7*16+7+8,3*16+2+0,3*16+2+0,3*16+4+0,3*16+4+8,0*16+1+0,1*16+1+0,0*16+1+0,1*16+1+8,2*16+3+0,2*16+3+0,2*16+5+0,2*16+5+8\
+,9*16+1+0,8*16+4+0,0*16+0+8,8*16+7+8,6*16+3+8,6*16+3+0,6*16+5+0,6*16+5+8,0*16+1+0,5*16+3+0,0*16+1+8,5*16+6+8,4*16+3+8,4*16+3+0,4*16+6+0,4*16+6+8};
+
+static const char* CPU_OPC = {"\
+BRKORAJAMSLONOPORAASLSLOPHPORAASLANCNOPORAASLSLO\
+BPLORAJAMSLONOPORAASLSLOCLCORANOPSLONOPORAASLSLO\
+JSRANDJAMRLABITANDROLRLAPLPANDROLANCBITANDROLRLA\
+BMIANDJAMRLANOPANDROLRLASECANDNOPRLANOPANDROLRLA\
+RTIEORJAMSRENOPEORLSRSREPHAEORLSRASRJMPEORLSRSRE\
+BVCEORJAMSRENOPEORLSRSRECLIEORNOPSRENOPEORLSRSRE\
+RTSADCJAMRRANOPADCRORRRAPLAADCRORARRJMPADCRORRRA\
+BVSADCJAMRRANOPADCRORRRASEIADCNOPARRNOPADCRORRRA\
+NOPSTANOPSAXSTYSTASTXSAXDEYNOPTXAANESTYSTASTXSAX\
+BCCSTAJAMSHASTYSTASTXSAXTYASTATXSSHSSHYSTASHXSHA\
+LDYLDALDXLAXLDYLDALDXLAXTAYLDATAXLXALDYLDALDXLAX\
+BCSLDAJAMLAXLDYLDALDXLAXCLVLDATSXLAELDYLDALDXLAX\
+CPYCMPNOPDCPCPYCMPDECDCPINYCMPDEXSBXCPYCMPDECDCP\
+BNECMPJAMDCPNOPCMPDECDCPCLDCMPNOPDCPNOPCMPDECDCP\
+CPXSBCNOPISBCPXSBCINCISBINXSBCNOPSBCCPXSBCINCISB\
+BEQSBCJAMISBNOPSBCINCISBSEDSBCNOPISBNOPSBCINCISB\
+RSTIRQNMI"};
+
+static int Disassemble(MOS6510* p, FIL* file, uint16_t pc, bool line_draw)
+{
+    static char output[50]; output[0] = 0;
+    static char address[7]; address[0] = 0;
+    static char memory[16]; memory[0] = 0;
+    static char opcode[5]; opcode[0] = 0;
+    static char addressing[8]; addressing[0] = 0;
+
+    uint16_t TMP;
+    uint16_t OPC;
+
+    uint16_t word;
+    uint16_t a;
+    char b;
+
+    snprintf(address, 7, "$%4.4X ", pc);			// Adresse Ausgeben
+
+    OPC = MOS6510_Read(p, pc) * 3;					//** Opcodes Ausgeben **//
+    snprintf(opcode, 5, "%c%c%c ", CPU_OPC[OPC + 0], CPU_OPC[OPC + 1], CPU_OPC[OPC + 2]);
+
+    TMP = CPU_OPC_INFO[MOS6510_Read(p, pc)];		//** Memory und Adressierung Ausgeben **//
+    TMP = TMP >> 4;
+    TMP = TMP & 15;
+
+    switch(TMP)
+    {
+    case 0:     //** Implizit **//
+        snprintf(memory, 16, "$%2.2X          ", MOS6510_Read(p, pc));
+        addressing[0] = 0;
+        pc++;
+        break;
+
+    case 1:		//** Unmittelbar **//
+        snprintf(memory, 16, "$%2.2X $%2.2X      ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1));
+        snprintf(addressing, 8, "#$%2.2X", MOS6510_Read(p, pc + 1));
+        pc += 2;
+        break;
+
+    case 2:		//** Absolut **//
+        snprintf(memory, 16, "$%2.2X $%2.2X $%2.2X  ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1), MOS6510_Read(p, pc + 2));
+        word = MOS6510_Read(p, pc + 1);
+        word|=MOS6510_Read(p, pc + 2)<<8;
+        snprintf(addressing, 8, "$%4.4X", word);
+        pc += 3;
+        break;
+
+    case 3:		//** Zerropage **//
+        snprintf(memory, 16, "$%2.2X $%2.2X      ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1));
+        snprintf(addressing, 8, "$%2.2X", MOS6510_Read(p, pc + 1));
+        pc += 2;
+        break;
+
+    case 4:		//** Absolut X Indexziert **//
+        snprintf(memory, 16, "$%2.2X $%2.2X $%2.2X  ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1), MOS6510_Read(p, pc + 2));
+        word=MOS6510_Read(p, pc + 1);
+        word|=MOS6510_Read(p, pc + 2)<<8;
+        snprintf(addressing, 8, "$%4.4X,X", word);
+        pc += 3;
+        break;
+
+    case 5:		//** Absolut Y Indexziert **//
+        snprintf(memory, 16, "$%2.2X $%2.2X $%2.2X  ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1), MOS6510_Read(p, pc + 2));
+        word=MOS6510_Read(p, pc + 1);
+        word|=MOS6510_Read(p, pc + 2)<<8;
+        snprintf(addressing, 8, "$%4.4X,Y", word);
+        pc += 3;
+        break;
+
+    case 6:		//** Zerropage X Indexziert **//
+        snprintf(memory, 16, "$%2.2X $%2.2X      ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1));
+        snprintf(addressing, 8, "$%2.2X,X", MOS6510_Read(p, pc + 1));
+        pc += 2;
+        break;
+
+    case 7:		//** Indirekt X Indiziert **//
+        snprintf(memory, 16, "$%2.2X $%2.2X      ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1));
+        snprintf(addressing, 8, "($%2.2X,X)", MOS6510_Read(p, pc + 1));
+        pc += 2;
+        break;
+
+    case 8:		//** Indirekt Y Indiziert **//
+        snprintf(memory, 16, "$%2.2X $%2.2X      ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1));
+        snprintf(addressing, 8, "($%2.2X),Y", MOS6510_Read(p, pc + 1));
+        pc += 2;
+        break;
+
+    case 9:
+        snprintf(memory, 16, "$%2.2X $%2.2X      ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1));
+        b = MOS6510_Read(p, pc + 1);
+        a = (pc + 2) + b;
+        snprintf(addressing, 8, "$%4.4X", a);
+        pc += 2;
+        break;
+
+    case 10:	//** Indirekt **//
+        snprintf(memory, 16, "$%2.2X $%2.2X $%2.2X  ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1), MOS6510_Read(p, pc + 2));
+        word = MOS6510_Read(p, pc + 1);
+        word |= MOS6510_Read(p, pc + 2) << 8;
+        snprintf(addressing, 8, "($%4.4X)", word);
+        pc += 3;
+        break;
+
+    case 11:									//** Zerropage Y Indexziert **//
+        snprintf(memory, 16, "$%2.2X $%2.2X      ", MOS6510_Read(p, pc), MOS6510_Read(p, pc + 1));
+        snprintf(addressing, 8, "$%2.2X,Y", MOS6510_Read(p, pc + 1));
+        pc += 2;
+        break;
+    }
+
+    snprintf(output, 50, "%s%s%s%s", address, memory, opcode, addressing);
+    fprintf(file, "%s\n", output);
+
+    OPC /= 3;
+    if(((OPC == 0x40) || (OPC == 0x60) || (OPC == 0x4C)) && (line_draw == true))
+    {
+        fprintf(file, "------------------------------\n");
+    }
+
+    return pc;
 }
