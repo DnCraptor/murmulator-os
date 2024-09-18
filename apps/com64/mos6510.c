@@ -78,9 +78,9 @@ static bool MOS6510_OneZyklus(MOS6510* p)
 		p->nmi_fall_edge = false;
 	p->nmi_state_old = p->nmi_state;
 
-//Disassemble(p, get_stdout(), p->PC, true);
 	if(!p->CpuWait)
 	{
+Disassemble(p, get_stdout(), p->PC, true);
 		switch(*p->MCT)
 		{
 		//R // Feetch Opcode

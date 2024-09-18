@@ -8,6 +8,10 @@
         "mmu.h": "c",
         "m-os-api.h": "c",
         "mos6510.h": "c",
-        "mos6569.h": "c"
+        "mos6569.h": "c",
+        "mos6581_8085.h": "c",
+        "m-os-api-sdtfn.h": "c",
+        "cartridge.h": "c",
+        "georam.h": "c"
     }
 }

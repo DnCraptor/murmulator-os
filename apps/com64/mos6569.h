@@ -182,5 +182,16 @@ typedef struct VICII
 
 static void VICII_VICII(VICII* p);
 static void VICII_SetVicType(VICII* p, uint8_t system);
+static void VICII_WriteIO(VICII* p, uint16_t address, uint8_t value);
+static uint8_t VICII_ReadIO(VICII* p, uint16_t address);
+inline static void VICII_RasterIRQ(VICII* p)
+{
+    p->irq_flag |= 0x01;
+    if (p->irq_mask & 0x01)
+	{
+        p->irq_flag |= 0x80;
+		p->CpuTriggerInterrupt.fn(p->CpuTriggerInterrupt.p, VIC_IRQ);
+	}
+}
 
 #endif // MOS6569_H
