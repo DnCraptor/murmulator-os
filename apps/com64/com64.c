@@ -5,7 +5,7 @@
 #include "mos6510.h"
 #include "mos6569.h"
 #include "mos6526.h"
-#include "mos6581_8085.h"
+//#include "mos6581_8085.h"
 #include "cartridge.h"
 #include "reu.h"
 #include "georam.h"
@@ -42,8 +42,8 @@ static bool cpu_states[MAX_FLOPPY_NUM + 1] = { false }; // true = Feetch / false
 static MMU* mmu;
 static MOS6510* cpu;
 static VICII* vic;
-static MOS6581_8085* sid1;
-static MOS6581_8085* sid2;
+///static MOS6581_8085* sid1;
+///static MOS6581_8085* sid2;
 static MOS6526* cia1;
 static MOS6526* cia2;
 static Cartridge* crt;
@@ -91,7 +91,7 @@ static void WarpThread(void *userdat) {
 static void VicRefresh(void* ignore, unsigned char* vic_puffer) {
     // TODO:
 }
-
+/**
 static void WriteSidIO(void* ignore, uint16_t address, uint8_t value)
 {
     if(enable_stereo_sid)
@@ -104,7 +104,7 @@ static void WriteSidIO(void* ignore, uint16_t address, uint8_t value)
         MOS6581_8085_WriteIO(sid1,address,value);
     }
 }
-
+*/
 int main() {
     marked_to_exit = false;
 
@@ -123,7 +123,6 @@ int main() {
     c64_iec_wire = false;
 
     cmd_ctx_t* ctx = get_cmd_ctx();
-
     MOS6510_PORT* port = (MOS6510_PORT*)calloc(1, sizeof(MOS6510_PORT));
     MOS6510_PORT_MOS6510_PORT(port);
 
@@ -135,15 +134,15 @@ int main() {
 
     vic = (VICII*)calloc(1, sizeof(VICII));
     VICII_VICII(vic);
-
+/**
     sid2 = (MOS6581_8085*)calloc(1, sizeof(MOS6581_8085));
-    // TODO: init
+    MOS6581_8085_MOS6581_8085(sid1, 0, 44100, 1024);
     if (enable_stereo_sid) {
         sid2 = (MOS6581_8085*)calloc(1, sizeof(MOS6581_8085));
-        // TODO: init
+        MOS6581_8085_MOS6581_8085(sid1, 1, 44100, 1024);
     }
     else sid2 = 0;
-
+*/
     cia1 = (MOS6526*)calloc(1, sizeof(MOS6526));
     MOS6526_MOS6526(cia1, 0);
     cia2 = (MOS6526*)calloc(1, sizeof(MOS6526));
@@ -199,8 +198,10 @@ int main() {
     mmu->VicIOWriteProc.p = vic;
     mmu->VicIOReadProc.fn = VICII_ReadIO;
     mmu->VicIOReadProc.p = vic;
-    mmu->SidIOWriteProc.fn = WriteSidIO;
-    mmu->SidIOWriteProc.p = sid1;
+///    mmu->SidIOWriteProc.fn = WriteSidIO;
+///    mmu->SidIOWriteProc.p = sid1;
+///    mmu->SidIOReadProc.fn = MOS6581_8085_ReadIO;
+///    mmu->SidIOReadProc.p = sid1;
     //
 
     mmu->GAME = &game_wire;
@@ -247,8 +248,8 @@ int main() {
     free(reu);
     free(cia2);
     free(cia1);
-    if(sid2) free(sid2);
-    free(sid1);
+///    if(sid2) MOS6581_8085_MOS6581_8085_free(sid2);
+///    MOS6581_8085_MOS6581_8085_free(sid1);
     free(vic);
     free(cpu);
     free(mmu);
@@ -260,3 +261,4 @@ int main() {
 #include "roms.c"
 #include "mos6510.c"
 #include "mos6569.c"
+//#include "mos6581_8085.c"
