@@ -13,7 +13,7 @@ kbd_state_t* get_kbd_state(void) {
     return &ks;
 }
 
-static char scan_code_2_cp866_a[] = {
+static const char scan_code_2_cp866_a[] = {
      0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
     'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']','\n',  0 , 'a', 's',
     'd', 'f', 'g', 'h', 'j', 'k', 'l', ';','\'', '`',  0 ,'\\', 'z', 'x', 'c', 'v',
@@ -21,7 +21,7 @@ static char scan_code_2_cp866_a[] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_A[] = {
+static const char scan_code_2_cp866_A[] = {
      0 ,  0 , '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
     'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}','\n',  0 , 'A', 'S',
     'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~',  0 , '|', 'Z', 'X', 'C', 'V',
@@ -29,7 +29,7 @@ static char scan_code_2_cp866_A[] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_aCL[] = {
+static const char scan_code_2_cp866_aCL[] = {
      0 ,  0 , '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
     'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']','\n',  0 , 'a', 's',
     'd', 'f', 'g', 'h', 'j', 'k', 'l', ':', '"', '~',  0 , '|', 'z', 'x', 'c', 'v',
@@ -37,7 +37,7 @@ static char scan_code_2_cp866_aCL[] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_ACL[] = {
+static const char scan_code_2_cp866_ACL[] = {
      0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
     'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}','\n',  0 , 'A', 'S',
     'D', 'F', 'G', 'H', 'J', 'K', 'L', ';','\'', '`',  0 ,'\\', 'Z', 'X', 'C', 'V',
@@ -46,7 +46,7 @@ static char scan_code_2_cp866_ACL[] = {
     '2', '3', '0', '.',  '/', 0 
 };
 
-static char scan_code_2_cp866_ra[] = {
+static const char scan_code_2_cp866_ra[] = {
      0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
    0xA9,0xE6,0xE3,0xAA,0xA5,0xAD,0xA3,0xE8,0xE9,0xA7,0xE5,0xEA,'\n',  0 ,0xE4,0xEB,
    0xA2,0xA0,0xAF,0xE0,0xAE,0xAB,0xA4,0xA6,0xED,0xf1,  0 ,'\\',0xEF,0xE7,0xE1,0xAC,
@@ -54,7 +54,7 @@ static char scan_code_2_cp866_ra[] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_rA[] = {
+static const char scan_code_2_cp866_rA[] = {
      0 ,  0 , '!', '"',0xfc, ';', '%', ':', '?', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
    0x89,0x96,0x93,0x8A,0x85,0x8D,0x83,0x98,0x99,0x87,0x95,0x9A,'\n',  0 ,0x94,0x9B,
    0x82,0x80,0x8F,0x90,0x8E,0x8B,0x84,0x86,0x9D,0xf0,  0 , '/',0x9F,0x97,0x91,0x8C,
@@ -62,7 +62,7 @@ static char scan_code_2_cp866_rA[] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_raCL[] = {
+static const char scan_code_2_cp866_raCL[] = {
      0 ,  0 , '!', '"',0xfc, ';', '%', ':', '?', '*', '(', ')', '_', '+',  0 ,'\t', // 0D - TAB
    0xA9,0xE6,0xE3,0xAA,0xA5,0xAD,0xA3,0xE8,0xE9,0xA7,0xE5,0xEA,'\n',  0 ,0xE4,0xEB,
    0xA2,0xA0,0xAF,0xE0,0xAE,0xAB,0xA4,0xA6,0xED,0xf1,  0 , '/',0xEF,0xE7,0xE1,0xAC,
@@ -70,7 +70,7 @@ static char scan_code_2_cp866_raCL[] = {
      0 ,  0,   0 ,  0 ,  0 ,  0,   0 , '7', '8', '9', '-', '4', '5', '6', '+', '1',
     '2', '3', '0', '.',  '/', 0 
 };
-static char scan_code_2_cp866_rACL[] = {
+static const char scan_code_2_cp866_rACL[] = {
      0 ,  0 , '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',  0 ,'\t', // 0D - TAB
    0x89,0x96,0x93,0x8A,0x85,0x8D,0x83,0x98,0x99,0x87,0x95,0x9A,'\n',  0 ,0x94,0x9B,
    0x82,0x80,0x8F,0x90,0x8E,0x8B,0x84,0x86,0x9D,0xf0,  0 ,'\\',0x9F,0x97,0x91,0x8C,
@@ -119,8 +119,6 @@ bool __scratch_y("kbd_driver_text") handleScancode(const uint32_t ps2scancode) {
             return true;
         }
     }
-    FIL f = { 0 };
-    UINT br;
     static char tricode[4] = {0};
     size_t s;
     char c = 0;
