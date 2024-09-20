@@ -299,7 +299,7 @@ static void usb_on_boot() {
 
 static kbd_state_t* process_input_on_boot() {
     kbd_state_t* ks = get_kbd_state();
-    for (int a = 0; a < 5; ++a) {
+    for (int a = 0; a < 20; ++a) {
         uint8_t sc = ks->input & 0xFF;
         // F12 or ENTER or START Boot to USB FIRMWARE UPDATE mode
         if ((nespad_state & DPAD_START) || (sc == 0x58) /*F12*/ || (sc == 0x1C) /*ENTER*/) {
