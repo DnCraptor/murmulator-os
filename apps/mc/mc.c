@@ -529,7 +529,13 @@ static void turn_usb_off(uint8_t cmd);
 static void turn_usb_on(uint8_t cmd);
 
 static void mark_to_exit(uint8_t cmd) {
+    FIL f;
+    UINT bw;
+    f_open(&f, "/.firmware", FA_WRITE | FA_CREATE_ALWAYS);
+    f_write(&f, "F10", 3, &bw);
+    f_close(&f);
     mark_to_exit_flag = true;
+    reboot_me();
 }
 
 static void m_info(uint8_t cmd) {
@@ -1641,7 +1647,9 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
             }
             else {
                 nespad_state_delay = DPAD_STATE_DELAY;
-                if(nespad_state & DPAD_UP) {
+                if ( (nespad_state & DPAD_START) && (nespad_state & DPAD_SELECT) ) {
+                    mark_to_exit(10);
+                } else if(nespad_state & DPAD_UP) {
                     handle_up_pressed();
                 } else if(nespad_state & DPAD_DOWN) {
                     handle_down_pressed();

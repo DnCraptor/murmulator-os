@@ -1,5 +1,5 @@
 # murmulator-os
-Murmulator OS v.0.3.0<br/>
+Murmulator OS v.0.3.1<br/>
 
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
@@ -144,6 +144,7 @@ TEMP - specify a folder with temporary files<br/>
 
 # Boot-loader mode
 If uf2 application was started from M-OS, and such application is not designed for M-OS, it is possible to return to M-OS only via reboot:<br/>
+Press [F10] (DPAD [START]+[SELECT]) and hold on the Murmulator reset or power-on, in this case uf2 application will be repaired you will return to last saved on Flash.<br/>
 Press [F11] or [SPACE] (DPAD [SELECT]) and hold on the Murmulator reset or power-on, in this case uf2 application startup will be skip and you will return to the M-OS. And in case DPAD [B] button is also hold, it automounts SD-Cart as USB-drive.<br/>
 Press [F12] or [ENTER] (DPAD [START]) and hold on the Murmulator reset or power-on, in case you want to start USB-drive mode prior starting M-OS.<br/>
 Press [TAB] (DPAD [A]) and hold on the Murmulator reset or power-on, in case you want to replace default output by seconday driver.<br/>
