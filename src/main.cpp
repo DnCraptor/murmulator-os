@@ -301,6 +301,14 @@ static kbd_state_t* process_input_on_boot() {
     kbd_state_t* ks = get_kbd_state();
     for (int a = 0; a < 20; ++a) {
         uint8_t sc = ks->input & 0xFF;
+        if ( (nespad_state & DPAD_START) && (nespad_state & DPAD_SELECT) || (sc ==0x44) /*F10*/ ) {
+            if (FR_OK == f_mount(&fs, SD, 1)) {
+                FIL f;
+                link_firmware(&f, "unknown");
+            }
+            watchdog_enable(1, false);
+            while(1);
+        }
         // F12 or ENTER or START Boot to USB FIRMWARE UPDATE mode
         if ((nespad_state & DPAD_START) || (sc == 0x58) /*F12*/ || (sc == 0x1C) /*ENTER*/) {
             if (FR_OK == f_mount(&fs, SD, 1)) {

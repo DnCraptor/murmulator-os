@@ -120,6 +120,12 @@ void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offse
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
+void link_firmware(FIL* pf, const char* pathname) {
+    f_open(pf, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
+    fgoutf(pf, "%s\n", pathname);
+    f_close(pf);
+}
+
 bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     FILINFO* pfi = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
     FIL* pf = (FIL*)pvPortMalloc(sizeof(FIL));
@@ -166,9 +172,7 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
     f_close(pf);
     if (boot_replaced) {
         goutf("Write FIRMWARE MARKER '%s' to '%s'\n", pathname, FIRMWARE_MARKER_FN);
-        f_open(pf, FIRMWARE_MARKER_FN, FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_WRITE);
-        fgoutf(pf, "%s\n", pathname);
-        f_close(pf);
+        link_firmware(pf, pathname);
         goutf("Reboot is required!\n");
         reboot_is_requested = true;
         while(true) ;

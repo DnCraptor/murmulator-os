@@ -14,6 +14,7 @@ extern "C" {
 void reboot_me(void);
 bool load_firmware(char* pathname);
 void run_app(char * name);
+void link_firmware(FIL* pf, const char* pathname);
 
 bool is_new_app(cmd_ctx_t* ctx);
 bool run_new_app(cmd_ctx_t* ctx);
