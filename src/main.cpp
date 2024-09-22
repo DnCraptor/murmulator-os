@@ -324,6 +324,7 @@ static kbd_state_t* process_input_on_boot() {
                     usb_on_boot();
                 }
                 unlink_firmware(); // return to M-OS
+                break;
             }
         } else if (sc == 0x47 /*HOME*/ && FR_OK == f_mount(&fs, SD, 1)) {
             usb_on_boot();
@@ -356,6 +357,7 @@ static kbd_state_t* process_input_on_boot() {
                     break;
 #endif
             }
+            break;
         }
         // DPAD B start with VGA, if default is TV
         if ((nespad_state & DPAD_B)) {
@@ -389,6 +391,7 @@ static kbd_state_t* process_input_on_boot() {
                     break;
 #endif
             }
+            break;
         }
         sleep_ms(30);
         nespad_read();
