@@ -26,6 +26,7 @@ static uint8_t PANEL_LAST_Y, F_BTN_Y_POS, CMD_Y_POS, LAST_FILE_LINE_ON_PANEL_Y;
 #define TOTAL_SCREEN_LINES MAX_HEIGHT
 static char* line;
 
+static bool reboot_requested;
 static volatile uint32_t lastCleanableScanCode;
 static volatile uint32_t lastSavedScanCode;
 static bool hidePannels = false;
@@ -535,7 +536,7 @@ static void mark_to_exit(uint8_t cmd) {
     f_write(&f, "F10", 3, &bw);
     f_close(&f);
     mark_to_exit_flag = true;
-    reboot_me();
+    reboot_requested = true;
 }
 
 static void m_info(uint8_t cmd) {
@@ -1736,10 +1737,7 @@ inline static void start_manager(cmd_ctx_t* ctx) {
 
 int main(void) {
     cmd_ctx_t* ctx = get_cmd_ctx();
-//    if (ctx->argc == 0) {
-//        fprintf(ctx->std_err, "ATTTENTION! BROKEN EXECUTION CONTEXT [%p]!\n", ctx);
-//        return -1;
-//    }
+    reboot_requested = false;
     MAX_WIDTH = get_console_width();
     MAX_HEIGHT = get_console_height();
     F_BTN_Y_POS = TOTAL_SCREEN_LINES - 1;
@@ -1803,5 +1801,8 @@ int main(void) {
     free(left_panel);
     free(pcs);
     delete_string(s_cmd);
+    if (reboot_requested) {
+        reboot_me();
+    }
     return 0;
 }
