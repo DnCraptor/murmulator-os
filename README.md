@@ -10,7 +10,7 @@ Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/
 <br/>
 # This Archive
 Extract MOS folder to your SD-Card to /MOS folder.<br/>
-[Обзор на русском](https://habr.com/ru/articles/840052/)
+[РћР±Р·РѕСЂ РЅР° СЂСѓСЃСЃРєРѕРј](https://habr.com/ru/articles/840052/)
 <br/>
 # Optional
 There are several extra features supported, like external PSRAM and/or DAC, are availbel on more featured Murmulator versions.<br/>
