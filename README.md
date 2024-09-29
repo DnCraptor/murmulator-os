@@ -1,24 +1,25 @@
 # murmulator-os
-Murmulator OS v.0.3.1<br/>
-
+Murmulator OS v.0.3.2<br/>
+<br/>
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
 Sources are "in-progress" state and testing now only on Murmulator devboard with VGA/HDMI/TV(RGB) output.<br/>
 Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme<br/>
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
 ![VGA OR hdmi](./assets/vga_hdmi.jpg)
-
+<br/>
 # This Archive
-Extract MOS folder to your SD-Card to /MOS folder.
-
+Extract MOS folder to your SD-Card to /MOS folder.<br/>
+[Обзор на русском](https://habr.com/ru/articles/840052/)
+<br/>
 # Optional
 There are several extra features supported, like external PSRAM and/or DAC, are availbel on more featured Murmulator versions.<br/>
 Let use translate from russian on https://murmulator.ru/types site, for case you want to get more info.
-
+<br/>
 # Current state
 RP2040 core 0: starts FreeRTOS (based on https://github.com/FreeRTOS/FreeRTOS-Community-Supported-Demos/tree/3d475bddf7ac8af425da67cdaa2485e90a57a881/CORTEX_M0%2B_RP2040) <br/>
 RP2040 core 1: starts VGA/HDMI/TV(RGB) driver (based on Murmulator comunity version last used before in https://github.com/xrip/pico-launcher)
-
+<br/>
 # MOS build hints:
  - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
  - update TinyUSB in your SDK ("C:\Program Files\Raspberry Pi\Pico SDK v1.5.1\pico-sdk\lib\tinyusb") to version: cfbdc44a8d099240ad5ef208bd639487c2f28153    branch 'master' of https://github.com/hathach/tinyusb<br/>
@@ -30,7 +31,7 @@ in/arm-none-eabi-gcc" "-DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/arm-none-eabi-g++"
   - /path/to/tinyusb-0.16.0/hw/bsp -> /path/to/murmulator-os/include/bsp<br/>
   - /path/to/tinyusb-0.16.0/hw/mcu -> /path/to/murmulator-os/include/mcu<br/>
  - for GUI VSCode build mode do not miss to set build Configuration to use "GCC 10.3.1. arm-none-eabi" and "MinSizeRel"<br/>
-
+<br/>
 # MOS applications build hints:
  - use SDK 1.5.1 https://github.com/raspberrypi/pico-setup-windows/releases<br/>
  - ignore linker (ld) errors<br/>

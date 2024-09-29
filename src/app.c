@@ -164,6 +164,10 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         already_written += FLASH_SECTOR_SIZE;
         uint32_t pcts = already_written * 100 / expected_to_write_size;
         if (pcts > 100) pcts = 100;
+        if (flash_target_offset >= 0xFFF00) {
+            fgoutf(get_stdout(), "Unexpected offset: %ph (%d%%). Breaking the process...\n", flash_target_offset, pcts);
+            break;
+        }
         fgoutf(get_stdout(), "Erase and write to flash, offset: %ph (%d%%)\n", flash_target_offset, pcts);
         flash_block(buffer, flash_target_offset);
         flash_target_offset = next_flash_target_offset;
