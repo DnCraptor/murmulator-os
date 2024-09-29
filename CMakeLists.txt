@@ -178,7 +178,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         WAV_IN_PIO=22
 
-        I2S_SOUND
+        #I2S_SOUND
 
         PWM_PIN0=26
         PWM_PIN1=27
