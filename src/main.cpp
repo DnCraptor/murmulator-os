@@ -301,6 +301,9 @@ static kbd_state_t* process_input_on_boot() {
     kbd_state_t* ks = get_kbd_state();
     for (int a = 0; a < 20; ++a) {
         uint8_t sc = ks->input & 0xFF;
+        if ( sc == 1 /* Esc */) {
+            break;
+        }
         if ( (nespad_state & DPAD_START) && (nespad_state & DPAD_SELECT) || (sc ==0x44) /*F10*/ ) {
             if (FR_OK == f_mount(&fs, SD, 1)) {
                 FIL f;
