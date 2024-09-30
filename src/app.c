@@ -86,7 +86,7 @@ void __not_in_flash_func(flash_block)(uint8_t* buffer, size_t flash_target_offse
     while (n) {
         to_flash_rec_t* rec = (to_flash_rec_t*)n->data;
         if (flash_target_offset >= rec->offset && flash_target_offset < rec->offset + FLASH_SECTOR_SIZE) {
-            goutf(
+            fgoutf(get_stdout(),
                 "WARN: Attempt to use already allocated flash block: [%p]-[%p] (rejected)\n",
                  flash_target_offset,
                  flash_target_offset + FLASH_SECTOR_SIZE
@@ -164,7 +164,7 @@ bool __not_in_flash_func(load_firmware_sram)(char* pathname) {
         already_written += FLASH_SECTOR_SIZE;
         uint32_t pcts = already_written * 100 / expected_to_write_size;
         if (pcts > 100) pcts = 100;
-        if (flash_target_offset >= 0xFFF00) {
+        if (flash_target_offset == 0xFFFF00) {
             fgoutf(get_stdout(), "Unexpected offset: %ph (%d%%). Breaking the process...\n", flash_target_offset, pcts);
             break;
         }
