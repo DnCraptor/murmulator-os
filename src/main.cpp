@@ -291,10 +291,89 @@ static void info(bool with_sd) {
     );
 }
 
-static void usb_on_boot() {
+void usb_on_boot() {
     usb_driver(true);
    	vTaskStartScheduler();
     for(;;) { vTaskDelay(10); }
+}
+
+void caseF10(void) {
+            if (FR_OK == f_mount(&fs, SD, 1)) {
+                FIL f;
+                link_firmware(&f, "unknown");
+            }
+            watchdog_enable(1, false);
+            while(1);
+}
+
+void caseF12(void) {
+            if (FR_OK == f_mount(&fs, SD, 1)) {
+                unlink_firmware();
+            }
+            reset_usb_boot(0, 0);
+            while(1);
+}
+
+void selectDRV1(void) {
+            switch(DEFAULT_VIDEO_DRIVER) {
+                case VGA_DRV:
+                    #ifdef HDMI
+                        drv = HDMI_DRV;
+                    #else
+                    #ifdef TV
+                        drv = RGB_DRV;
+                    #endif
+                    #endif
+                    break;
+                #ifdef HDMI
+                case HDMI_DRV:
+                    drv = VGA_DRV;
+                    break;
+                #endif
+                #ifdef TV
+                case RGB_DRV:
+                    drv = VGA_DRV;
+                    break;
+                #endif
+                #ifdef SOFTTV
+                case SOFTTV_DRV:
+                    drv = VGA_DRV;
+                    break;
+                #endif
+            }
+}
+
+void selectDRV2(void) {
+            switch(DEFAULT_VIDEO_DRIVER) {
+                case VGA_DRV:
+                    #ifdef HDMI
+                        drv = HDMI_DRV;
+                    #else
+                        #ifdef TV
+                            drv = RGB_DRV;
+                        #endif
+                    #endif
+                    break;
+                #ifdef HDMI
+                case HDMI_DRV:
+                    drv = VGA_DRV;
+                    break;
+                #endif
+                #ifdef TV
+                case RGB_DRV:
+                    #ifdef HDMI
+                        drv = HDMI_DRV;
+                    #else
+                        drv = VGA_DRV;
+                    #endif
+                    break;
+                #endif
+                #ifdef SOFTTV
+                case SOFTTV_DRV:
+                    drv = HDMI_DRV;
+                    break;
+                #endif
+            }
 }
 
 static kbd_state_t* process_input_on_boot() {
@@ -305,20 +384,11 @@ static kbd_state_t* process_input_on_boot() {
             break;
         }
         if ( (nespad_state & DPAD_START) && (nespad_state & DPAD_SELECT) || (sc ==0x44) /*F10*/ ) {
-            if (FR_OK == f_mount(&fs, SD, 1)) {
-                FIL f;
-                link_firmware(&f, "unknown");
-            }
-            watchdog_enable(1, false);
-            while(1);
+            caseF10();
         }
         // F12 or ENTER or START Boot to USB FIRMWARE UPDATE mode
         if ((nespad_state & DPAD_START) || (sc == 0x58) /*F12*/ || (sc == 0x1C) /*ENTER*/) {
-            if (FR_OK == f_mount(&fs, SD, 1)) {
-                unlink_firmware();
-            }
-            reset_usb_boot(0, 0);
-            while(1);
+            caseF12();
         }
         // F11 or SPACE or SELECT unlink prev uf2 firmware
         if ((nespad_state & DPAD_SELECT) || (sc == 0x57) /*F11*/  || (sc == 0x39) /*SPACE*/) {
@@ -334,66 +404,12 @@ static kbd_state_t* process_input_on_boot() {
         }
         // DPAD A/TAB start with HDMI, if default is VGA, and vice versa
         if ((nespad_state & DPAD_A) || (sc == 0x0F) /*TAB*/) {
-            switch(DEFAULT_VIDEO_DRIVER) {
-                case VGA_DRV:
-#ifdef HDMI
-                    drv = HDMI_DRV;
-#else
-#ifdef TV
-                    drv = RGB_DRV;
-#endif
-#endif
-                    break;
-#ifdef HDMI
-                case HDMI_DRV:
-                    drv = VGA_DRV;
-                    break;
-#endif
-#ifdef TV
-                case RGB_DRV:
-                    drv = VGA_DRV;
-                    break;
-#endif
-#ifdef SOFTTV
-                case SOFTTV_DRV:
-                    drv = VGA_DRV;
-                    break;
-#endif
-            }
+            selectDRV1();
             break;
         }
         // DPAD B start with VGA, if default is TV
         if ((nespad_state & DPAD_B)) {
-            switch(DEFAULT_VIDEO_DRIVER) {
-                case VGA_DRV:
-#ifdef HDMI
-                    drv = HDMI_DRV;
-#else
-#ifdef TV
-                    drv = RGB_DRV;
-#endif
-#endif
-                    break;
-#ifdef HDMI
-                case HDMI_DRV:
-                    drv = VGA_DRV;
-                    break;
-#endif
-#ifdef TV
-                case RGB_DRV:
-#ifdef HDMI
-                    drv = HDMI_DRV;
-#else
-                    drv = VGA_DRV;
-#endif
-                    break;
-#endif
-#ifdef SOFTTV
-                case SOFTTV_DRV:
-                    drv = HDMI_DRV;
-                    break;
-#endif
-            }
+            selectDRV2();
             break;
         }
         sleep_ms(30);
