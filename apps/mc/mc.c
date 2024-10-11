@@ -1492,7 +1492,12 @@ inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
 
 inline static void cmd_backspace() {
     if (s_cmd->size == 0) {
-        blimp(10, 5);
+        if (!psp->level || hidePannels) {
+            blimp(10, 5);
+            return;
+        }
+        handle_home_pressed();
+        enter_pressed();
         return;
     }
     string_resize(s_cmd, s_cmd->size - 1);
