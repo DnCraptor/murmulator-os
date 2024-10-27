@@ -1006,6 +1006,8 @@ static int m_comp_bdd(const void* pe1, const void* pe2) {
     return strcmp(e1->s_name->p, e2->s_name->p);
 }
 
+/// TODO: use swap/psram
+// TODO: associations
 static void collect_files(file_panel_desc_t* p) {
     static __compar_fn_t comp_fn[] = {
         m_comp_bna,
