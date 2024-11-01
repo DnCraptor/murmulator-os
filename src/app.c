@@ -191,8 +191,9 @@ bool load_firmware(char* pathname) {
     FILINFO* pfileinfo = pvPortMalloc(sizeof(FILINFO));
     f_stat(pathname, pfileinfo);
     size_t sz = (size_t)(pfileinfo->fsize & 0xFFFFFFFF);
-    if ((flash_size - (124l << 10)) < (sz >> 1)) { // TODO: free, ...
-        goutf("ERROR: Firmware too large (%dK)! Canceled!\n", (sz >> 11));
+    size_t max = (flash_size - (124l << 10));
+    if (max < (sz >> 1)) { // TODO: free, ...
+        goutf("ERROR: Firmware too large: %dK (%dK max) Canceled!\n", (sz >> 11), (max >> 10));
         vPortFree(pfileinfo);
         return false;
     }
