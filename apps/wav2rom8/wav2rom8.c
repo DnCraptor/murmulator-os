@@ -83,17 +83,9 @@ inline static const info_desc_t* get_info_desc(const char info[4]) {
     return NULL;
 }
 
-inline static void hex(const char* buf, UINT rb, FIL* fc, wav_t* w) {
-    unsigned inc = 1;
-    unsigned sb = 0;
-    if (w->byte_per_sample == 2) { // downshift to use only higher 8-bits
-        inc = 2;
-        sb = 1;
-    }
-    if (w->ch == 2) inc *= 2; // only firsh channel
-    if (w->freq == 44100) inc *= 2; // resampling to 22050
+inline static void hex(const char* buf, UINT rb, FIL* fc) {
     for (unsigned i = 0; i < rb; i += 16) {
-        for (unsigned j = sb; j < 16; j += inc) {
+        for (unsigned j = 0; j < 16; ++j) {
             if (j + i < rb) {
                 fprintf(fc, "0x%02X, ", buf[i + j]);
             } else {
@@ -134,8 +126,8 @@ void process_wav_file(const char* dn, const char* fn, FIL* fh) {
         fprintf(ctx->std_err, "Unsupported file format: '%s' (WAVEfmt is expected)\n", buf);
         goto e1;
     }
-    if (w->h_size != 18) {
-        fprintf(ctx->std_err, "WARN: header size: %d (18 is expected)\n", w->h_size);
+    if (w->h_size != 18 && w->h_size != 16) {
+        fprintf(ctx->std_err, "Unsupported header size: %d (16 or 18 are expected)\n", w->h_size);
         goto e1;
     }
 
@@ -166,7 +158,53 @@ void process_wav_file(const char* dn, const char* fn, FIL* fh) {
         goto e1;
     }
 
-    f_lseek(&f, 44);
+    if (w->h_size == 18) {
+        f_lseek(&f, 44);
+    } else {
+
+    printf("   data chunk id: %c%c%c%c\n", w->data[0], w->data[1], w->data[2], w->data[3]);
+    printf(" data chunk size: %d (%d KB)\n"
+           " --- \n", w->subchunk_size, w->subchunk_size >> 10);
+
+    if (strncmp(w->data, "LIST", 4) == 0) {
+        char* sch = (char*)malloc(w->subchunk_size);
+        size_t size;
+        if (f_read(f, sch, w->subchunk_size, &size) != FR_OK || size != w->subchunk_size) {
+            fprintf(ctx->std_err, "Unexpected end of file: '%s'\n");
+            free(sch);
+            goto e1;
+        }
+        INFO_t* ch = sch;
+        if (strncmp(ch->INFO, "INFO", 4) != 0) {
+            fprintf(ctx->std_err, "Unexpected LIST section in the file: '%s'\n");
+            hex(sch, w->subchunk_size, ctx->std_err);
+            free(sch);
+            goto e1;
+        }
+        size_t off = sizeof(INFO_t);
+        while (off < w->subchunk_size) {
+            info_t* ch = (info_t*)(sch + off);
+            size_t sz = ch->size;
+            printf(" info chunk size: %d\n", sz);
+            const info_desc_t* info_desc = get_info_desc(ch->info_id);
+            if (!info_desc) {
+                printf("   info chunk id: %c%c%c%c (Unknown tag)\n", ch->info_id[0], ch->info_id[1], ch->info_id[2], ch->info_id[3]);
+            } else {
+                printf("   info chunk id: %s (%s)\n", info_desc->FORB, info_desc->desc);
+            }
+            off += sizeof(info_t);
+            if (sz > 0) {
+                char* s = sch + off;
+                printf(" info chunk text: %s\n --- \n", s);
+                off += sz;
+                while (!*(sch + off)) ++off;
+            }
+            if ((off < w->subchunk_size)) printf("...\n");
+            break; // TODO: why it hangs? on next one?
+        }
+        free(sch);
+    }
+    }
 
     snprintf(ofn, 128, "%s.c", fn);
     snprintf(vn, 128, "_%s", fn);
@@ -176,6 +214,7 @@ void process_wav_file(const char* dn, const char* fn, FIL* fh) {
         if (*b == ' ') *b = '_';
         if (*b == '/') *b = '_';
         if (*b == '\\') *b = '_';
+        if (*b == '-') *b = '_';
         b++;
     }
 
@@ -192,7 +231,39 @@ void process_wav_file(const char* dn, const char* fn, FIL* fh) {
         if (f_read(f, buf, 256, &sz) != FR_OK || !sz) {
             break;
         }
-        hex(buf, sz, fc, w);
+        if (w->ch == 2) {
+            if (w->byte_per_sample == 4) { // Stereo i16, join channels, reduce to i8
+                sz >>= 2;
+                int16_t* i16 = (int16_t*)buf;
+                for (size_t i = 0; i < sz; ++i) {
+                    register size_t j = i << 1;
+                    buf[i] = ((int32_t)(i16[j]) + i16[j + 1]) >> 9;
+                }
+            }
+            else if (w->byte_per_sample == 2) { // Stereo i8, join channels
+                sz >>= 1;
+                for (size_t i = 0; i < sz; ++i) {
+                    register size_t j = i << 1;
+                    buf[i] = ((int16_t)(buf[j]) + buf[j + 1]) >> 1;
+                }
+            }
+        } else {
+            if (w->byte_per_sample == 2) { // Mono i16, reduce to i8
+                sz >>= 1;
+                int16_t* i16 = (int16_t*)buf;
+                for (size_t i = 0; i < sz; ++i) {
+                    buf[i] = i16[i] >> 8;
+                }
+            }
+            // else Mono i8 (already target)
+        }
+        if (w->freq == 44100) { // resampling to 22050
+            sz >>= 1;
+            for (size_t i = 0; i < sz; ++i) {
+                buf[i] = buf[i << 1];
+            }
+        }
+        hex(buf, sz, fc);
     }
 
     snprintf(buf, 256, "};\n", vn);
