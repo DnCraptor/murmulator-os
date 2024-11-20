@@ -1,3 +1,6 @@
+#ifndef M_OS_API_FF
+#define M_OS_API_FF
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -302,3 +305,5 @@ static int fseek (FIL *stream, long offset, int origin) {
 #define fclose(f) f_close(f)
 #define feof(f) f_eof(f)
 #define remove(f) f_unlink(f)
+
+#endif

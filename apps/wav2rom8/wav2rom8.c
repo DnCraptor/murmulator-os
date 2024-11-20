@@ -231,6 +231,26 @@ void process_wav_file(const char* dn, const char* fn, FIL* fh) {
         if (f_read(f, buf, 256, &sz) != FR_OK || !sz) {
             break;
         }
+        int16_t* i16 = (int16_t*)buf;
+        if (w->ch == 2) {
+            if (w->byte_per_sample == 4) { // Stereo i16, join channels
+                sz >>= 1;
+                for (size_t i = 0; i < sz / 2; ++i) {
+                    register size_t j = i << 1;
+                    i16[i] = ((int32_t)(i16[j]) + i16[j + 1]) >> 1;
+                }
+            }
+            else if (w->byte_per_sample == 2) { // Stereo i8, join channels
+             /// ???
+            }
+        }
+        if (w->freq == 44100) { // resampling to 22050
+            sz >>= 1;
+            for (size_t i = 0; i < sz / 2; ++i) {
+                i16[i] = i16[i << 1];
+            }
+        }
+#if 0
         if (w->ch == 2) {
             if (w->byte_per_sample == 4) { // Stereo i16, join channels, reduce to i8
                 sz >>= 2;
@@ -263,6 +283,7 @@ void process_wav_file(const char* dn, const char* fn, FIL* fh) {
                 buf[i] = buf[i << 1];
             }
         }
+    #endif
         hex(buf, sz, fc);
     }
 
