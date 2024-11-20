@@ -342,6 +342,9 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     __aeabi_d2uiz, // 256
     // API v.24
     powf, // 257
+    // API v.25
+    __clzsi2, // 258
+    __aeabi_lmul, // 259
     // TODO:
     0
 };

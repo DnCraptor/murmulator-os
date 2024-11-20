@@ -141,6 +141,14 @@ unsigned __aeabi_d2uiz(double x) {
     typedef unsigned (*fn)(double);
     return ((fn)_sys_table_ptrs[256])(x);
 }
+int __clzsi2 (unsigned int a ) {
+    typedef int (*fn)(unsigned int);
+    return ((fn)_sys_table_ptrs[258])(a);
+}
+long long __aeabi_lmul(long long x, long long y) {
+    typedef long long (*fn)(long long, long long);
+    return ((fn)_sys_table_ptrs[259])(x, y);
+}
 
 #ifdef __cplusplus
 }

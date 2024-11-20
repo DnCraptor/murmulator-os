@@ -57,3 +57,5 @@ extern int __aeabi_dcmpeq(double, double);
 extern double __aeabi_ui2d(unsigned);
 extern int __aeabi_dcmplt(double, double);
 extern unsigned __aeabi_d2uiz(double);
+extern long long __aeabi_lmul(long long, long long);
+extern  int __clzsi2 (unsigned int a );
