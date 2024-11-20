@@ -18,8 +18,9 @@
 #define WORKING_SIZE        16000
 #define RAM_BUFFER_LENGTH   6000
 
-int16_t d_buff[RAM_BUFFER_LENGTH];
-unsigned char working[WORKING_SIZE];
+static int16_t d_buff[RAM_BUFFER_LENGTH];
+static unsigned char working[WORKING_SIZE];
+static char buf[128];
 
 int main(void) {
     marked_to_exit = false;
@@ -28,13 +29,12 @@ int main(void) {
         fprintf(ctx->std_err, "Usage: mp3wav [file.mp3] [file.wav]\n");
         return 1;
     }
-    char buf[128];
     char* source = ctx->argv[1];
     char* target = buf;
     if (ctx->argc == 3) {
         target = ctx->argv[2];
     } else {
-        snprintf(target, 128, "%s.wav");
+        snprintf(target, 128, "%s.wav", source);
     }
 
     printf("In: %s, Out: %s\n", source, target);
