@@ -543,7 +543,7 @@ static bool waveFileCheck(music_file* mf)
     // Check for "RIFF"
     if (val32 != 0x46464952)
     {
-        printf("Not RIFF file: %c%c%c%c\n", ((char *)&val32)[0], ((char *)&val32)[1], ((char *)&val32)[2], ((char *)&val32)[3]);
+        STATUS(("Not RIFF file: %c%c%c%c\n", ((char *)&val32)[0], ((char *)&val32)[1], ((char *)&val32)[2], ((char *)&val32)[3]));
         return false;
     }
 

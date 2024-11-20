@@ -65,8 +65,91 @@ int main(void) {
 
     printf("Sample rate: %u Channels: %u\n", sample_rate, num_channels);
 
+    // Write the wav header to the output file
+    writeWavHeader(&outfile, sample_rate, num_channels);
+
+    // loop through all of the data
+    bool success = true;
+    uint32_t num_samples = 0;
+    UINT written = 0;
+    uint32_t read = 0;
+
+    int32_t start_time; 
+    int32_t end_time;
+    int32_t diff_time;
+    int32_t total_dec_time = 0;
+
+    // If looping stop after 5 secs (off target) or 30 secs (On target)
+    int32_t stop_time = 
+#ifdef NO_LOOP
+                        999999;
+#else
+#ifdef OFF_TARGET
+                        5;
+#else
+                        30;
+#endif
+#endif
+
+    printf("Read start\n");
+
+    do
+    {
+        // Receive the blocks
+        start_time = ReadTimer();
+
+        success = musicFileRead(&mf, d_buff, RAM_BUFFER_LENGTH, &read);
+        end_time = ReadTimer();
+        diff_time = CalcTimeDifference(start_time, end_time);
+        total_dec_time += diff_time;
+
+        // Write any data received
+        if (success && read)
+        {
+            num_samples += read / num_channels;
+
+            if ((f_write(&outfile, d_buff, read * sizeof(int16_t), &written) != FR_OK) || (written != read * sizeof(int16_t)))
+            {
+                printf("Error in f_write\n");
+                success = false;
+            }
+        }
+        else
+        {
+            if (!success)
+            {
+                printf("Error in mp3FileRead\n");
+            }
+            else
+            {
+                printf("Read complete\n");
+            }
+        }
+    } while (success && read &&(total_dec_time / GetClockFrequency() < stop_time));
+    
+    if (success)
+    {
+        // update the file header of the output file
+        updateWavHeader(&outfile, num_samples, num_channels);
+    }
+
+    // Report the performance
+    float time_to_decode = (float)total_dec_time / GetClockFrequency();
+    float time_decoded = (float)num_samples / mf.sample_rate;
+    printf("Time to decode = %6.2f s. Decoded Length = %6.2f s. Ratio = %6.2f\n\n", 
+           time_to_decode,
+           time_decoded,
+           time_decoded / time_to_decode) ;
+
+    // Close the files
+    f_close(&outfile);
+    musicFileClose(&mf);
+
     return 0;
 }
+
+#define MPDEC_ALLOCATOR(x) malloc(x)
+#define SAFE_FREE(x) free(x)
 
 #include "timing.c"
 #include "bitstream.c"
