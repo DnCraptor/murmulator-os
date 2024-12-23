@@ -13,7 +13,9 @@ option(VGA "Enable VGA" ON)
 #option(ILI9341 "Enable TFT ILI9341 display" OFF)
 #option(FLASH_SIZE "Target Flash Size" 16384)
 
-set(VGA ON)
+#set(VGA ON)
+set(TFT ON)
+set(ILI9341 ON)
 
 if(NOT FLASH_SIZE)
 #set(FLASH_SIZE 2048)
@@ -45,7 +47,7 @@ add_subdirectory(drivers/nespad)
 add_subdirectory(drivers/psram)
 
 add_subdirectory(drivers/vga-nextgen)
-#add_subdirectory(drivers/st7789)
+add_subdirectory(drivers/st7789)
 add_subdirectory(drivers/hdmi)
 add_subdirectory(drivers/tv)
 add_subdirectory(drivers/tv-software)
@@ -178,7 +180,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         WAV_IN_PIO=22
 
-        #I2S_SOUND
+        I2S_SOUND
 
         PWM_PIN0=26
         PWM_PIN1=27
@@ -194,7 +196,6 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
         #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV
-        DEFAULT_VIDEO_DRIVER=VGA_DRV
         #DEFAULT_VIDEO_DRIVER=HDMI_DRV
         #DEFAULT_VIDEO_DRIVER=RGB_DRV
 
@@ -217,7 +218,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 IF (TFT)
     target_link_libraries(${PROJECT_NAME} PRIVATE st7789)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE TFT)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        TFT
+        DEFAULT_VIDEO_DRIVER=TFT_DRV
+    )
     SET(BUILD_NAME "${BUILD_NAME}-TFT")
     IF (ILI9341)
         SET(BUILD_NAME "${BUILD_NAME}-ILI9341")
@@ -226,7 +230,10 @@ IF (TFT)
         SET(BUILD_NAME "${BUILD_NAME}-ST7789")
     ENDIF ()
 ELSE ()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE VGA)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        VGA
+        DEFAULT_VIDEO_DRIVER=VGA_DRV
+    )
     target_link_libraries(${PROJECT_NAME} PRIVATE vga-nextgen)
     target_compile_definitions(${PROJECT_NAME} PRIVATE HDMI)
     target_link_libraries(${PROJECT_NAME} PRIVATE hdmi)

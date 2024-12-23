@@ -19,6 +19,7 @@
         "usb.h": "c",
         "m-os-api-c-list.h": "c",
         "rp2040_config.h": "c",
-        "app.h": "c"
+        "app.h": "c",
+        "st7789.h": "c"
     }
 }

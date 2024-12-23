@@ -10,6 +10,7 @@ extern "C" {
 
 #ifdef TFT
 #include "st7789.h"
+#define TFT_DRV 5
 #endif
 #ifdef HDMI
 #include "hdmi.h"

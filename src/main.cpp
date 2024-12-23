@@ -52,12 +52,20 @@ void __time_critical_func(render_core)() {
     // graphics_driver_t* gd = get_graphics_driver();
     // install_graphics_driver(gd);
     sem_acquire_blocking(&vga_start_semaphore);
+    uint64_t t1 = time_us_64();
     while(!reboot_is_requested) {
         pcm_call();
+#ifdef TFT
+        uint64_t t2 = time_us_64();
+        if (t2 - t1 > 20000ull) {
+            refresh_lcd();
+            t1 = t2;
+        }
+#endif
         tight_loop_contents();
     }
-    watchdog_enable(1, true);
-    while(true) ;
+    watchdog_enable(10, true);
+    while(true) sleep_ms(10) ;
     __unreachable();
 }
 
@@ -314,6 +322,7 @@ void caseF12(void) {
             while(1);
 }
 
+#ifndef TFT
 void selectDRV1(void) {
             switch(DEFAULT_VIDEO_DRIVER) {
                 case VGA_DRV:
@@ -375,6 +384,7 @@ void selectDRV2(void) {
                 #endif
             }
 }
+#endif
 
 static kbd_state_t* process_input_on_boot() {
     kbd_state_t* ks = get_kbd_state();
@@ -402,6 +412,7 @@ static kbd_state_t* process_input_on_boot() {
         } else if (sc == 0x47 /*HOME*/ && FR_OK == f_mount(&fs, SD, 1)) {
             usb_on_boot();
         }
+        #ifndef TFT
         // DPAD A/TAB start with HDMI, if default is VGA, and vice versa
         if ((nespad_state & DPAD_A) || (sc == 0x0F) /*TAB*/) {
             selectDRV1();
@@ -412,6 +423,7 @@ static kbd_state_t* process_input_on_boot() {
             selectDRV2();
             break;
         }
+        #endif
         sleep_ms(30);
         nespad_read();
     }
