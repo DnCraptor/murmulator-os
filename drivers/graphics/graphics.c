@@ -187,10 +187,10 @@ const static graphics_driver_t internal_stv_driver = {
 #ifdef TFT
 const static graphics_driver_t internal_tft_driver = {
     0, //ctx
-    vga_driver_init,
-    vga_cleanup,
-    vga_set_mode, // set_mode
-    vga_is_text_mode, // is_text
+    tft_init,
+    tft_cleanup,
+    tft_set_mode, // set_mode
+    tft_is_text_mode, // is_text
     get_tft_console_width,
     get_tft_console_height,
     get_tft_screen_width,

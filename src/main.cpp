@@ -57,7 +57,7 @@ void __time_critical_func(render_core)() {
         pcm_call();
 #ifdef TFT
         uint64_t t2 = time_us_64();
-        if (t2 - t1 > 20000ull) {
+        if (t2 - t1 > 100000ull) {
             refresh_lcd();
             t1 = t2;
         }

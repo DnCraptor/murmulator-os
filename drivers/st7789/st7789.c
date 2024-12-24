@@ -47,9 +47,10 @@ static uint graphics_buffer_height = 0;
 static int graphics_buffer_shift_x = 0;
 static int graphics_buffer_shift_y = 0;
 static uint8_t* screen_buff = 0;
+static bool lock_buffer = false;
 
 void tft_lock_buffer(bool b) {
-///    lock_buffer = b;
+    lock_buffer = b;
 }
 
 void set_vga_dma_handler_impl(dma_handler_impl_fn impl) {
@@ -61,19 +62,17 @@ void vga_dma_channel_set_read_addr(const volatile void* addr) {
 void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size) {
 
 }
-void vga_driver_init(void) {
-    tft_init();
-}
-void vga_cleanup(void) {
-///
+void tft_cleanup(void) {
+    if (!lock_buffer) vPortFree(screen_buff);
+    screen_buff = 0;
 }
 typedef enum graphics_mode_t {  // all 320*240
     TEXTMODE_DEFAULT = 0,
     TEXTMODE_53x30 = 0,
-    TEXTMODE_80x30 = 1,
-    GRAPHICSMODE_DEFAULT = 2,
-    GRAPHICS320x240x256 = 2,
-    GRAPHICS320x240x16 = 3,
+///    TEXTMODE_80x30 = 1,
+    GRAPHICSMODE_DEFAULT = 1,
+///    GRAPHICS320x240x256 = 2,
+//    GRAPHICS320x240x16 = 3,
 } graphics_mode_t;
 static graphics_mode_t graphics_mode = GRAPHICSMODE_DEFAULT;
 
@@ -112,7 +111,7 @@ void tft_set_bgcolor(const uint32_t color888) {
     /// TODO:
 }
 
-bool vga_set_mode(int mode) {
+bool tft_set_mode(int mode) {
     if (graphics_mode == mode) return true;
     font_width = 8;
     font_height = 16;
@@ -123,6 +122,7 @@ bool vga_set_mode(int mode) {
             text_buffer_height = 30;
             bitness = 16;
             break;
+            /**
         case TEXTMODE_80x30:
             text_buffer_width = 80;
             text_buffer_height = 30;
@@ -144,22 +144,26 @@ bool vga_set_mode(int mode) {
             font_height = 8;
             font_table = font_6x8;
             break;
+            */
         default:
-            return false;
+            text_buffer_width = 320;
+            text_buffer_height = 240;
+            bitness = 8;
+            font_width = 6;
+            font_height = 8;
+            font_table = font_6x8;
+            break;
     }
     if (screen_buff) {
-        free(screen_buff);
+        vPortFree(screen_buff);
     }
-    screen_buff = malloc((text_buffer_width * text_buffer_height * bitness) >> 3);
+    screen_buff = pvPortCalloc((text_buffer_width * text_buffer_height * bitness) >> 3, 1);
     graphics_mode = mode;
     /// TODO:
 }
-bool vga_is_mode_text(int mode) {
-    return mode < GRAPHICSMODE_DEFAULT;
-}
 
-bool vga_is_text_mode() {
-    return vga_is_mode_text(graphics_mode);
+bool tft_is_text_mode() {
+    return tft_is_mode_text(graphics_mode);
 }
 
 static const uint8_t init_seq[] = {
@@ -274,7 +278,7 @@ void create_dma_channel() {
 #define RGB888(r, g, b) ((((~r & 0xFF) >> 3) << 11) | (((~g & 0xFF) >> 2) << 5) | ((~b & 0xFF) >> 3))
 #endif
 
-static const uint16_t textmode_palette_tft[17] = {
+static const uint16_t textmode_palette_tft[16] = {
     //R, G, B
     RGB888(0x00, 0x00, 0x00), //black
     RGB888(0x00, 0x00, 0xC4), //blue
@@ -284,15 +288,14 @@ static const uint16_t textmode_palette_tft[17] = {
     RGB888(0xC4, 0x00, 0xC4), //magenta
     RGB888(0xC4, 0x7E, 0x00), //brown
     RGB888(0xC4, 0xC4, 0xC4), //light gray
-    RGB888(0xC4, 0xC4, 0x00), //yellow
+    RGB888(0x4E, 0x4E, 0x4E), //dark gray
     RGB888(0x4E, 0x4E, 0xDC), //light blue
     RGB888(0x4E, 0xDC, 0x4E), //light green
     RGB888(0x4E, 0xF3, 0xF3), //light cyan
     RGB888(0xDC, 0x4E, 0x4E), //light red
     RGB888(0xF3, 0x4E, 0xF3), //light magenta
-    RGB888(0xF3, 0xF3, 0x4E), //light yellow
+    RGB888(0xF3, 0xF3, 0x4E), //yellow
     RGB888(0xFF, 0xFF, 0xFF), //white
-    RGB888(0xFF, 0x7E, 0x00) //orange
 };
 
 void tft_init() {
@@ -409,6 +412,27 @@ void st7789_dma_pixels(const uint16_t* pixels, const uint num_pixels) {
 void __inline __scratch_y("refresh_lcd") refresh_lcd() {
     if (!screen_buff) return;
     switch (graphics_mode) {
+        case TEXTMODE_DEFAULT:
+            lcd_set_window(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+            start_pixels();
+            for (int y = 0; y < SCREEN_HEIGHT; y++) {
+                // TODO add auto adjustable padding?
+                st7789_lcd_put_pixel(pio, sm, 0x0000);
+                for (int x = 0; x < TEXTMODE_COLS; x++) {
+                    const uint16_t offset = (y / 8) * (TEXTMODE_COLS * 2) + x * 2;
+                    const uint8_t c = screen_buff[offset];
+                    const uint8_t colorIndex = screen_buff[offset + 1];
+                    const uint8_t glyph_row = font_6x8[c * 8 + y % 8]; /// TODO:
+                    for (uint8_t bit = 0; bit < 6; bit++) {
+                        st7789_lcd_put_pixel(pio, sm, textmode_palette_tft[(c && CHECK_BIT(glyph_row, bit))
+                                                                           ? colorIndex & 0x0F
+                                                                           : colorIndex >> 4 & 0x0F]);
+                    }
+                }
+                st7789_lcd_put_pixel(pio, sm, 0x0000);
+            }
+            stop_pixels();
+            break;
         case GRAPHICSMODE_DEFAULT: {
             lcd_set_window(graphics_buffer_shift_x, graphics_buffer_shift_y, graphics_buffer_width,
                            graphics_buffer_height);
@@ -436,7 +460,7 @@ void tft_set_cursor_color(uint8_t c) {
     cursor_color = c;
 }
 int tft_get_default_mode(void) {
-    return GRAPHICSMODE_DEFAULT;
+    return TEXTMODE_DEFAULT;
 }
 size_t tft_buffer_size() {
     if (!screen_buff) return 0;

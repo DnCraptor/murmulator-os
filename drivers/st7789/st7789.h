@@ -31,18 +31,13 @@
 #define TEXTMODE_COLS 53
 #define TEXTMODE_ROWS 30
 
-inline static void graphics_set_flashmode(bool flash_line, bool flash_frame) {
-    // dummy
-}
-
 typedef uint8_t* (*dma_handler_impl_fn)(void);
 void set_vga_dma_handler_impl(dma_handler_impl_fn impl);
 void vga_dma_channel_set_read_addr(const volatile void* addr);
 void set_vga_clkdiv(uint32_t pixel_clock, uint32_t line_size);
-void vga_driver_init(void);
-void vga_cleanup(void);
-bool vga_set_mode(int mode);
-bool vga_is_text_mode();
+void tft_cleanup(void);
+bool tft_set_mode(int mode);
+bool tft_is_text_mode();
 
 uint32_t get_tft_console_width();
 uint32_t get_tft_console_height(void);
