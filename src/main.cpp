@@ -418,6 +418,17 @@ static kbd_state_t* process_input_on_boot() {
     return ks;
 }
 
+static char* mount_os() {
+    if (FR_OK != f_mount(&fs, SD, 1)) {
+        return "SD Card not inserted or SD Card error!\nPls. insert it and reboot...\n";
+    }
+    FILINFO fno;
+    if (FR_OK != f_stat(ccmd, &fno)) {
+        return "/mos/cmd is not found!\nPls. copy MOS folder to your SDCARD...\n";
+    }
+    return 0;
+}
+
 static void init(void) {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -447,7 +458,8 @@ static void init(void) {
     // send kbd reset only after initial process passed
     keyboard_send(0xFF);
 
-    if (FR_OK == f_mount(&fs, SD, 1)) {
+    char* err = mount_os();
+    if (!err) {
         check_firmware();
     } else {
         startup_vga();
@@ -457,7 +469,7 @@ static void init(void) {
         init_psram();
         info(false);
         graphics_set_con_color(12, 0);
-        gouta("SD Card not inserted or SD Card error!\nPls. insert it and reboot...\n");
+        gouta(err);
         while (true) {
             nespad_read();
             int y = graphics_con_y();
