@@ -1,5 +1,5 @@
 # murmulator-os
-Murmulator OS v.0.3.3<br/>
+Murmulator OS v.0.3.5<br/>
 <br/>
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
