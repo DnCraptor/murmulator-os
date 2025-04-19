@@ -8,12 +8,16 @@ include(FreeRTOS_Kernel_import.cmake)
 project(murmulator-os C CXX ASM)
 pico_sdk_init()
 
-option(VGA "Enable VGA" ON)
-#option(TFT "Enable TFT display" OFF)
-#option(ILI9341 "Enable TFT ILI9341 display" OFF)
-#option(FLASH_SIZE "Target Flash Size" 16384)
+option(HDMI "Enable HDMI display" OFF)
+option(VGA "Enable VGA" OFF)
+option(TFT "Enable TFT display" OFF)
+option(ILI9341 "Enable TFT ILI9341 display" OFF)
+option(FLASH_SIZE "Target Flash Size" 16384)
+option(ZERO "RP2040-PiZero" OFF)
 
-set(VGA ON)
+#set(VGA ON)
+set(HDMI ON)
+set(ZERO ON)
 
 if(NOT FLASH_SIZE)
 #set(FLASH_SIZE 2048)
@@ -22,9 +26,13 @@ endif ()
 
 set(OS_FLASH_SIZE 128)
 
-set(MOS_VERSION "0.3.5-i2s")
+set(MOS_VERSION "0.3.5")
 
-SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
+if (ZERO)
+    SET(BUILD_NAME "z0p1-${PROJECT_NAME}-${MOS_VERSION}")
+else()
+    SET(BUILD_NAME "m1p1-${PROJECT_NAME}-${MOS_VERSION}")
+endif()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -130,7 +138,81 @@ target_compile_options(${PROJECT_NAME} PUBLIC
 )
 endif ()
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE
+if (ZERO)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        OVERCLOCKING=378
+        PICO_FLASH_SIZE_BYTES=16777216
+        ZERO=1
+
+        # do not touch last 512 bytes in RAM on launch app, say, no more RAM
+        RESERVED_RAM=512
+
+        # VGA 8 pins starts from pin:
+        VGA_BASE_PIN=22
+
+        # HDMI 8 pins starts from pin:
+        HDMI_BASE_PIN=22
+
+        # TFT
+        TFT_CS_PIN=22
+        TFT_RST_PIN=24
+        TFT_LED_PIN=25
+        TFT_DC_PIN=26
+        TFT_DATA_PIN=28
+        TFT_CLK_PIN=29
+
+        # SDCARD
+        SDCARD_PIN_SPI0_SCK=18
+        SDCARD_PIN_SPI0_MOSI=19
+        SDCARD_PIN_SPI0_MISO=20
+        SDCARD_PIN_SPI0_CS=21
+
+        # PS2 keyboard
+        KBD_CLOCK_PIN=0
+        KBD_DATA_PIN=1
+
+        PICO_DEFAULT_LED_PIN=4
+
+        # NES Gamepad
+        NES_GPIO_CLK=7
+        NES_GPIO_LAT=8
+        NES_GPIO_DATA=9
+        NES_GPIO_DATA2=10
+
+        PSRAM
+        # PSRAM_MUTEX=1
+        PSRAM_SPINLOCK=1
+        PSRAM_ASYNC=1
+
+        PSRAM_PIN_CS=11
+        PSRAM_PIN_SCK=12
+        PSRAM_PIN_MOSI=13
+        PSRAM_PIN_MISO=14
+
+        WAV_IN_PIO=17
+
+        #I2S_SOUND
+
+        PWM_PIN0=2
+        PWM_PIN1=3
+        BEEPER_PIN=15
+
+        #BOOT_DEBUG_ACC=0
+        #DEBUG_HEAP_SIZE=256
+        #DEBUG_VGA=1
+        #DEBUG_APP_LOAD=1
+        #CFG_TUSB_DEBUG=3
+
+        M_API_VERSION=25
+        MIN_API_VERSION=14
+        MOS_VERSION_STR="${MOS_VERSION}"
+        #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV
+        #DEFAULT_VIDEO_DRIVER=RGB_DRV
+
+        TESTS=0
+    )
+else ()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
         OVERCLOCKING=378
         PICO_FLASH_SIZE_BYTES=16777216
 
@@ -178,7 +260,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         WAV_IN_PIO=22
 
-        I2S_SOUND
+        #I2S_SOUND
 
         PWM_PIN0=26
         PWM_PIN1=27
@@ -194,13 +276,19 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
         #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV
-        DEFAULT_VIDEO_DRIVER=VGA_DRV
-        #DEFAULT_VIDEO_DRIVER=HDMI_DRV
         #DEFAULT_VIDEO_DRIVER=RGB_DRV
 
         TESTS=0
-)
+    )
+endif ()
 
+if (HDMI)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE DEFAULT_VIDEO_DRIVER=HDMI_DRV)
+elseif(VGA)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE DEFAULT_VIDEO_DRIVER=VGA_DRV)
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE DEFAULT_VIDEO_DRIVER=RGB_DRV)
+endif()
 
 pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
 math(EXPR CUSTOM_XIP_BASE "1024 * (${FLASH_SIZE} - ${OS_FLASH_SIZE}) + 0x10000000")
@@ -234,7 +322,13 @@ ELSE ()
     target_link_libraries(${PROJECT_NAME} PRIVATE tv)
    # target_compile_definitions(${PROJECT_NAME} PRIVATE SOFTTV)
    # target_link_libraries(${PROJECT_NAME} PRIVATE tv-software)
-    SET(BUILD_NAME "${BUILD_NAME}-VGA-HDMI-RGB")
+    if (HDMI)
+        SET(BUILD_NAME "${BUILD_NAME}-HDMI-VGA-RGB")
+    elseif(VGA)
+        SET(BUILD_NAME "${BUILD_NAME}-VGA-HDMI-RGB")
+    else()
+        SET(BUILD_NAME "${BUILD_NAME}-RGB-VGA-HDMI")
+    endif()
 ENDIF ()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${BUILD_NAME}")
