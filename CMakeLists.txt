@@ -140,7 +140,7 @@ endif ()
 
 if (ZERO)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
-        OVERCLOCKING=378
+        OVERCLOCKING=252
         PICO_FLASH_SIZE_BYTES=16777216
         ZERO=1
 
@@ -179,23 +179,23 @@ if (ZERO)
         NES_GPIO_DATA=9
         NES_GPIO_DATA2=10
 
-        PSRAM
+       # PSRAM
         # PSRAM_MUTEX=1
         PSRAM_SPINLOCK=1
         PSRAM_ASYNC=1
 
-        PSRAM_PIN_CS=11
-        PSRAM_PIN_SCK=12
-        PSRAM_PIN_MOSI=13
-        PSRAM_PIN_MISO=14
+        PSRAM_PIN_CS=2
+        PSRAM_PIN_SCK=3
+        PSRAM_PIN_MOSI=4
+        PSRAM_PIN_MISO=5
 
-        WAV_IN_PIO=17
+        WAV_IN_PIO=14
 
         #I2S_SOUND
 
-        PWM_PIN0=2
-        PWM_PIN1=3
-        BEEPER_PIN=15
+        BEEPER_PIN=11
+        PWM_PIN0=12
+        PWM_PIN1=13
 
         #BOOT_DEBUG_ACC=0
         #DEBUG_HEAP_SIZE=256
