@@ -14,10 +14,12 @@ option(TFT "Enable TFT display" OFF)
 option(ILI9341 "Enable TFT ILI9341 display" OFF)
 option(FLASH_SIZE "Target Flash Size" 16384)
 option(ZERO "RP2040-PiZero" OFF)
+option(PICO_PC "RP2040-PICO-PC" OFF)
 
 #set(VGA ON)
 set(HDMI ON)
-set(ZERO ON)
+#set(ZERO ON)
+set(PICO_PC ON)
 
 if(NOT FLASH_SIZE)
 #set(FLASH_SIZE 2048)
@@ -30,6 +32,8 @@ set(MOS_VERSION "0.3.5")
 
 if (ZERO)
     SET(BUILD_NAME "z0p1-${PROJECT_NAME}-${MOS_VERSION}")
+elseif (PICO_PC)
+    SET(BUILD_NAME "PCp1-${PROJECT_NAME}-${MOS_VERSION}")
 else()
     SET(BUILD_NAME "m1p1-${PROJECT_NAME}-${MOS_VERSION}")
 endif()
@@ -208,6 +212,69 @@ if (ZERO)
         MOS_VERSION_STR="${MOS_VERSION}"
         #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV
         #DEFAULT_VIDEO_DRIVER=RGB_DRV
+
+        TESTS=0
+    )
+ELSEIF(PICO_PC)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        OVERCLOCKING=378
+        PICO_FLASH_SIZE_BYTES=16777216
+
+        # do not touch last 512 bytes in RAM on launch app, say, no more RAM
+        RESERVED_RAM=512
+      
+        PICO_PC=1
+        # GP-5  UXT1-10
+        # GP-8  UXT1-6
+        # GP-9  UXT1-5
+        # GP-21 UXT1-4
+        # GP-20 UXT1-3
+
+        # QWST1 3/4 - GP2/3
+
+        # DBG1 1/2
+        KBD_CLOCK_PIN=0
+        KBD_DATA_PIN=1
+
+        WAV_IN_PIO=5 # UXT1-10
+
+        #I2S_SOUND
+
+        BEEPER_PIN=26
+        PWM_PIN0=27
+        PWM_PIN1=28
+
+        # SDCARD
+        SDCARD_PIN_SPI0_MISO=4
+        SDCARD_PIN_SPI0_SCK=6
+        SDCARD_PIN_SPI0_MOSI=7
+        SDCARD_PIN_SPI0_CS=22
+
+        #PSRAM           # not implemented
+        PSRAM_SPINLOCK=1 # not implemented
+        PSRAM_ASYNC=1    # not implemented
+
+        PSRAM_PIN_CS=3   # not implemented
+        PSRAM_PIN_SCK=3  # not implemented
+        PSRAM_PIN_MOSI=3 # not implemented
+        PSRAM_PIN_MISO=3 # not implemented
+
+        # NES Gamepad
+        USE_NESPAD
+        NES_GPIO_CLK=8    # UXT1-6
+        NES_GPIO_LAT=9    # UXT1-5
+        NES_GPIO_DATA=20  # UXT1-3
+        NES_GPIO_DATA2=21 # UXT1-4
+
+        # VGA 8 pins starts from pin:
+        VGA_BASE_PIN=12
+
+        # HDMI 8 pins starts from pin:
+        HDMI_BASE_PIN=12
+
+        M_API_VERSION=25
+        MIN_API_VERSION=14
+        MOS_VERSION_STR="${MOS_VERSION}"
 
         TESTS=0
     )
