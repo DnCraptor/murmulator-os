@@ -50,7 +50,7 @@ set(FAMILY rp2040)
 set(BOARD pico_sdk)
 
 add_subdirectory(drivers/audio)
-add_subdirectory(drivers/ps2)
+add_subdirectory(drivers/ps2kbd)
 add_subdirectory(drivers/fatfs)
 add_subdirectory(drivers/sdcard)
 add_subdirectory(drivers/nespad)
@@ -90,7 +90,7 @@ pico_set_program_version(${PROJECT_NAME} "${MOS_VERSION}")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         psram
-        ps2
+        ps2kbd
         sdcard
         fatfs
         nespad
@@ -113,6 +113,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
         tinyusb_board
         tinyusb_device
+        tinyusb_host
+
         FreeRTOS-Kernel
         FreeRTOS-Kernel-Heap4
         

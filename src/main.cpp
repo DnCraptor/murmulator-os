@@ -8,12 +8,15 @@
 #include <pico/multicore.h>
 #include <pico/stdlib.h>
 
+#include <bsp/board_api.h>
+#include "ps2kbd_mrmltr.h"
+
 #include "psram_spi.h"
 
 #include "graphics.h"
 
 extern "C" {
-#include "ps2.h"
+//#include "ps2.h"
 #include "ff.h"
 #include "usb.h"
 #include "FreeRTOS.h"
@@ -35,6 +38,16 @@ extern "C" {
 }
 
 #include "nespad.h"
+
+void __not_in_flash_func(process_kbd_report)(hid_keyboard_report_t const* report,
+                                             hid_keyboard_report_t const* prev_report) {
+}
+
+Ps2Kbd_Mrmltr ps2kbd(
+    pio1,
+    KBD_CLOCK_PIN,
+    process_kbd_report
+);
 
 extern "C" uint32_t flash_size;;
 
@@ -452,7 +465,8 @@ void init(void) {
     set_sys_clock_khz(overclocking, true);
     set_last_overclocking(overclocking);
 
-    keyboard_init();
+///    keyboard_init();
+    ps2kbd.init_gpio();
     nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     nespad_read();
     sleep_ms(50);
@@ -468,7 +482,7 @@ void init(void) {
 #endif
     kbd_state_t* ks = process_input_on_boot();
     // send kbd reset only after initial process passed
-    keyboard_send(0xFF);
+   /// keyboard_send(0xFF);
 
     char* err = mount_os();
     if (!err) {
@@ -497,6 +511,25 @@ void init(void) {
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
+extern "C" void vHidTask(void *pv) {
+    // 60 FPS loop
+#define frame_tick (16666)
+    uint64_t tick = time_us_64();
+    uint64_t last_input_tick = tick;
+    while (true) {
+        if (tick >= last_input_tick + frame_tick * 1) {
+            ps2kbd.tick();
+            ///nespad_tick();
+            last_input_tick = tick;
+        }
+        tick = time_us_64();
+        tuh_task();
+        //hid_app_task();
+        tight_loop_contents();
+    }
+    tight_loop_contents();
+}
+
 int main() {
     init();
     info(true);
@@ -504,6 +537,7 @@ int main() {
     f_mount(&fs, SD, 1);
 
     xTaskCreate(vCmdTask, "cmd", 1024/*x4=4096*/, NULL, configMAX_PRIORITIES - 1, NULL);
+    xTaskCreate(vHidTask, "HID", 1024/*x4=4096*/, NULL, configMAX_PRIORITIES - 1, NULL);
 
     setApplicationMallocFailedHookPtr(mallocFailedHandler);
     setApplicationStackOverflowHookPtr(overflowHook);
