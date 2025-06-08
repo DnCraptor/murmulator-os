@@ -254,7 +254,7 @@ static void startup_vga(void) {
     clrScr(0);
 }
 
-static void info(bool with_sd) {
+void info(bool with_sd) {
     uint32_t ram32 = 264 << 10;// get_cpu_ram_size();
     uint8_t rx[4];
     get_cpu_flash_jedec_id(rx);
@@ -376,7 +376,7 @@ void selectDRV2(void) {
             }
 }
 
-static kbd_state_t* process_input_on_boot() {
+kbd_state_t* process_input_on_boot() {
     kbd_state_t* ks = get_kbd_state();
     for (int a = 0; a < 20; ++a) {
         uint8_t sc = ks->input & 0xFF;
@@ -418,18 +418,30 @@ static kbd_state_t* process_input_on_boot() {
     return ks;
 }
 
-static char* mount_os() {
+char* mount_os() {
     if (FR_OK != f_mount(&fs, SD, 1)) {
         return "SD Card not inserted or SD Card error!\nPls. insert it and reboot...\n";
     }
     FILINFO fno;
-    if (FR_OK != f_stat(ccmd, &fno)) {
-        return "/mos/cmd is not found!\nPls. copy MOS folder to your SDCARD...\n";
+    if ((FR_OK != f_stat(ccmd, &fno)) || (fno.fattrib & AM_DIR)) {
+        return "/mos/cmd file is not found!\nPls. copy MOS folder to your SDCARD...\n";
     }
     return 0;
 }
 
-static void init(void) {
+void test_cycle(kbd_state_t* ks) {
+    while (true) {
+        nespad_read();
+        int y = graphics_con_y();
+        goutf("Scancodes tester: %Xh   \n", ks->input);
+        goutf("Joysticks' states: %02Xh %02Xh\n", nespad_state, nespad_state2);
+        sleep_ms(50);
+        graphics_set_con_pos(0, y);
+    }
+    __unreachable();
+}
+
+void init(void) {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
@@ -470,20 +482,13 @@ static void init(void) {
         info(false);
         graphics_set_con_color(12, 0);
         gouta(err);
-        while (true) {
-            nespad_read();
-            int y = graphics_con_y();
-            goutf("Scancodes tester: %Xh   \n", ks->input);
-            goutf("Joysticks' states: %02Xh %02Xh\n", nespad_state, nespad_state2);
-            sleep_ms(50);
-            graphics_set_con_pos(0, y);
-        }
+        test_cycle(ks);
+        __unreachable();
     }
 
     startup_vga();
     graphics_set_mode(graphics_get_default_mode());
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION, hardfault_handler);
-   
     load_config_sys();
     init_psram();
     show_logo(true);
@@ -495,6 +500,8 @@ static void init(void) {
 int main() {
     init();
     info(true);
+
+    f_mount(&fs, SD, 1);
 
     xTaskCreate(vCmdTask, "cmd", 1024/*x4=4096*/, NULL, configMAX_PRIORITIES - 1, NULL);
 

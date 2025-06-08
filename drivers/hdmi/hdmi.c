@@ -664,8 +664,12 @@ void hdmi_set_mode(int mode) {
             graphics_buffer_height = 240;
             bitness = 4;
             break;
-        default:
-            return false;
+        default: // override unexpected modes by 0 (TEXTMODE_53x30)
+            mode = TEXTMODE_53x30;
+            graphics_buffer_width = 53;
+            graphics_buffer_height = 30;
+            bitness = 16;
+            break;
     }
     graphics_mode = mode;
     pos_x = 0;

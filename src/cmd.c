@@ -240,22 +240,22 @@ bool exists(cmd_ctx_t* ctx) {
     }
     char* res = 0;
     char * cmd = ctx->argv[0];
-    // goutf("[%p] cmd: %s\n", ctx, cmd);
+    // goutf("[%p] cmd: `%s`\n", ctx, cmd);
     FILINFO* pfileinfo = (FILINFO*)pvPortMalloc(sizeof(FILINFO));
-    bool r = f_stat(cmd, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
+    bool r = (f_stat(cmd, pfileinfo) == FR_OK) && !(pfileinfo->fattrib & AM_DIR);
     if (r) {
         res = copy_str(cmd);
-        //goutf("res %s\n", res);
+        // goutf("res %s\n", res);
         goto r1;
     }
     res = create_and_test( get_ctx_var(ctx, "BASE"), cmd, pfileinfo);
     if (res) {
-        //goutf("B: %s\n", res);
+        // goutf("B: %s\n", res);
         goto r1;
     }
     res = create_and_test( get_ctx_var(ctx, "CD"), cmd, pfileinfo);
     if (res) {
-        //goutf("C: %s\n", res);
+        // goutf("C: %s\n", res);
         goto r1;
     }
     const char* path = get_ctx_var(ctx, "PATH");
@@ -265,12 +265,16 @@ bool exists(cmd_ctx_t* ctx) {
         while(e++ <= path + sz) {
             if (*e == ';' || *e == ':' || *e == ',' || *e == 0) {
                 res = concat2(path, e - path, cmd);
-                //goutf("path %s\n", res);
-                r = f_stat(res, pfileinfo) == FR_OK && !(pfileinfo->fattrib & AM_DIR);
-                if (r) goto r1;
+                // goutf("try path %s\n", res);
+                r = (f_stat(res, pfileinfo) == FR_OK) && !(pfileinfo->fattrib & AM_DIR);
+                if (r) {
+                    goto r1;
+                }
                 vPortFree(res);
                 res = 0;
-                if(!*e) goto r1;
+                if(!*e) {
+                    goto r1;
+                }
                 path = e;
                 sz = strlen(path);
             }
