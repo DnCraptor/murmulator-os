@@ -1216,8 +1216,8 @@ inline static uint8_t getbreakpin() { return 1; } /* we return 1 because the bre
 /* we need to do millis by hand except for RASPPI with wiring */
 #if !defined(POSIXWIRING)
 
-inline static unsigned long millis() { 
-  return timer_hw->timerawl / 1000;
+inline static unsigned long millis() {
+  return __aeabi_uldivmod(time_us_64(), 1000);
   /*
   struct timeb thetime;
   ftime(&thetime);
@@ -1227,7 +1227,7 @@ inline static unsigned long millis() {
 
 /* this is just a stub, only needed in fasttickerprofile */
 inline static unsigned long micros() {
-  return timer_hw->timerawl;
+  return time_us_64();
 }
 #endif
 

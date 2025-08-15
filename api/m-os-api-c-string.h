@@ -118,6 +118,9 @@ static void string_resize(string_t* s, size_t sz) {
     s->size = sz;
 }
 
+/// TODO: organize it
+void* memset(void* p, int v, size_t sz);
+
 static void string_insert_c(string_t* s, char c, size_t idx) {
     string_reseve(s, idx + 1);
     if (idx >= s->size) {

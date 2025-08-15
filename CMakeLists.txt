@@ -18,8 +18,8 @@ option(PICO_PC "RP2040-PICO-PC" OFF)
 
 #set(VGA ON)
 set(HDMI ON)
-#set(ZERO ON)
-set(PICO_PC ON)
+set(ZERO ON)
+#set(PICO_PC ON)
 
 if(NOT FLASH_SIZE)
 #set(FLASH_SIZE 2048)
@@ -363,7 +363,6 @@ message(STATUS "${CUSTOM_XIP_BASE}")
 target_compile_definitions(slower_boot2 PRIVATE CUSTOM_XIP_BASE=${CUSTOM_XIP_BASE})
 target_compile_definitions(slower_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)
 pico_set_boot_stage2(${PROJECT_NAME} slower_boot2)
-
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     FLASH_SIZE=${FLASH_SIZE}

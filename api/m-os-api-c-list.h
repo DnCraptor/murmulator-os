@@ -1,6 +1,10 @@
 #ifndef M_API_C_LIST
 #define M_API_C_LIST
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct node {
     struct node* prev;
     struct node* next;
@@ -18,6 +22,9 @@ typedef struct list {
     node_t* last;
     size_t size;
 } list_t;
+
+void* pvPortMalloc(size_t sz); // 32
+void vPortFree(void*); // 33
 
 static list_t* new_list_v(alloc_fn_ptr_t allocator, dealloc_fn_ptr_t deallocator, size_fn_ptr_t size_fn) {
     list_t* res = (list_t*)pvPortMalloc(sizeof(list_t));
@@ -142,5 +149,9 @@ static void list_erase_node(list_t* lst, node_t* n) {
     vPortFree(n);
     --lst->size;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -13,7 +13,7 @@ typedef struct array {
 
 inline static array_t* new_array_v(alloc_fn_ptr_t allocator, dealloc_fn_ptr_t deallocator, size_fn_ptr_t size_fn) {
     array_t* res = malloc(sizeof(array_t));
-    res->allocator = allocator ? allocator : malloc;
+    res->allocator = allocator ? allocator : (alloc_fn_ptr_t)malloc;
     res->deallocator = deallocator ? deallocator : free;
     res->size_fn = size_fn;
     res->alloc = 10 * sizeof(void*);
@@ -30,12 +30,15 @@ inline static void delete_array(array_t* arr) {
     free(arr);
 }
 
+/// TODO: organize it
+void* memcpy(void *__restrict dst, const void *__restrict src, size_t sz);
+
 inline static void array_reserve(array_t* arr, size_t sz) { // sz - in bytes
     if (sz <= arr->alloc)  return;
     uint8_t* p = malloc(sz);
     memcpy(p, arr->p, arr->alloc);
     free(arr->p);
-    arr->p = p;
+    *arr->p = p;
     arr->alloc = sz;
 }
 
@@ -52,7 +55,7 @@ inline static void* array_get_at(array_t* arr, size_t n) { // by element number
     return arr->p[n];
 }
 
-inline static void* array_resize(array_t* arr, size_t n) {
+inline static void array_resize(array_t* arr, size_t n) {
     if (n == arr->size) return;
     register size_t min_sz_bytes = (arr->size + 1) * sizeof(void*);
     if (min_sz_bytes > arr->alloc) {

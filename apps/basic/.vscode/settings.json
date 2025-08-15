@@ -13,6 +13,8 @@
         "m-os-api-math.h": "c",
         "m-os-api-sdtfn.h": "c",
         "setjmp.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "m-os-api-timer.h": "c",
+        "m-os-api-gpio.h": "c"
     }
 }
