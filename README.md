@@ -3,6 +3,7 @@ Murmulator OS v.0.3.5<br/>
 <br/>
 # Hardware needed
 Raspberry Pi Pico (RP2040)<br/>
+N.B. for Raspberry Pi Pico 2 (RP2350) let use other repo: https://github.com/DnCraptor/murmulator-os2
 Sources are "in-progress" state and testing now only on Murmulator devboard with VGA/HDMI/TV(RGB) output.<br/>
 Simplest Murmulator schema is availabele there: https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme<br/>
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
