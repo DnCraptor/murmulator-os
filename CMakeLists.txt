@@ -22,7 +22,7 @@ endif ()
 
 set(OS_FLASH_SIZE 128)
 
-set(MOS_VERSION "0.3.5-i2s")
+set(MOS_VERSION "0.3.6-i2s")
 
 SET(BUILD_NAME "${PROJECT_NAME}-${MOS_VERSION}")
 
