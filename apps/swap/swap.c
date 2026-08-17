@@ -1,5 +1,5 @@
 #include "m-os-api.h"
-#include <hardware/timer.h>
+#include "m-os-api-timer.h"
 
 int main() {
     marked_to_exit = false;
@@ -8,6 +8,25 @@ int main() {
     fgoutf(f, "SWAP size: %d bytes, base RAM at %ph (%d KB)\nPages index at %ph (for %d RAM pages, %d KB each one)\n",
               sz, swap_base(), swap_base_size() >> 10, swap_pages_base(), swap_pages(), swap_page_size() >> 10);
     if (!sz) return 0;
+    uint32_t page_size = swap_page_size();
+    if (sz >= page_size + 4) {
+        uint32_t address = page_size - 1;
+        ram_page_write16(address, 0xA55A);
+        if (ram_page_read16(address) != 0xA55A) {
+            fgoutf(f, "16-bit cross-page test failed at %ph\n", address);
+            return 1;
+        }
+        for (uint32_t shift = 1; shift <= 3; ++shift) {
+            address = page_size - shift;
+            uint32_t value = 0x10203040 | shift;
+            ram_page_write32(address, value);
+            if (ram_page_read32(address) != value) {
+                fgoutf(f, "32-bit cross-page test failed at %ph\n", address);
+                return 1;
+            }
+        }
+        fgoutf(f, "Cross-page access: OK\n");
+    }
     uint32_t a = 0;
     uint32_t begin = time_us_32();
     for (; a < sz && !marked_to_exit; ++a) {
@@ -18,13 +37,18 @@ int main() {
     double speed = __ddu32_div(__ddu32_mul(d, a), elapsed);
     fgoutf(f, "8-bit line write speed: %f MBps\n", speed);
     if (marked_to_exit) return 0;
+    uint32_t pages = swap_pages();
+    if (pages > 1 && !(swap_pages_base()[pages - 1] & 0x7FFF)) {
+        fgoutf(f, "Last cache page was not used\n");
+        return 1;
+    }
 
     begin = time_us_32();
     for (a = 0; a < sz && !marked_to_exit; ++a) {
         uint8_t b = ram_page_read(a);
         if ((a & 0xFF) != b) {
             fgoutf(f, "8-bit read failed at %ph (%02Xh)\n", a, b);
-            break;
+            return 1;
         }
     }
     elapsed = time_us_32() - begin;
@@ -46,7 +70,7 @@ int main() {
         uint16_t b = ram_page_read16(a);
         if ((a & 0xFFFF) != b) {
             fgoutf(f, "16-bit read failed at %ph (%04Xh)\n", a, b);
-            break;
+            return 1;
         }
     }
     elapsed = time_us_32() - begin;
@@ -68,7 +92,7 @@ int main() {
         uint32_t b = ram_page_read32(a);
         if (a != b) {
             fgoutf(f, "32-bit read failed at %ph (%ph)\n", a, b);
-            break;
+            return 1;
         }
     }
     elapsed = time_us_32() - begin;

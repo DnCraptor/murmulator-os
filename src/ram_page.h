@@ -18,5 +18,5 @@ void ram_page_write(uint32_t addr32, uint8_t value);
 void ram_page_write16(uint32_t addr32, uint16_t value);
 void ram_page_write32(uint32_t addr32, uint32_t value);
 
-void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz);
-void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz);
+bool read_vram_block(uint8_t* dst, uint32_t file_offset, uint32_t sz);
+bool flush_vram_block(const uint8_t* src, uint32_t file_offset, uint32_t sz);
