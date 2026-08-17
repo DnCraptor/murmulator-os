@@ -10,10 +10,11 @@ extern "C" {
 #endif
 
 #if !M_API_VERSION
-#define M_API_VERSION 25
+#define M_API_VERSION 26
 #endif
 
-#define M_OS_API_SYS_TABLE_BASE ((void*)(0x10000000ul + (16 << 20) - (4 << 10)))
+#define M_OS_API_SYS_TABLE_ADDRESS 0x10FFF000
+#define M_OS_API_SYS_TABLE_BASE ((void*)M_OS_API_SYS_TABLE_ADDRESS)
 static const unsigned long * const _sys_table_ptrs = (const unsigned long * const)M_OS_API_SYS_TABLE_BASE;
 
 #include <stdint.h>

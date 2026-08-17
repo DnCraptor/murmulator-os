@@ -1,5 +1,5 @@
 #include "m-os-api.h"
-#include <hardware/timer.h>
+#include "m-os-api-timer.h"
 
 volatile bool marked_to_exit;
 

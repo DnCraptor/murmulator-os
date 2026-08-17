@@ -46,6 +46,7 @@ extern int __aeabi_fcmpun(float, float); //         result (1, 0) denotes (?, <=
 extern int __aeabi_fcmpgt(float, float); //         result (1, 0) denotes (>, ?<=) [2], use for C >
 extern int __aeabi_dcmpge(double, double); //         result (1, 0) denotes (>=, ?<) [2], use for C >=
 extern unsigned __aeabi_uidiv(unsigned, unsigned );
+extern unsigned __aeabi_uidivmod(unsigned, unsigned);
 extern float __aeabi_ui2f(unsigned);
 extern unsigned __aeabi_f2uiz(float); //             float (single precision) to unsigned C-style conversion [3]
 extern int __aeabi_fcmple(float, float); //         result (1, 0) denotes (<=, ?>) [2], use for C <=
@@ -58,4 +59,6 @@ extern double __aeabi_ui2d(unsigned);
 extern int __aeabi_dcmplt(double, double);
 extern unsigned __aeabi_d2uiz(double);
 extern long long __aeabi_lmul(long long, long long);
-extern  int __clzsi2 (unsigned int a );
+extern unsigned long long __aeabi_uldivmod(unsigned long long, unsigned long long);
+extern long long __aeabi_ldivmod(long long, long long);
+extern int __clzsi2(unsigned int a);

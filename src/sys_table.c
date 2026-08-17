@@ -32,6 +32,12 @@
 
 FATFS* get_mount_fs(); // only one FS is supported foe now
 
+// Keep the legacy application time() semantics without pulling in libc time/RTC code.
+static unsigned m_api_time(unsigned ignored) {
+    (void)ignored;
+    return time_us_32();
+}
+
 // to cleanup BOOTA memory region on the MOS flashing
 unsigned long __in_boota() __aligned(4096) cleanup_boota[] = { 0 };
 
@@ -345,6 +351,14 @@ unsigned long __in_systable() __aligned(4096) sys_table_ptrs[] = {
     // API v.25
     __clzsi2, // 258
     __aeabi_lmul, // 259
+    // API v.26
+    gpio_put, // 260
+    m_api_time, // 261
+    time_us_32, // 262
+    time_us_64, // 263
+    __aeabi_uldivmod, // 264
+    __aeabi_uidivmod, // 265
+    __aeabi_ldivmod, // 266
     // TODO:
     0
 };

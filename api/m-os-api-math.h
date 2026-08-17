@@ -7,6 +7,66 @@
 extern "C" {
 #endif
 
+/*
+ * ARM EABI divmod helpers return both quotient and remainder in registers.
+ * A normal C wrapper describes only one return value and may discard the
+ * remainder unless the compiler happens to emit a tail call.  These tiny
+ * Thumb trampolines always branch to the kernel implementation and preserve
+ * the complete EABI result.
+ */
+#define _M_API_STRINGIFY_IMPL(x) #x
+#define _M_API_STRINGIFY(x) _M_API_STRINGIFY_IMPL(x)
+#define _M_API_ENTRY_ADDRESS(index) \
+    _M_API_STRINGIFY(M_OS_API_SYS_TABLE_ADDRESS + ((index) * 4))
+
+#define _M_API_DIVMOD32_THUNK(name, index) \
+__asm__( \
+    ".section .text." #name ", \"ax\", %progbits\n" \
+    ".balign 4\n" \
+    ".global " #name "\n" \
+    ".type " #name ", %function\n" \
+    ".thumb_func\n" \
+    #name ":\n" \
+    "ldr r2, 1f\n" \
+    "ldr r2, [r2]\n" \
+    "bx r2\n" \
+    ".balign 4\n" \
+    "1: .word " _M_API_ENTRY_ADDRESS(index) "\n" \
+    ".size " #name ", . - " #name "\n" \
+)
+
+#define _M_API_DIVMOD64_THUNK(name, index) \
+__asm__( \
+    ".section .text." #name ", \"ax\", %progbits\n" \
+    ".balign 4\n" \
+    ".global " #name "\n" \
+    ".type " #name ", %function\n" \
+    ".thumb_func\n" \
+    #name ":\n" \
+    "push {r4}\n" \
+    "mov r4, r3\n" \
+    "ldr r3, 1f\n" \
+    "ldr r3, [r3]\n" \
+    "mov r12, r3\n" \
+    "mov r3, r4\n" \
+    "pop {r4}\n" \
+    "bx r12\n" \
+    ".balign 4\n" \
+    "1: .word " _M_API_ENTRY_ADDRESS(index) "\n" \
+    ".size " #name ", . - " #name "\n" \
+)
+
+_M_API_DIVMOD32_THUNK(__aeabi_idivmod, 216);
+_M_API_DIVMOD32_THUNK(__aeabi_uidivmod, 265);
+_M_API_DIVMOD64_THUNK(__aeabi_uldivmod, 264);
+_M_API_DIVMOD64_THUNK(__aeabi_ldivmod, 266);
+
+#undef _M_API_DIVMOD64_THUNK
+#undef _M_API_DIVMOD32_THUNK
+#undef _M_API_ENTRY_ADDRESS
+#undef _M_API_STRINGIFY
+#undef _M_API_STRINGIFY_IMPL
+
 float __aeabi_fmul(float x, float y) { //         single-precision multiplication
     typedef float (*fn)(float, float);
     return ((fn)_sys_table_ptrs[210])(x, y);
@@ -37,10 +97,6 @@ int __aeabi_fcmpge(float a, float b) { //        result (1, 0) denotes (>=, ?<) 
     return ((fn)_sys_table_ptrs[215])(a, b);
 }
 
-int __aeabi_idivmod(int x, int y) {
-    typedef int (*fn)(int, int);
-    return ((fn)_sys_table_ptrs[216])(x, y);
-}
 int __aeabi_idiv(int x, int y) {
     typedef int (*fn)(int, int);
     return ((fn)_sys_table_ptrs[217])(x, y);
@@ -86,7 +142,7 @@ int __aeabi_dcmpge(double x, double y) { //         result (1, 0) denotes (>=, ?
     return ((fn)_sys_table_ptrs[227])(x, y);
 }
 unsigned __aeabi_uidiv(unsigned x, unsigned y) {
-    typedef int (*fn)(unsigned, unsigned);
+    typedef unsigned (*fn)(unsigned, unsigned);
     return ((fn)_sys_table_ptrs[228])(x, y);
 }
 float __aeabi_ui2f(unsigned x) {
@@ -100,10 +156,6 @@ unsigned __aeabi_f2uiz(float x) { //             float (single precision) to uns
 int __aeabi_fcmple(float x, float y) { //         result (1, 0) denotes (<=, ?>) [2], use for C <=
     typedef int (*fn)(float, float);
     return ((fn)_sys_table_ptrs[231])(x, y);
-}
-unsigned __aeabi_uidivmod(unsigned x, unsigned y) {
-    typedef int (*fn)(unsigned, unsigned);
-    return ((fn)_sys_table_ptrs[228])(x, y);
 }
 double __aeabi_dmul(double x, double y) {
     typedef double (*fn)(double, double);
@@ -121,20 +173,20 @@ double __aeabi_i2d(int x) {
     typedef double (*fn)(int);
     return ((fn)_sys_table_ptrs[248])(x);
 }
-double __aeabi_dcmpeq(double x, double y) {
-    typedef double (*fn)(double, double);
+int __aeabi_dcmpeq(double x, double y) {
+    typedef int (*fn)(double, double);
     return ((fn)_sys_table_ptrs[249])(x, y);
 }
 double __aeabi_ui2d(unsigned x) {
     typedef double (*fn)(unsigned);
     return ((fn)_sys_table_ptrs[250])(x);
 }
-double __aeabi_dcmplt(double x, double y) {
-    typedef double (*fn)(double, double);
+int __aeabi_dcmplt(double x, double y) {
+    typedef int (*fn)(double, double);
     return ((fn)_sys_table_ptrs[251])(x, y);
 }
-double __aeabi_dcmpgt(double x, double y) {
-    typedef double (*fn)(double, double);
+int __aeabi_dcmpgt(double x, double y) {
+    typedef int (*fn)(double, double);
     return ((fn)_sys_table_ptrs[251])(y, x);
 }
 unsigned __aeabi_d2uiz(double x) {

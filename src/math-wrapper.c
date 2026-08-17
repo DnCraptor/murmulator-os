@@ -54,7 +54,7 @@ double __sin (double a) {
     return sin(a);
 }
 double __cos (double a) {
-    return sin(a);
+    return cos(a);
 }
 double __tan (double a) {
     return tan(a);

@@ -190,7 +190,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #DEBUG_APP_LOAD=1
         #CFG_TUSB_DEBUG=3
 
-        M_API_VERSION=25
+        M_API_VERSION=26
         MIN_API_VERSION=14
         MOS_VERSION_STR="${MOS_VERSION}"
         #DEFAULT_VIDEO_DRIVER=SOFTTV_DRV
