@@ -1,4 +1,5 @@
 #include "m-os-api.h"
+#include "m-os-api-timer.h"
 
 const char TEMP[] = "TEMP";
 const char _mc_con[] = ".mc.con";
@@ -102,7 +103,7 @@ static void do_nothing(uint8_t cmd) {
         { -1, "Not yet implemented function" },
         { -1, line }
     };
-    const lines_t lines = { 2, 3, lns };
+    const lines_t lines = { sizeof(lns) / sizeof(lns[0]), 3, lns };
     draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Info", &lines);
     vTaskDelay(1500);
     redraw_window();
@@ -117,7 +118,7 @@ static void m_info(uint8_t cmd) {
         { 1, " It is Murmulator OS Editor" },
         { 1, " Just edit the file." }
     };
-    lines_t lines = { 2, 0, plns };
+    lines_t lines = { sizeof(plns) / sizeof(plns[0]), 0, plns };
     draw_box(pcs, 5, 2, MAX_WIDTH - 15, MAX_HEIGHT - 6, "Help", &lines);
     char c;
     do {
@@ -191,8 +192,8 @@ static fn_1_12_tbl_t fn_1_12_tbl_ctrl = {
     '1', '2', "      ", do_nothing
 };
 
-static inline fn_1_12_tbl_t* actual_fn_1_12_tbl() {
-    const fn_1_12_tbl_t * ptbl = &fn_1_12_tbl;
+static inline const fn_1_12_tbl_t* actual_fn_1_12_tbl() {
+    const fn_1_12_tbl_t* ptbl = &fn_1_12_tbl;
     if (altPressed) {
         ptbl = &fn_1_12_tbl_alt;
     } else if (ctrlPressed) {
@@ -201,15 +202,15 @@ static inline fn_1_12_tbl_t* actual_fn_1_12_tbl() {
     return ptbl;
 }
 
-static void draw_fn_btn(fn_1_12_tbl_rec_t* prec, int left, int top) {
+static void draw_fn_btn(const fn_1_12_tbl_rec_t* prec, int left, int top) {
     char line[10];
-    snprintf(line, MAX_WIDTH, "       ");
+    snprintf(line, sizeof(line), "       ");
     // 1, 2, 3... button mark
     line[0] = prec->pre_mark;
     line[1] = prec->mark;
     draw_text(line, left, top, pcs->FOREGROUND_F1_12_COLOR, pcs->BACKGROUND_F1_12_COLOR);
     // button
-    snprintf(line, MAX_WIDTH, prec->name);
+    snprintf(line, sizeof(line), "%s", prec->name);
     draw_text(line, left + 2, top, pcs->FOREGROUND_F_BTN_COLOR, pcs->BACKGROUND_F_BTN_COLOR);
 }
 
@@ -394,7 +395,7 @@ inline static void enter_pressed() {
     content_changed = true;
 }
 
-inline static fn_1_12_btn_pressed(uint8_t fn_idx) {
+inline static void fn_1_12_btn_pressed(uint8_t fn_idx) {
     if (fn_idx > 11) fn_idx -= 18; // F11-12
     (*actual_fn_1_12_tbl())[fn_idx].action(fn_idx);
 }
@@ -570,7 +571,15 @@ inline static void hide_pannels() {
 
 static inline void work_cycle(cmd_ctx_t* ctx) {
     uint8_t repeat_cnt = 0;
+    uint32_t cursor_tick = time_us_32();
+    bool cursor_hidden = false;
     for(;;) {
+        uint32_t now = time_us_32();
+        if (now - cursor_tick >= 500000) {
+            cursor_hidden = !cursor_hidden;
+            cursor_tick = now;
+            set_cursor_color(cursor_hidden ? 0 : 15);
+        }
         char c = getch_now();
         if (c) {
             if (c == CHAR_CODE_BS) cmd_backspace();
@@ -627,7 +636,7 @@ static inline void work_cycle(cmd_ctx_t* ctx) {
                repeat_cnt = 0;
             }
         }
-        register sc = lastCleanableScanCode;
+        register uint32_t sc = lastCleanableScanCode;
         if (sc == 0x01 || sc == 0x81) { // Esc
             // ?
         } else if ((sc >= 0x3B && sc <= 0x44) || sc == 0x57 || sc == 0x58 || sc == 0x49 || sc == 0x51 || sc == 0x1C || sc == 0x9C) { // F1..12 down,/..
@@ -665,7 +674,7 @@ static bool m_prompt(const char* txt) {
     const line_t lns[1] = {
         { -1, txt },
     };
-    const lines_t lines = { 1, 2, lns };
+    const lines_t lines = { sizeof(lns) / sizeof(lns[0]), 2, lns };
     size_t width = MAX_WIDTH > 60 ? 60 : 40;
     size_t shift = MAX_WIDTH > 60 ? 10 : 0;
     size_t x = (MAX_WIDTH - width) >> 1;
@@ -701,63 +710,80 @@ static bool m_prompt(const char* txt) {
     __builtin_unreachable;
 }
 
+static bool load_file_lines(const char* path) {
+    FIL* f = malloc(sizeof(FIL));
+    if (!f) return false;
+    if (FR_OK != f_open(f, path, FA_READ)) {
+        free(f);
+        return false;
+    }
+
+    string_t* s = new_string_v();
+    uint8_t buff[256];
+    bool ok = true;
+    for (;;) {
+        UINT br = 0;
+        if (FR_OK != f_read(f, buff, sizeof(buff), &br)) {
+            ok = false;
+            break;
+        }
+        if (!br) break;
+        for (UINT i = 0; i < br; ++i) {
+            char c = (char)buff[i];
+            if (c == '\r') continue;
+            if (c == '\n') {
+                list_push_back(lst, s);
+                s = new_string_v();
+            } else {
+                string_push_back_c(s, c);
+            }
+        }
+    }
+    f_close(f);
+    free(f);
+
+    if (!ok) {
+        delete_string(s);
+        return false;
+    }
+    // Do not lose an unterminated last line; do not add a phantom line after '\n'.
+    if (s->size || !list_count(lst)) {
+        list_push_back(lst, s);
+    } else {
+        delete_string(s);
+    }
+    return true;
+}
+
 inline static void start_editor(cmd_ctx_t* ctx) {
     lst = new_list_v(new_string_v, delete_string, string_size_bytes); // list of string_t*
     f_sz = 0;
     {
         FILINFO* fno = malloc(sizeof(FILINFO));
+        if (!fno) goto cleanup;
         if (FR_OK != f_stat(ctx->argv[1], fno) || (fno->fattrib & AM_DIR)) {
             free(fno);
             list_push_back(lst, new_string_v());
             goto nw; // assumed new file creation
         }
-        f_sz = fno->fsize;
+        FSIZE_t file_size = fno->fsize;
         free(fno);
-    }
-    size_t free_sz = xPortGetFreeHeapSize();
-    if (f_sz * 2 > free_sz) { // TODO: virtual RAM
-        char line[32];
-        snprintf(line, 16, "File size: %d", f_sz);
-        const line_t lns[2] = {
-            { -1, "Not enough SRAM for this operation" },
-            { -1, line }
-        };
-        const lines_t lines = { 2, 3, lns };
-        draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
-        vTaskDelay(1500);
-        return false;
-    }
-    char* buff;
-    {
-        FIL* f = malloc(sizeof(FIL));
-        if (FR_OK != f_open(f, ctx->argv[1], FA_READ)) {
-            free(f);
-            delete_list(lst);
-            return false;
+        size_t free_sz = xPortGetFreeHeapSize();
+        if (file_size > (FSIZE_t)(free_sz / 2)) { // TODO: virtual RAM
+            char line[32];
+            snprintf(line, sizeof(line), "File size: %u", (unsigned)file_size);
+            const line_t lns[2] = {
+                { -1, "Not enough SRAM for this operation" },
+                { -1, line }
+            };
+            const lines_t lines = { sizeof(lns) / sizeof(lns[0]), 3, lns };
+            draw_box(pcs, (MAX_WIDTH - 60) / 2, 7, 60, 10, "Error", &lines);
+            vTaskDelay(1500);
+            goto cleanup;
         }
-        buff = malloc(f_sz); // TODO: dynamic
-        UINT br;
-        if (FR_OK != f_read(f, buff, f_sz, &br) || br != f_sz) {
-            free(buff);
-            free(f);
-            delete_list(lst);
-            return false;
-        }
-        f_close(f);
-        free(f);
+        f_sz = (size_t)file_size;
     }
-    string_t* s = new_string_v();
-    for (size_t i = 0; i < f_sz; ++i) {
-        char c = buff[i];
-        if (c == '\r') continue;
-        if (c == '\n') {
-            list_push_back(lst, s);
-            s = new_string_v();
-        } else {
-            string_push_back_c(s, c);
-        }
-    }
-    free(buff);
+    if (!load_file_lines(ctx->argv[1])) goto cleanup;
 nw:
     m_window();
     bottom_line();
@@ -767,8 +793,10 @@ nw:
     if ( content_changed && m_prompt("Save it before exit?") ) {
         m_save(0);
     }
+cleanup:
     restore_console(ctx);
     delete_list(lst);
+    lst = NULL;
 }
 
 int main(void) {
