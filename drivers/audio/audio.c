@@ -65,7 +65,11 @@ void i2s_deinit(i2s_config_t *i2s_config) {
  */
 void i2s_init(i2s_config_t *i2s_config) {
 #ifndef AUDIO_PWM_PIN
-    uint8_t func=GPIO_FUNC_PIO1;    // TODO: GPIO_FUNC_PIO0 for pio0 or GPIO_FUNC_PIO1 for pio1
+    uint8_t func = GPIO_FUNC_PIO1;
+    if (i2s_config->pio == pio0) func = GPIO_FUNC_PIO0;
+#if NUM_PIOS > 2
+    else if (i2s_config->pio == pio2) func = GPIO_FUNC_PIO2;
+#endif
     gpio_set_function(i2s_config->data_pin, func);
     gpio_set_function(i2s_config->clock_pin_base, func);
     gpio_set_function(i2s_config->clock_pin_base + 1, func);
